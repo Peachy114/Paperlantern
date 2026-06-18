@@ -1,0 +1,48 @@
+# === Dependencies ===
+node_modules/
+vendor/
+
+# === Environment files ===
+.env
+.env.local
+.env.*.local
+.env.backup
+.env.production
+
+# === Laravel specific ===
+/server/storage/*.key
+/server/storage/app/*
+!/server/storage/app/.gitignore
+/server/storage/framework/cache/*
+!/server/storage/framework/cache/.gitignore
+/server/storage/framework/sessions/*
+!/server/storage/framework/sessions/.gitignore
+/server/storage/framework/views/*
+!/server/storage/framework/views/.gitignore
+/server/storage/logs/*
+!/server/storage/logs/.gitignore
+/server/bootstrap/cache/*
+!/server/bootstrap/cache/.gitignore
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+*.sqlite
+database.sqlite
+
+# === React / Vite specific ===
+/client/dist/
+/client/build/
+.vite/
+
+# === Logs ===
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# === Editor / OS junk ===
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
