@@ -1,0 +1,138 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\PublicWorkController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ChapterUnlockController;
+use App\Http\Controllers\Api\PayMongoWebhookController;
+use App\Http\Controllers\Api\WalletController;
+
+use App\Http\Controllers\Api\Studio\WorkController; // Story teller
+use App\Http\Controllers\Api\Studio\ChapterController;
+use App\Http\Controllers\Api\Studio\StickyNoteController;
+use App\Http\Controllers\Api\Studio\ViolationController;
+use App\Http\Controllers\Api\EarningsController;
+use App\Http\Controllers\Api\SuperAdmin\WithdrawalController;
+
+use App\Http\Controllers\Api\SuperAdmin\SuperAdminController; //Super admin
+use App\Http\Controllers\Api\SuperAdmin\ModerationController;
+use App\Http\Controllers\Api\SuperAdmin\AnnouncementController;
+
+
+
+// ── Public Auth ───────────────────────────────────────────────────────────────
+Route::prefix('auth')->group(function () {
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login',    [AuthController::class, 'login']);
+});
+
+
+// ── Public ────────────────────────────────────────────────────────────────────
+Route::prefix('public')->group(function () {
+    Route::get('/hero',            [PublicWorkController::class, 'hero']);
+    Route::get('/weekly-chart',    [PublicWorkController::class, 'weeklyChart']);
+    Route::get('/fresh-releases',  [PublicWorkController::class, 'freshReleases']);
+    Route::get('/latest-chapters', [PublicWorkController::class, 'latestChapters']);
+    Route::get('/announcements',    fn() => response()->json(app(\App\Services\AnnouncementService::class)->getByAudience('public')));
+
+    Route::post('/webhooks/paymongo', [PayMongoWebhookController::class, 'handle'])
+    ->withoutMiddleware(['auth:sanctum', \App\Http\Middleware\VerifyCsrfToken::class]);
+
+    Route::get('/search',                                [PublicWorkController::class, 'search']);
+    Route::get('/works/{work}',                          [PublicWorkController::class, 'showWork']);
+    Route::get('/works/{work}/chapters',                 [PublicWorkController::class, 'showChapters']);
+    Route::get('/works/{work}/chapters/{chapter}',       [PublicWorkController::class, 'showChapter']);
+    Route::get('/works/{work}/chapters/{chapter}/like-status', [PublicWorkController::class, 'getLikeStatus']);
+    Route::post('/works/{work}/chapters/{chapter}/like',       [PublicWorkController::class, 'toggleLike'])->middleware('auth:sanctum');
+    Route::post('/works/{work}/chapters/{chapter}/view',       [PublicWorkController::class, 'recordView']);
+
+    Route::get('/comics', [PublicWorkController::class, 'comics']);
+});
+
+// ── Authenticated (any role) ──────────────────────────────────────────────────
+Route::middleware(['auth:sanctum', 'banned'])->group(function () {
+    Route::prefix('auth')->group(function () {
+        Route::get('/me',          [AuthController::class, 'me']);
+        Route::post('/logout',     [AuthController::class, 'logout']);
+        Route::post('/logout-all', [AuthController::class, 'logoutAll']);
+    });
+        Route::post('/auth/become-creator', [AuthController::class, 'becomeCreator']);
+
+
+    // ── Wallet balance & history ──────────────────────────────────────────────────────
+    Route::get('/wallet',                     [WalletController::class, 'show']);
+    Route::get('/wallet/transactions',        [WalletController::class, 'transactions']);
+    // Credit packages & checkout
+    Route::get('/credits/packages',           [WalletController::class, 'packages']);
+    Route::post('/credits/checkout',          [WalletController::class, 'checkout']);
+    // Chapter unlock
+    Route::post('/chapters/{chapter}/unlock', [ChapterUnlockController::class, 'unlock']);
+
+
+
+    // ── Super Admin only ──────────────────────────────────────────────────────
+    Route::middleware('role:super_admin')->prefix('admin')->group(function () {
+        Route::get('dashboard',             [SuperAdminController::class, 'dashboard']);
+        Route::get('users',                 [SuperAdminController::class, 'users']);
+        Route::get('users/{user}',          [SuperAdminController::class, 'showUser']);
+        Route::put('users/{user}/ban',      [SuperAdminController::class, 'banUser']);
+        Route::put('users/{user}/unban',    [SuperAdminController::class, 'unbanUser']);
+        Route::delete('users/{user}',       [SuperAdminController::class, 'deleteUser']);
+        Route::delete('works/{work}',       [SuperAdminController::class, 'deleteWork']);
+        Route::get('chapters/{chapter}',    [SuperAdminController::class, 'viewChapter']);
+        Route::delete('chapters/{chapter}', [SuperAdminController::class, 'deleteChapter']);
+        Route::get('logs',                  [SuperAdminController::class, 'logs']);
+
+        Route::apiResource('announcements', AnnouncementController::class)->except(['show']);
+        Route::get('/withdrawals',                      [WithdrawalController::class, 'index']);
+        Route::put('/withdrawals/{withdrawal}/process', [WithdrawalController::class, 'process']);
+        Route::get('/earnings', [EarningsController::class, 'adminOverview']);
+
+        Route::prefix('moderation')->group(function () {
+            Route::get('/',                                      [ModerationController::class, 'index']);
+            Route::get('/violations',                            [ModerationController::class, 'violations']);
+            Route::get('/users/{user}/violations',               [ModerationController::class, 'userViolations']);
+
+            // Chapters
+            Route::get('/chapters/{chapter}',                    [ModerationController::class, 'show']);
+            Route::put('/chapters/{chapter}/approve',            [ModerationController::class, 'approve']);
+            Route::put('/chapters/{chapter}/violate',            [ModerationController::class, 'violate']);
+
+            // Works
+            Route::get('/works/{work}',                          [ModerationController::class, 'showWork']);
+            Route::put('/works/{work}/approve',                  [ModerationController::class, 'approveWork']);
+            Route::put('/works/{work}/violate',                  [ModerationController::class, 'violateWork']);
+
+            // Sticky Notes
+            Route::get('/sticky-notes/{note}',                   [ModerationController::class, 'showStickyNote']);
+            Route::put('/sticky-notes/{note}/approve',           [ModerationController::class, 'approveStickyNote']);
+            Route::put('/sticky-notes/{note}/violate',           [ModerationController::class, 'violateStickyNote']);
+        });
+    });
+
+    // ── Storyteller only ──────────────────────────────────────────────────────
+    Route::middleware('role:storyteller')->prefix('studio')->group(function () {
+        Route::apiResource('works',          WorkController::class);
+        Route::apiResource('works.chapters', ChapterController::class);
+
+        Route::get('/sticky-notes',                   [StickyNoteController::class, 'index']);
+        Route::post('/sticky-notes',                  [StickyNoteController::class, 'store']);
+        Route::patch('/sticky-notes/{note}/position', [StickyNoteController::class, 'updatePosition']);
+        Route::delete('/sticky-notes/{note}',         [StickyNoteController::class, 'destroy']);
+
+        Route::get('/announcements', fn() => response()->json(app(\App\Services\AnnouncementService::class)->getByAudience('studio')));
+        Route::get('/my-violations',            [ViolationController::class, 'myViolations']);
+
+        Route::get('/earnings',                 [EarningsController::class, 'show']);
+        Route::get('/earnings/history',         [EarningsController::class, 'history']);
+        Route::post('/earnings/withdraw',       [EarningsController::class, 'withdraw']);
+
+
+    });
+
+    // ── All readers ───────────────────────────────────────────────────────────
+    Route::middleware('role:wanderer,storyteller,super_admin')->group(function () {
+        // coming soon
+    });
+
+});
