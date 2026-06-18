@@ -86,14 +86,14 @@ export default function Welcome() {
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
 
         <div
-          className="relative z-10 w-full max-w-2xl border-[3px] border-foreground bg-[#fffdf5]/90 dark:bg-[#1e1b14]/90 backdrop-blur-sm overflow-hidden"
-          style={{ boxShadow: '7px 7px 0 var(--foreground)' }}
+          className="relative z-10 w-full max-w-2xl border-[3px] border-[#1a1a1a] bg-[#fffdf5]/90 dark:bg-[#1e1b14]/90 backdrop-blur-sm overflow-hidden"
+          style={{ boxShadow: '7px 7px 0 #1a1a1a' }}
         >
           <div className="absolute top-0 left-0 right-0 h-[4px]" style={{ background: 'linear-gradient(90deg, #e8a838 0%, #d97706 40%, #b45309 70%, #e8a838 100%)' }} />
 
-          <div className="flex items-center justify-between px-4 sm:px-5 py-2 bg-foreground mt-1">
+          <div className="flex items-center justify-between px-4 sm:px-5 py-2 bg-[#1a1a1a] dark:bg-[#2a2825] mt-1">
             <span className="text-[11px] tracking-[0.25em] text-[#f77c9b]" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>◆ PAPER LANTERN</span>
-            <span className="text-[10px] tracking-[0.18em] text-[#1a1a1a] bg-amber-400 px-2.5 py-0.5 border-2 border-foreground" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>ISSUE #01</span>
+            <span className="text-[10px] tracking-[0.18em] text-[#1a1a1a] bg-amber-400 px-2.5 py-0.5 border-2 border-[#1a1a1a]" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>ISSUE #01</span>
           </div>
 
           <div className="px-6 sm:px-8 pt-8 pb-7 text-center flex flex-col items-center gap-6">
@@ -112,22 +112,26 @@ export default function Welcome() {
                 transition={{ opacity: { duration: 0.4 }, scale: { duration: 0.4 }, rotate: { duration: 2.4, repeat: Infinity, ease: 'easeInOut', delay: 0.4 } }}
               >
                 <ellipse cx="40" cy="68" rx="22" ry="6" fill="currentColor" className="text-foreground/10" />
-                <path d="M22 40 Q18 18 32 16 L34 26 Q40 22 46 26 L48 16 Q62 18 58 40 Z" fill="currentColor" className="text-foreground" />
-                <circle cx="40" cy="44" r="22" fill="currentColor" className="text-foreground" />
+                <path d="M22 40 Q18 18 32 16 L34 26 Q40 22 46 26 L48 16 Q62 18 58 40 Z" fill="#f77c9b" />
+                <circle cx="40" cy="44" r="22" fill="#f77c9b" />
                 <circle cx="32" cy="42" r="3.2" fill="#fffdf5" />
                 <circle cx="48" cy="42" r="3.2" fill="#fffdf5" />
-                <circle cx="32" cy="42" r="1.3" fill="currentColor" className="text-foreground" />
-                <circle cx="48" cy="42" r="1.3" fill="currentColor" className="text-foreground" />
-                <path d="M36 50 Q40 54 44 50" stroke="#fffdf5" strokeWidth="2" fill="none" strokeLinecap="round" />
-                <ellipse cx="40" cy="47" rx="1.6" ry="1.2" fill="#f77c9b" />
-                <path d="M14 44 Q4 38 8 28" stroke="currentColor" className="text-foreground" strokeWidth="5" fill="none" strokeLinecap="round" />
+                <circle cx="32" cy="42" r="1.3" fill="#4b1528" />
+                <circle cx="48" cy="42" r="1.3" fill="#4b1528" />
+                <path d="M36 50 Q40 54 44 50" stroke="#4b1528" strokeWidth="2" fill="none" strokeLinecap="round" />
+                <ellipse cx="40" cy="47" rx="1.6" ry="1.2" fill="#4b1528" />
+                <path d="M14 44 Q4 38 8 28" stroke="#f77c9b" strokeWidth="5" fill="none" strokeLinecap="round" />
               </motion.svg>
             </div>
 
             <motion.div initial="hidden" animate="visible" variants={fadeUp} transition={{ duration: 0.5, delay: 0.3 }} className="relative mt-1">
-              <div className="absolute -top-[11px] left-5 w-0 h-0" style={{ borderLeft: '10px solid transparent', borderRight: '10px solid transparent', borderBottom: '11px solid var(--foreground)' }} />
-              <div className="absolute -top-[8px] left-[22px] w-0 h-0" style={{ borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderBottom: '9px solid #fff8e7' }} />
-              <div className="border-[2.5px] border-foreground bg-[#fff8e7] dark:bg-[#2a2518] px-5 sm:px-6 py-3" style={{ boxShadow: '3px 3px 0 var(--foreground)', borderRadius: '4px 18px 18px 18px' }}>
+              <div className="absolute -top-[11px] left-5 w-0 h-0" style={{ borderLeft: '10px solid transparent', borderRight: '10px solid transparent', borderBottom: '11px solid #1a1a1a' }} />
+              <div className="absolute -top-[8px] left-[22px] w-0 h-0 dark:hidden" style={{ borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderBottom: '9px solid #fff8e7' }} />
+              <div className="absolute -top-[8px] left-[22px] w-0 h-0 hidden dark:block" style={{ borderLeft: '8px solid transparent', borderRight: '8px solid transparent', borderBottom: '9px solid #2a2518' }} />
+              <div
+                className="bg-[#fff8e7] dark:bg-[#2a2518] px-5 sm:px-6 py-3"
+                style={{ border: '2.5px solid #1a1a1a', boxShadow: '3px 3px 0 #1a1a1a', borderRadius: '4px 18px 18px 18px' }}
+              >
                 <p className="text-[13px] sm:text-[14px] tracking-[0.04em] text-foreground dark:text-[#e8dfc8] leading-relaxed">
                   Welcome to PaperLantern 🏮<br/>
                   Grab a seat, the next chapter is just a page away.<br/>
@@ -141,7 +145,7 @@ export default function Welcome() {
                 href="/all-comics"
                 whileHover={{ x: -2, y: -2, boxShadow: '5px 5px 0 #e8a838' }}
                 whileTap={{ x: 2, y: 2, boxShadow: '1px 1px 0 #e8a838' }}
-                className="px-5 py-2.5 border-2 border-foreground bg-foreground text-[#f77c9b] text-[13px] tracking-[0.14em]"
+                className="px-5 py-2.5 border-2 border-foreground bg-[#1a1a1a] dark:bg-[#2a2825] text-[#f77c9b] text-[13px] tracking-[0.14em]"
                 style={{ boxShadow: '3px 3px 0 #e8a838', textDecoration: 'none' }}
               >
                 ▶ START READING
@@ -149,10 +153,10 @@ export default function Welcome() {
               <motion.a
                 href="/become-creator"
                 onClick={handleStartCreating}
-                whileHover={{ x: -2, y: -2, boxShadow: '5px 5px 0 var(--foreground)' }}
-                whileTap={{ x: 2, y: 2, boxShadow: '1px 1px 0 var(--foreground)' }}
+                whileHover={{ x: -2, y: -2, boxShadow: '5px 5px 0 #1a1a1a' }}
+                whileTap={{ x: 2, y: 2, boxShadow: '1px 1px 0 #1a1a1a' }}
                 className="px-5 py-2.5 border-2 border-foreground text-foreground text-[13px] tracking-[0.14em] bg-transparent"
-                style={{ boxShadow: '3px 3px 0 var(--foreground)', textDecoration: 'none' }}
+                style={{ boxShadow: '3px 3px 0 #1a1a1a', textDecoration: 'none' }}
               >
                 ☉ START CREATING
               </motion.a>
@@ -170,11 +174,11 @@ export default function Welcome() {
                   animate="visible"
                   variants={fadeUp}
                   transition={{ duration: 0.5, delay: 0.5 + i * 0.1 }}
-                  whileHover={{ x: -3, y: -3, boxShadow: '4px 4px 0 var(--foreground)' }}
-                  className={`relative border-[2.5px] border-foreground p-4 ${dark ? 'bg-foreground' : 'bg-[#fffdf5] dark:bg-[#1e1b14]'}`}
+                  whileHover={{ x: -3, y: -3, boxShadow: '4px 4px 0 #1a1a1a' }}
+                  className={`relative border-[2.5px] border-[#1a1a1a] p-4 ${dark ? 'bg-[#1a1a1a] dark:bg-[#3a342c]' : 'bg-[#fffdf5] dark:bg-[#1e1b14]'}`}
                 >
                   <div
-                    className="absolute -top-0.5 -right-0.5 border-2 border-foreground text-[10px] tracking-[0.1em] px-2 py-0.5"
+                    className="absolute -top-0.5 -right-0.5 border-2 border-[#1a1a1a] text-[10px] tracking-[0.1em] px-2 py-0.5"
                     style={{
                       background: accent,
                       color: accent === '#e8a838' ? '#412402' : '#4b1528',

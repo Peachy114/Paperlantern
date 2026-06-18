@@ -36,7 +36,7 @@ class PayMongoService
                             'name'     => $payload['description'],
                             'quantity' => 1,
                         ]],
-                        'payment_method_types' => ['card', 'gcash', "qrph"],
+                        'payment_method_types' => ["qrph"],
                         'success_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/credits/',
                         'cancel_url'  => env('FRONTEND_URL', 'http://localhost:5173') . '/credits',
                         'metadata'    => $payload['metadata'],

@@ -52,14 +52,14 @@ export default function ComicShow() {
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Kalam:wght@400;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
 
       <UnlockModal
-  open={unlockModal.open}
-  onClose={() => setUnlockModal(m => ({ ...m, open: false }))}
-  onConfirm={handleConfirmUnlock}
-  chapterTitle={unlockModal.chapterTitle}
-  creditsRequired={unlockModal.creditsRequired}
-  userBalance={wallet?.balance ?? 0}
-  unlocking={unlocking}
-/>
+        open={unlockModal.open}
+        onClose={() => setUnlockModal(m => ({ ...m, open: false }))}
+        onConfirm={handleConfirmUnlock}
+        chapterTitle={unlockModal.chapterTitle}
+        creditsRequired={unlockModal.creditsRequired}
+        userBalance={wallet?.balance ?? 0}
+        unlocking={unlocking}
+      />
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
 
         {/* ── Volume spine + cover block ── */}

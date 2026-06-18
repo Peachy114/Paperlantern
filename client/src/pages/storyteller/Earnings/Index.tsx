@@ -1,6 +1,6 @@
 // pages/storyteller/Earnings/Index.tsx
 import { useState } from 'react'
-import { useEarnings, useEarningHistory, requestWithdrawal, type EarningTransaction } from '@/hooks/useEarnings'
+import { useEarnings, useEarningHistory, requestWithdrawal, type EarningTransaction, type LatestWithdrawal } from '@/hooks/useEarnings'
 
 const PAYOUT_METHODS = ['gcash', 'maya', 'bank'] as const
 type PayoutMethod = typeof PAYOUT_METHODS[number]
@@ -15,6 +15,13 @@ const METHOD_PLACEHOLDER: Record<PayoutMethod, string> = {
   gcash: 'GCash number (e.g. 09171234567)',
   maya:  'Maya number (e.g. 09171234567)',
   bank:  'Bank name · Account number · Account name',
+}
+
+const STATUS_NOTE: Record<LatestWithdrawal['status'], { bg: string; text: string }> = {
+  pending:  { bg: '#fef08a', text: 'is being reviewed' },
+  approved: { bg: '#86efac', text: 'was approved — payout coming soon' },
+  rejected: { bg: '#fca5a5', text: 'was rejected' },
+  paid:     { bg: '#a5f3fc', text: 'was paid out' },
 }
 
 export default function EarningsIndex() {
@@ -105,7 +112,7 @@ export default function EarningsIndex() {
 
               <button
                 onClick={() => setShowWithdraw(true)}
-                disabled={!earnings?.can_withdraw}
+                disabled={!earnings?.can_withdraw || earnings?.latest_withdrawal?.status === 'pending'}
                 className="shrink-0 border-[2.5px] border-[#1a1a1a] dark:border-foreground text-[#1a1a1a] dark:text-foreground hover:bg-[#1a1a1a] hover:text-amber-400 dark:hover:bg-foreground dark:hover:text-background transition-colors duration-100 px-2.5 sm:px-4 py-1.5 sm:py-2 cursor-pointer text-[12px] sm:text-normal disabled:opacity-30 disabled:cursor-not-allowed"
                 style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.12em', boxShadow: '2px 2px 0 #1a1a1a' }}
               >
@@ -177,6 +184,24 @@ export default function EarningsIndex() {
               </span>
             </div>
 
+            {/* Latest withdrawal status note */}
+            {earnings?.latest_withdrawal && (
+              <div
+                className="px-3 sm:px-5 py-2.5 border-b-[2px] border-[#1a1a1a] flex items-center gap-2"
+                style={{ background: STATUS_NOTE[earnings.latest_withdrawal.status].bg + '40' }}
+              >
+                <span
+                  className="text-[10px] sm:text-xsmall text-[#1a1a1a] dark:text-foreground"
+                  style={{ fontFamily: "'Kalam', cursive" }}
+                >
+                  💸 Your ₱{Number(earnings.latest_withdrawal.amount_php).toFixed(2)} withdrawal {STATUS_NOTE[earnings.latest_withdrawal.status].text}.
+                  {earnings.latest_withdrawal.admin_notes && (
+                    <> <em>"{earnings.latest_withdrawal.admin_notes}"</em></>
+                  )}
+                </span>
+              </div>
+            )}
+
             {/* Transaction history header */}
             <div className="relative">
               <div className="hidden sm:block absolute left-10 top-0 bottom-0 w-[1.5px] bg-red-300/60 dark:bg-red-400/20 pointer-events-none z-10" />
@@ -221,7 +246,7 @@ export default function EarningsIndex() {
                 <div className="hidden sm:block absolute left-10 top-0 bottom-0 w-[1.5px] bg-red-300/60 dark:bg-red-400/20 pointer-events-none z-10" />
 
                 {/* Table header */}
-                <div className="hidden sm:grid grid-cols-[1fr_120px_100px_100px] gap-3 px-3 sm:pl-14 sm:pr-5 py-2 bg-[#f5f3ea] dark:bg-[#18160f] border-b border-[#1a1a1a]/10">
+                <div className="hidden sm:grid grid-cols-[1fr_120px_100px_100px] gap-3 px-3 sm:pl-14 sm:pr-5 py-2 bg-[#f5f3ea] dark:bg-[#18160f] border-b border-[#1a1a1a]/10 text-start">
                   {['Chapter', 'Reader', 'Credits', 'You Earned'].map((h) => (
                     <span
                       key={h}
@@ -241,14 +266,14 @@ export default function EarningsIndex() {
                     }`}
                   >
                     <span
-                      className="hidden sm:block absolute left-0 w-10 text-right pr-2.5 text-[#1a1a1a]/20 dark:text-foreground/20 text-xsmall"
+                      className="hidden sm:block absolute left-0 w-10 text-right pr-2.5 text-[#1a1a1a]/20 dark:text-foreground/20 text-xsmall "
                       style={{ fontFamily: "'Kalam', cursive" }}
                     >
                       {String(i + 1).padStart(2, '0')}
                     </span>
 
                     {/* Chapter */}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 text-start">
                       <div
                         className="text-[#1a1a1a] dark:text-foreground truncate text-[12px] sm:text-normal"
                         style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.05em' }}
@@ -265,7 +290,7 @@ export default function EarningsIndex() {
 
                     {/* Reader */}
                     <div
-                      className="hidden sm:block text-[#1a1a1a]/60 dark:text-foreground/60 text-xsmall truncate"
+                      className="hidden sm:block text-[#1a1a1a]/60 dark:text-foreground/60 text-xsmall truncate text-start"
                       style={{ fontFamily: "'Noto Serif', serif" }}
                     >
                       {tx.reader?.name ?? 'Reader'}
@@ -273,14 +298,14 @@ export default function EarningsIndex() {
 
                     {/* Credits spent */}
                     <div
-                      className="text-[#1a1a1a]/50 dark:text-foreground/50 text-xsmall"
+                      className="text-[#1a1a1a]/50 dark:text-foreground/50 text-xsmall text-start"
                       style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.08em' }}
                     >
                       {tx.credits_spent} cr
                     </div>
 
                     {/* Storyteller cut */}
-                    <div className="flex flex-col items-start sm:items-start">
+                    <div className="flex flex-col items-start sm:items-start text-start">
                       <span
                         className="text-green-700 dark:text-green-400 text-[13px] sm:text-normal"
                         style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.05em' }}

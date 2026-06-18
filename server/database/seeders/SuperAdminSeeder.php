@@ -16,7 +16,7 @@ class SuperAdminSeeder extends Seeder
                 'name'     => 'Paperlantern Admin',
                 'username' => 'admin',
                 'email'    => env('SUPER_ADMIN_EMAIL', 'admin@paperlantern.com'),
-                'password' => Hash::make(env('SUPER_ADMIN_PASSWORD', 'Admin@12345')),
+                'password' => Hash::make(env('SUPER_ADMIN_PASSWORD', 'MyCuteWebtoon@@')),
                 'role'     => 'super_admin',
             ]
         );

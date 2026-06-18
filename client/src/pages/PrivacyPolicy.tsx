@@ -272,7 +272,7 @@ export default function PrivacyPolicy() {
                   POLICY CHANGES
                 </p>
                 <p className="text-[#1a1a1a]/80 text-[12.5px] sm:text-[13.5px] leading-relaxed">
-                  If we make significant changes, we'll notify you via email or a banner on the site. Continued use of Paper Lantern after changes means you accept the updated policy. Questions? Contact us at <strong>privacy@paperlantern.app</strong>
+                  If we make significant changes, we'll notify you via email or a banner on the site. Continued use of Paper Lantern after changes means you accept the updated policy. Questions? Contact us at <strong>dev@devorbitstudio.com</strong>
                 </p>
                 <p
                   className="mt-3 text-[#1a1a1a]/40 text-[11px]"

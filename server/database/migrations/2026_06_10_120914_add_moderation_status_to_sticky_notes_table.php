@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('sticky_notes', function (Blueprint $table) {
             $table->string('moderation_status')
-                  ->default('pending_review')        // adjust 'after' to match your actual column order
+                  ->default('pending_review'); // adjust 'after' to match your actual column order
         });
     }
 

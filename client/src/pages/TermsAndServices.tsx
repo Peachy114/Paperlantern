@@ -75,7 +75,7 @@ const SECTIONS = [
       { text: 'All content you publish remains your intellectual property. Paper Lantern does not claim ownership of your comics or novels.', title: 'You Own Your Work', warn: false },
       { text: 'By publishing, you grant Paper Lantern a non-exclusive license to display, host, and distribute your work on the platform.', title: 'License to Display', warn: false },
       { text: 'You can unpublish or delete your work from your Studio at any time. Removal takes effect within 30 days.', title: 'Removing Your Work', warn: false },
-      { text: 'If you believe your copyrighted work was uploaded without permission, contact dmca@paperlantern.app with proof of ownership.', title: 'DMCA', warn: false },
+      { text: 'If you believe your copyrighted work was uploaded without permission, contact dev@devorbitstudio.com with proof of ownership.', title: 'DMCA', warn: false },
     ],
   },
   {
@@ -100,7 +100,7 @@ const SECTIONS = [
     items: [
       { text: "Paper Lantern reserves the right to update these terms at any time. Significant changes will be communicated via email or an on-site banner.", title: "We'll Notify You", warn: false },
       { text: 'Continuing to use Paper Lantern after an update means you accept the revised terms.', title: 'Continued Use', warn: false },
-      { text: 'For any questions about these terms, reach us at legal@paperlantern.app', title: 'Questions', warn: false },
+      { text: 'For any questions about these terms, reach us at dev@devorbitstudio.com', title: 'Questions', warn: false },
     ],
   },
 ]

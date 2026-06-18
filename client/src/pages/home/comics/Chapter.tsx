@@ -2,6 +2,11 @@ import { useRef, useState, useEffect } from 'react'
 import { usePublicChapterShow } from '@/hooks/usePublicChapterShow'
 import type { ChapterListItem } from '@/types/chapter'
 import Scroll from '@/components/ui/scroll'
+import { useWallet, unlockChapter } from '@/hooks/useWallet'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthStore } from '@/store/authStore'
+import { useModalStore } from '@/store/modalStore'
+import UnlockModal from '@/components/UnlockModalChapter'
 
 export default function ComicChapter() {
   const {
@@ -9,8 +14,21 @@ export default function ComicChapter() {
     workId, navigate, goTo, imageUrl, liked, likes, toggleLike
   } = usePublicChapterShow()
 
+  const { token } = useAuthStore()
+  const { openLogin } = useModalStore()
+  const { wallet, refetch: refetchWallet } = useWallet()
+  const queryClient = useQueryClient()
+
   const contentRef = useRef<HTMLDivElement>(null)
   const [showBottomNav, setShowBottomNav] = useState(false)
+  const [unlocking, setUnlocking] = useState(false)
+  const [unlockModal, setUnlockModal] = useState<{
+    open: boolean
+    chapterId: number | null
+    chapterTitle: string
+    creditsRequired: number
+    navigateTo: number | null
+  }>({ open: false, chapterId: null, chapterTitle: '', creditsRequired: 0, navigateTo: null })
 
   useEffect(() => {
     if (!contentRef.current) return
@@ -25,6 +43,37 @@ export default function ComicChapter() {
     return () => observer.disconnect()
   }, [chapter])
 
+  const openUnlockModal = (chapter: ChapterListItem, navigateTo: number) => {
+    if (!token) { openLogin(); return }
+    setUnlockModal({
+      open: true,
+      chapterId: chapter.id,
+      chapterTitle: chapter.title,
+      creditsRequired: chapter.credits_required ?? 0,
+      navigateTo,
+    })
+  }
+
+  const handleConfirmUnlock = async () => {
+    if (!unlockModal.chapterId) return
+    setUnlocking(true)
+    try {
+      const result = await unlockChapter(unlockModal.chapterId)
+      if (result.success) {
+        refetchWallet()
+        queryClient.invalidateQueries({ queryKey: ['chapter', String(workId)] })
+        setUnlockModal(m => ({ ...m, open: false }))
+        if (unlockModal.navigateTo) {
+          goTo(unlockModal.navigateTo)
+        }
+      }
+    } catch {
+      // error
+    } finally {
+      setUnlocking(false)
+    }
+  }
+
   const NavButtons = ({
     nextChapter,
     prevChapter,
@@ -33,11 +82,11 @@ export default function ComicChapter() {
     prevChapter: ChapterListItem | null
   }) => (
     <div className="flex items-center justify-between py-2.5 gap-2">
-
+      {/* PREV */}
       {prevId ? (
         prevChapter?.is_locked ? (
           <button
-            onClick={() => {/* open credits modal */}}
+            onClick={() => openUnlockModal(prevChapter, prevId)}
             className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 bg-amber-400 border-[2px] border-foreground text-[#1a1a1a] hover:-translate-x-px hover:-translate-y-px transition-transform duration-100 text-left"
             style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(11px, 3vw, 14px)', letterSpacing: '0.1em', boxShadow: '2px 2px 0 var(--foreground)' }}
           >
@@ -56,10 +105,11 @@ export default function ComicChapter() {
         <div />
       )}
 
+      {/* NEXT */}
       {nextId ? (
         nextChapter?.is_locked ? (
           <button
-            onClick={() => {/* open credits modal */}}
+            onClick={() => openUnlockModal(nextChapter, nextId)}
             className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 bg-amber-400 border-[2px] border-foreground text-[#1a1a1a] hover:-translate-x-px hover:-translate-y-px transition-transform duration-100 text-right"
             style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 'clamp(11px, 3vw, 14px)', letterSpacing: '0.1em', boxShadow: '2px 2px 0 var(--foreground)' }}
           >
@@ -77,7 +127,6 @@ export default function ComicChapter() {
       ) : (
         <div />
       )}
-
     </div>
   )
 
@@ -86,12 +135,20 @@ export default function ComicChapter() {
       <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Kalam:wght@400;700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
       <Scroll />
 
+      <UnlockModal
+        open={unlockModal.open}
+        onClose={() => setUnlockModal(m => ({ ...m, open: false }))}
+        onConfirm={handleConfirmUnlock}
+        chapterTitle={unlockModal.chapterTitle}
+        creditsRequired={unlockModal.creditsRequired}
+        userBalance={wallet?.balance ?? 0}
+        unlocking={unlocking}
+      />
+
       <div className="max-w-3xl mx-auto px-3 sm:px-4 py-5 sm:py-8" ref={contentRef}>
 
         {/* Header */}
         <div className="flex items-center justify-between pb-3 sm:pb-4 mb-4 sm:mb-5 border-b-[2.5px] border-[#1a1a1a] dark:border-foreground/40 gap-2">
-
-          {/* Back button */}
           <button
             onClick={() => navigate(`/comics/${workId}`)}
             className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -102,7 +159,6 @@ export default function ComicChapter() {
 
           <div className="w-px h-4 bg-foreground/20 shrink-0" />
 
-          {/* Title — center, truncated */}
           <div className="flex-1 min-w-0 text-center">
             <span
               className="text-amber-500 block"
@@ -119,14 +175,14 @@ export default function ComicChapter() {
           </div>
 
           <span
-            className=" text-muted-foreground/40 shrink-0 ml-2"
+            className="hidden sm:block text-muted-foreground/40 shrink-0 ml-2"
             style={{ fontFamily: "'Kalam', cursive", fontSize: '11px' }}
           >
             {new Date(chapter.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
         </div>
 
-        {/* Mobile date — below header */}
+        {/* Mobile date */}
         <div className="sm:hidden text-center mb-3">
           <span
             className="text-muted-foreground/40"
@@ -135,6 +191,9 @@ export default function ComicChapter() {
             {new Date(chapter.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
         </div>
+
+        {/* TOP NAV — always visible */}
+        {/* <NavButtons nextChapter={nextChapter} prevChapter={prevChapter} /> */}
 
         {/* Webtoon images */}
         {chapter.work_type === 'webtoon' && (
@@ -151,7 +210,7 @@ export default function ComicChapter() {
                   alt={`Page ${img.order + 1}`}
                   className="w-full block"
                   draggable={false}
-                  loading="eager" 
+                  loading="eager"
                 />
               ))
             )}
@@ -203,7 +262,7 @@ export default function ComicChapter() {
           </span>
         </div>
 
-        {/* Bottom nav */}
+        {/* BOTTOM NAV — only if page is long */}
         {showBottomNav && <NavButtons nextChapter={nextChapter} prevChapter={prevChapter} />}
 
         {/* Footer */}

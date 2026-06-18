@@ -17,13 +17,22 @@ class EarningsController extends Controller
      */
     public function show(Request $request): JsonResponse
     {
-        $earning = $this->commissionService->getEarnings($request->user());
+        $earning          = $this->commissionService->getEarnings($request->user());
+        $latestWithdrawal = $this->commissionService->getLatestWithdrawal($request->user());
 
         return response()->json([
-            'balance_credits' => $earning->balance,
-            'balance_php'     => $earning->php_balance,
-            'min_withdrawal'  => CommissionService::MIN_WITHDRAWAL_PHP,
-            'can_withdraw'    => $earning->php_balance >= CommissionService::MIN_WITHDRAWAL_PHP,
+            'balance_credits'   => $earning->balance,
+            'balance_php'       => $earning->php_balance,
+            'min_withdrawal'    => CommissionService::MIN_WITHDRAWAL_PHP,
+            'can_withdraw'      => $earning->php_balance >= CommissionService::MIN_WITHDRAWAL_PHP,
+            'latest_withdrawal' => $latestWithdrawal ? [
+                'status'        => $latestWithdrawal->status,
+                'amount_php'    => $latestWithdrawal->amount_php,
+                'payout_method' => $latestWithdrawal->payout_method,
+                'admin_notes'   => $latestWithdrawal->admin_notes,
+                'processed_at'  => $latestWithdrawal->processed_at,
+                'created_at'    => $latestWithdrawal->created_at,
+            ] : null,
         ]);
     }
 

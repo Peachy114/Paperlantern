@@ -99,6 +99,17 @@ class CommissionService
             ->paginate($perPage);
     }
 
+
+    /**
+     * Get the storyteller's most recent withdrawal request (if any).
+     */
+    public function getLatestWithdrawal(User $user): ?WithdrawalRequest
+    {
+        return WithdrawalRequest::where('user_id', $user->id)
+            ->latest()
+            ->first();
+    }
+
     /**
      * Submit a withdrawal request.
      */

@@ -3,13 +3,22 @@ import { useState, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '@/api/axios'
 
-export interface Earnings {
-  balance_credits: number
-  balance_php:     number
-  min_withdrawal:  number
-  can_withdraw:    boolean
+export interface LatestWithdrawal {
+  status:        'pending' | 'approved' | 'rejected' | 'paid'
+  amount_php:    number
+  payout_method: 'gcash' | 'maya' | 'bank'
+  admin_notes:   string | null
+  processed_at:  string | null
+  created_at:    string
 }
 
+export interface Earnings {
+  balance_credits:   number
+  balance_php:       number
+  min_withdrawal:    number
+  can_withdraw:      boolean
+  latest_withdrawal: LatestWithdrawal | null
+}
 export interface EarningTransaction {
   id:               number
   chapter_id:       number

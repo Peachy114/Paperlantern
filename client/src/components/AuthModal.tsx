@@ -101,7 +101,7 @@ export default function AuthModal() {
           </div>
 
           {/* Tabs */}
-          <div
+          {/* <div
             className="flex border-2 border-[#1a1a1a] mb-5"
             style={{ boxShadow: '2px 2px 0 #1a1a1a' }}
           >
@@ -127,7 +127,7 @@ export default function AuthModal() {
             >
               REGISTER
             </button>
-          </div>
+          </div> */}
         </div>
 
         {/* Form */}
