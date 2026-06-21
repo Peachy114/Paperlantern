@@ -17,7 +17,7 @@ public function up(): void
             $table->foreignId('reader_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('chapter_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('credits_spent');        //total credits reader paid
-            $table->unsignedInteger('platform_cut');         //20% to Paperlantern
+            $table->unsignedInteger('platform_cut');         //20% to laterncomix
             $table->unsignedInteger('storyteller_cut');      //80% to storyteller
             $table->decimal('platform_php', 8, 2);         // PHP equivalent
             $table->decimal('storyteller_php', 8, 2);      // PHP equivalent

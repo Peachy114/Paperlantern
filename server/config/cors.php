@@ -14,8 +14,9 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        // 'http://localhost:5173',
-        'https://paperlantern.devorbitstudio.com',
+        'http://localhost:5173',
+        'https://laterncomix.com',
+        'https://www.laterncomix.com',
     ],
 
     'allowed_origins_patterns' => [],

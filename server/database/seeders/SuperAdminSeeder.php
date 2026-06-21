@@ -11,11 +11,11 @@ class SuperAdminSeeder extends Seeder
     public function run(): void
     {
         User::firstOrCreate(
-            ['email' => env('SUPER_ADMIN_EMAIL', 'admin@paperlantern.com')],
+            ['email' => env('SUPER_ADMIN_EMAIL', 'admin@laterncomix.com')],
             [
-                'name'     => 'Paperlantern Admin',
+                'name'     => 'laterncomix Admin',
                 'username' => 'admin',
-                'email'    => env('SUPER_ADMIN_EMAIL', 'admin@paperlantern.com'),
+                'email'    => env('SUPER_ADMIN_EMAIL', 'admin@laterncomix.com'),
                 'password' => Hash::make(env('SUPER_ADMIN_PASSWORD', 'MyCuteWebtoon@@')),
                 'role'     => 'super_admin',
             ]

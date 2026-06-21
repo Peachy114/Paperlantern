@@ -12,6 +12,7 @@ class StickyNote extends Model
         'type', 
         'text', 
         'color',
+        'image_path',
         'image_mode',
         'rotate', 
         'x', 'y',

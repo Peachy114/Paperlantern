@@ -1,0 +1,260 @@
+import { useCreateWork, GENRES } from '@/features/studio/hooks/useCreateWork'
+import FieldError from '@/components/ui/FieldError'
+
+const BASE_INPUT =
+    'w-full h-10 px-3 text-sm rounded-lg bg-zinc-50 dark:bg-zinc-900 border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-zinc-400 transition-all'
+const BASE_TEXTAREA =
+    'w-full px-3 py-2.5 text-sm rounded-lg bg-zinc-50 dark:bg-zinc-900 border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-zinc-400 transition-all resize-none'
+const BASE_SELECT =
+    'h-10 px-3 text-sm rounded-lg bg-zinc-50 dark:bg-zinc-900 border text-foreground focus:outline-none focus:ring-1 focus:ring-zinc-400 transition-all'
+
+function inputClass(hasError: boolean, base: string) {
+    return `${base} ${hasError ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 dark:border-zinc-800'}`
+}
+
+const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
+const RECURRING = ['daily', 'weekly', 'biweekly', 'monthly'] as const
+
+export default function CreateWork() {
+    const {
+        type,
+        form,
+        coverPreview,
+        bannerPreview,
+        loading,
+        error,
+        fieldErrors,
+        navigate,
+        handleChange,
+        handleGenreToggle,
+        handleFileChange,
+        handleSubmit,
+    } = useCreateWork()
+
+    const fe = (field: string) => !!fieldErrors[field]
+
+    return (
+        <div className="max-w-2xl mx-auto px-6 py-10">
+            <link
+                href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=swap"
+                rel="stylesheet"
+            />
+
+            {/* Header */}
+            <div className="flex flex-col gap-0.5 mb-8">
+                <button
+                    onClick={() => navigate('/studio')}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors w-fit"
+                    style={{ fontFamily: "'Kalam', cursive" }}
+                >
+                    ← Back to Studio
+                </button>
+                <h1
+                    className="text-xl font-bold text-foreground mt-0.5"
+                    style={{ fontFamily: "'Kalam', cursive" }}
+                >
+                    Create new {type === 'webtoon' ? 'webtoon' : 'novel'}
+                </h1>
+            </div>
+
+            {/* General error */}
+            {error && (
+                <div className="mb-6 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-sm text-red-500">
+                    {error}
+                </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+                {/* Title */}
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">
+                        Title <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                        name="title"
+                        value={form.title}
+                        onChange={handleChange}
+                        placeholder="Enter title"
+                        className={inputClass(fe('title'), BASE_INPUT)}
+                    />
+                    <FieldError fieldErrors={fieldErrors} field="title" />
+                </div>
+
+                {/* Description */}
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">
+                        Description <span className="text-red-400">*</span>
+                    </label>
+                    <textarea
+                        name="description"
+                        value={form.description}
+                        onChange={handleChange}
+                        rows={4}
+                        maxLength={300}
+                        placeholder="Write a synopsis..."
+                        className={inputClass(fe('description'), BASE_TEXTAREA)}
+                    />
+                    <div
+                        className="text-right mt-1 text-[11px]"
+                        style={{
+                            fontFamily: "'Kalam', cursive",
+                            color: form.description.length >= 290 ? '#ef4444' : '#1a1a1a99',
+                        }}
+                    >
+                        {form.description.length}/300
+                    </div>
+                    <FieldError fieldErrors={fieldErrors} field="description" />
+                </div>
+
+                {/* Cover + Banner */}
+                <div className="grid grid-cols-2 gap-4">
+                    {(['cover', 'banner'] as const).map((field) => (
+                        <div key={field} className="flex flex-col gap-1.5">
+                            <label className="text-sm font-medium text-foreground capitalize">
+                                {field} image
+                            </label>
+                            <label
+                                className={`relative flex flex-col items-center justify-center h-44 rounded-xl border-2 border-dashed cursor-pointer transition-colors overflow-hidden bg-zinc-50 dark:bg-zinc-900 ${
+                                    fe(field)
+                                        ? 'border-red-400 dark:border-red-500'
+                                        : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+                                }`}
+                            >
+                                {(field === 'cover' ? coverPreview : bannerPreview) ? (
+                                    <img
+                                        src={(field === 'cover' ? coverPreview : bannerPreview)!}
+                                        alt={`${field} preview`}
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                                        <span className="text-2xl">
+                                            {field === 'cover' ? '🖼' : '🏞'}
+                                        </span>
+                                        <span className="text-xs">Click to upload</span>
+                                    </div>
+                                )}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileChange(e, field)}
+                                    className="sr-only"
+                                />
+                            </label>
+                            <FieldError fieldErrors={fieldErrors} field={field} />
+                        </div>
+                    ))}
+                </div>
+
+                {/* Genres */}
+                <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-foreground">
+                        Genres <span className="text-red-400">*</span>
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        {GENRES.map((genre) => (
+                            <button
+                                key={genre}
+                                type="button"
+                                onClick={() => handleGenreToggle(genre)}
+                                className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                                    form.genres.includes(genre)
+                                        ? 'bg-foreground text-background border-foreground'
+                                        : 'bg-transparent text-muted-foreground border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 hover:text-foreground'
+                                }`}
+                            >
+                                {genre}
+                            </button>
+                        ))}
+                    </div>
+                    <FieldError fieldErrors={fieldErrors} field="genres" />
+                </div>
+
+                {/* Status + Schedule */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-foreground">Status</label>
+                        <select
+                            name="status"
+                            value={form.status}
+                            onChange={handleChange}
+                            className={inputClass(fe('status'), BASE_SELECT)}
+                        >
+                            <option value="draft">Draft</option>
+                            <option value="ongoing">Ongoing</option>
+                            <option value="completed">Completed</option>
+                            <option value="hiatus">Hiatus</option>
+                        </select>
+                        <FieldError fieldErrors={fieldErrors} field="status" />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-foreground">
+                            Update schedule
+                        </label>
+                        <select
+                            name="schedule"
+                            value={form.schedule}
+                            onChange={handleChange}
+                            className={inputClass(fe('schedule'), BASE_SELECT)}
+                        >
+                            <option value="">No schedule</option>
+                            <optgroup label="Every day">
+                                {DAYS.map((d) => (
+                                    <option key={d} value={d}>
+                                        Every {d.charAt(0).toUpperCase() + d.slice(1)}
+                                    </option>
+                                ))}
+                            </optgroup>
+                            <optgroup label="Recurring">
+                                {RECURRING.map((s) => (
+                                    <option key={s} value={s}>
+                                        {s.charAt(0).toUpperCase() + s.slice(1)}
+                                    </option>
+                                ))}
+                            </optgroup>
+                        </select>
+                        <FieldError fieldErrors={fieldErrors} field="schedule" />
+                    </div>
+                </div>
+
+                {/* Schedule time (conditional) */}
+                {form.schedule && (
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-sm font-medium text-foreground">
+                                Preferred update time
+                            </label>
+                            <input
+                                type="time"
+                                name="schedule_time"
+                                value={form.schedule_time}
+                                onChange={handleChange}
+                                className={inputClass(fe('schedule_time'), BASE_INPUT)}
+                            />
+                            <FieldError fieldErrors={fieldErrors} field="schedule_time" />
+                        </div>
+                    </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-2 pt-2">
+                    <button
+                        type="button"
+                        onClick={() => navigate('/studio')}
+                        className="px-4 py-2 rounded-lg text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:border-zinc-400 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-5 py-2 rounded-lg text-sm font-semibold bg-foreground text-background hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    >
+                        {loading ? 'Creating…' : 'Create work'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    )
+}

@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;  
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;    
+use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
@@ -59,6 +60,37 @@ class User extends Authenticatable
             'is_banned'         => 'boolean',
             'credits'           => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user) {
+            // Delete works and their storage files
+            $user->works()->each(function ($work) {
+                if ($work->cover) Storage::delete($work->cover);
+                if ($work->banner) Storage::delete($work->banner);
+
+                $work->chapters()->each(function ($chapter) {
+                    if ($chapter->cover) Storage::delete($chapter->cover);
+                    $chapter->images()->each(function ($image) {
+                        Storage::delete($image->path);
+                    });
+                });
+
+                $work->delete();
+            });
+
+            // Delete sticky note images
+            $user->stickyNotes()->each(function ($note) {
+                if ($note->type === 'image' && $note->image_path) {
+                    Storage::delete($note->image_path);
+                }
+                $note->delete();
+            });
+
+            // Delete user avatar
+            if ($user->avatar) Storage::delete($user->avatar);
+        });
     }
 
     // relationship to work model

@@ -23,7 +23,8 @@ class ChapterController extends Controller
     }
 
 
-    
+
+
     public function show(Request $request, Work $work, Chapter $chapter): JsonResponse
     {
         if ($work->user_id !== $request->user()->id) {
@@ -53,8 +54,24 @@ class ChapterController extends Controller
             'cover'            => ['nullable', 'image', 'max:2048'],
             'scheduled_at'     => ['nullable', 'date'],
             'is_locked'        => ['sometimes', 'boolean'],
-            'credits_required' => ['sometimes', 'integer', 'min:1', 'max:20'],
             'lock_type'        => ['sometimes', 'in:free,early_access,premium'],
+            'credits_required' => [
+                'sometimes',
+                'integer',
+                'min:0',
+                'max:20',
+                function ($attribute, $value, $fail) use ($request) {
+                    $lockType = $request->input('lock_type', 'free');
+
+                    if (in_array($lockType, ['early_access', 'premium']) && $value < 3) {
+                        $fail('Credits required must be at least 3 for early access or premium chapters.');
+                    }
+
+                    if ($lockType === 'free' && (int) $value !== 0) {
+                        $fail('Credits required must be 0 for free chapters.');
+                    }
+                },
+            ],
             'images'           => ['sometimes', 'array'],
             'images.*'         => ['image', 'max:5120'],
         ]);
@@ -80,8 +97,24 @@ class ChapterController extends Controller
             'status'               => ['sometimes', 'in:draft,scheduled,published'],
             'cover'                => ['nullable', 'image', 'max:2048'],
             'scheduled_at'         => ['nullable', 'date'],
-            'credits_required'     => ['sometimes', 'numeric', 'min:1', 'max:20'],
             'lock_type'            => ['sometimes', 'in:free,early_access,premium'],
+            'credits_required'     => [
+                'sometimes',
+                'integer',
+                'min:0',
+                'max:20',
+                function ($attribute, $value, $fail) use ($request, $chapter) {
+                    $lockType = $request->input('lock_type', $chapter->lock_type ?? 'free');
+
+                    if (in_array($lockType, ['early_access', 'premium']) && $value < 3) {
+                        $fail('Credits required must be at least 3 for early access or premium chapters.');
+                    }
+
+                    if ($lockType === 'free' && (int) $value !== 0) {
+                        $fail('Credits required must be 0 for free chapters.');
+                    }
+                },
+            ],
             'images'               => ['sometimes', 'array'],
             'images.*'             => ['image', 'max:5120'],
             'existing_image_ids'   => ['sometimes', 'array'],

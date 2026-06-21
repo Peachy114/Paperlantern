@@ -4,15 +4,15 @@ import PublicLayout from '@/layouts/PublicLayout'
 import AuthLayout from '@/layouts/AuthLayout'
 import { publicRoutes } from './public'
 import { roleRoutes } from './role'
-import Loading from '@/components/loading/Loading'
+import Loading from '@/components/shared/loading/Loading'
 
 export default function AppRoutes() {
-  return (
-    <Suspense fallback={<Loading />}>
-      <Routes>                                         
-        <Route element={<PublicLayout />}>{publicRoutes}</Route>
-        <Route element={<AuthLayout />}>{roleRoutes}</Route>
-      </Routes>
-    </Suspense>
-  )
+    return (
+        <Suspense fallback={<Loading />}>
+            <Routes>
+                <Route element={<PublicLayout />}>{publicRoutes}</Route>
+                <Route element={<AuthLayout />}>{roleRoutes}</Route>
+            </Routes>
+        </Suspense>
+    )
 }
