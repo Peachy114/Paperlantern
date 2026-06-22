@@ -9,41 +9,47 @@ import { useQueryClient } from '@tanstack/react-query'
 import UnlockModal from '@/components/shared/UnlockModalChapter'
 
 export default function ComicShow() {
-    const { work, chapters, isOwner, navigate, workId, coverUrl } = useComicShow()
+    const { work, chapters, isOwner, navigate, coverUrl, slug } = useComicShow()
     const { token } = useAuthStore()
     const { openLogin } = useModalStore()
-
     const { wallet, refetch: refetchWallet } = useWallet()
     const queryClient = useQueryClient()
     const [unlocking, setUnlocking] = useState(false)
+
     const [unlockModal, setUnlockModal] = useState<{
         open: boolean
-        chapterId: number | null
+        chapterSlug: string | null
         chapterTitle: string
         creditsRequired: number
-    }>({ open: false, chapterId: null, chapterTitle: '', creditsRequired: 0 })
+    }>({ open: false, chapterSlug: null, chapterTitle: '', creditsRequired: 0 })
 
-    const openUnlockModal = (chapterId: number, chapterTitle: string, creditsRequired: number) => {
+    const openUnlockModal = (
+        chapterSlug: string,
+        chapterTitle: string,
+        creditsRequired: number
+    ) => {
         if (!token) {
             openLogin()
             return
         }
-        setUnlockModal({ open: true, chapterId, chapterTitle, creditsRequired })
+        setUnlockModal({ open: true, chapterSlug, chapterTitle, creditsRequired })
     }
 
     const handleConfirmUnlock = async () => {
-        if (!unlockModal.chapterId) return
+        if (!unlockModal.chapterSlug) return
         setUnlocking(true)
         try {
-            const result = await unlockChapter(unlockModal.chapterId)
+            // unlockChapter still needs the numeric id — get it from chapters list
+            const chapter = chapters.find((c) => c.slug === unlockModal.chapterSlug)
+            if (!chapter) return
+            const result = await unlockChapter(chapter.id)
             if (result.success) {
                 refetchWallet()
-                queryClient.invalidateQueries({ queryKey: ['comic', workId] })
+                queryClient.invalidateQueries({ queryKey: ['comic', slug] })
                 setUnlockModal((m) => ({ ...m, open: false }))
-                navigate(`/comics/${workId}/chapters/${unlockModal.chapterId}`)
+                navigate(`/comics/${slug}/chapters/${unlockModal.chapterSlug}`)
             }
         } catch {
-            // error
         } finally {
             setUnlocking(false)
         }
@@ -210,7 +216,7 @@ export default function ComicShow() {
                                     {isOwner && (
                                         <button
                                             onClick={() =>
-                                                navigate(`/studio/works/${workId}/chapters`)
+                                                navigate(`/studio/works/${slug}/chapters`)
                                             }
                                             className="ml-auto shrink-0 px-2 sm:px-3 py-1 sm:py-1.5 border-[2px] border-foreground text-foreground hover:bg-foreground hover:text-background transition-colors duration-100 cursor-pointer text-[10px] sm:text-xsmall tracking-widest font-bold"
                                             style={{
@@ -325,13 +331,13 @@ export default function ComicShow() {
                                 }
                                 if (chapter.is_locked) {
                                     openUnlockModal(
-                                        chapter.id,
+                                        chapter.slug,
                                         chapter.title,
                                         chapter.credits_required ?? 0
                                     )
                                     return
                                 }
-                                navigate(`/comics/${workId}/chapters/${chapter.id}`)
+                                navigate(`/comics/${slug}/chapters/${chapter.slug}`)
                             }}
                             className={`relative flex items-center justify-between px-3 sm:pl-16 sm:pr-4 transition-colors duration-100 cursor-pointer hover:bg-amber-400/8 ${
                                 i % 2 === 0

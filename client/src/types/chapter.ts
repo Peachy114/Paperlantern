@@ -6,6 +6,7 @@ export interface ChapterImage {
 
 export interface Chapter {
     id: number
+    slug: string
     title: string
     order: number
     cover: string | null
@@ -17,9 +18,10 @@ export interface Chapter {
     credits_required: number
     status: string
     views: number
+    likes: number
 }
 
 export type ChapterListItem = Pick<
     Chapter,
-    'id' | 'title' | 'order' | 'is_locked' | 'credits_required' | 'created_at'
+    'id' | 'slug' | 'title' | 'order' | 'is_locked' | 'credits_required' | 'created_at' | 'likes'
 >

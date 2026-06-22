@@ -1,3 +1,4 @@
+// useCreateWork.ts
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { studioApi } from '@/api/studio'
 import { containsBadWord } from '@/lib/badWords'
@@ -23,20 +24,6 @@ export const GENRES = [
     'Psychological',
 ]
 
-export const SCHEDULES = [
-    'mon',
-    'tue',
-    'wed',
-    'thu',
-    'fri',
-    'sat',
-    'sun',
-    'daily',
-    'weekly',
-    'biweekly',
-    'monthly',
-]
-
 const noBadWords = (field: string) =>
     Yup.string().test(
         'no-bad-words',
@@ -44,7 +31,7 @@ const noBadWords = (field: string) =>
         (val) => !val || !containsBadWord(val)
     )
 
-const schema = Yup.object({
+const workSchema = Yup.object({
     title: noBadWords('Title')
         .required('Title is required.')
         .max(30, 'Title must be 30 characters or less.'),
@@ -56,11 +43,32 @@ const schema = Yup.object({
     banner: Yup.mixed().required('Banner image is required.'),
 })
 
+const makeChapterSchema = (workType: 'webtoon' | 'wattpad', images: File[], cover: File | null) =>
+    Yup.object({
+        title: noBadWords('Chapter title').required('Chapter title is required.'),
+        content: Yup.string().when([], {
+            is: () => workType === 'wattpad',
+            then: (s) => s.required('Story content is required.'),
+            otherwise: (s) => s.optional(),
+        }),
+        credits_required: Yup.number().when('lock_type', {
+            is: (v: string) => v === 'early_access' || v === 'premium',
+            then: (s) => s.min(3, 'Minimum credits required is 3.'),
+        }),
+        _images: Yup.mixed().test(
+            'has-pages',
+            'Please add at least one chapter page.',
+            () => workType !== 'webtoon' || images.length > 0
+        ),
+        _cover: Yup.mixed().test('has-cover', 'Cover image is required.', () => cover !== null),
+    })
+
 export function useCreateWork() {
     const [searchParams] = useSearchParams()
     const type = (searchParams.get('type') ?? 'webtoon') as 'webtoon' | 'wattpad'
     const navigate = useNavigate()
 
+    // ── Work state ────────────────────────────────────────────────
     const [form, setForm] = useState({
         title: '',
         description: '',
@@ -71,25 +79,47 @@ export function useCreateWork() {
         schedule_time: '',
         next_chapter_at: '',
     })
-
     const [cover, setCover] = useState<File | null>(null)
     const [banner, setBanner] = useState<File | null>(null)
     const [coverPreview, setCoverPreview] = useState<string | null>(null)
     const [bannerPreview, setBannerPreview] = useState<string | null>(null)
+
+    // ── Chapter state ─────────────────────────────────────────────
+    const [chapterForm, setChapterForm] = useState({
+        title: '',
+        content: '',
+        status: 'published' as 'draft' | 'scheduled' | 'published',
+        scheduled_at: '',
+        lock_type: 'free' as 'free' | 'early_access' | 'premium',
+        credits_required: 0,
+    })
+    const [chapterCover, setChapterCover] = useState<File | null>(null)
+    const [chapterCoverPreview, setChapterCoverPreview] = useState<string | null>(null)
+    const [chapterImages, setChapterImages] = useState<File[]>([])
+    const [chapterImagePreviews, setChapterImagePreviews] = useState<string[]>([])
+
+    // ── Shared state ──────────────────────────────────────────────
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+    const [chapterFieldErrors, setChapterFieldErrors] = useState<Record<string, string>>({})
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
     ) => {
-        const { name } = e.target
-        setForm((prev) => ({ ...prev, [name]: e.target.value }))
+        const { name, value } = e.target
+        setForm((prev) => ({ ...prev, [name]: value }))
+
+        // When work status changes to ongoing/completed, lock chapter to published
+        if (name === 'status' && (value === 'ongoing' || value === 'completed')) {
+            setChapterForm((prev) => ({ ...prev, status: 'published' }))
+        }
+
         if (fieldErrors[name]) {
             setFieldErrors((prev) => {
-                const next = { ...prev }
-                delete next[name]
-                return next
+                const n = { ...prev }
+                delete n[name]
+                return n
             })
         }
     }
@@ -101,13 +131,12 @@ export function useCreateWork() {
                 ? prev.genres.filter((g) => g !== genre)
                 : [...prev.genres, genre],
         }))
-        if (fieldErrors['genres']) {
+        if (fieldErrors['genres'])
             setFieldErrors((prev) => {
-                const next = { ...prev }
-                delete next['genres']
-                return next
+                const n = { ...prev }
+                delete n['genres']
+                return n
             })
-        }
     }
 
     const handleFileChange = (
@@ -125,23 +154,84 @@ export function useCreateWork() {
             setBanner(file)
             setBannerPreview(preview)
         }
-        if (fieldErrors[field]) {
+        if (fieldErrors[field])
             setFieldErrors((prev) => {
-                const next = { ...prev }
-                delete next[field]
-                return next
+                const n = { ...prev }
+                delete n[field]
+                return n
             })
-        }
     }
 
-    const handleSubmit = async (e: React.SubmitEvent) => {
+    // ── Chapter handlers ──────────────────────────────────────────
+    const handleChapterChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    ) => {
+        const { name, value } = e.target
+        setChapterForm((prev) => ({ ...prev, [name]: value }))
+        if (chapterFieldErrors[name])
+            setChapterFieldErrors((prev) => {
+                const n = { ...prev }
+                delete n[name]
+                return n
+            })
+    }
+
+    const handleChapterLockTypeChange = (value: 'free' | 'early_access' | 'premium') => {
+        setChapterForm((prev) => ({
+            ...prev,
+            lock_type: value,
+            credits_required:
+                value === 'free' ? 0 : prev.credits_required >= 3 ? prev.credits_required : 3,
+        }))
+    }
+
+    const handleChapterCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] ?? null
+        if (!file) return
+        setChapterCover(file)
+        setChapterCoverPreview(URL.createObjectURL(file))
+    }
+
+    const handleChapterImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files ?? [])
+        if (!files.length) return
+        setChapterImages((prev) => [...prev, ...files])
+        setChapterImagePreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))])
+    }
+
+    const removeChapterImage = (index: number) => {
+        setChapterImages((prev) => prev.filter((_, i) => i !== index))
+        setChapterImagePreviews((prev) => prev.filter((_, i) => i !== index))
+    }
+
+    const reorderChapterImages = (from: number, to: number) => {
+        const reorder = <T>(arr: T[]): T[] => {
+            const next = [...arr]
+            const [moved] = next.splice(from, 1)
+            next.splice(to, 0, moved)
+            return next
+        }
+        setChapterImages((prev) => reorder(prev))
+        setChapterImagePreviews((prev) => reorder(prev))
+    }
+
+    // ── Derived ───────────────────────────────────────────────────
+    const requiresChapter =
+        form.status === 'ongoing' || form.status === 'completed' || form.status === 'hiatus'
+    const isChapterEmpty =
+        !chapterForm.title.trim() && !chapterForm.content.trim() && chapterImages.length === 0
+
+    // ── Submit ────────────────────────────────────────────────────
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
         setError(null)
         setFieldErrors({})
+        setChapterFieldErrors({})
 
+        // Validate work
         try {
-            await schema.validate({ ...form, cover, banner }, { abortEarly: false })
+            await workSchema.validate({ ...form, cover, banner }, { abortEarly: false })
         } catch (err) {
             if (err instanceof Yup.ValidationError) {
                 const errors: Record<string, string> = {}
@@ -155,21 +245,65 @@ export function useCreateWork() {
             return
         }
 
+        // Validate chapter only if ongoing/completed
+        if (requiresChapter) {
+            try {
+                await makeChapterSchema(type, chapterImages, chapterCover).validate(
+                    { ...chapterForm, _images: chapterImages, _cover: chapterCover },
+                    { abortEarly: false }
+                )
+            } catch (err) {
+                if (err instanceof Yup.ValidationError) {
+                    const errors: Record<string, string> = {}
+                    err.inner.forEach((e) => {
+                        if (e.path) errors[e.path] = e.message
+                    })
+                    setChapterFieldErrors(errors)
+                    toast.error('Please fix the chapter fields.')
+                }
+                setLoading(false)
+                return
+            }
+        }
+
         try {
-            const formData = new FormData()
+            // 1. Create work
+            const workFormData = new FormData()
             Object.entries(form).forEach(([key, value]) => {
                 if (key === 'genres') {
-                    ;(value as string[]).forEach((g) => formData.append('genres[]', g))
+                    ;(value as string[]).forEach((g) => workFormData.append('genres[]', g))
                 } else {
-                    formData.append(key, value as string)
+                    workFormData.append(key, value as string)
                 }
             })
-            if (cover) formData.append('cover', cover)
-            if (banner) formData.append('banner', banner)
+            if (cover) workFormData.append('cover', cover)
+            if (banner) workFormData.append('banner', banner)
 
-            await studioApi.createWork(formData)
-            toast.success(`${type === 'webtoon' ? 'Webtoon' : 'Novel'} created successfully!`)
-            navigate('/studio')
+            const workRes = await studioApi.createWork(workFormData)
+            const workSlug = workRes.data.slug
+
+            // 2. Create chapter only if ongoing/completed
+            if (requiresChapter) {
+                const chapterFormData = new FormData()
+                chapterFormData.append('title', chapterForm.title)
+                chapterFormData.append('content', chapterForm.content)
+                chapterFormData.append('status', 'published') // always published
+                chapterFormData.append('lock_type', chapterForm.lock_type)
+                chapterFormData.append(
+                    'credits_required',
+                    String(chapterForm.lock_type === 'free' ? 0 : chapterForm.credits_required)
+                )
+                if (chapterForm.scheduled_at)
+                    chapterFormData.append('scheduled_at', chapterForm.scheduled_at)
+                if (chapterCover) chapterFormData.append('cover', chapterCover)
+                if (type === 'webtoon')
+                    chapterImages.forEach((img) => chapterFormData.append('images[]', img))
+
+                await studioApi.createChapter(workSlug, chapterFormData)
+            }
+
+            toast.success(`${type === 'webtoon' ? 'Webtoon' : 'Novel'} created!`)
+            navigate(`/studio/works/${workSlug}/chapters`)
         } catch (err: any) {
             if (err.response?.status === 422 && err.response?.data?.errors) {
                 const raw: Record<string, string[]> = err.response.data.errors
@@ -196,13 +330,27 @@ export function useCreateWork() {
         banner,
         coverPreview,
         bannerPreview,
+        chapterForm,
+        chapterCover,
+        chapterCoverPreview,
+        chapterImages,
+        chapterImagePreviews,
         loading,
         error,
         fieldErrors,
+        chapterFieldErrors,
+        requiresChapter,
+        isChapterEmpty,
         navigate,
         handleChange,
         handleGenreToggle,
         handleFileChange,
+        handleChapterChange,
+        handleChapterLockTypeChange,
+        handleChapterCoverChange,
+        handleChapterImagesChange,
+        removeChapterImage,
+        reorderChapterImages,
         handleSubmit,
     }
 }

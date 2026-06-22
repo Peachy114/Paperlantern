@@ -10,7 +10,7 @@ const STRIKE_BG = ['', '#86efac', '#fbbf24', '#fca5a5']
 const STRIKE_MSG = ['', 'First warning', 'Final warning — next ban!', 'BANNED']
 
 function ModerationShowContent() {
-    const { id } = useParams()
+    const { chapterSlug } = useParams()
     const navigate = useNavigate()
     const {
         chapter,
@@ -23,7 +23,7 @@ function ModerationShowContent() {
         approving,
         violating,
         result,
-    } = useAdminModerationShow(Number(id))
+    } = useAdminModerationShow(chapterSlug!)
 
     const user = chapter.work.user
 

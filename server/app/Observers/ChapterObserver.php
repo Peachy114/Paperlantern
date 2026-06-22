@@ -36,18 +36,9 @@ class ChapterObserver
      */
     public function deleted(Chapter $chapter): void
     {
-        if ($chapter->cover) {
-            Storage::disk('public')->delete($chapter->cover);
-        }
-
-        $chapter->loadMissing('images');
-        
-        foreach ($chapter->images as $image) {
-            Storage::disk('public')->delete($image->path);
-        }
-
-        $chapter->images()->delete();
+        // intentionally empty — images are kept until force delete
     }
+
 
     /**
      * Handle the Chapter "restored" event.
@@ -62,6 +53,16 @@ class ChapterObserver
      */
     public function forceDeleted(Chapter $chapter): void
     {
-        //
+        if ($chapter->cover) {
+            Storage::disk('public')->delete($chapter->cover);
+        }
+
+        $chapter->loadMissing('images');
+
+        foreach ($chapter->images as $image) {
+            Storage::disk('public')->delete($image->path);
+        }
+
+        $chapter->images()->delete();
     }
 }

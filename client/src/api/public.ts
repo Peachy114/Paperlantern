@@ -1,15 +1,15 @@
 import api from './axios'
 
 export const publicApi = {
-    getWork: (workId: number) => api.get(`/public/works/${workId}`),
-    getChapters: (workId: number) => api.get(`/public/works/${workId}/chapters`),
-    getChapter: (workId: number, chapterId: number) =>
-        api.get(`/public/works/${workId}/chapters/${chapterId}`),
+    getWork: (slug: string) => api.get(`/public/works/${slug}`),
+    getChapters: (slug: string) => api.get(`/public/works/${slug}/chapters`),
+    getChapter: (slug: string, chapterSlug: string) =>
+        api.get(`/public/works/${slug}/chapters/${chapterSlug}`),
 
-    getLikeStatus: (workId: number, chapterId: number) =>
-        api.get(`/public/works/${workId}/chapters/${chapterId}/like-status`),
-    toggleLike: (workId: number, chapterId: number) =>
-        api.post(`/public/works/${workId}/chapters/${chapterId}/like`),
-    recordView: (workId: number, chapterId: number) =>
-        api.post(`/public/works/${workId}/chapters/${chapterId}/view`),
+    getLikeStatus: (slug: string, chapterSlug: string) =>
+        api.get(`/public/works/${slug}/chapters/${chapterSlug}/like-status`),
+    toggleLike: (slug: string, chapterSlug: string) =>
+        api.post(`/public/works/${slug}/chapters/${chapterSlug}/like`),
+    recordView: (slug: string, chapterSlug: string) =>
+        api.post(`/public/works/${slug}/chapters/${chapterSlug}/view`),
 }

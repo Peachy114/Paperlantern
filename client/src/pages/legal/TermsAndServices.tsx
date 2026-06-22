@@ -160,7 +160,7 @@ const SECTIONS = [
                 warn: false,
             },
             {
-                text: 'If you believe your copyrighted work was uploaded without permission, contact dev@devorbitstudio.com with proof of ownership.',
+                text: 'If you believe your copyrighted work was uploaded without permission, contact dev@devorbitstudio.com/support@laterncomix.com with proof of ownership.',
                 title: 'DMCA',
                 warn: false,
             },
@@ -213,7 +213,7 @@ const SECTIONS = [
                 warn: false,
             },
             {
-                text: 'For any questions about these terms, reach us at dev@devorbitstudio.com',
+                text: 'For any questions about these terms, reach us at dev@devorbitstudio.com/support@laterncomix.com',
                 title: 'Questions',
                 warn: false,
             },

@@ -23,6 +23,16 @@ const makeSchema = (workType: 'webtoon' | 'wattpad', imageItems: ImageItem[]) =>
         title: noBadWords('Title')
             .required('Title is required.')
             .max(30, 'Title must be 30 characters or less.'),
+        scheduled_at: Yup.string().when('status', {
+            is: 'scheduled',
+            then: (s) =>
+                s
+                    .required('Please set a scheduled date and time.')
+                    .test('is-future', 'Scheduled time must be in the future.', (val) => {
+                        if (!val) return false
+                        return new Date(val) > new Date()
+                    }),
+        }),
         credits_required: Yup.number().when('lock_type', {
             is: (v: string) => v === 'early_access' || v === 'premium',
             then: (s) => s.min(3, 'Minimum credits required is 3.'),
@@ -35,7 +45,7 @@ const makeSchema = (workType: 'webtoon' | 'wattpad', imageItems: ImageItem[]) =>
     })
 
 export function useEditChapter(workType: 'webtoon' | 'wattpad') {
-    const { workId, id } = useParams()
+    const { workSlug, chapterSlug } = useParams()
     const navigate = useNavigate()
 
     const [form, setForm] = useState({
@@ -57,11 +67,11 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
 
     useEffect(() => {
         fetchChapter()
-    }, [id])
+    }, [chapterSlug])
 
     const fetchChapter = async () => {
         try {
-            const res = await studioApi.getChapter(Number(workId), Number(id))
+            const res = await studioApi.getChapter(workSlug!, chapterSlug!)
             const chapter = res.data
             setForm({
                 title: chapter.title ?? '',
@@ -101,9 +111,6 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
         }))
     }
 
-    // Keeps lock_type and credits_required in sync:
-    // - free        -> credits cleared to 0 (no credits needed)
-    // - early_access/premium -> credits set to existing value if >= 3, otherwise defaulted to 3
     const handleLockTypeChange = (value: 'free' | 'early_access' | 'premium') => {
         setForm((prev) => ({
             ...prev,
@@ -185,10 +192,14 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
                 }
             }
 
-            await studioApi.updateChapter(Number(workId), Number(id), formData)
-            navigate(`/studio/works/${workId}/chapters`)
-        } catch {
-            setError('Failed to update chapter. Please try again.')
+            await studioApi.updateChapter(workSlug!, chapterSlug!, formData)
+            navigate(`/studio/works/${workSlug}/chapters`)
+        } catch (err: any) {
+            const message =
+                err?.response?.data?.errors?.scheduled_at?.[0] ??
+                err?.response?.data?.message ??
+                'Failed to update chapter. Please try again.'
+            setError(message)
         } finally {
             setLoading(false)
         }
@@ -202,7 +213,7 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
         fetching,
         error,
         navigate,
-        workId: Number(workId),
+        workSlug,
         handleChange,
         handleLockTypeChange,
         handleCoverChange,

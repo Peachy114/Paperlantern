@@ -32,17 +32,9 @@ class WorkObserver
      */
     public function deleted(Work $work): void
     {
-        if ($work->cover) {
-            Storage::disk('public')->delete($work->cover);
-        }
-        if ($work->banner) {
-            Storage::disk('public')->delete($work->banner);
-        }
-
-        $work->chapters()->withTrashed()->each(function ($chapter) {
-            $chapter->delete();
-        });
+        // intentionally empty — images are kept until force delete
     }
+
 
     /**
      * Handle the Work "restored" event.
@@ -57,6 +49,11 @@ class WorkObserver
      */
     public function forceDeleted(Work $work): void
     {
-        //
+        if ($work->cover) Storage::disk('public')->delete($work->cover);
+        if ($work->banner) Storage::disk('public')->delete($work->banner);
+
+        $work->chapters()->withTrashed()->each(function ($chapter) {
+            $chapter->forceDelete(); // triggers ChapterObserver::forceDeleted
+        });
     }
 }

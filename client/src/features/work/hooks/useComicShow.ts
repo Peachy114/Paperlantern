@@ -6,6 +6,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 
 interface Chapter {
     id: number
+    slug: string
     title: string
     order: number
     status: string
@@ -14,7 +15,6 @@ interface Chapter {
     likes: number
     created_at: string
 }
-
 interface Work {
     id: number
     user_id: number
@@ -32,16 +32,16 @@ interface Work {
 }
 
 export function useComicShow() {
-    const { workId } = useParams()
+    const { slug } = useParams() // changed from workId
     const navigate = useNavigate()
     const user = useAuthStore((s) => s.user)
 
     const { data } = useSuspenseQuery({
-        queryKey: ['comic', workId, user?.id ?? 'guest'],
+        queryKey: ['comic', slug, user?.id ?? 'guest'],
         queryFn: async () => {
             const [workRes, chaptersRes] = await Promise.all([
-                publicApi.getWork(Number(workId)),
-                publicApi.getChapters(Number(workId)),
+                publicApi.getWork(slug!), // string now
+                publicApi.getChapters(slug!), // string now
             ])
             return {
                 work: { ...workRes.data, chapters_count: chaptersRes.data.length } as Work,
@@ -59,7 +59,7 @@ export function useComicShow() {
         chapters: data.chapters,
         isOwner,
         navigate,
-        workId: Number(workId),
+        slug,
         coverUrl,
     }
 }

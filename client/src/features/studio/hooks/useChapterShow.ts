@@ -10,7 +10,7 @@ interface ChapterImage {
 }
 
 interface Chapter {
-    id: number
+    slug: string
     title: string
     order: number
     cover: string | null
@@ -21,34 +21,34 @@ interface Chapter {
 }
 
 export function useChapterShow() {
-    const { workId, id } = useParams()
+    const { workSlug, chapterSlug } = useParams()
     const navigate = useNavigate()
 
     const { data: chapter } = useSuspenseQuery<Chapter>({
-        queryKey: ['studio-chapter', workId, id],
-        queryFn: () => studioApi.getChapter(Number(workId), Number(id)).then((res) => res.data),
+        queryKey: ['studio-chapter', workSlug, chapterSlug],
+        queryFn: () => studioApi.getChapter(workSlug!, chapterSlug!).then((res) => res.data),
     })
 
     const { data: chapters } = useSuspenseQuery<Chapter[]>({
-        queryKey: ['studio-chapters', workId],
-        queryFn: () => studioApi.getChapters(Number(workId)).then((res) => res.data),
+        queryKey: ['studio-chapters', workSlug],
+        queryFn: () => studioApi.getChapters(workSlug!).then((res) => res.data),
     })
 
-    const idx = chapters.findIndex((c) => c.id === chapter.id)
-    const prevId = idx > 0 ? chapters[idx - 1].id : null
-    const nextId = idx < chapters.length - 1 ? chapters[idx + 1].id : null
+    const idx = chapters.findIndex((c) => c.slug === chapter.slug)
+    const prevSlug = idx > 0 ? chapters[idx - 1].slug : null
+    const nextSlug = idx < chapters.length - 1 ? chapters[idx + 1].slug : null
 
-    const goTo = (chapterId: number) => {
-        navigate(`/studio/works/${workId}/chapters/${chapterId}/show`)
+    const goTo = (slug: string) => {
+        navigate(`/studio/works/${workSlug}/chapters/${slug}/show`)
     }
 
     const imageUrl = (path: string) => storageUrl(path)
 
     return {
         chapter,
-        prevId,
-        nextId,
-        workId: Number(workId),
+        prevSlug,
+        nextSlug,
+        workSlug,
         navigate,
         goTo,
         imageUrl,

@@ -13,6 +13,7 @@ class Chapter extends Model
     protected $fillable = [
         'work_id',
         'title',
+        'slug',
         'content',
         'order',
         'status',
@@ -27,6 +28,29 @@ class Chapter extends Model
         'moderation_status',
     ];
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
+    public static function generateSlug(string $title, int $workId, ?int $excludeId = null): string
+    {
+        $base  = \Illuminate\Support\Str::slug($title);
+        $slug  = $base;
+        $count = 2;
+
+        while (
+            static::where('slug', $slug)
+                ->where('work_id', $workId)
+                ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
+                ->exists()
+        ) {
+            $slug = "{$base}-{$count}";
+            $count++;
+        }
+
+        return $slug;
+    }
     protected function casts(): array
     {
         return [

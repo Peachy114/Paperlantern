@@ -52,7 +52,7 @@ class ChapterController extends Controller
             'order'            => ['sometimes', 'integer'],
             'status'           => ['sometimes', 'in:draft,scheduled,published'],
             'cover'            => ['nullable', 'image', 'max:2048'],
-            'scheduled_at'     => ['nullable', 'date'],
+            'scheduled_at'     => ['required_if:status,scheduled', 'nullable', 'date', 'after:now'],
             'is_locked'        => ['sometimes', 'boolean'],
             'lock_type'        => ['sometimes', 'in:free,early_access,premium'],
             'credits_required' => [
@@ -76,6 +76,10 @@ class ChapterController extends Controller
             'images.*'         => ['image', 'max:5120'],
         ]);
 
+        if (isset($validated['content'])) {
+            $validated['content'] = strip_tags($validated['content']);
+        }
+
         $chapter = $this->chapterService->createChapter($work, $validated, $request);
 
         return response()->json($chapter, 201);
@@ -96,7 +100,7 @@ class ChapterController extends Controller
             'order'                => ['sometimes', 'integer'],
             'status'               => ['sometimes', 'in:draft,scheduled,published'],
             'cover'                => ['nullable', 'image', 'max:2048'],
-            'scheduled_at'         => ['nullable', 'date'],
+            'scheduled_at'         => ['required_if:status,scheduled', 'nullable', 'date', 'after:now'],
             'lock_type'            => ['sometimes', 'in:free,early_access,premium'],
             'credits_required'     => [
                 'sometimes',
@@ -121,6 +125,10 @@ class ChapterController extends Controller
             'existing_image_ids.*' => ['nullable', 'integer'],
         ]);
 
+        if (isset($validated['content'])) {
+            $validated['content'] = strip_tags($validated['content']);
+        }
+
         $chapter = $this->chapterService->updateChapter($chapter, $validated, $request);
 
         return response()->json($chapter);
@@ -138,5 +146,16 @@ class ChapterController extends Controller
         $this->chapterService->deleteChapter($chapter);
 
         return response()->json(['message' => 'Chapter deleted.']);
+    }
+
+    public function trash(Request $request, Work $work, Chapter $chapter): JsonResponse
+    {
+        if ($work->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $chapter->delete(); // soft delete — sets deleted_at, keeps images
+
+        return response()->json(['message' => 'Chapter moved to trash.']);
     }
 }

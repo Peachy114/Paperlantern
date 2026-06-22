@@ -124,6 +124,7 @@ export default function WattpadIndex() {
                                 <Card
                                     key={work.id}
                                     id={work.id}
+                                    slug={work.slug}
                                     title={work.title}
                                     cover={cover(work.cover)}
                                     genres={work.genres}

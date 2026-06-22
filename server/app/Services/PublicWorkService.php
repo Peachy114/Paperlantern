@@ -59,6 +59,7 @@ class PublicWorkService
 
             return [
                 'id'               => $chapter->id,
+                'slug'             => $chapter->slug,
                 'title'            => $chapter->title,
                 'order'            => $chapter->order,
                 'lock_type'        => $chapter->lock_type,

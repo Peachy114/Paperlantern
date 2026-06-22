@@ -1,31 +1,86 @@
+// import api from './axios'
+
+// export const studioApi = {
+//     // ===================================Storyteller Work Management=======================================//
+//     getWorks: () => api.get('/studio/works'),
+//     createWork: (data: FormData) =>
+//         api.post('/studio/works', data, {
+//             headers: { 'Content-Type': 'multipart/form-data' },
+//         }),
+//     updateWork: (slug: string, data: FormData) =>
+//         api.post(`/studio/works/${slug}`, data, {
+//             headers: { 'Content-Type': 'multipart/form-data' },
+//         }),
+//     deleteWork: (slug: string) => api.delete(`/studio/works/${slug}`),
+//     getWork: (slug: string) => api.get(`/studio/works/${slug}`),
+
+//     // ======================================Chapter Management===========================================//
+//     getChapters: (workSlug: string) => api.get(`/studio/works/${workSlug}/chapters`),
+//     createChapter: (workSlug: string, data: FormData) =>
+//         api.post(`/studio/works/${workSlug}/chapters`, data, {
+//             headers: { 'Content-Type': 'multipart/form-data' },
+//         }),
+//     getChapter: (workSlug: string, chapterSlug: string) =>
+//         api.get(`/studio/works/${workSlug}/chapters/${chapterSlug}`),
+//     updateChapter: (workSlug: string, chapterSlug: string, data: FormData) =>
+//         api.post(`/studio/works/${workSlug}/chapters/${chapterSlug}`, data, {
+//             headers: { 'Content-Type': 'multipart/form-data' },
+//         }),
+//     deleteChapter: (workSlug: string, chapterSlug: string) =>
+//         api.delete(`/studio/works/${workSlug}/chapters/${chapterSlug}`),
+
+//     //========================STUDIO TRASH==============================//
+//     getTrashedWorks: () => api.get('/studio/trash/works'),
+//     restoreWork: (slug: string) => api.post(`/studio/trash/works/${slug}/restore`),
+//     forceDeleteWork: (slug: string) => api.delete(`/studio/trash/works/${slug}`),
+
+//     // Trash — Chapters
+//     getTrashedChapters: () => api.get('/studio/trash/chapters'),
+//     restoreChapter: (slug: string) => api.post(`/studio/trash/chapters/${slug}/restore`),
+//     forceDeleteChapter: (slug: string) => api.delete(`/studio/trash/chapters/${slug}`),
+// }
+
 import api from './axios'
 
 export const studioApi = {
-    // Storyteller Work Management
+    // ===================================Storyteller Work Management=======================================//
     getWorks: () => api.get('/studio/works'),
     createWork: (data: FormData) =>
         api.post('/studio/works', data, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
-    updateWork: (id: number, data: FormData) =>
-        api.post(`/studio/works/${id}`, data, {
+    updateWork: (slug: string, data: FormData) =>
+        api.post(`/studio/works/${slug}`, data, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
-    deleteWork: (id: number) => api.delete(`/studio/works/${id}`),
-    getWork: (id: number) => api.get(`/studio/works/${id}`),
+    trashWork: (slug: string) => api.post(`/studio/works/${slug}/trash`),
+    deleteWork: (slug: string) => api.delete(`/studio/works/${slug}`),
+    getWork: (slug: string) => api.get(`/studio/works/${slug}`),
 
-    // Chapter Management
-    getChapters: (workId: number) => api.get(`/studio/works/${workId}/chapters`),
-    createChapter: (workId: number, data: FormData) =>
-        api.post(`/studio/works/${workId}/chapters`, data, {
+    // ======================================Chapter Management===========================================//
+    getChapters: (workSlug: string) => api.get(`/studio/works/${workSlug}/chapters`),
+    createChapter: (workSlug: string, data: FormData) =>
+        api.post(`/studio/works/${workSlug}/chapters`, data, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
-    getChapter: (workId: number, chapterId: number) =>
-        api.get(`/studio/works/${workId}/chapters/${chapterId}`),
-    updateChapter: (workId: number, chapterId: number, data: FormData) =>
-        api.post(`/studio/works/${workId}/chapters/${chapterId}`, data, {
+    getChapter: (workSlug: string, chapterSlug: string) =>
+        api.get(`/studio/works/${workSlug}/chapters/${chapterSlug}`),
+    updateChapter: (workSlug: string, chapterSlug: string, data: FormData) =>
+        api.post(`/studio/works/${workSlug}/chapters/${chapterSlug}`, data, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
-    deleteChapter: (workId: number, chapterId: number) =>
-        api.delete(`/studio/works/${workId}/chapters/${chapterId}`),
+    trashChapter: (workSlug: string, chapterSlug: string) =>
+        api.post(`/studio/works/${workSlug}/chapters/${chapterSlug}/trash`),
+    deleteChapter: (workSlug: string, chapterSlug: string) =>
+        api.delete(`/studio/works/${workSlug}/chapters/${chapterSlug}`),
+
+    //========================STUDIO TRASH==============================//
+    getTrashedWorks: () => api.get('/studio/trash/works'),
+    restoreWork: (slug: string) => api.post(`/studio/trash/works/${slug}/restore`),
+    forceDeleteWork: (slug: string) => api.delete(`/studio/trash/works/${slug}`),
+
+    // Trash — Chapters
+    getTrashedChapters: () => api.get('/studio/trash/chapters'),
+    restoreChapter: (slug: string) => api.post(`/studio/trash/chapters/${slug}/restore`),
+    forceDeleteChapter: (slug: string) => api.delete(`/studio/trash/chapters/${slug}`),
 }

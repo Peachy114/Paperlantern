@@ -85,6 +85,17 @@ class WorkController extends Controller
         return response()->json(['message' => 'Work deleted.']);
     }
 
+    public function trash(Request $request, string $slug): JsonResponse
+    {
+        $work = Work::where('slug', $slug)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+
+        $work->delete(); // soft delete — sets deleted_at
+
+        return response()->json(['message' => 'Moved to trash.']);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
     private function notOwner(Request $request, Work $work): bool
     {

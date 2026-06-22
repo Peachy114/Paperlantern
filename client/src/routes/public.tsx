@@ -1,3 +1,4 @@
+//PUBLIC ROUTES
 import { Route } from 'react-router-dom'
 import { Suspense } from 'react'
 import { Pages } from './lazyImports'
@@ -31,7 +32,7 @@ export const publicRoutes = (
             }
         />
         <Route
-            path="/comics/:workId"
+            path="/comics/:slug"
             element={
                 <Suspense fallback={<LoadingHomePage />}>
                     <Pages.ComicShow />
@@ -39,14 +40,13 @@ export const publicRoutes = (
             }
         />
         <Route
-            path="/comics/:workId/chapters/:chapterId"
+            path="/comics/:slug/chapters/:chapterSlug"
             element={
                 <Suspense fallback={<LoadingHomePage />}>
                     <Pages.ComicChapter />
                 </Suspense>
             }
         />
-
         <Route
             path="/about"
             element={

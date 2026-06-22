@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Studio\StickyNoteController;
 use App\Http\Controllers\Api\Studio\ViolationController;
 use App\Http\Controllers\Api\EarningsController;
 use App\Http\Controllers\Api\SuperAdmin\WithdrawalController;
+use App\Http\Controllers\Api\Studio\TrashController;
 
 use App\Http\Controllers\Api\SuperAdmin\SuperAdminController; //Super admin
 use App\Http\Controllers\Api\SuperAdmin\ModerationController;
@@ -89,24 +90,24 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::get('/earnings', [EarningsController::class, 'adminOverview']);
 
         Route::prefix('moderation')->group(function () {
-            Route::get('/',                                      [ModerationController::class, 'index']);
-            Route::get('/violations',                            [ModerationController::class, 'violations']);
-            Route::get('/users/{user}/violations',               [ModerationController::class, 'userViolations']);
+            Route::get('/',                                          [ModerationController::class, 'index']);
+            Route::get('/violations',                                [ModerationController::class, 'violations']);
+            Route::get('/users/{user}/violations',                   [ModerationController::class, 'userViolations']);
 
-            // Chapters
-            Route::get('/chapters/{chapter}',                    [ModerationController::class, 'show']);
-            Route::put('/chapters/{chapter}/approve',            [ModerationController::class, 'approve']);
-            Route::put('/chapters/{chapter}/violate',            [ModerationController::class, 'violate']);
+            // Chapters — resolve by slug, no work nesting needed
+            Route::get('/chapters/{chapter:slug}',                   [ModerationController::class, 'show']);
+            Route::put('/chapters/{chapter:slug}/approve',           [ModerationController::class, 'approve']);
+            Route::put('/chapters/{chapter:slug}/violate',           [ModerationController::class, 'violate']);
 
-            // Works
-            Route::get('/works/{work}',                          [ModerationController::class, 'showWork']);
-            Route::put('/works/{work}/approve',                  [ModerationController::class, 'approveWork']);
-            Route::put('/works/{work}/violate',                  [ModerationController::class, 'violateWork']);
+            // Works — resolve by slug
+            Route::get('/works/{work:slug}',                         [ModerationController::class, 'showWork']);
+            Route::put('/works/{work:slug}/approve',                 [ModerationController::class, 'approveWork']);
+            Route::put('/works/{work:slug}/violate',                 [ModerationController::class, 'violateWork']);
 
-            // Sticky Notes
-            Route::get('/sticky-notes/{note}',                   [ModerationController::class, 'showStickyNote']);
-            Route::put('/sticky-notes/{note}/approve',           [ModerationController::class, 'approveStickyNote']);
-            Route::put('/sticky-notes/{note}/violate',           [ModerationController::class, 'violateStickyNote']);
+            // Sticky Notes — no slug, keep ID
+            Route::get('/sticky-notes/{note}',                       [ModerationController::class, 'showStickyNote']);
+            Route::put('/sticky-notes/{note}/approve',               [ModerationController::class, 'approveStickyNote']);
+            Route::put('/sticky-notes/{note}/violate',               [ModerationController::class, 'violateStickyNote']);
         });
     });
 
@@ -128,6 +129,20 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::post('/earnings/withdraw',       [EarningsController::class, 'withdraw']);
 
 
+        Route::prefix('trash')->group(function () {
+            // Works
+            Route::get('/works', [TrashController::class, 'works']);
+            Route::post('/works/{slug}/restore', [TrashController::class, 'restoreWork']);
+            Route::delete('/works/{slug}', [TrashController::class, 'forceDeleteWork']);
+
+            // Chapters
+            Route::get('/chapters', [TrashController::class, 'chapters']);
+            Route::post('/chapters/{slug}/restore', [TrashController::class, 'restoreChapter']);
+            Route::delete('/chapters/{slug}', [TrashController::class, 'forceDeleteChapter']);
+        });
+
+        Route::post('/works/{slug}/trash', [WorkController::class, 'trash']);
+        Route::post('/works/{work}/chapters/{chapter}/trash', [ChapterController::class, 'trash']);
     });
 
     // ── All readers ───────────────────────────────────────────────────────────

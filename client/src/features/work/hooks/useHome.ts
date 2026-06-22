@@ -4,6 +4,7 @@ import { storageUrl } from '@/utils/storage'
 
 export interface WorkItem {
     id: number
+    slug: string
     title: string
     cover: string | null
     banner: string | null
@@ -26,6 +27,7 @@ export interface ChapterItem {
     created_at: string
     work: {
         id: number
+        slug: string
         title: string
         cover: string | null
         type: 'webtoon' | 'wattpad'

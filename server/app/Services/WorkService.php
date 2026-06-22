@@ -17,6 +17,8 @@ class WorkService
 
     public function createWork($user, array $validated, Request $request): Work
     {
+        $validated['slug'] = Work::generateSlug($validated['title']);
+
         if ($request->hasFile('cover')) {
             $validated['cover'] = $request->file('cover')->store('covers', 'public');
         }
@@ -30,6 +32,10 @@ class WorkService
 
     public function updateWork(Work $work, array $validated, Request $request): Work
     {
+        if (isset($validated['title'])) {
+            $validated['slug'] = Work::generateSlug($validated['title'], $work->id);
+        }
+        
         if ($request->hasFile('cover')) {
             $validated['cover'] = $request->file('cover')->store('covers', 'public');
         } else {

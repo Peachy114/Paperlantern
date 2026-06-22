@@ -2,6 +2,11 @@ import { useCreateChapter } from '@/features/studio/hooks/useCreateChapter'
 import { useParams } from 'react-router-dom'
 import { useEffect, useState, useRef } from 'react'
 import { studioApi } from '@/api/studio'
+import { format } from 'date-fns'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
+import { CalendarIcon } from 'lucide-react'
 
 const LOCK_OPTIONS = [
     {
@@ -25,16 +30,16 @@ const LOCK_OPTIONS = [
 ] as const
 
 export default function ChapterCreate() {
-    const { workId } = useParams()
+    const { workSlug } = useParams()
     const [workType, setWorkType] = useState<'webtoon' | 'wattpad'>('webtoon')
     const [fetchingWork, setFetchingWork] = useState(true)
 
     useEffect(() => {
         studioApi
-            .getWork(Number(workId))
+            .getWork(workSlug!)
             .then((res) => setWorkType(res.data.type))
             .finally(() => setFetchingWork(false))
-    }, [workId])
+    }, [workSlug])
 
     if (fetchingWork)
         return (
@@ -57,7 +62,7 @@ function ChapterForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
         loading,
         error,
         navigate,
-        workId,
+        workSlug,
         handleChange,
         handleLockTypeChange,
         handleCoverChange,
@@ -108,7 +113,7 @@ function ChapterForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
             {/* Header */}
             <div className="flex flex-col gap-0.5 mb-8">
                 <button
-                    onClick={() => navigate(`/studio/works/${workId}/chapters`)}
+                    onClick={() => navigate(`/studio/works/${workSlug}/chapters`)}
                     className="text-xs text-muted-foreground hover:text-foreground transition-colors w-fit"
                     style={{ fontFamily: "'Kalam', cursive" }}
                 >
@@ -165,13 +170,61 @@ function ChapterForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
                         <label className="text-sm font-medium text-foreground">
                             Scheduled date & time
                         </label>
-                        <input
-                            type="datetime-local"
-                            name="scheduled_at"
-                            value={form.scheduled_at}
-                            onChange={handleChange}
-                            className="h-10 px-3 text-sm rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-foreground focus:outline-none focus:ring-1 focus:ring-zinc-400 transition-all"
-                        />
+                        <div className="flex gap-2">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        className="h-10 w-48 justify-start text-left font-normal bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4 opacity-50" />
+                                        {form.scheduled_at ? (
+                                            format(new Date(form.scheduled_at), 'MM/dd/yyyy')
+                                        ) : (
+                                            <span className="text-muted-foreground">
+                                                Pick a date
+                                            </span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={
+                                            form.scheduled_at
+                                                ? new Date(form.scheduled_at)
+                                                : undefined
+                                        }
+                                        onSelect={(date) => {
+                                            if (!date) return
+                                            const time = form.scheduled_at?.slice(11, 16) || '00:00'
+                                            const iso = `${format(date, 'yyyy-MM-dd')}T${time}`
+                                            handleChange({
+                                                target: { name: 'scheduled_at', value: iso },
+                                            } as any)
+                                        }}
+                                        disabled={(date) => date < new Date()}
+                                    />
+                                </PopoverContent>
+                            </Popover>
+
+                            <input
+                                type="time"
+                                value={form.scheduled_at?.slice(11, 16) ?? ''}
+                                onChange={(e) => {
+                                    const date =
+                                        form.scheduled_at?.slice(0, 10) ??
+                                        format(new Date(), 'yyyy-MM-dd')
+                                    handleChange({
+                                        target: {
+                                            name: 'scheduled_at',
+                                            value: `${date}T${e.target.value}`,
+                                        },
+                                    } as any)
+                                }}
+                                className="h-10 px-3 text-sm rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-foreground focus:outline-none focus:ring-1 focus:ring-zinc-400 transition-all"
+                            />
+                        </div>
                     </div>
                 )}
 
@@ -413,7 +466,7 @@ function ChapterForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
                 <div className="flex items-center justify-end gap-2 pt-2">
                     <button
                         type="button"
-                        onClick={() => navigate(`/studio/works/${workId}/chapters`)}
+                        onClick={() => navigate(`/studio/works/${workSlug}/chapters`)}
                         className="px-4 py-2 rounded-lg text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:border-zinc-400 transition-colors"
                     >
                         Cancel

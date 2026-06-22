@@ -30,6 +30,17 @@ export default function EditWork() {
         handleGenreToggle,
         handleFileChange,
         handleSubmit,
+        // Chapter
+        requiresChapter,
+        chapterForm,
+        chapterCoverPreview,
+        chapterImages,
+        chapterImagePreviews,
+        chapterFieldErrors,
+        handleChapterChange,
+        handleChapterCoverChange,
+        handleChapterImagesChange,
+        removeChapterImage,
     } = useEditWork()
 
     const fe = (field: string) => !!fieldErrors[field]
@@ -228,6 +239,168 @@ export default function EditWork() {
                         <FieldError fieldErrors={fieldErrors} field="schedule" />
                     </div>
                 </div>
+
+                {/* Chapter Section — only shown when no chapters exist and status requires one */}
+                {requiresChapter && (
+                    <div className="flex flex-col gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 mt-10">
+                        <div className="w-full">
+                            <p
+                                className="text-center font-medium text-foreground"
+                                style={{ fontFamily: "'Kalam', cursive" }}
+                            >
+                                📖 First chapter (required)
+                            </p>
+                            <p
+                                className="text-xs text-muted-foreground mt-0.5 text-center"
+                                style={{ fontFamily: "'Kalam', cursive" }}
+                            >
+                                Ongoing and completed works need at least 1 published chapter.
+                            </p>
+                        </div>
+
+                        {/* Chapter title + status */}
+                        <div className="grid grid-cols-2 gap-4 mt-5">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-sm font-medium text-foreground">
+                                    Chapter title <span className="text-red-400">*</span>
+                                </label>
+                                <input
+                                    name="title"
+                                    value={chapterForm.title}
+                                    onChange={handleChapterChange}
+                                    placeholder="Chapter title"
+                                    className={inputClass(!!chapterFieldErrors.title, BASE_INPUT)}
+                                />
+                                {chapterFieldErrors.title && (
+                                    <p className="text-xs text-red-400">
+                                        {chapterFieldErrors.title}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-sm font-medium text-foreground">
+                                    Status
+                                </label>
+                                <select
+                                    name="status"
+                                    value={chapterForm.status}
+                                    onChange={handleChapterChange}
+                                    disabled
+                                    className={inputClass(!!chapterFieldErrors.status, BASE_SELECT)}
+                                >
+                                    <option value="published">Published</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Chapter cover */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-sm font-medium text-foreground">
+                                Chapter cover <span className="text-red-400">*</span>
+                            </label>
+                            <label
+                                className={`relative flex flex-col items-center justify-center h-28 rounded-xl border-2 border-dashed cursor-pointer hover:border-zinc-400 transition-colors overflow-hidden bg-zinc-50 dark:bg-zinc-900 ${chapterFieldErrors._cover ? 'border-red-400 dark:border-red-500' : 'border-zinc-200 dark:border-zinc-800'}`}
+                            >
+                                {chapterCoverPreview ? (
+                                    <img
+                                        src={chapterCoverPreview}
+                                        alt="Cover"
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                                        <span className="text-2xl">🖼</span>
+                                        <span className="text-xs">Click to upload cover</span>
+                                    </div>
+                                )}
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleChapterCoverChange}
+                                    className="sr-only"
+                                />
+                            </label>
+                            {chapterFieldErrors._cover && (
+                                <p className="text-xs text-red-400">{chapterFieldErrors._cover}</p>
+                            )}
+                        </div>
+
+                        {/* Webtoon pages */}
+                        {form.type === 'webtoon' && (
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium text-foreground">
+                                    Chapter pages <span className="text-red-400">*</span>
+                                </label>
+                                {chapterFieldErrors._images && (
+                                    <p className="text-xs text-red-400">
+                                        {chapterFieldErrors._images}
+                                    </p>
+                                )}
+                                <label className="flex items-center justify-center gap-2 h-11 rounded-xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 cursor-pointer hover:border-zinc-400 transition-colors text-sm text-muted-foreground">
+                                    <span>+</span>
+                                    <span>
+                                        {chapterImages.length > 0 ? 'Add more pages' : 'Add pages'}
+                                    </span>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        onChange={handleChapterImagesChange}
+                                        className="sr-only"
+                                    />
+                                </label>
+                                {chapterImagePreviews.length > 0 && (
+                                    <div className="grid grid-cols-3 gap-2 mt-1">
+                                        {chapterImagePreviews.map((src, i) => (
+                                            <div
+                                                key={src}
+                                                className="group relative rounded-lg overflow-hidden border border-zinc-200 dark:border-zinc-800 aspect-[3/4]"
+                                            >
+                                                <img
+                                                    src={src}
+                                                    alt={`Page ${i + 1}`}
+                                                    className="w-full h-full object-cover"
+                                                />
+                                                <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/60 text-white text-[10px] font-semibold">
+                                                    {i + 1}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeChapterImage(i)}
+                                                    className="absolute bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity px-2 py-0.5 rounded-md text-[10px] font-semibold bg-red-500 hover:bg-red-600 text-white"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Novel content */}
+                        {form.type === 'wattpad' && (
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-sm font-medium text-foreground">
+                                    Story content <span className="text-red-400">*</span>
+                                </label>
+                                {chapterFieldErrors.content && (
+                                    <p className="text-xs text-red-400">
+                                        {chapterFieldErrors.content}
+                                    </p>
+                                )}
+                                <textarea
+                                    name="content"
+                                    value={chapterForm.content}
+                                    onChange={handleChapterChange}
+                                    rows={12}
+                                    placeholder="Write your story here..."
+                                    className="w-full px-4 py-3 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-zinc-400 transition-all resize-none leading-relaxed font-[Georgia,serif]"
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Schedule time (conditional) */}
                 {form.schedule && (

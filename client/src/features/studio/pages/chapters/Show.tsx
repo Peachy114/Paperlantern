@@ -2,13 +2,13 @@ import ScrollButton from '@/components/ui/scroll'
 import { useChapterShow } from '@/features/studio/hooks/useChapterShow'
 
 export default function ChapterShow() {
-    const { chapter, prevId, nextId, workId, navigate, goTo, imageUrl } = useChapterShow()
+    const { chapter, prevSlug, nextSlug, workSlug, navigate, goTo, imageUrl } = useChapterShow()
 
     const NavButtons = () => (
         <div className="flex items-center justify-between py-2.5">
-            {prevId ? (
+            {prevSlug ? (
                 <button
-                    onClick={() => goTo(prevId)}
+                    onClick={() => goTo(prevSlug)}
                     className="px-3 sm:px-4 py-2 border-[2px] border-foreground text-foreground hover:bg-foreground hover:text-background transition-colors duration-100 active:bg-foreground active:text-background"
                     style={{
                         fontFamily: "'Bebas Neue', sans-serif",
@@ -23,9 +23,9 @@ export default function ChapterShow() {
                 <div />
             )}
 
-            {nextId ? (
+            {nextSlug ? (
                 <button
-                    onClick={() => goTo(nextId)}
+                    onClick={() => goTo(nextSlug)}
                     className="px-3 sm:px-4 py-2 border-[2px] border-foreground text-foreground hover:bg-foreground hover:text-background transition-colors duration-100 active:bg-foreground active:text-background"
                     style={{
                         fontFamily: "'Bebas Neue', sans-serif",
@@ -54,7 +54,7 @@ export default function ChapterShow() {
                 {/* Header */}
                 <div className="flex items-start sm:items-center justify-between pb-4 mb-5 border-b-[2.5px] border-[#1a1a1a] dark:border-foreground/40 gap-3">
                     <button
-                        onClick={() => navigate(`/studio/works/${workId}/chapters`)}
+                        onClick={() => navigate(`/studio/works/${workSlug}/chapters`)}
                         className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
                         style={{
                             fontFamily: "'Bebas Neue', sans-serif",
@@ -132,7 +132,7 @@ export default function ChapterShow() {
                     <div className="bg-[#ffffff] dark:bg-[#080808] px-4 sm:px-8 py-8 sm:py-10 my-5 text-start">
                         {chapter.content ? (
                             <p
-                                className="leading-loose text-foreground whitespace-pre-wrap"
+                                className="leading-loose text-foreground whitespace-pre-wrap break-words"
                                 style={{
                                     fontFamily: "'Noto Serif', serif",
                                     fontSize: 'clamp(14px, 3.5vw, 15px)',

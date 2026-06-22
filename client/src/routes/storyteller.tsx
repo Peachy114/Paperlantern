@@ -1,3 +1,4 @@
+//STORYTELLER ROUTES
 import { Route } from 'react-router-dom'
 import { Suspense } from 'react'
 import { Pages } from './lazyImports'
@@ -22,7 +23,7 @@ export const storytellerRoutes = (
             }
         />
         <Route
-            path="/studio/works/:id/edit"
+            path="/studio/works/:slug/edit"
             element={
                 <Suspense fallback={<LoadingPunk />}>
                     <Pages.EditWork />
@@ -30,7 +31,7 @@ export const storytellerRoutes = (
             }
         />
         <Route
-            path="/studio/works/:workId/chapters"
+            path="/studio/works/:workSlug/chapters"
             element={
                 <Suspense fallback={<LoadingPunk />}>
                     <Pages.ChapterIndex />
@@ -38,7 +39,7 @@ export const storytellerRoutes = (
             }
         />
         <Route
-            path="/studio/works/:workId/chapters/create"
+            path="/studio/works/:workSlug/chapters/create"
             element={
                 <Suspense fallback={<LoadingPunk />}>
                     <Pages.ChapterCreate />
@@ -46,7 +47,7 @@ export const storytellerRoutes = (
             }
         />
         <Route
-            path="/studio/works/:workId/chapters/:id/show"
+            path="/studio/works/:workSlug/chapters/:chapterSlug/show"
             element={
                 <Suspense fallback={<LoadingPunk />}>
                     <Pages.ChapterShow />
@@ -54,7 +55,7 @@ export const storytellerRoutes = (
             }
         />
         <Route
-            path="/studio/works/:workId/chapters/:id/edit"
+            path="/studio/works/:workSlug/chapters/:chapterSlug/edit"
             element={
                 <Suspense fallback={<LoadingPunk />}>
                     <Pages.ChapterEdit />
@@ -62,5 +63,13 @@ export const storytellerRoutes = (
             }
         />
         <Route path="/studio/earnings" element={<Pages.StudioEarnings />} />
+        <Route
+            path="/studio/trash"
+            element={
+                <Suspense fallback={<LoadingPunk />}>
+                    <Pages.StudioTrash />
+                </Suspense>
+            }
+        />
     </>
 )

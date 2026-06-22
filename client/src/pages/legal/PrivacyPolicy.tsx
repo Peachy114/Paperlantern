@@ -124,7 +124,7 @@ const SECTIONS = [
                 text: 'You can delete your account from settings. Your personal data will be removed within 30 days.',
                 warn: false,
             },
-            { text: 'For any privacy requests, reach us at privacy@laterncomix.app', warn: false },
+            { text: 'For any privacy requests, reach us at support@laterncomix.com', warn: false },
         ],
     },
     {
@@ -142,7 +142,7 @@ const SECTIONS = [
                 warn: true,
             },
             {
-                text: 'Send DMCA takedown requests to dmca@laterncomix.app with proof of ownership.',
+                text: 'Send DMCA takedown requests to support@laterncomix.com with proof of ownership.',
                 warn: false,
             },
         ],
@@ -380,7 +380,7 @@ export default function PrivacyPolicy() {
                                     If we make significant changes, we'll notify you via email or a
                                     banner on the site. Continued use of Later N Comix after changes
                                     means you accept the updated policy. Questions? Contact us at{' '}
-                                    <strong>dev@devorbitstudio.com</strong>
+                                    <strong>dev@devorbitstudio.com/support@laterncomix.com</strong>
                                 </p>
                                 <p
                                     className="mt-3 text-[#1a1a1a]/40 text-[11px]"

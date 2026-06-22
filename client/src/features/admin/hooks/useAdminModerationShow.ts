@@ -3,20 +3,20 @@ import { moderationApi } from '@/api/moderation'
 import { useState } from 'react'
 import type { ChapterDetail } from '@/types/moderation'
 
-export function useAdminModerationShow(chapterId: number) {
+export function useAdminModerationShow(chapterSlug: string) {
     const queryClient = useQueryClient()
     const [reason, setReason] = useState('')
     const [showViolateForm, setShowViolateForm] = useState(false)
 
-    const queryKey = ['admin-moderation', 'chapter', chapterId]
+    const queryKey = ['admin-moderation', 'chapter', chapterSlug]
 
     const { data: chapter } = useSuspenseQuery<ChapterDetail>({
         queryKey,
-        queryFn: () => moderationApi.getChapter(chapterId).then((r) => r.data),
+        queryFn: () => moderationApi.getChapter(chapterSlug).then((r) => r.data),
     })
 
     const approve = useMutation({
-        mutationFn: () => moderationApi.approveChapter(chapterId),
+        mutationFn: () => moderationApi.approveChapter(chapterSlug),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-moderation-queue'] })
             queryClient.invalidateQueries({ queryKey })
@@ -24,7 +24,7 @@ export function useAdminModerationShow(chapterId: number) {
     })
 
     const violate = useMutation({
-        mutationFn: () => moderationApi.violateChapter(chapterId, reason),
+        mutationFn: () => moderationApi.violateChapter(chapterSlug, reason),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-moderation-queue'] })
             queryClient.invalidateQueries({ queryKey })

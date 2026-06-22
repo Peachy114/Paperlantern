@@ -14,11 +14,12 @@ class ChapterService
 
     public function createChapter(Work $work, array $data, Request $request): Chapter
     {
+        $data['slug'] = Chapter::generateSlug($data['title'], $work->id);
+
         if ($request->hasFile('cover')) {
             $data['cover'] = $request->file('cover')->store('chapter-covers', 'public');
         }
 
-        // Set moderation status based on publish intent
         if (isset($data['status']) && $data['status'] === 'published') {
             $data['moderation_status'] = 'pending_review';
         } else {
@@ -30,7 +31,7 @@ class ChapterService
         }
 
         $chapter = $this->repo->create($work, $data);
-        $chapter  = $this->applyLockType($chapter, $request);
+        $chapter = $this->applyLockType($chapter, $request);
 
         if ($request->hasFile('images')) {
             $this->repo->saveImages($chapter, $request->file('images'));
@@ -41,6 +42,10 @@ class ChapterService
 
     public function updateChapter(Chapter $chapter, array $data, Request $request): Chapter
     {
+        if (isset($data['title'])) {
+            $data['slug'] = Chapter::generateSlug($data['title'], $chapter->work_id, $chapter->id);
+        }
+
         if ($request->hasFile('cover')) {
             $data['cover'] = $request->file('cover')->store('chapter-covers', 'public');
         }

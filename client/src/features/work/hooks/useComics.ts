@@ -5,6 +5,7 @@ import { storageUrl } from '@/utils/storage'
 
 export interface ComicItem {
     id: number
+    slug: string
     title: string
     cover: string | null
     type: string
@@ -13,6 +14,7 @@ export interface ComicItem {
     likes: number
     status: string
     created_at: string
+    chapters_count: number
 }
 
 export function useComics(type: 'webtoon' | 'wattpad' = 'webtoon') {

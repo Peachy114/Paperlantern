@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 // import { FaXTwitter, FaInstagram, FaDiscord } from 'react-icons/fa6'
+import { FaThreads } from 'react-icons/fa6'
 import { useAuthStore } from '@/store/authStore'
 import { useModalStore } from '@/store/modalStore'
 
@@ -21,11 +22,11 @@ const NAV_LINKS = {
     ],
 }
 
-// const SOCIAL = [
-//   { label: 'Twitter', href: '#', icon: FaXTwitter },
-//   { label: 'Instagram', href: '#', icon: FaInstagram },
-//   { label: 'Discord', href: '#', icon: FaDiscord },
-// ]
+const SOCIAL = [
+    { label: 'Threads', href: 'https://www.threads.com/@laterncomix', icon: FaThreads },
+    // { label: 'Instagram', href: '#', icon: FaInstagram },
+    // { label: 'Discord', href: '#', icon: FaDiscord },
+]
 
 const RIGHTS = [
     { label: 'Privacy Policy', to: '/privacy-policy' },
@@ -133,20 +134,27 @@ export default function Footer() {
                                 A COZY CORNER FOR COMICS & NOVELS. READ, DISCOVER, AND SUPPORT
                                 CREATORS.
                             </p>
+                            <p
+                                className=" text-start text-[11px] tracking-[0.1em] text-muted-foreground leading-relaxed max-w-[240px] sm:max-w-[210px]"
+                                style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                            >
+                                support@laterncomix.com
+                            </p>
 
-                            {/* <div className="flex items-center gap-2">
-                {SOCIAL.map(({ label, href, icon: Icon }) => (
-                  <a
-                    key={label}
-                    href={href}
-                    aria-label={label}
-                    className="w-[34px] h-[34px] flex items-center justify-center border-2 border-foreground text-foreground hover:bg-amber-400 hover:text-[#1a1a1a] hover:-translate-x-px hover:-translate-y-px transition-all duration-100"
-                    style={{ boxShadow: '2px 2px 0 var(--foreground)' }}
-                  >
-                    <Icon size={14} />
-                  </a>
-                ))}
-              </div> */}
+                            <div className="flex items-center gap-2">
+                                {SOCIAL.map(({ label, href, icon: Icon }) => (
+                                    <a
+                                        key={label}
+                                        href={href}
+                                        target="_"
+                                        aria-label={label}
+                                        className="w-[34px] h-[34px] flex items-center justify-center border-2 border-foreground text-foreground hover:bg-amber-400 hover:text-[#1a1a1a] hover:-translate-x-px hover:-translate-y-px transition-all duration-100"
+                                        style={{ boxShadow: '2px 2px 0 var(--foreground)' }}
+                                    >
+                                        <Icon size={14} />
+                                    </a>
+                                ))}
+                            </div>
                         </div>
 
                         {/* Nav columns — 3-column grid on mobile, auto on larger */}

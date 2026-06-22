@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { studioApi } from '@/api/studio'
 
 interface Work {
-    id: number
+    slug: string
     title: string
     type: 'webtoon' | 'wattpad'
     status: 'draft' | 'ongoing' | 'completed' | 'hiatus'
@@ -28,14 +28,11 @@ export function useStudioDashboard() {
         queryFn: () => studioApi.getWorks().then((res) => res.data),
     })
 
-    // Confirmation is handled by the AlertDialog in the component.
-    // This just performs the delete and updates the cache — it throws on
-    // failure so the caller can show its own toast/error feedback.
-    const handleDelete = async (id: number) => {
-        await studioApi.deleteWork(id)
+    const handleDelete = async (slug: string) => {
+        await studioApi.trashWork(slug)
         queryClient.setQueryData<Work[]>(
             ['studio-works'],
-            (prev) => prev?.filter((w) => w.id !== id) ?? []
+            (prev) => prev?.filter((w) => w.slug !== slug) ?? []
         )
     }
 

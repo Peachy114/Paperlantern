@@ -1,3 +1,4 @@
+//ADMIN ROUTES
 import { Route } from 'react-router-dom'
 import { Suspense } from 'react'
 import LoadingPunk from '@/components/shared/loading/LoadingPunk'
@@ -40,14 +41,13 @@ export const adminRoutes = (
         />
 
         <Route path="/admin/moderation" element={<Pages.ModerationPage />} />
-        <Route path="/admin/moderation/chapters/:id" element={<Pages.ModerationShow />} />
-        <Route path="/admin/moderation/works/:id" element={<Pages.ModerationShowWork />} />
+        <Route path="/admin/moderation/chapters/:chapterSlug" element={<Pages.ModerationShow />} />
+        <Route path="/admin/moderation/works/:workSlug" element={<Pages.ModerationShowWork />} />
         <Route
             path="/admin/moderation/sticky-notes/:id"
             element={<Pages.ModerationShowStickyNote />}
         />
         <Route path="/admin/announcements" element={<Pages.AdminAnnouncements />} />
-
         <Route path="/admin/earnings" element={<Pages.AdminEarnings />} />
     </>
 )

@@ -11,11 +11,9 @@ import UnlockModal from '@/components/shared/UnlockModalChapter'
 export default function ComicChapter() {
     const {
         chapter,
-        prevId,
-        nextId,
-        nextChapter,
         prevChapter,
-        workId,
+        nextChapter,
+        slug,
         navigate,
         goTo,
         imageUrl,
@@ -37,7 +35,7 @@ export default function ComicChapter() {
         chapterId: number | null
         chapterTitle: string
         creditsRequired: number
-        navigateTo: number | null
+        navigateTo: string | null
     }>({ open: false, chapterId: null, chapterTitle: '', creditsRequired: 0, navigateTo: null })
 
     useEffect(() => {
@@ -53,7 +51,7 @@ export default function ComicChapter() {
         return () => observer.disconnect()
     }, [chapter])
 
-    const openUnlockModal = (chapter: ChapterListItem, navigateTo: number) => {
+    const openUnlockModal = (chapter: ChapterListItem, navigateTo: string) => {
         if (!token) {
             openLogin()
             return
@@ -74,7 +72,7 @@ export default function ComicChapter() {
             const result = await unlockChapter(unlockModal.chapterId)
             if (result.success) {
                 refetchWallet()
-                queryClient.invalidateQueries({ queryKey: ['chapter', String(workId)] })
+                queryClient.invalidateQueries({ queryKey: ['chapter', slug] })
                 setUnlockModal((m) => ({ ...m, open: false }))
                 if (unlockModal.navigateTo) {
                     goTo(unlockModal.navigateTo)
@@ -96,10 +94,10 @@ export default function ComicChapter() {
     }) => (
         <div className="flex items-center justify-between py-2.5 gap-2">
             {/* PREV */}
-            {prevId ? (
-                prevChapter?.is_locked ? (
+            {prevChapter ? (
+                prevChapter.is_locked ? (
                     <button
-                        onClick={() => openUnlockModal(prevChapter, prevId)}
+                        onClick={() => openUnlockModal(prevChapter, prevChapter.slug)}
                         className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 bg-amber-400 border-[2px] border-foreground text-[#1a1a1a] hover:-translate-x-px hover:-translate-y-px transition-transform duration-100 text-left"
                         style={{
                             fontFamily: "'Bebas Neue', sans-serif",
@@ -116,7 +114,7 @@ export default function ComicChapter() {
                     </button>
                 ) : (
                     <button
-                        onClick={() => goTo(prevId)}
+                        onClick={() => goTo(prevChapter.slug)}
                         className="px-3 sm:px-4 py-2 border-[2px] border-foreground text-foreground hover:bg-foreground hover:text-background transition-colors duration-100"
                         style={{
                             fontFamily: "'Bebas Neue', sans-serif",
@@ -133,10 +131,10 @@ export default function ComicChapter() {
             )}
 
             {/* NEXT */}
-            {nextId ? (
-                nextChapter?.is_locked ? (
+            {nextChapter ? (
+                nextChapter.is_locked ? (
                     <button
-                        onClick={() => openUnlockModal(nextChapter, nextId)}
+                        onClick={() => openUnlockModal(nextChapter, nextChapter.slug)}
                         className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-2 bg-amber-400 border-[2px] border-foreground text-[#1a1a1a] hover:-translate-x-px hover:-translate-y-px transition-transform duration-100 text-right"
                         style={{
                             fontFamily: "'Bebas Neue', sans-serif",
@@ -153,7 +151,7 @@ export default function ComicChapter() {
                     </button>
                 ) : (
                     <button
-                        onClick={() => goTo(nextId)}
+                        onClick={() => goTo(nextChapter.slug)}
                         className="px-3 sm:px-4 py-2 border-[2px] border-foreground text-foreground hover:bg-foreground hover:text-background transition-colors duration-100"
                         style={{
                             fontFamily: "'Bebas Neue', sans-serif",
@@ -193,7 +191,7 @@ export default function ComicChapter() {
                 {/* Header */}
                 <div className="flex items-center justify-between pb-3 sm:pb-4 mb-4 sm:mb-5 border-b-[2.5px] border-[#1a1a1a] dark:border-foreground/40 gap-2">
                     <button
-                        onClick={() => navigate(`/comics/${workId}`)}
+                        onClick={() => navigate(`/comics/${slug}`)}
                         className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
                         style={{
                             fontFamily: "'Bebas Neue', sans-serif",
@@ -286,7 +284,7 @@ export default function ComicChapter() {
                     <div className="rounded-xl sm:rounded-2xl bg-zinc-50 dark:bg-[#080808] px-4 sm:px-8 py-6 sm:py-10 my-4 sm:my-5 text-start">
                         {chapter.content ? (
                             <p
-                                className="leading-loose text-foreground whitespace-pre-wrap"
+                                className="leading-loose text-foreground whitespace-pre-wrap break-words"
                                 style={{ fontSize: 'clamp(14px, 3.5vw, 16px)' }}
                             >
                                 {chapter.content}

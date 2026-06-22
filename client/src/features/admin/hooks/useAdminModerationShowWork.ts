@@ -6,15 +6,15 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import { violationSchema, type ViolationFormData } from '../schemas/violationSchema'
 import type { WorkDetail } from '@/types/moderation'
 
-export function useAdminModerationShowWork(workId: number) {
+export function useAdminModerationShowWork(workSlug: string) {
     const queryClient = useQueryClient()
     const [showViolateForm, setShowViolateForm] = useState(false)
 
-    const queryKey = ['admin-moderation', 'work', workId]
+    const queryKey = ['admin-moderation', 'work', workSlug]
 
     const { data: work } = useSuspenseQuery<WorkDetail>({
         queryKey,
-        queryFn: () => moderationApi.getWork(workId).then((r) => r.data),
+        queryFn: () => moderationApi.getWork(workSlug).then((r) => r.data),
     })
 
     const form = useForm<ViolationFormData>({
@@ -23,7 +23,7 @@ export function useAdminModerationShowWork(workId: number) {
     })
 
     const approve = useMutation({
-        mutationFn: () => moderationApi.approveWork(workId),
+        mutationFn: () => moderationApi.approveWork(workSlug),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-moderation-queue'] })
             queryClient.invalidateQueries({ queryKey })
@@ -31,7 +31,7 @@ export function useAdminModerationShowWork(workId: number) {
     })
 
     const violate = useMutation({
-        mutationFn: (data: ViolationFormData) => moderationApi.violateWork(workId, data.reason),
+        mutationFn: (data: ViolationFormData) => moderationApi.violateWork(workSlug, data.reason),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-moderation-queue'] })
             queryClient.invalidateQueries({ queryKey })

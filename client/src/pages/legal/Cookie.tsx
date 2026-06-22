@@ -93,7 +93,7 @@ const SECTIONS = [
             },
             {
                 title: 'Questions',
-                text: 'If you have any questions about how we use cookies, reach us at privacy@laterncomix.app',
+                text: 'If you have any questions about how we use cookies, reach us at support@laterncomix.com',
                 warn: false,
             },
         ],

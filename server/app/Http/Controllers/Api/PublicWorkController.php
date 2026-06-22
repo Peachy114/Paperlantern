@@ -28,14 +28,15 @@ class PublicWorkController extends Controller
         return response()->json($this->service->getFreshReleases());
     }
 
-
-
     public function latestChapters(): JsonResponse
     {
         return response()->json($this->service->getLatestChapters());
     }
 
-
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
 
     public function showWork(Work $work): JsonResponse
     {

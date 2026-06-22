@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Work extends Model
 {
@@ -15,6 +16,7 @@ class Work extends Model
         'title',
         'description',
         'type',
+        'slug',
         'genres',
         'cover',
         'banner',
@@ -45,4 +47,30 @@ class Work extends Model
     {
         return $this->hasMany(Chapter::class)->orderBy('order');
     }
+
+    // Add this method
+    public static function generateSlug(string $title, ?int $excludeId = null): string
+    {
+        $base = \Illuminate\Support\Str::slug($title);
+        $slug = $base;
+        $count = 2;
+
+        while (
+            static::where('slug', $slug)
+                ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
+                ->exists()
+        ) {
+            $slug = "{$base}-{$count}";
+            $count++;
+        }
+
+        return $slug;
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
+
 }

@@ -7,7 +7,7 @@ const STRIKE_BG = ['', '#86efac', '#fbbf24', '#fca5a5']
 const STRIKE_MSG = ['', 'First warning', 'Final warning — next ban!', 'BANNED']
 
 function ModerationShowWorkContent() {
-    const { id } = useParams()
+    const { workSlug } = useParams()
     const navigate = useNavigate()
     const {
         work,
@@ -19,7 +19,7 @@ function ModerationShowWorkContent() {
         approving,
         violating,
         result,
-    } = useAdminModerationShowWork(Number(id))
+    } = useAdminModerationShowWork(workSlug!)
 
     const {
         register,

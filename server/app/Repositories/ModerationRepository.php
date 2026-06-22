@@ -22,7 +22,7 @@ class ModerationRepository
                 'work.user:id,name,username,strike_count',
             ])
             ->latest()
-            ->get(['id', 'work_id', 'title', 'order', 'status', 'moderation_status', 'created_at']);
+            ->get(['id','slug', 'work_id', 'title', 'order', 'status', 'moderation_status', 'created_at']);
     }
 
     public function getChapterForReview(Chapter $chapter): Chapter
@@ -53,7 +53,7 @@ class ModerationRepository
         return Work::where('moderation_status', 'pending_review')
             ->with(['user:id,name,username,strike_count'])
             ->latest()
-            ->get(['id', 'title', 'cover', 'type', 'user_id', 'moderation_status', 'created_at']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'user_id', 'moderation_status', 'created_at']);
     }
 
     public function getWorkForReview(Work $work): Work

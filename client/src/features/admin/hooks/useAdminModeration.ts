@@ -18,6 +18,7 @@ interface ModerationWork {
 
 interface ModerationChapter {
     id: number
+    slug: string
     title: string
     order: number
     status: string
@@ -28,6 +29,7 @@ interface ModerationChapter {
 
 interface ModerationWorkItem {
     id: number
+    slug: string
     title: string
     cover: string | null
     type: string
@@ -70,14 +72,14 @@ export function useAdminModerationQueue() {
 
     // --- Chapters ---
     const approveChapter = useMutation({
-        mutationFn: (id: number) => moderationApi.approveChapter(id),
-        onSuccess: (_, id) => {
+        mutationFn: (slug: string) => moderationApi.approveChapter(slug),
+        onSuccess: (_, slug) => {
             queryClient.setQueryData<ModerationQueue>(QUEUE_KEY, (prev) =>
                 prev
                     ? {
                           ...prev,
                           pending_count: prev.pending_count - 1,
-                          chapters: removeFromQueue(prev.chapters, id),
+                          chapters: prev.chapters.filter((c) => c.slug !== slug),
                       }
                     : prev
             )
@@ -86,15 +88,15 @@ export function useAdminModerationQueue() {
     })
 
     const violateChapter = useMutation({
-        mutationFn: ({ id, reason }: { id: number; reason: string }) =>
-            moderationApi.violateChapter(id, reason),
-        onSuccess: (_, { id }) => {
+        mutationFn: ({ slug, reason }: { slug: string; reason: string }) =>
+            moderationApi.violateChapter(slug, reason),
+        onSuccess: (_, { slug }) => {
             queryClient.setQueryData<ModerationQueue>(QUEUE_KEY, (prev) =>
                 prev
                     ? {
                           ...prev,
                           pending_count: prev.pending_count - 1,
-                          chapters: removeFromQueue(prev.chapters, id),
+                          chapters: prev.chapters.filter((c) => c.slug !== slug),
                       }
                     : prev
             )
@@ -105,14 +107,14 @@ export function useAdminModerationQueue() {
 
     // --- Works ---
     const approveWork = useMutation({
-        mutationFn: (id: number) => moderationApi.approveWork(id),
-        onSuccess: (_, id) => {
+        mutationFn: (slug: string) => moderationApi.approveWork(slug),
+        onSuccess: (_, slug) => {
             queryClient.setQueryData<ModerationQueue>(QUEUE_KEY, (prev) =>
                 prev
                     ? {
                           ...prev,
                           pending_count: prev.pending_count - 1,
-                          works: removeFromQueue(prev.works, id),
+                          works: prev.works.filter((w) => w.slug !== slug),
                       }
                     : prev
             )
@@ -121,15 +123,15 @@ export function useAdminModerationQueue() {
     })
 
     const violateWork = useMutation({
-        mutationFn: ({ id, reason }: { id: number; reason: string }) =>
-            moderationApi.violateWork(id, reason),
-        onSuccess: (_, { id }) => {
+        mutationFn: ({ slug, reason }: { slug: string; reason: string }) =>
+            moderationApi.violateWork(slug, reason),
+        onSuccess: (_, { slug }) => {
             queryClient.setQueryData<ModerationQueue>(QUEUE_KEY, (prev) =>
                 prev
                     ? {
                           ...prev,
                           pending_count: prev.pending_count - 1,
-                          works: removeFromQueue(prev.works, id),
+                          works: prev.works.filter((w) => w.slug !== slug),
                       }
                     : prev
             )
@@ -179,17 +181,19 @@ export function useAdminModerationQueue() {
         stickyNotes: data.sticky_notes,
         pendingCount: data.pending_count,
 
-        approveChapter: (id: number) => approveChapter.mutate(id),
-        violateChapter: (id: number, reason: string) => violateChapter.mutate({ id, reason }),
-        approveWork: (id: number) => approveWork.mutate(id),
-        violateWork: (id: number, reason: string) => violateWork.mutate({ id, reason }),
+        approveChapter: (slug: string) => approveChapter.mutate(slug),
+        violateChapter: (slug: string, reason: string) => violateChapter.mutate({ slug, reason }),
+        approveWork: (slug: string) => approveWork.mutate(slug),
+        violateWork: (slug: string, reason: string) => violateWork.mutate({ slug, reason }),
+
+        // sticky notes unchanged (still by id)
         approveStickyNote: (id: number) => approveStickyNote.mutate(id),
         violateStickyNote: (id: number, reason: string) => violateStickyNote.mutate({ id, reason }),
 
         approvingChapter: approveChapter.isPending ? approveChapter.variables : null,
-        violatingChapter: violateChapter.isPending ? violateChapter.variables?.id : null,
+        violatingChapter: violateChapter.isPending ? violateChapter.variables?.slug : null,
         approvingWork: approveWork.isPending ? approveWork.variables : null,
-        violatingWork: violateWork.isPending ? violateWork.variables?.id : null,
+        violatingWork: violateWork.isPending ? violateWork.variables?.slug : null,
         approvingStickyNote: approveStickyNote.isPending ? approveStickyNote.variables : null,
         violatingStickyNote: violateStickyNote.isPending ? violateStickyNote.variables?.id : null,
     }

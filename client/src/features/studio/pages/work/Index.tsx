@@ -35,13 +35,13 @@ export default function StudioDashboard() {
         navigate,
     } = useStudioDashboard()
 
-    const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null)
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
     const [deleting, setDeleting] = useState(false)
 
     const totalChapters = works.reduce((s, w) => s + w.chapters_count, 0)
     const totalViews = works.reduce((s, w) => s + w.views, 0)
 
-    const pendingWork = works.find((w) => w.id === pendingDeleteId) ?? null
+    const pendingWork = works.find((w) => w.slug === pendingDeleteId) ?? null
 
     const confirmDelete = async () => {
         if (pendingDeleteId === null) return
@@ -137,6 +137,17 @@ export default function StudioDashboard() {
                                     }}
                                 >
                                     + NEW
+                                </button>
+                                <button
+                                    onClick={() => navigate('/studio/trash')}
+                                    className="shrink-0 border-[2.5px] border-[#1a1a1a] dark:border-foreground text-[#1a1a1a] dark:text-foreground hover:bg-[#1a1a1a] hover:text-amber-400 dark:hover:bg-foreground dark:hover:text-background transition-colors duration-100 px-2.5 sm:px-4 py-1.5 sm:py-2 cursor-pointer text-[12px] sm:text-normal"
+                                    style={{
+                                        fontFamily: "'Bebas Neue', sans-serif",
+                                        letterSpacing: '0.12em',
+                                        boxShadow: '2px 2px 0 #1a1a1a',
+                                    }}
+                                >
+                                    Trash
                                 </button>
                             </div>
                         </div>
@@ -259,7 +270,7 @@ export default function StudioDashboard() {
                                     }
                                     return (
                                         <div
-                                            key={work.id}
+                                            key={work.slug}
                                             className={`relative flex items-center gap-2 sm:gap-3 px-3 sm:pl-14 sm:pr-4 py-3 transition-colors duration-100 hover:bg-amber-400/[0.07] ${
                                                 i % 2 === 0
                                                     ? 'bg-[#fffdf5] dark:bg-[#1c1a17]'
@@ -365,7 +376,7 @@ export default function StudioDashboard() {
                                                 <button
                                                     onClick={() =>
                                                         navigate(
-                                                            `/studio/works/${work.id}/chapters`
+                                                            `/studio/works/${work.slug}/chapters`
                                                         )
                                                     }
                                                     className="sm:hidden border-[2px] border-[#1a1a1a] dark:border-foreground/70 text-[#1a1a1a] dark:text-foreground hover:bg-[#1a1a1a] hover:text-white dark:hover:bg-foreground dark:hover:text-background transition-colors duration-100 w-8 h-8 flex items-center justify-center cursor-pointer"
@@ -406,7 +417,7 @@ export default function StudioDashboard() {
                                                 </button>
                                                 <button
                                                     onClick={() =>
-                                                        navigate(`/studio/works/${work.id}/edit`)
+                                                        navigate(`/studio/works/${work.slug}/edit`)
                                                     }
                                                     className="sm:hidden border-[2px] border-[#1a1a1a] dark:border-foreground/70 text-[#1a1a1a] dark:text-foreground hover:bg-[#1a1a1a] hover:text-white dark:hover:bg-foreground dark:hover:text-background transition-colors duration-100 w-8 h-8 flex items-center justify-center cursor-pointer"
                                                     style={{ boxShadow: '1.5px 1.5px 0 #1a1a1a' }}
@@ -427,7 +438,7 @@ export default function StudioDashboard() {
                                                     </svg>
                                                 </button>
                                                 <button
-                                                    onClick={() => setPendingDeleteId(work.id)}
+                                                    onClick={() => setPendingDeleteId(work.slug)}
                                                     className="sm:hidden border-[2px] border-red-300 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors duration-100 w-8 h-8 flex items-center justify-center cursor-pointer"
                                                     title="Delete"
                                                 >
@@ -450,7 +461,7 @@ export default function StudioDashboard() {
                                                 <button
                                                     onClick={() =>
                                                         navigate(
-                                                            `/studio/works/${work.id}/chapters`
+                                                            `/studio/works/${work.slug}/chapters`
                                                         )
                                                     }
                                                     className="hidden sm:block border-[2px] border-[#1a1a1a] dark:border-foreground/70 text-[#1a1a1a] dark:text-foreground hover:bg-[#1a1a1a] hover:text-white dark:hover:bg-foreground dark:hover:text-background transition-colors duration-100 px-2.5 py-1 cursor-pointer text-xsmall"
@@ -464,7 +475,7 @@ export default function StudioDashboard() {
                                                 </button>
                                                 <button
                                                     onClick={() =>
-                                                        navigate(`/studio/works/${work.id}/edit`)
+                                                        navigate(`/studio/works/${work.slug}/edit`)
                                                     }
                                                     className="hidden sm:block border-[2px] border-[#1a1a1a] dark:border-foreground/70 text-[#1a1a1a] dark:text-foreground hover:bg-[#1a1a1a] hover:text-white dark:hover:bg-foreground dark:hover:text-background transition-colors duration-100 px-2.5 py-1 cursor-pointer text-xsmall"
                                                     style={{
@@ -476,7 +487,7 @@ export default function StudioDashboard() {
                                                     EDIT
                                                 </button>
                                                 <button
-                                                    onClick={() => setPendingDeleteId(work.id)}
+                                                    onClick={() => setPendingDeleteId(work.slug)}
                                                     className="hidden sm:block border-[2px] border-red-300 dark:border-red-800 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 hover:border-red-400 dark:hover:border-red-600 transition-colors duration-100 px-2.5 py-1 cursor-pointer text-xsmall"
                                                     style={{
                                                         fontFamily: "'Bebas Neue', sans-serif",

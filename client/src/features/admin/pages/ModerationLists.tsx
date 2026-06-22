@@ -191,7 +191,7 @@ function ChaptersSection({
     'chapters' | 'approveChapter' | 'violateChapter' | 'approvingChapter' | 'violatingChapter'
 >) {
     const navigate = useNavigate()
-    const [violateId, setViolateId] = useState<number | null>(null)
+    const [violateId, setViolateId] = useState<string | null>(null)
 
     return (
         <>
@@ -244,18 +244,18 @@ function ChaptersSection({
                                 </div>
                                 <ActionButtons
                                     onReview={() =>
-                                        navigate(`/admin/moderation/chapters/${chapter.id}`)
+                                        navigate(`/admin/moderation/chapters/${chapter.slug}`)
                                     }
-                                    onApprove={() => approveChapter(chapter.id)}
-                                    onViolate={() => setViolateId(chapter.id)}
-                                    approving={approvingChapter === chapter.id}
-                                    violating={violatingChapter === chapter.id}
+                                    onApprove={() => approveChapter(chapter.slug)} // ← was chapter.id
+                                    onViolate={() => setViolateId(chapter.slug)} // ← was chapter.id
+                                    approving={approvingChapter === chapter.slug} // ← was chapter.id
+                                    violating={violatingChapter === chapter.slug} // ← was chapter.id
                                 />
                             </div>
-                            {violateId === chapter.id && (
+                            {violateId === chapter.slug && ( // ← was chapter.id
                                 <ViolateForm
                                     onConfirm={(reason) => {
-                                        violateChapter(chapter.id, reason)
+                                        violateChapter(chapter.slug, reason) // ← was chapter.id
                                         setViolateId(null)
                                     }}
                                     onCancel={() => setViolateId(null)}
@@ -282,7 +282,7 @@ function WorksSection({
     'works' | 'approveWork' | 'violateWork' | 'approvingWork' | 'violatingWork'
 >) {
     const navigate = useNavigate()
-    const [violateId, setViolateId] = useState<number | null>(null)
+    const [violateId, setViolateId] = useState<string | null>(null)
 
     return (
         <>
@@ -341,17 +341,19 @@ function WorksSection({
                                     </div>
                                 </div>
                                 <ActionButtons
-                                    onReview={() => navigate(`/admin/moderation/works/${work.id}`)}
-                                    onApprove={() => approveWork(work.id)}
-                                    onViolate={() => setViolateId(work.id)}
-                                    approving={approvingWork === work.id}
-                                    violating={violatingWork === work.id}
+                                    onReview={() =>
+                                        navigate(`/admin/moderation/works/${work.slug}`)
+                                    } // ← was work.id
+                                    onApprove={() => approveWork(work.slug)} // ← was work.id
+                                    onViolate={() => setViolateId(work.slug)} // ← was work.id
+                                    approving={approvingWork === work.slug} // ← was work.id
+                                    violating={violatingWork === work.slug} // ← was work.id
                                 />
                             </div>
-                            {violateId === work.id && (
+                            {violateId === work.slug && ( // ← was work.id
                                 <ViolateForm
                                     onConfirm={(reason) => {
-                                        violateWork(work.id, reason)
+                                        violateWork(work.slug, reason) // ← was work.id
                                         setViolateId(null)
                                     }}
                                     onCancel={() => setViolateId(null)}

@@ -7,6 +7,7 @@ import { usePagination, PAGE_SIZE } from '../../hooks/usePagination'
 
 interface Work {
     id: number
+    slug: string
     title: string
     cover: string | null
     type: 'webtoon' | 'wattpad'
@@ -55,6 +56,7 @@ export default function WeeklyChartSection({
                         />
                         <Card
                             id={work.id}
+                            slug={work.slug}
                             title={work.title}
                             cover={cover(work.cover)}
                             type={work.type}

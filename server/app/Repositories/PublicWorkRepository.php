@@ -13,14 +13,16 @@ class PublicWorkRepository
     public function getHeroWorks(): \Illuminate\Database\Eloquent\Collection
     {
         return Work::where('status', '!=', 'draft')
+            ->has('chapters')  // ← add
             ->orderByDesc('views')
             ->limit(5)
-            ->get(['id', 'title', 'cover', 'banner', 'type', 'genres', 'views', 'likes', 'description']);
+            ->get(['id', 'slug', 'title', 'cover', 'banner', 'type', 'genres', 'views', 'likes', 'description', 'status']);
     }
 
     public function getWeeklyChart(): \Illuminate\Database\Eloquent\Collection
     {
         return Work::where('status', '!=', 'draft')
+            ->has('chapters') 
             ->withSum(['chapters as weekly_views' => function ($q) {
                 $q->where('created_at', '>=', now()->startOfWeek());
             }], 'views')
@@ -32,10 +34,11 @@ class PublicWorkRepository
     public function getFreshReleases(): \Illuminate\Database\Eloquent\Collection
     {
         return Work::where('status', '!=', 'draft')
+            ->has('chapters') 
             ->where('created_at', '>=', now()->subDays(7))
             ->orderByDesc('created_at')
             ->limit(10)
-            ->get(['id', 'title', 'cover', 'type', 'genres', 'likes', 'created_at']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'likes', 'created_at']);
     }
 
     public function getLatestChapters(): \Illuminate\Database\Eloquent\Collection
@@ -44,9 +47,12 @@ class PublicWorkRepository
             ->where('created_at', '>=', now()->subDays(7))
             ->whereHas('work', fn($q) => $q->where('status', '!=', 'draft'))
             ->orderByDesc('created_at')
-            ->with(['work:id,title,cover,type'])
-            ->limit(10)
-            ->get(['id', 'work_id', 'title', 'cover', 'order', 'created_at']);
+            ->with(['work:id,slug,title,cover,type,user_id'])  // ← add user_id
+            ->limit(50)  // ← fetch more so dedup has enough to work with
+            ->get(['id', 'work_id', 'title', 'cover', 'order', 'created_at'])
+            ->unique(fn($chapter) => $chapter->work?->user_id)  // ← one per user
+            ->take(10)
+            ->values();
     }
 
     public function getWork(Work $work): Work
@@ -64,7 +70,7 @@ class PublicWorkRepository
         return $work->chapters()
             ->where('status', '!=', 'draft')
             ->orderBy('order')
-            ->get(['id', 'title', 'order', 'lock_type', 'unlocks_at', 'likes', 'credits_required', 'created_at']);
+            ->get(['id', 'slug', 'title', 'order', 'lock_type', 'unlocks_at', 'likes', 'credits_required', 'created_at']);
     }
 
     public function searchWorks(string $query): \Illuminate\Database\Eloquent\Collection
@@ -72,13 +78,15 @@ class PublicWorkRepository
         return Work::where('status', '!=', 'draft')
             ->where('title', 'like', "%{$query}%")
             ->limit(8)
-            ->get(['id', 'title', 'cover', 'type']);
+            ->get(['id', 'slug', 'title', 'cover', 'type']);
     }
 
     public function getComics(Request $request): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         $type  = $request->query('type', 'webtoon');
-        $query = Work::where('status', '!=', 'draft')->where('type', $type);
+        $query = Work::where('status', '!=', 'draft')
+            ->where('type', $type)
+            ->has('chapters'); 
 
         if ($request->has('day')) {
             $query->where('schedule', strtolower($request->day));
@@ -98,7 +106,7 @@ class PublicWorkRepository
             $query->latest();
         }
 
-        return $query->paginate(20, ['id', 'title', 'cover', 'type', 'genres', 'views', 'likes', 'status', 'created_at']);
+        return $query->paginate(20, ['id', 'slug', 'title', 'cover', 'type', 'genres', 'views', 'likes', 'status', 'created_at']);
     }
 
     public function hasViewed(Chapter $chapter, ?int $userId, string $ip): bool

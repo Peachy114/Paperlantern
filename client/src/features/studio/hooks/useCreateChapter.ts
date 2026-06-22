@@ -21,6 +21,16 @@ const makeSchema = (workType: 'webtoon' | 'wattpad', images: File[], cover: File
             then: (s) => s.required('Story content is required.'),
             otherwise: (s) => s.optional(),
         }),
+        scheduled_at: Yup.string().when('status', {
+            is: 'scheduled',
+            then: (s) =>
+                s
+                    .required('Please set a scheduled date and time.')
+                    .test('is-future', 'Scheduled time must be in the future.', (val) => {
+                        if (!val) return false
+                        return new Date(val) > new Date()
+                    }),
+        }),
         credits_required: Yup.number().when('lock_type', {
             is: (v: string) => v === 'early_access' || v === 'premium',
             then: (s) => s.min(3, 'Minimum credits required is 3.'),
@@ -34,7 +44,7 @@ const makeSchema = (workType: 'webtoon' | 'wattpad', images: File[], cover: File
     })
 
 export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
-    const { workId } = useParams()
+    const { workSlug } = useParams()
     const navigate = useNavigate()
 
     const [form, setForm] = useState({
@@ -63,9 +73,6 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
         }))
     }
 
-    // Keeps lock_type and credits_required in sync:
-    // - free        -> credits cleared to 0 (no credits needed)
-    // - early_access/premium -> credits set to existing value if >= 3, otherwise defaulted to 3
     const handleLockTypeChange = (value: 'free' | 'early_access' | 'premium') => {
         setForm((prev) => ({
             ...prev,
@@ -139,10 +146,14 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
             if (cover) formData.append('cover', cover)
             if (workType === 'webtoon') images.forEach((img) => formData.append('images[]', img))
 
-            await studioApi.createChapter(Number(workId), formData)
-            navigate(`/studio/works/${workId}/chapters`)
-        } catch {
-            setError('Failed to create chapter. Please try again.')
+            await studioApi.createChapter(workSlug!, formData)
+            navigate(`/studio/works/${workSlug}/chapters`)
+        } catch (err: any) {
+            const message =
+                err?.response?.data?.errors?.scheduled_at?.[0] ??
+                err?.response?.data?.message ??
+                'Failed to create chapter. Please try again.'
+            setError(message)
         } finally {
             setLoading(false)
         }
@@ -157,7 +168,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
         loading,
         error,
         navigate,
-        workId: Number(workId),
+        workSlug,
         handleChange,
         handleLockTypeChange,
         handleCoverChange,
