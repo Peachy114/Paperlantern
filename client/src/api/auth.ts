@@ -15,4 +15,6 @@ export const authApi = {
     logout: () => api.post('/auth/logout'),
 
     me: () => api.get('/auth/me'),
+
+    updatePreferences: (dark_mode: boolean) => api.patch('/user/preferences', { dark_mode }),
 }

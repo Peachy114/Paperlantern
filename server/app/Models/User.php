@@ -34,6 +34,7 @@ class User extends Authenticatable
         'is_banned',
         'ban_reason',
         'banned_at',
+        'dark_mode',
     ];
 
     /**
@@ -59,6 +60,7 @@ class User extends Authenticatable
             'password'          => 'hashed',
             'is_banned'         => 'boolean',
             'credits'           => 'integer',
+            'dark_mode'         => 'boolean',
         ];
     }
 

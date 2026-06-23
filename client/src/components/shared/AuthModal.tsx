@@ -47,9 +47,8 @@ export default function AuthModal() {
                     }}
                 >
                     <span
-                        className="tracking-[0.15em]"
+                        className="tracking-[0.15em] font-bebas"
                         style={{
-                            fontFamily: "'Bebas Neue', sans-serif",
                             fontSize: '11px',
                             color: view === 'login' ? '#be185d' : '#92400e',
                         }}
@@ -67,10 +66,7 @@ export default function AuthModal() {
                             style={{ boxShadow: '2px 2px 0 #1a1a1a' }}
                         >
                             <span className="w-[7px] h-[7px] rounded-full bg-pink-400 border-[1.5px] border-[#1a1a1a] shrink-0" />
-                            <span
-                                className="text-[16px] tracking-[0.06em] text-[#1a1a1a] leading-none"
-                                style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-                            >
+                            <span className="text-[16px] tracking-[0.06em] text-[#1a1a1a] leading-none font-bebas">
                                 LATER N COMIX
                             </span>
                         </div>
@@ -89,10 +85,7 @@ export default function AuthModal() {
                         className="border-2 border-[#1a1a1a] px-3 py-2.5 mb-4 bg-[#fff8e7]"
                         style={{ boxShadow: '3px 3px 0 #1a1a1a' }}
                     >
-                        <div
-                            className="text-[26px] tracking-[0.04em] text-[#1a1a1a] leading-none"
-                            style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-                        >
+                        <div className="text-[26px] tracking-[0.04em] text-[#1a1a1a] leading-none font-bebas">
                             {view === 'login' ? 'WELCOME BACK!' : 'JOIN THE STORY.'}
                         </div>
                         <div className="text-[12px] text-[#6b7280] font-semibold mt-0.5 tracking-[0.04em]">
@@ -109,33 +102,23 @@ export default function AuthModal() {
 
                     {/* Switch link */}
                     <div className="flex items-center justify-center gap-1.5 mt-2.5">
-                        <span
-                            className="text-[10px] tracking-[0.12em] text-[#9ca3af]"
-                            style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-                        >
+                        <span className="text-[10px] tracking-[0.12em] text-[#9ca3af] font-bebas">
                             {view === 'login' ? 'NEW READER?' : 'ALREADY A READER?'}
                         </span>
                         <button
                             onClick={view === 'login' ? openRegister : openLogin}
-                            className="text-[10px] tracking-[0.12em] text-pink-500 underline cursor-pointer bg-transparent border-none"
-                            style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                            className="text-[10px] tracking-[0.12em] text-pink-500 underline cursor-pointer bg-transparent border-none font-bebas"
                         >
                             {view === 'login' ? 'JOIN THE STORY ♥' : 'LOG IN ♥'}
                         </button>
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between border-t-2 border-[#1a1a1a] mt-5 pt-2.5">
-                        <span
-                            className="text-[10px] tracking-[0.18em] text-[#9ca3af]"
-                            style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-                        >
+                    <div className="flex items-center justify-between border-t-2 border-[#1a1a1a] mt-5 pt-2.5 font-bebas">
+                        <span className="text-[10px] tracking-[0.18em] text-[#9ca3af]">
                             LATER N COMIX PUBLISHING
                         </span>
-                        <span
-                            className="text-[10px] tracking-[0.18em] text-pink-400"
-                            style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-                        >
+                        <span className="text-[10px] tracking-[0.18em] text-pink-400">
                             ♥ VOL. 01
                         </span>
                     </div>

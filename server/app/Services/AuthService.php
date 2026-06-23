@@ -73,6 +73,7 @@ class AuthService
             'email'    => $user->email,
             'role'     => $user->role,
             'is_banned'=> $user->is_banned,
+            'dark_mode' => (bool) $user->dark_mode,
         ];
     }
 }

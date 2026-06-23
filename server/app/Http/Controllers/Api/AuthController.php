@@ -60,6 +60,7 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out from all devices.']);
     }
 
+    // BECOME CREATOR
     public function becomeCreator(Request $request): JsonResponse
     {
         if ($request->user()->role !== 'wanderer') {
@@ -67,5 +68,20 @@ class AuthController extends Controller
         }
 
         return response()->json($this->service->becomeCreator($request->user()));
+    }
+
+
+    // DARK MODE
+    public function updatePreferences(Request $request)
+    {
+        $request->validate([
+            'dark_mode' => 'required|boolean',
+        ]);
+
+        $request->user()->update([
+            'dark_mode' => $request->dark_mode,
+        ]);
+
+        return response()->json(['message' => 'Preferences updated']);
     }
 }

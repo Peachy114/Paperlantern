@@ -47,19 +47,15 @@ export default function UnlockModal({
                         {/* Header */}
                         <div className="bg-[#1a1a1a] dark:bg-[#2a2825] px-5 py-4">
                             <h2
-                                className="text-white leading-none"
+                                className="text-white leading-none font-bebas"
                                 style={{
-                                    fontFamily: "'Bebas Neue', sans-serif",
                                     fontSize: '22px',
                                     letterSpacing: '0.04em',
                                 }}
                             >
                                 {canAfford ? '🔓 UNLOCK CHAPTER' : '💳 NOT ENOUGH CREDITS'}
                             </h2>
-                            <p
-                                className="text-white/40 mt-1 text-small truncate"
-                                style={{ fontFamily: "'Kalam', cursive" }}
-                            >
+                            <p className="text-white/40 mt-1 text-small truncate  font-kalam">
                                 {chapterTitle}
                             </p>
                         </div>
@@ -69,16 +65,12 @@ export default function UnlockModal({
                             {canAfford ? (
                                 <>
                                     <div className="flex items-center justify-between mb-4 pb-4 border-b-[2px] border-[#1a1a1a]/10 dark:border-foreground/10">
-                                        <span
-                                            className="text-[#1a1a1a]/60 dark:text-foreground/60 text-small"
-                                            style={{ fontFamily: "'Kalam', cursive" }}
-                                        >
+                                        <span className="text-[#1a1a1a]/60 dark:text-foreground/60 text-small  font-kalam">
                                             Cost
                                         </span>
                                         <span
-                                            className="text-amber-500"
+                                            className="text-amber-500 font-bebas"
                                             style={{
-                                                fontFamily: "'Bebas Neue', sans-serif",
                                                 fontSize: '20px',
                                             }}
                                         >
@@ -86,16 +78,12 @@ export default function UnlockModal({
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between mb-5">
-                                        <span
-                                            className="text-[#1a1a1a]/60 dark:text-foreground/60 text-small"
-                                            style={{ fontFamily: "'Kalam', cursive" }}
-                                        >
+                                        <span className="text-[#1a1a1a]/60 dark:text-foreground/60 text-small  font-kalam">
                                             Your balance
                                         </span>
                                         <span
-                                            className="text-[#1a1a1a] dark:text-foreground"
+                                            className="text-[#1a1a1a] dark:text-foreground font-bebas"
                                             style={{
-                                                fontFamily: "'Bebas Neue', sans-serif",
                                                 fontSize: '20px',
                                             }}
                                         >
@@ -103,16 +91,12 @@ export default function UnlockModal({
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between mb-5 pt-3 border-t-[2px] border-[#1a1a1a]/10 dark:border-foreground/10">
-                                        <span
-                                            className="text-[#1a1a1a]/60 dark:text-foreground/60 text-small"
-                                            style={{ fontFamily: "'Kalam', cursive" }}
-                                        >
+                                        <span className="text-[#1a1a1a]/60 dark:text-foreground/60 text-small  font-kalam">
                                             Balance after
                                         </span>
                                         <span
-                                            className="text-green-600 dark:text-green-400"
+                                            className="text-green-600 dark:text-green-400 font-bebas"
                                             style={{
-                                                fontFamily: "'Bebas Neue', sans-serif",
                                                 fontSize: '20px',
                                             }}
                                         >
@@ -124,9 +108,8 @@ export default function UnlockModal({
                                         <button
                                             onClick={onClose}
                                             disabled={unlocking}
-                                            className="flex-1 py-2 border-[2px] border-[#d4cfc2] text-[#999] hover:border-[#888] hover:text-[#1a1a1a] transition-colors duration-100 cursor-pointer text-small disabled:opacity-50"
+                                            className="flex-1 py-2 border-[2px] border-[#d4cfc2] font-bebas text-[#999] hover:border-[#888] hover:text-[#1a1a1a] transition-colors duration-100 cursor-pointer text-small disabled:opacity-50"
                                             style={{
-                                                fontFamily: "'Bebas Neue', sans-serif",
                                                 letterSpacing: '0.1em',
                                             }}
                                         >
@@ -135,9 +118,8 @@ export default function UnlockModal({
                                         <button
                                             onClick={onConfirm}
                                             disabled={unlocking}
-                                            className="flex-1 py-2 bg-amber-400 border-[2px] border-[#1a1a1a] text-[#1a1a1a] hover:bg-amber-500 transition-colors duration-100 cursor-pointer text-small disabled:opacity-60"
+                                            className="flex-1 py-2 bg-amber-400 border-[2px] border-[#1a1a1a] font-bebas text-[#1a1a1a] hover:bg-amber-500 transition-colors duration-100 cursor-pointer text-small disabled:opacity-60"
                                             style={{
-                                                fontFamily: "'Bebas Neue', sans-serif",
                                                 letterSpacing: '0.1em',
                                                 boxShadow: '2px 2px 0 #1a1a1a',
                                             }}
@@ -150,33 +132,25 @@ export default function UnlockModal({
                                 <>
                                     <div className="text-center py-2 mb-4">
                                         <div
-                                            className="text-[#1a1a1a] dark:text-foreground mb-1"
+                                            className="text-[#1a1a1a] dark:text-foreground mb-1 font-bebas"
                                             style={{
-                                                fontFamily: "'Bebas Neue', sans-serif",
                                                 fontSize: '32px',
                                             }}
                                         >
                                             ₵ {creditsRequired}
                                         </div>
-                                        <p
-                                            className="text-[#1a1a1a]/60 dark:text-foreground/50 text-small"
-                                            style={{ fontFamily: "'Kalam', cursive" }}
-                                        >
+                                        <p className="text-[#1a1a1a]/60 dark:text-foreground/50 text-small  font-kalam">
                                             needed to unlock
                                         </p>
                                     </div>
 
-                                    <div className="flex items-center justify-between px-3 py-2 mb-5 bg-red-50 dark:bg-red-950/30 border-[2px] border-red-200 dark:border-red-800">
-                                        <span
-                                            className="text-red-500 text-small"
-                                            style={{ fontFamily: "'Kalam', cursive" }}
-                                        >
+                                    <div className="flex items-center justify-between  font-kalam px-3 py-2 mb-5 bg-red-50 dark:bg-red-950/30 border-[2px] border-red-200 dark:border-red-800">
+                                        <span className="text-red-500 text-small">
                                             you're short
                                         </span>
                                         <span
-                                            className="text-red-500"
+                                            className="text-red-500 font-bebas"
                                             style={{
-                                                fontFamily: "'Bebas Neue', sans-serif",
                                                 fontSize: '18px',
                                             }}
                                         >
@@ -187,9 +161,8 @@ export default function UnlockModal({
                                     <div className="flex gap-2">
                                         <button
                                             onClick={onClose}
-                                            className="flex-1 py-2 border-[2px] border-[#d4cfc2] text-[#999] hover:border-[#888] hover:text-[#1a1a1a] transition-colors duration-100 cursor-pointer text-small"
+                                            className="flex-1 py-2 border-[2px] border-[#d4cfc2] font-bebas text-[#999] hover:border-[#888] hover:text-[#1a1a1a] transition-colors duration-100 cursor-pointer text-small"
                                             style={{
-                                                fontFamily: "'Bebas Neue', sans-serif",
                                                 letterSpacing: '0.1em',
                                             }}
                                         >
@@ -197,9 +170,8 @@ export default function UnlockModal({
                                         </button>
                                         <button
                                             onClick={() => navigate('/credits')}
-                                            className="flex-1 py-2 bg-[#1a1a1a] dark:bg-foreground text-white dark:text-background border-[2px] border-[#1a1a1a] hover:opacity-90 transition-opacity cursor-pointer text-small"
+                                            className="flex-1 py-2 bg-[#1a1a1a] font-bebas dark:bg-foreground text-white dark:text-background border-[2px] border-[#1a1a1a] hover:opacity-90 transition-opacity cursor-pointer text-small"
                                             style={{
-                                                fontFamily: "'Bebas Neue', sans-serif",
                                                 letterSpacing: '0.1em',
                                                 boxShadow: '2px 2px 0 #1a1a1a',
                                             }}

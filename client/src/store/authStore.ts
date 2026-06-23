@@ -1,13 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-interface User {
+export interface User {
     id: number
     name: string
     username: string
     email: string
     role: 'super_admin' | 'storyteller' | 'wanderer'
     is_banned: boolean
+    dark_mode?: boolean
 }
 
 interface AuthState {
@@ -15,6 +16,7 @@ interface AuthState {
     token: string | null
     setAuth: (user: User, token: string) => void
     clearAuth: () => void
+    setUser: (user: User) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -24,6 +26,7 @@ export const useAuthStore = create<AuthState>()(
             token: null,
             setAuth: (user, token) => set({ user, token }),
             clearAuth: () => set({ user: null, token: null }),
+            setUser: (user) => set({ user }),
         }),
         { name: 'auth-storage' }
     )

@@ -69,10 +69,13 @@ export default function Card({
                     <img
                         src={cover}
                         alt={title}
+                        width={300}
+                        height={450}
                         className={`w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ${
                             imgLoaded ? 'opacity-100' : 'opacity-0'
                         }`}
-                        loading="lazy"
+                        loading={rank !== undefined && rank <= 3 ? 'eager' : 'lazy'}
+                        fetchPriority={rank !== undefined && rank <= 3 ? 'high' : 'auto'}
                         onLoad={() => setImgLoaded(true)}
                     />
                 )}
@@ -114,10 +117,7 @@ export default function Card({
                 ) : null}
 
                 {likes !== undefined && (
-                    <div
-                        className="text-xsmall text-muted-foreground/60 mt-0.5"
-                        style={{ fontFamily: "'Kalam', cursive" }}
-                    >
+                    <div className="text-xsmall text-muted-foreground/60 mt-0.5 font-kalam">
                         ♥ {likes.toLocaleString()}
                     </div>
                 )}

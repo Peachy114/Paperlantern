@@ -58,6 +58,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::post('/logout-all', [AuthController::class, 'logoutAll']);
     });
         Route::post('/auth/become-creator', [AuthController::class, 'becomeCreator']);
+        Route::patch('/user/preferences', [AuthController::class, 'updatePreferences']);
 
 
     // ── Wallet balance & history ──────────────────────────────────────────────────────
