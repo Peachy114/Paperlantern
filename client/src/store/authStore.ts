@@ -2,13 +2,15 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export interface User {
-    id: number
+    id: string
     name: string
     username: string
     email: string
     role: 'super_admin' | 'storyteller' | 'wanderer'
     is_banned: boolean
     dark_mode?: boolean
+    avatar?: string | null
+    bio?: string | null
 }
 
 interface AuthState {

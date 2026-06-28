@@ -1,7 +1,5 @@
-// types/moderation.ts
-
 export interface ModerationUser {
-    id: number
+    id: string
     name: string
     username: string
     email: string
@@ -10,13 +8,13 @@ export interface ModerationUser {
 }
 
 export interface ChapterImage {
-    id: number
+    id: string
     path: string
     order: number
 }
 
 export interface ChapterDetail {
-    id: number
+    id: string
     title: string
     order: number
     content: string | null
@@ -24,7 +22,7 @@ export interface ChapterDetail {
     created_at: string
     images: ChapterImage[]
     work: {
-        id: number
+        id: string
         title: string
         cover: string | null
         type: string
@@ -33,7 +31,7 @@ export interface ChapterDetail {
 }
 
 export interface WorkDetail {
-    id: number
+    id: string
     title: string
     cover: string | null
     type: string
@@ -44,7 +42,7 @@ export interface WorkDetail {
 }
 
 export interface StickyNoteDetail {
-    id: number
+    id: string
     type: 'text' | 'image'
     text: string | null
     image_path: string | null

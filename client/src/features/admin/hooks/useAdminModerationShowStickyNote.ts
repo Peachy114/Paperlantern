@@ -6,7 +6,7 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import type { StickyNoteDetail } from '@/types/moderation'
 import { violationSchema, type ViolationFormData } from '../schemas/violationSchema'
 
-export function useAdminModerationShowStickyNote(noteId: number) {
+export function useAdminModerationShowStickyNote(noteId: string) {
     const queryClient = useQueryClient()
     const [showViolateForm, setShowViolateForm] = useState(false)
 

@@ -2,16 +2,20 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+
 class StorytellerEarning extends Model
 {
+    use HasUuids;
+
     protected $fillable = [
         'user_id',
-        'balance',       // in credits
-        'php_balance',   // converted PHP value
+        'balance',
+        'php_balance',
     ];
 
     protected $casts = [

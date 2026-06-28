@@ -69,11 +69,10 @@ class PublicWorkController extends Controller
 
         $chapter->load('images');
         $chapter->work_type = $work->type;
+        $chapter->work_user_id = $work->user_id;
 
         return response()->json($chapter);
     }
-
-
 
     public function search(Request $request): JsonResponse
     {

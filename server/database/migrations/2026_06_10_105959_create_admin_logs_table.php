@@ -9,11 +9,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('admin_logs', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('admin_id')->constrained('users')->cascadeOnDelete();
-            $table->string('action'); // viewed_chapter, banned_user, deleted_work, etc.
-            $table->string('target_type'); // user, work, chapter
-            $table->unsignedBigInteger('target_id');
+            $table->string('id', 36)->primary();
+            $table->string('admin_id', 36);
+            $table->foreign('admin_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->string('action');
+            $table->string('target_type');
+            $table->string('target_id', 36);
             $table->text('notes')->nullable();
             $table->timestamps();
         });

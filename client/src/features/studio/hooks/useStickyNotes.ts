@@ -63,6 +63,12 @@ export function useStickyNotes() {
     }
 
     const removeNote = async (id: number) => {
+        // Cancel any pending position update for this note
+        if (positionTimer.current[id]) {
+            clearTimeout(positionTimer.current[id])
+            delete positionTimer.current[id]
+        }
+
         setNotes((prev) => prev.filter((n) => n.id !== id))
         await api.delete(`/studio/sticky-notes/${id}`).catch(() => {})
     }

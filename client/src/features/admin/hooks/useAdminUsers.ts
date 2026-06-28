@@ -2,7 +2,7 @@ import { useSuspenseQuery, useQueryClient, useMutation } from '@tanstack/react-q
 import { adminApi } from '@/api/admin'
 
 interface AdminUser {
-    id: number
+    id: string
     name: string
     username: string
     strike_count: number
@@ -22,7 +22,7 @@ export function useAdminUsers() {
     })
 
     const banUser = useMutation({
-        mutationFn: (id: number) => adminApi.banUser(id),
+        mutationFn: (id: string) => adminApi.banUser(id),
         onSuccess: (_, id) => {
             queryClient.setQueryData<AdminUser[]>(['admin-users'], (prev) =>
                 prev?.map((u) => (u.id === id ? { ...u, is_banned: true } : u))
@@ -31,7 +31,7 @@ export function useAdminUsers() {
     })
 
     const unbanUser = useMutation({
-        mutationFn: (id: number) => adminApi.unbanUser(id),
+        mutationFn: (id: string) => adminApi.unbanUser(id),
         onSuccess: (_, id) => {
             queryClient.setQueryData<AdminUser[]>(['admin-users'], (prev) =>
                 prev?.map((u) => (u.id === id ? { ...u, is_banned: false } : u))
@@ -40,12 +40,11 @@ export function useAdminUsers() {
     })
 
     const deleteUser = useMutation({
-        mutationFn: (id: number) => adminApi.deleteUser(id),
+        mutationFn: (id: string) => adminApi.deleteUser(id),
         onSuccess: (_, id) => {
             queryClient.setQueryData<AdminUser[]>(['admin-users'], (prev) =>
                 prev?.filter((u) => u.id !== id)
             )
-            // Also invalidate dashboard stats since user count changed
             queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] })
         },
     })
@@ -58,8 +57,8 @@ export function useAdminUsers() {
     return {
         users,
         actionLoading,
-        banUser: (id: number) => banUser.mutate(id),
-        unbanUser: (id: number) => unbanUser.mutate(id),
-        deleteUser: (id: number) => deleteUser.mutate(id),
+        banUser: (id: string) => banUser.mutate(id),
+        unbanUser: (id: string) => unbanUser.mutate(id),
+        deleteUser: (id: string) => deleteUser.mutate(id),
     }
 }

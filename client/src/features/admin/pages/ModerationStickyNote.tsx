@@ -19,7 +19,7 @@ function ModerationShowStickyNoteContent() {
         approving,
         violating,
         result,
-    } = useAdminModerationShowStickyNote(Number(id))
+    } = useAdminModerationShowStickyNote(id!)
 
     const {
         register,

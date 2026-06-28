@@ -74,16 +74,16 @@ export function useWalletTransactions(perPage = 15) {
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
-export async function initiateCheckout(packageId: number): Promise<CheckoutResponse> {
+export async function initiateCheckout(packageId: string): Promise<CheckoutResponse> {
     const { data } = await api.post<CheckoutResponse>('/credits/checkout', {
         package_id: packageId,
     })
     return data
 }
 
-export async function unlockChapter(chapterId: number): Promise<UnlockResponse> {
+export async function unlockChapter(chapterSlug: string): Promise<UnlockResponse> {
     try {
-        const { data } = await api.post<UnlockResponse>(`/chapters/${chapterId}/unlock`)
+        const { data } = await api.post<UnlockResponse>(`/chapters/${chapterSlug}/unlock`)
         return data
     } catch (err: any) {
         if (err.response?.status === 402) {

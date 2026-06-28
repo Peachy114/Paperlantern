@@ -36,7 +36,7 @@ class PublicWorkService
         return $this->repo->getWork($work);
     }
 
-    public function getChapters(Work $work, ?int $userId = null): \Illuminate\Support\Collection
+    public function getChapters(Work $work, ?string $userId = null): \Illuminate\Support\Collection
     {
         $unlockedIds = $userId
             ? \App\Models\ChapterUnlock::where('user_id', $userId)
@@ -68,6 +68,7 @@ class PublicWorkService
                 'credits_required' => $chapter->credits_required,
                 'likes'            => $chapter->likes,
                 'created_at'       => $chapter->created_at,
+                'cover'            => $chapter->cover, 
             ];
         });
     }

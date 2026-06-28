@@ -48,7 +48,7 @@ const noBadWords = (field: string) =>
 const schema = Yup.object({
     title: noBadWords('Title')
         .required('Title is required.')
-        .max(30, 'Title must be 30 characters or less.'),
+        .max(100, 'Title must be 100 characters or less.'),
     description: noBadWords('Description')
         .required('Description is required.')
         .max(300, 'Description must be 300 characters or less.'),

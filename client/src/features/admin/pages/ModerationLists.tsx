@@ -212,7 +212,10 @@ function ChaptersSection({
                                 >
                                     {String(i + 1).padStart(2, '0')}
                                 </span>
-                                <Cover src={chapter.work.cover} alt={chapter.work.title} />
+                                <Cover
+                                    src={chapter.work?.cover ?? null}
+                                    alt={chapter.work?.title ?? 'Unknown'}
+                                />
                                 <div className="flex-1 min-w-0 text-start">
                                     <div
                                         className="text-[#1a1a1a] dark:text-foreground text-[13px] sm:text-normal truncate"
@@ -221,18 +224,21 @@ function ChaptersSection({
                                             letterSpacing: '0.05em',
                                         }}
                                     >
-                                        {chapter.work.title} — Ch.{chapter.order} {chapter.title}
+                                        {chapter.work?.title ?? 'Unknown Work'} — Ch.{chapter.order}{' '}
+                                        {chapter.title}
                                     </div>
                                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                         <span
                                             className="text-[#1a1a1a]/40 dark:text-foreground/40 text-[10px]"
                                             style={{ fontFamily: "'Kalam', cursive" }}
                                         >
-                                            {chapter.work.user
+                                            {chapter.work?.user
                                                 ? `by @${chapter.work.user.username}`
                                                 : '⚠ user deleted'}
                                         </span>
-                                        <StrikeBadge count={chapter.work.user?.strike_count ?? 0} />
+                                        <StrikeBadge
+                                            count={chapter.work?.user?.strike_count ?? 0}
+                                        />
                                         <span className="text-[#1a1a1a]/20 text-[10px]">·</span>
                                         <span
                                             className="text-[#1a1a1a]/30 dark:text-foreground/30 text-[10px]"
@@ -384,7 +390,7 @@ function StickyNotesSection({
     | 'violatingStickyNote'
 >) {
     const navigate = useNavigate()
-    const [violateId, setViolateId] = useState<number | null>(null)
+    const [violateId, setViolateId] = useState<string | null>(null)
 
     return (
         <>

@@ -34,7 +34,7 @@ const noBadWords = (field: string) =>
 const workSchema = Yup.object({
     title: noBadWords('Title')
         .required('Title is required.')
-        .max(30, 'Title must be 30 characters or less.'),
+        .max(100, 'Title must be 100 characters or less.'),
     description: noBadWords('Description')
         .required('Description is required.')
         .max(300, 'Description must be 300 characters or less.'),
@@ -280,6 +280,7 @@ export function useCreateWork() {
             if (banner) workFormData.append('banner', banner)
 
             const workRes = await studioApi.createWork(workFormData)
+            console.log('workRes.data', workRes.data)
             const workSlug = workRes.data.slug
 
             // 2. Create chapter only if ongoing/completed
@@ -301,7 +302,7 @@ export function useCreateWork() {
 
                 await studioApi.createChapter(workSlug, chapterFormData)
             }
-
+            console.log('navigating to:', `/studio/works/${workSlug}/chapters`)
             toast.success(`${type === 'webtoon' ? 'Webtoon' : 'Novel'} created!`)
             navigate(`/studio/works/${workSlug}/chapters`)
         } catch (err: any) {

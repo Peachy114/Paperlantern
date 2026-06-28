@@ -13,6 +13,7 @@ class StickyNoteController extends Controller
 
     public function index(Request $request)
     {
+        \Log::info('sticky notes for user', ['user_id' => $request->user()->id]);
         return response()->json($this->service->getUserNotes($request->user()));
     }
 

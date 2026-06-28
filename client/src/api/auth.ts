@@ -17,4 +17,15 @@ export const authApi = {
     me: () => api.get('/auth/me'),
 
     updatePreferences: (dark_mode: boolean) => api.patch('/user/preferences', { dark_mode }),
+
+    updateProfile: (data: FormData) =>
+        api.post('/profile', data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+
+    updatePassword: (data: {
+        current_password: string
+        password: string
+        password_confirmation: string
+    }) => api.patch('/profile/password', data),
 }

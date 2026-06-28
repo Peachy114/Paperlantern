@@ -47,7 +47,7 @@ class ChapterController extends Controller
         }
 
         $validated = $request->validate([
-            'title'            => ['required', 'string', 'max:255'],
+            'title'            => ['required', 'string', 'max:100'],
             'content'          => ['nullable', 'string'],
             'order'            => ['sometimes', 'integer'],
             'status'           => ['sometimes', 'in:draft,scheduled,published'],
@@ -95,7 +95,7 @@ class ChapterController extends Controller
         }
 
         $validated = $request->validate([
-            'title'                => ['sometimes', 'string', 'max:255'],
+            'title'                => ['sometimes', 'string', 'max:50'],
             'content'              => ['nullable', 'string'],
             'order'                => ['sometimes', 'integer'],
             'status'               => ['sometimes', 'in:draft,scheduled,published'],
@@ -122,7 +122,7 @@ class ChapterController extends Controller
             'images'               => ['sometimes', 'array'],
             'images.*'             => ['image', 'max:5120'],
             'existing_image_ids'   => ['sometimes', 'array'],
-            'existing_image_ids.*' => ['nullable', 'integer'],
+            'existing_image_ids.*' => ['nullable', 'string'],
         ]);
 
         if (isset($validated['content'])) {

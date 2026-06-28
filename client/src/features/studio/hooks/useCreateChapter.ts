@@ -14,11 +14,11 @@ const noBadWords = (field: string) =>
 const makeSchema = (workType: 'webtoon' | 'wattpad', images: File[], cover: File | null) =>
     Yup.object({
         title: noBadWords('Title')
-            .required('Title is required.')
+            .required('Please fill out all required fields.')
             .max(100, 'Title is too long. Maximum 100 characters.'),
         content: Yup.string().when([], {
             is: () => workType === 'wattpad',
-            then: (s) => s.required('Story content is required.'),
+            then: (s) => s.required('Please fill out all required fields.'),
             otherwise: (s) => s.optional(),
         }),
         scheduled_at: Yup.string().when('status', {
@@ -40,7 +40,11 @@ const makeSchema = (workType: 'webtoon' | 'wattpad', images: File[], cover: File
             'Please add at least one chapter page.',
             () => workType !== 'webtoon' || images.length > 0
         ),
-        _cover: Yup.mixed().test('has-cover', 'Cover image is required.', () => cover !== null),
+        _cover: Yup.mixed().test(
+            'has-cover',
+            'Please fill out all required fields.',
+            () => cover !== null
+        ),
     })
 
 export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
@@ -120,6 +124,18 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
         e.preventDefault()
         setLoading(true)
         setError(null)
+
+        if (!cover) {
+            setError('Please fill out all required fields.')
+            setLoading(false)
+            return
+        }
+
+        if (workType === 'webtoon' && images.length === 0) {
+            setError('Please add at least one chapter page.')
+            setLoading(false)
+            return
+        }
 
         try {
             await makeSchema(workType, images, cover).validate(

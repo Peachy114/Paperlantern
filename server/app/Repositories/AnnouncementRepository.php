@@ -17,7 +17,7 @@ class AnnouncementRepository
             ->get();
     }
 
-    public function create(int $adminId, array $data): Announcement
+    public function create(string $adminId, array $data): Announcement
     {
         return Announcement::create([
             'created_by' => $adminId,

@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Repositories\AuthRepository;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Storage;
 
 class AuthService
 {
@@ -48,16 +49,19 @@ class AuthService
         ];
     }
 
+    // LOGOUT
     public function logout(User $user): void
     {
         $this->repo->deleteCurrentToken($user);
     }
 
+    //LOGOUT ALL
     public function logoutAll(User $user): void
     {
         $this->repo->deleteAllTokens($user);
     }
 
+    //CREATOR
     public function becomeCreator(User $user): array
     {
         $updated = $this->repo->becomeCreator($user);
@@ -67,13 +71,15 @@ class AuthService
     public function formatUser(User $user): array
     {
         return [
-            'id'       => $user->id,
-            'name'     => $user->name,
-            'username' => $user->username,
-            'email'    => $user->email,
-            'role'     => $user->role,
-            'is_banned'=> $user->is_banned,
+            'id'        => $user->id,
+            'name'      => $user->name,
+            'username'  => $user->username,
+            'email'     => $user->email,
+            'role'      => $user->role,
+            'is_banned' => $user->is_banned,
             'dark_mode' => (bool) $user->dark_mode,
+            'avatar'    => $user->avatar ? url(Storage::url($user->avatar)) : null,
+            'bio'       => $user->bio,
         ];
     }
 }

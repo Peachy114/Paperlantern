@@ -2,7 +2,7 @@ import { useSuspenseQuery, useQueryClient, useMutation } from '@tanstack/react-q
 import { moderationApi } from '@/api/moderation'
 
 interface ModerationUser {
-    id: number
+    id: string
     name: string
     username: string
     strike_count: number
@@ -40,7 +40,7 @@ interface ModerationWorkItem {
 }
 
 interface ModerationStickyNote {
-    id: number
+    id: string
     type: 'text' | 'image'
     text?: string
     color?: string
@@ -58,7 +58,7 @@ interface ModerationQueue {
 
 const QUEUE_KEY = ['admin-moderation-queue'] as const
 
-function removeFromQueue<T extends { id: number }>(items: T[], id: number): T[] {
+function removeFromQueue<T extends { id: string }>(items: T[], id: string): T[] {
     return items.filter((item) => item.id !== id)
 }
 
@@ -142,7 +142,7 @@ export function useAdminModerationQueue() {
 
     // --- Sticky Notes ---
     const approveStickyNote = useMutation({
-        mutationFn: (id: number) => moderationApi.approveStickyNote(id),
+        mutationFn: (id: string) => moderationApi.approveStickyNote(id),
         onSuccess: (_, id) => {
             queryClient.setQueryData<ModerationQueue>(QUEUE_KEY, (prev) =>
                 prev
@@ -158,7 +158,7 @@ export function useAdminModerationQueue() {
     })
 
     const violateStickyNote = useMutation({
-        mutationFn: ({ id, reason }: { id: number; reason: string }) =>
+        mutationFn: ({ id, reason }: { id: string; reason: string }) =>
             moderationApi.violateStickyNote(id, reason),
         onSuccess: (_, { id }) => {
             queryClient.setQueryData<ModerationQueue>(QUEUE_KEY, (prev) =>
@@ -187,8 +187,8 @@ export function useAdminModerationQueue() {
         violateWork: (slug: string, reason: string) => violateWork.mutate({ slug, reason }),
 
         // sticky notes unchanged (still by id)
-        approveStickyNote: (id: number) => approveStickyNote.mutate(id),
-        violateStickyNote: (id: number, reason: string) => violateStickyNote.mutate({ id, reason }),
+        approveStickyNote: (id: string) => approveStickyNote.mutate(id),
+        violateStickyNote: (id: string, reason: string) => violateStickyNote.mutate({ id, reason }),
 
         approvingChapter: approveChapter.isPending ? approveChapter.variables : null,
         violatingChapter: violateChapter.isPending ? violateChapter.variables?.slug : null,

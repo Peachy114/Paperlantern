@@ -23,6 +23,7 @@ class PayMongoWebhookController extends Controller
      */
     public function handle(Request $request): Response
     {
+        \Log::info('WEBHOOK HIT', ['url' => $request->url()]);
         // 1. Verify signature
         $signature = $request->header('Paymongo-Signature');
         $rawBody   = $request->getContent();

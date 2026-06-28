@@ -17,6 +17,7 @@ class ModerationRepository
     public function getPendingChapters(): Collection
     {
         return Chapter::where('moderation_status', 'pending_review')
+            ->whereHas('work')
             ->with([
                 'work:id,title,cover,type,user_id',
                 'work.user:id,name,username,strike_count',
@@ -40,7 +41,7 @@ class ModerationRepository
         return $chapter->fresh();
     }
 
-    public function violateChapter(Chapter $chapter, string $reason, int $adminId): Violation
+    public function violateChapter(Chapter $chapter, string $reason, string $adminId): Violation
     {
         $chapter->update(['moderation_status' => 'violated']);
         return $this->recordViolation($chapter, $reason, $adminId);
@@ -70,7 +71,7 @@ class ModerationRepository
         return $work->fresh();
     }
 
-    public function violateWork(Work $work, string $reason, int $adminId): Violation
+    public function violateWork(Work $work, string $reason, string $adminId): Violation
     {
         $work->update(['moderation_status' => 'violated']);
         return $this->recordViolation($work, $reason, $adminId);
@@ -99,7 +100,7 @@ class ModerationRepository
         return $note->fresh();
     }
 
-    public function violateStickyNote(StickyNote $note, string $reason, int $adminId): Violation
+    public function violateStickyNote(StickyNote $note, string $reason, string $adminId): Violation
     {
         $note->update(['moderation_status' => 'violated']);
         return $this->recordViolation($note, $reason, $adminId);
@@ -107,7 +108,7 @@ class ModerationRepository
 
     // ── Shared ────────────────────────────────────────────────────
 
-   private function recordViolation(Model $target, string $reason, int $adminId): Violation
+    private function recordViolation(Model $target, string $reason, string $adminId): Violation
     {
         if ($target instanceof Chapter) {
             $target->loadMissing('work.user');
@@ -116,13 +117,12 @@ class ModerationRepository
             $user = $target->user;
         }
 
-        // Don't increment if user is already banned
         if (!$user->is_banned) {
             $user->increment('strike_count');
             $user->refresh();
         }
 
-        $strikeCount = $user->strike_count;
+        $strikeCount     = $user->strike_count;
         $resulted_in_ban = $strikeCount >= 3;
 
         if ($resulted_in_ban) {

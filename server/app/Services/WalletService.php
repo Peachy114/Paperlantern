@@ -10,18 +10,15 @@ use App\Repositories\CreditPackageRepository;
 use App\Repositories\WalletRepository;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
+use App\Models\Chapter;
 
 class WalletService
 {
     public function __construct(
-        private WalletRepository       $walletRepo,
+        private WalletRepository        $walletRepo,
         private CreditPackageRepository $packageRepo,
         private PayMongoService         $payMongo,
     ) {}
-
-    // ─────────────────────────────────────────────
-    //  READ
-    // ─────────────────────────────────────────────
 
     public function getWallet(User $user): Wallet
     {
@@ -38,15 +35,6 @@ class WalletService
         return $this->walletRepo->getTransactions($user->id, $perPage);
     }
 
-    // ─────────────────────────────────────────────
-    //  PURCHASE FLOW  (User → /credits)
-    // ─────────────────────────────────────────────
-
-    /**
-     * Initiate a credit purchase: create a PayMongo checkout link.
-     *
-     * Returns ['checkout_url' => ..., 'reference_id' => ...]
-     */
     public function initiateCheckout(User $user, int $packageId): array
     {
         $package = $this->packageRepo->find($packageId);
@@ -66,26 +54,17 @@ class WalletService
         ]);
     }
 
-    // ─────────────────────────────────────────────
-    //  WEBHOOK HANDLER  (PayMongo → server)
-    // ─────────────────────────────────────────────
-
-    /**
-     * Handle a verified PayMongo payment.success webhook.
-     * Idempotent: skips duplicate reference IDs.
-     */
     public function handlePaymentSuccess(array $webhookData): void
     {
         $referenceId = $webhookData['reference_id'];
         $metadata    = $webhookData['metadata'];
 
-        // Idempotency guard
         if ($this->walletRepo->referenceExists($referenceId)) {
             Log::info("WalletService: duplicate webhook reference skipped [{$referenceId}]");
             return;
         }
 
-        $userId  = (int) ($metadata['user_id'] ?? 0);
+        $userId  = $metadata['user_id'] ?? null;  // keep as string (UUID)
         $credits = (int) ($metadata['credits'] ?? 0);
 
         if (! $userId || ! $credits) {
@@ -105,16 +84,7 @@ class WalletService
         Log::info("WalletService: credited {$credits} credits to user {$userId}");
     }
 
-    // ─────────────────────────────────────────────
-    //  CHAPTER UNLOCK FLOW
-    // ─────────────────────────────────────────────
-
-    /**
-     * Attempt to spend credits to unlock a chapter.
-     *
-     * Returns ['success' => bool, 'balance' => int, 'message' => string]
-     */
-    public function spendCredits(User $user, int $chapterId, int $cost): array
+    public function spendCredits(User $user, Chapter $chapter, int $cost): array
     {
         $wallet = $this->walletRepo->findOrCreateByUser($user->id);
 
@@ -128,8 +98,8 @@ class WalletService
 
         $result = $this->walletRepo->debit($wallet, $cost, [
             'source'      => 'chapter_unlock',
-            'description' => "Unlocked chapter #{$chapterId}",
-            'meta'        => ['chapter_id' => $chapterId, 'cost' => $cost],
+            'description' => "Unlocked chapter — {$chapter->title}",
+            'meta'        => ['chapter_id' => $chapter->id, 'cost' => $cost],
         ]);
 
         if ($result === false) {

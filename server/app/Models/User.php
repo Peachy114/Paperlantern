@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;  
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -13,14 +13,8 @@ use Illuminate\Support\Facades\Storage;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, SoftDeletes;
+    use HasFactory, Notifiable, HasApiTokens, SoftDeletes, HasUuids;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'username',
@@ -37,21 +31,11 @@ class User extends Authenticatable
         'dark_mode',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -67,7 +51,6 @@ class User extends Authenticatable
     protected static function booted(): void
     {
         static::deleting(function (User $user) {
-            // Delete works and their storage files
             $user->works()->each(function ($work) {
                 if ($work->cover) Storage::delete($work->cover);
                 if ($work->banner) Storage::delete($work->banner);
@@ -82,7 +65,6 @@ class User extends Authenticatable
                 $work->delete();
             });
 
-            // Delete sticky note images
             $user->stickyNotes()->each(function ($note) {
                 if ($note->type === 'image' && $note->image_path) {
                     Storage::delete($note->image_path);
@@ -90,18 +72,15 @@ class User extends Authenticatable
                 $note->delete();
             });
 
-            // Delete user avatar
             if ($user->avatar) Storage::delete($user->avatar);
         });
     }
 
-    // relationship to work model
     public function works()
     {
         return $this->hasMany(Work::class);
     }
 
-    //relationship to sticky notes
     public function stickyNotes()
     {
         return $this->hasMany(StickyNote::class);

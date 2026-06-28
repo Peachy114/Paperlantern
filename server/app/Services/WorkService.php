@@ -53,6 +53,32 @@ class WorkService
 
     public function deleteWork(Work $work): void
     {
+        // Snapshot all earning transactions for this work's chapters before deletion
+        $work->loadMissing('chapters');
+
+        $chapterIds = $work->chapters->pluck('id');
+
+        if ($chapterIds->isNotEmpty()) {
+            \App\Models\EarningTransaction::whereIn('chapter_id', $chapterIds)
+                ->with('chapter:id,title')
+                ->get()
+                ->each(function ($tx) use ($work) {
+                    \App\Models\EarningSnapshot::create([
+                        'storyteller_id'    => $tx->storyteller_id,
+                        'work_title'        => $work->title,
+                        'chapter_title'     => $tx->chapter?->title ?? 'Deleted Chapter',
+                        'chapter_id'        => $tx->chapter_id,
+                        'credits_spent'     => $tx->credits_spent,
+                        'platform_cut'      => $tx->platform_cut,
+                        'storyteller_cut'   => $tx->storyteller_cut,
+                        'platform_php'      => $tx->platform_php,
+                        'storyteller_php'   => $tx->storyteller_php,
+                        'credit_to_php_rate'=> $tx->credit_to_php_rate,
+                        'earned_at'         => $tx->created_at,
+                    ]);
+                });
+        }
+
         $this->repo->delete($work);
     }
 }

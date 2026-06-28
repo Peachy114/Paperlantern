@@ -1,7 +1,7 @@
 //ADMIN ROUTES
 import { Route } from 'react-router-dom'
 import { Suspense } from 'react'
-import LoadingPunk from '@/components/shared/loading/LoadingPunk'
+import Loading from '@/components/shared/Loading'
 import { Pages } from './lazyImports'
 
 ///admin/announcements
@@ -10,7 +10,7 @@ export const adminRoutes = (
         <Route
             path="/admin"
             element={
-                <Suspense fallback={<LoadingPunk />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.AdminDashboard />
                 </Suspense>
             }
@@ -18,7 +18,7 @@ export const adminRoutes = (
         <Route
             path="/admin/users"
             element={
-                <Suspense fallback={<LoadingPunk />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.AdminUsersList />
                 </Suspense>
             }
@@ -26,7 +26,7 @@ export const adminRoutes = (
         <Route
             path="/admin/logs"
             element={
-                <Suspense fallback={<LoadingPunk />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.AdminActionLogs />
                 </Suspense>
             }
@@ -34,7 +34,7 @@ export const adminRoutes = (
         <Route
             path="/admin/withdrawals"
             element={
-                <Suspense fallback={<LoadingPunk />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.AdminWithdrawals />
                 </Suspense>
             }

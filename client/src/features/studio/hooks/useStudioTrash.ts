@@ -1,4 +1,4 @@
-// hooks/useStudioTrash.ts
+import { useState } from 'react'
 import { useSuspenseQuery, useQueryClient } from '@tanstack/react-query'
 import { studioApi } from '@/api/studio'
 
@@ -18,18 +18,32 @@ interface TrashedChapter {
     deleted_at: string
 }
 
+const PER_PAGE = 5
+
 export function useStudioTrash() {
     const queryClient = useQueryClient()
 
-    const { data: works } = useSuspenseQuery<TrashedWork[]>({
+    const [worksPage, setWorksPage] = useState(1)
+    const [chaptersPage, setChaptersPage] = useState(1)
+
+    const { data: allWorks } = useSuspenseQuery<TrashedWork[]>({
         queryKey: ['studio-trash-works'],
         queryFn: () => studioApi.getTrashedWorks().then((res) => res.data),
     })
 
-    const { data: chapters } = useSuspenseQuery<TrashedChapter[]>({
+    const { data: allChapters } = useSuspenseQuery<TrashedChapter[]>({
         queryKey: ['studio-trash-chapters'],
         queryFn: () => studioApi.getTrashedChapters().then((res) => res.data),
     })
+
+    const works = allWorks.slice(0, worksPage * PER_PAGE)
+    const chapters = allChapters.slice(0, chaptersPage * PER_PAGE)
+
+    const hasMoreWorks = works.length < allWorks.length
+    const hasMoreChapters = chapters.length < allChapters.length
+
+    const loadMoreWorks = () => setWorksPage((p) => p + 1)
+    const loadMoreChapters = () => setChaptersPage((p) => p + 1)
 
     const restoreWork = async (slug: string) => {
         await studioApi.restoreWork(slug)
@@ -67,6 +81,10 @@ export function useStudioTrash() {
     return {
         works,
         chapters,
+        hasMoreWorks,
+        hasMoreChapters,
+        loadMoreWorks,
+        loadMoreChapters,
         restoreWork,
         forceDeleteWork,
         restoreChapter,

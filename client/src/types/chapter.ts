@@ -1,11 +1,11 @@
 export interface ChapterImage {
-    id: number
+    id: string
     path: string
     order: number
 }
 
 export interface Chapter {
-    id: number
+    id: string
     slug: string
     title: string
     order: number
@@ -19,6 +19,7 @@ export interface Chapter {
     status: string
     views: number
     likes: number
+    work_user_id: string
 }
 
 export type ChapterListItem = Pick<

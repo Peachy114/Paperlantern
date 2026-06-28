@@ -24,9 +24,9 @@ function UserRow({
     user: any
     index: number
     actionLoading: any
-    banUser: (id: number) => void
-    unbanUser: (id: number) => void
-    setConfirmDelete: (id: number) => void
+    banUser: (id: string) => void
+    unbanUser: (id: string) => void
+    setConfirmDelete: (id: string) => void
 }) {
     const badge = ROLE_BADGE[user.role] ?? {
         label: user.role,
@@ -172,9 +172,9 @@ function SectionHeader({ label, count, tag }: { label: string; count: number; ta
 export default function AdminUsersList() {
     const { users, actionLoading, banUser, unbanUser, deleteUser } = useAdminUsers()
     const navigate = useNavigate()
-    const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
+    const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
-    const handleDelete = async (id: number) => {
+    const handleDelete = async (id: string) => {
         await deleteUser(id)
         setConfirmDelete(null)
     }

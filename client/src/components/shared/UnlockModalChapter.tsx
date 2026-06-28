@@ -1,6 +1,14 @@
 // components/ui/UnlockModal.tsx
-import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
 
 interface Props {
     open: boolean
@@ -26,165 +34,78 @@ export default function UnlockModal({
     const shortfall = creditsRequired - userBalance
 
     return (
-        <AnimatePresence>
-            {open && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
-                    onClick={onClose}
-                >
-                    <motion.div
-                        initial={{ scale: 0.95, opacity: 0, y: 8 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.95, opacity: 0, y: 8 }}
-                        transition={{ duration: 0.15 }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="bg-[#fffdf5] dark:bg-[#1c1a17] border-[2.5px] border-[#1a1a1a] dark:border-foreground/40 w-full max-w-xs overflow-hidden"
-                        style={{ boxShadow: '5px 5px 0 #1a1a1a' }}
-                    >
-                        {/* Header */}
-                        <div className="bg-[#1a1a1a] dark:bg-[#2a2825] px-5 py-4">
-                            <h2
-                                className="text-white leading-none font-bebas"
-                                style={{
-                                    fontSize: '22px',
-                                    letterSpacing: '0.04em',
+        <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+            <DialogContent className="max-w-xs gap-0 p-0 overflow-hidden">
+                <DialogHeader className="px-5 py-4 border-b">
+                    <DialogTitle className="text-sm font-medium">Unlock chapter</DialogTitle>
+                    <DialogDescription className="truncate text-xs">
+                        {chapterTitle}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex flex-col gap-4 p-5">
+                    {/* Cost row */}
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Cost</span>
+                        <span className="text-sm font-medium text-amber-500">
+                            ₵ {creditsRequired}
+                        </span>
+                    </div>
+
+                    <Separator />
+
+                    {/* Balance row */}
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Your balance</span>
+                        <span className="text-sm font-medium">₵ {userBalance}</span>
+                    </div>
+
+                    {canAfford ? (
+                        /* Balance after row */
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">Balance after</span>
+                            <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                                ₵ {userBalance - creditsRequired}
+                            </span>
+                        </div>
+                    ) : (
+                        /* Shortfall banner */
+                        <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-3 py-2.5 dark:border-red-800/40 dark:bg-red-950/30">
+                            <span className="text-xs text-red-600 dark:text-red-400">Short by</span>
+                            <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                                ₵ {shortfall} credits
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex flex-col gap-2 pt-1">
+                        {canAfford ? (
+                            <Button className="w-full" onClick={onConfirm} disabled={unlocking}>
+                                {unlocking ? 'Unlocking…' : 'Confirm unlock'}
+                            </Button>
+                        ) : (
+                            <Button
+                                className="w-full"
+                                onClick={() => {
+                                    onClose()
+                                    navigate('/credits')
                                 }}
                             >
-                                {canAfford ? '🔓 UNLOCK CHAPTER' : '💳 NOT ENOUGH CREDITS'}
-                            </h2>
-                            <p className="text-white/40 mt-1 text-small truncate  font-kalam">
-                                {chapterTitle}
-                            </p>
-                        </div>
-
-                        {/* Body */}
-                        <div className="p-5">
-                            {canAfford ? (
-                                <>
-                                    <div className="flex items-center justify-between mb-4 pb-4 border-b-[2px] border-[#1a1a1a]/10 dark:border-foreground/10">
-                                        <span className="text-[#1a1a1a]/60 dark:text-foreground/60 text-small  font-kalam">
-                                            Cost
-                                        </span>
-                                        <span
-                                            className="text-amber-500 font-bebas"
-                                            style={{
-                                                fontSize: '20px',
-                                            }}
-                                        >
-                                            ₵ {creditsRequired}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between mb-5">
-                                        <span className="text-[#1a1a1a]/60 dark:text-foreground/60 text-small  font-kalam">
-                                            Your balance
-                                        </span>
-                                        <span
-                                            className="text-[#1a1a1a] dark:text-foreground font-bebas"
-                                            style={{
-                                                fontSize: '20px',
-                                            }}
-                                        >
-                                            ₵ {userBalance}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between mb-5 pt-3 border-t-[2px] border-[#1a1a1a]/10 dark:border-foreground/10">
-                                        <span className="text-[#1a1a1a]/60 dark:text-foreground/60 text-small  font-kalam">
-                                            Balance after
-                                        </span>
-                                        <span
-                                            className="text-green-600 dark:text-green-400 font-bebas"
-                                            style={{
-                                                fontSize: '20px',
-                                            }}
-                                        >
-                                            ₵ {userBalance - creditsRequired}
-                                        </span>
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={onClose}
-                                            disabled={unlocking}
-                                            className="flex-1 py-2 border-[2px] border-[#d4cfc2] font-bebas text-[#999] hover:border-[#888] hover:text-[#1a1a1a] transition-colors duration-100 cursor-pointer text-small disabled:opacity-50"
-                                            style={{
-                                                letterSpacing: '0.1em',
-                                            }}
-                                        >
-                                            CANCEL
-                                        </button>
-                                        <button
-                                            onClick={onConfirm}
-                                            disabled={unlocking}
-                                            className="flex-1 py-2 bg-amber-400 border-[2px] border-[#1a1a1a] font-bebas text-[#1a1a1a] hover:bg-amber-500 transition-colors duration-100 cursor-pointer text-small disabled:opacity-60"
-                                            style={{
-                                                letterSpacing: '0.1em',
-                                                boxShadow: '2px 2px 0 #1a1a1a',
-                                            }}
-                                        >
-                                            {unlocking ? 'UNLOCKING...' : 'CONFIRM UNLOCK'}
-                                        </button>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="text-center py-2 mb-4">
-                                        <div
-                                            className="text-[#1a1a1a] dark:text-foreground mb-1 font-bebas"
-                                            style={{
-                                                fontSize: '32px',
-                                            }}
-                                        >
-                                            ₵ {creditsRequired}
-                                        </div>
-                                        <p className="text-[#1a1a1a]/60 dark:text-foreground/50 text-small  font-kalam">
-                                            needed to unlock
-                                        </p>
-                                    </div>
-
-                                    <div className="flex items-center justify-between  font-kalam px-3 py-2 mb-5 bg-red-50 dark:bg-red-950/30 border-[2px] border-red-200 dark:border-red-800">
-                                        <span className="text-red-500 text-small">
-                                            you're short
-                                        </span>
-                                        <span
-                                            className="text-red-500 font-bebas"
-                                            style={{
-                                                fontSize: '18px',
-                                            }}
-                                        >
-                                            ₵ {shortfall} credits
-                                        </span>
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={onClose}
-                                            className="flex-1 py-2 border-[2px] border-[#d4cfc2] font-bebas text-[#999] hover:border-[#888] hover:text-[#1a1a1a] transition-colors duration-100 cursor-pointer text-small"
-                                            style={{
-                                                letterSpacing: '0.1em',
-                                            }}
-                                        >
-                                            CANCEL
-                                        </button>
-                                        <button
-                                            onClick={() => navigate('/credits')}
-                                            className="flex-1 py-2 bg-[#1a1a1a] font-bebas dark:bg-foreground text-white dark:text-background border-[2px] border-[#1a1a1a] hover:opacity-90 transition-opacity cursor-pointer text-small"
-                                            style={{
-                                                letterSpacing: '0.1em',
-                                                boxShadow: '2px 2px 0 #1a1a1a',
-                                            }}
-                                        >
-                                            TOP UP →
-                                        </button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </motion.div>
-                </motion.div>
-            )}
-        </AnimatePresence>
+                                Buy credits
+                            </Button>
+                        )}
+                        <Button
+                            variant="ghost"
+                            className="w-full text-muted-foreground"
+                            onClick={onClose}
+                            disabled={unlocking}
+                        >
+                            Cancel
+                        </Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     )
 }

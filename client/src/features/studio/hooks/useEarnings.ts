@@ -20,16 +20,16 @@ export interface Earnings {
     latest_withdrawal: LatestWithdrawal | null
 }
 export interface EarningTransaction {
-    id: number
+    id: string
     chapter_id: number
     credits_spent: number
     platform_cut: number
     storyteller_cut: number
-    platform_php: string
-    storyteller_php: string
+    platform_php: number
+    storyteller_php: number
     created_at: string
-    chapter?: { id: number; title: string }
-    reader?: { id: number; name: string }
+    chapter?: { id: string; title: string }
+    reader?: { id: string; name: string }
 }
 
 export function useEarnings() {

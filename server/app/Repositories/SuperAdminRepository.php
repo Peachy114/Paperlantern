@@ -83,7 +83,7 @@ class SuperAdminRepository
 
     // ── Logs ──────────────────────────────────────────────────────
 
-    public function log(int $adminId, string $action, string $targetType, int $targetId, ?string $notes = null): void
+    public function log(string $adminId, string $action, string $targetType, string $targetId, ?string $notes = null): void
     {
         AdminLog::create([
             'admin_id'    => $adminId,

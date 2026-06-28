@@ -2,47 +2,39 @@
 import { Route } from 'react-router-dom'
 import { Suspense } from 'react'
 import { Pages } from './lazyImports'
-import LoadingHomePage from '@/components/shared/loading/loadingHomePage'
+import Loading from '@/components/shared/Loading'
 
 export const publicRoutes = (
     <>
         <Route
             path="/"
             element={
-                <Suspense fallback={<LoadingHomePage />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.IndexHome />
                 </Suspense>
             }
         />
         <Route path="/search" element={<Pages.SearchWork />} />
         <Route
-            path="/all-comics"
+            path="/comix"
             element={
-                <Suspense fallback={<LoadingHomePage />}>
-                    <Pages.ComicIndex />
+                <Suspense fallback={<Loading />}>
+                    <Pages.Comix />
                 </Suspense>
             }
         />
         <Route
-            path="/all-wattpad"
+            path="/works/:slug"
             element={
-                <Suspense fallback={<LoadingHomePage />}>
-                    <Pages.WattpadIndex />
-                </Suspense>
-            }
-        />
-        <Route
-            path="/comics/:slug"
-            element={
-                <Suspense fallback={<LoadingHomePage />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.ComicShow />
                 </Suspense>
             }
         />
         <Route
-            path="/comics/:slug/chapters/:chapterSlug"
+            path="/works/:slug/chapters/:chapterSlug"
             element={
-                <Suspense fallback={<LoadingHomePage />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.ComicChapter />
                 </Suspense>
             }
@@ -50,7 +42,7 @@ export const publicRoutes = (
         <Route
             path="/about"
             element={
-                <Suspense fallback={<LoadingHomePage />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.About />
                 </Suspense>
             }
@@ -58,7 +50,7 @@ export const publicRoutes = (
         <Route
             path="/blog"
             element={
-                <Suspense fallback={<LoadingHomePage />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.Blog />
                 </Suspense>
             }
@@ -66,7 +58,7 @@ export const publicRoutes = (
         <Route
             path="/privacy-policy"
             element={
-                <Suspense fallback={<LoadingHomePage />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.PrivacyPolicy />
                 </Suspense>
             }
@@ -74,7 +66,7 @@ export const publicRoutes = (
         <Route
             path="/terms-and-services"
             element={
-                <Suspense fallback={<LoadingHomePage />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.TermsAndServices />
                 </Suspense>
             }
@@ -82,7 +74,7 @@ export const publicRoutes = (
         <Route
             path="/cookies"
             element={
-                <Suspense fallback={<LoadingHomePage />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.Cookie />
                 </Suspense>
             }
@@ -90,17 +82,8 @@ export const publicRoutes = (
         <Route
             path="/become-creator"
             element={
-                <Suspense fallback={<LoadingHomePage />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.BecomeCreator />
-                </Suspense>
-            }
-        />
-
-        <Route
-            path="/credits"
-            element={
-                <Suspense fallback={<LoadingHomePage />}>
-                    <Pages.Wallet />
                 </Suspense>
             }
         />
@@ -108,7 +91,7 @@ export const publicRoutes = (
         <Route
             path="*"
             element={
-                <Suspense fallback={<LoadingHomePage />}>
+                <Suspense fallback={<Loading />}>
                     <Pages.NotFound />
                 </Suspense>
             }

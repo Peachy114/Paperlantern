@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Chapter extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasUuids;
 
     protected $fillable = [
         'work_id',
@@ -21,7 +22,7 @@ class Chapter extends Model
         'scheduled_at',
         'is_locked',
         'credits_required',
-        'lock_type',    
+        'lock_type',
         'unlocks_at',
         'views',
         'likes',
@@ -33,7 +34,7 @@ class Chapter extends Model
         return 'slug';
     }
 
-    public static function generateSlug(string $title, int $workId, ?int $excludeId = null): string
+    public static function generateSlug(string $title, string $workId, ?string $excludeId = null): string
     {
         $base  = \Illuminate\Support\Str::slug($title);
         $slug  = $base;
@@ -51,6 +52,7 @@ class Chapter extends Model
 
         return $slug;
     }
+
     protected function casts(): array
     {
         return [
@@ -67,7 +69,7 @@ class Chapter extends Model
         return $this->belongsTo(Work::class);
     }
 
-    public function images()                       
+    public function images()
     {
         return $this->hasMany(ChapterImage::class)->orderBy('order');
     }

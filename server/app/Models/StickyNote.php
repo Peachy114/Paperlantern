@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class StickyNote extends Model
 {
+    use HasUuids;
+
     protected $fillable = [
         'user_id',
         'work_id',

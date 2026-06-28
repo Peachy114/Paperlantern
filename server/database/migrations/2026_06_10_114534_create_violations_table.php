@@ -6,18 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-     public function up(): void
+    public function up(): void
     {
         Schema::create('violations', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('chapter_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('admin_id')->constrained('users')->cascadeOnDelete();
+            $table->string('id', 36)->primary();
+            $table->string('user_id', 36);
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->string('chapter_id', 36);
+            $table->foreign('chapter_id')->references('id')->on('chapters')->cascadeOnDelete();
+            $table->string('admin_id', 36);
+            $table->foreign('admin_id')->references('id')->on('users')->cascadeOnDelete();
             $table->string('reason');
-            $table->integer('strike_number'); // 1, 2, 3
+            $table->integer('strike_number');
             $table->boolean('resulted_in_ban')->default(false);
             $table->timestamps();
         });

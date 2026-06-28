@@ -1,10 +1,9 @@
 import { useHome } from '@/features/work/hooks/useHome'
-import News from '@/components/layout/News'
 import Welcome from '@/components/pages/Welcome'
-import HeroSection from '../components/ui/HeroSection'
-import WeeklyChartSection from '../components/ui/WeeklyChartSection'
-import FreshReleasesSection from '../components/ui/FreshReleasesSection'
-import LatestChaptersSection from '../components/ui/LatestChaptersSection'
+import HeroSection from '../components/HeroSection'
+import WeeklyChartSection from '../components/WeeklyChartSection'
+import FreshReleasesSection from '../components/FreshReleasesSection'
+import LatestChaptersSection from '../components/LatestChaptersSection'
 
 export default function Homepage() {
     const { hero, weeklyChart, freshReleases, latestChapters, cover } = useHome()
@@ -17,23 +16,14 @@ export default function Homepage() {
 
     return (
         <>
-            <link
-                href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap"
-                rel="stylesheet"
-            />
-
             {isEmpty ? (
                 <Welcome />
             ) : (
-                <div className="w-full">
+                <div className="w-full max-w-[1326px] mx-auto">
                     <HeroSection hero={hero} cover={cover} />
-
-                    <div className="px-6">
-                        <WeeklyChartSection weeklyChart={weeklyChart} cover={cover} />
-                        <News audience="public" />
-                        <FreshReleasesSection freshReleases={freshReleases} cover={cover} />
-                        <LatestChaptersSection latestChapters={latestChapters} cover={cover} />
-                    </div>
+                    <WeeklyChartSection weeklyChart={weeklyChart} cover={cover} />
+                    <FreshReleasesSection freshReleases={freshReleases} cover={cover} />
+                    <LatestChaptersSection latestChapters={latestChapters} cover={cover} />
                 </div>
             )}
         </>

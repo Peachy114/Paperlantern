@@ -30,7 +30,7 @@ class ModerationService
         return $this->repo->getChapterForReview($chapter);
     }
 
-    public function approveChapter(int $adminId, Chapter $chapter): array
+    public function approveChapter(string $adminId, Chapter $chapter): array
     {
         $chapter = $this->repo->approveChapter($chapter);
         $this->adminRepo->log($adminId, 'approved_chapter', 'chapter', $chapter->id);
@@ -38,7 +38,7 @@ class ModerationService
         return ['message' => 'Chapter approved and published.', 'chapter' => $chapter];
     }
 
-    public function violateChapter(int $adminId, Chapter $chapter, string $reason): array
+    public function violateChapter(string $adminId, Chapter $chapter, string $reason): array
     {
         $violation   = $this->repo->violateChapter($chapter, $reason, $adminId);
         $user        = $chapter->work->user->fresh();
@@ -66,7 +66,7 @@ class ModerationService
         return $this->repo->getWorkForReview($work);
     }
 
-    public function approveWork(int $adminId, Work $work): array
+    public function approveWork(string $adminId, Work $work): array
     {
         $work = $this->repo->approveWork($work);
         $this->adminRepo->log($adminId, 'approved_work', 'work', $work->id);
@@ -74,7 +74,7 @@ class ModerationService
         return ['message' => 'Work approved and published.', 'work' => $work];
     }
 
-    public function violateWork(int $adminId, Work $work, string $reason): array
+    public function violateWork(string $adminId, Work $work, string $reason): array
     {
         $violation   = $this->repo->violateWork($work, $reason, $adminId);
         $user        = $work->user->fresh();
@@ -102,7 +102,7 @@ class ModerationService
         return $this->repo->getStickyNoteForReview($note);
     }
 
-    public function approveStickyNote(int $adminId, StickyNote $note): array
+    public function approveStickyNote(string $adminId, StickyNote $note): array
     {
         $note = $this->repo->approveStickyNote($note);
         $this->adminRepo->log($adminId, 'approved_sticky_note', 'sticky_note', $note->id);
@@ -110,7 +110,7 @@ class ModerationService
         return ['message' => 'Sticky note approved.', 'sticky_note' => $note];
     }
 
-    public function violateStickyNote(int $adminId, StickyNote $note, string $reason): array
+    public function violateStickyNote(string $adminId, StickyNote $note, string $reason): array
     {
         $violation   = $this->repo->violateStickyNote($note, $reason, $adminId);
         $user        = $note->user->fresh();
@@ -158,7 +158,7 @@ class ModerationService
         return match(true) {
             $violation->resulted_in_ban => 'User has been banned after 3 strikes.',
             $strikeCount === 2          => 'Final warning — next violation bans the user.',
-            default                     => 'Warning issued to user.',
+            default                     => 'Warning issued. ',
         };
     }
 }

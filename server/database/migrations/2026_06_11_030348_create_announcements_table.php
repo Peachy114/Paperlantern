@@ -9,12 +9,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('announcements', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('created_by')->constrained('users')->cascadeOnDelete();
+            $table->string('id', 36)->primary();
+            $table->string('created_by', 36);
+            $table->foreign('created_by')->references('id')->on('users')->cascadeOnDelete();
             $table->string('title');
             $table->text('content');
-            $table->string('tag');                   // event | update | reminder
-            $table->string('audience');              // public | studio
+            $table->string('tag');
+            $table->string('audience');
             $table->string('image')->nullable();
             $table->boolean('is_pinned')->default(false);
             $table->timestamps();

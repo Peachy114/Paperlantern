@@ -6,24 +6,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::create('chapter_likes', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('chapter_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->timestamps();
-
-            $table->unique(['chapter_id', 'user_id']);
-        });
+    Schema::create('chapter_likes', function (Blueprint $table) {
+        $table->string('id', 36)->primary();
+        $table->string('chapter_id', 36);
+        $table->foreign('chapter_id')->references('id')->on('chapters')->cascadeOnDelete();
+        $table->string('user_id', 36);
+        $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+        $table->timestamps();
+        $table->unique(['chapter_id', 'user_id']);
+    });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('chapter_likes');

@@ -1,323 +1,153 @@
-import SpeedLinesCanvas from '@/components/ui/SpeedLinesCanvas'
-import { motion } from 'framer-motion'
-import { useModalStore } from '@/store/modalStore'
-import { useAuthStore } from '@/store/authStore' // TODO: adjust to your actual auth store/hook
+import { Fragment } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
+import { BookOpen, Coins, ImageIcon, Pencil } from 'lucide-react'
 
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    visible: { opacity: 1, y: 0 },
-}
+const features = [
+    {
+        icon: BookOpen,
+        title: 'Webtoons and novels',
+        desc: 'Browse and read comics and novels across genres. Unlock premium chapters with credits — earnings go directly to the creator.',
+    },
+    {
+        icon: ImageIcon,
+        title: 'Artist gallery',
+        desc: 'Discover original artwork from independent artists. Commission them directly and support their craft.',
+    },
+    {
+        icon: Pencil,
+        title: 'Publish your work',
+        desc: 'Writers and artists can share their work, build an audience, and earn — through chapter sales or commissions.',
+    },
+    {
+        icon: Coins,
+        title: 'Direct earnings',
+        desc: 'No middleman. Credits from readers and commissions from fans go straight to the creator.',
+    },
+]
+
+const steps = [
+    {
+        step: '1',
+        title: 'Create a free account',
+        desc: 'Sign up in seconds — no credit card needed.',
+    },
+    { step: '2', title: 'Browse and discover', desc: 'Explore webtoons and novels across genres.' },
+    {
+        step: '3',
+        title: 'Read and support',
+        desc: 'Enjoy free chapters or use credits to unlock premium content and support the creator.',
+    },
+]
 
 export default function Welcome() {
-    const { openLogin } = useModalStore()
-    const user = useAuthStore((s) => s.user) // TODO: adjust selector to your store shape
-
-    const handleStartCreating = (e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (!user) {
-            e.preventDefault()
-            openLogin()
-        }
-        // if logged in, lets <a href="/become-creator"> navigate normally
-    }
+    const navigate = useNavigate()
 
     return (
-        <div className="relative min-h-[82vh] flex flex-col items-center justify-center overflow-hidden bg-[#fffdf5] dark:bg-[#1a1712] px-4 py-10">
-            {/* Halftone bg */}
-            <div
-                className="absolute inset-0 pointer-events-none dark:hidden"
-                style={{
-                    backgroundImage:
-                        'radial-gradient(circle, rgba(0,0,0,0.065) 1.2px, transparent 1.2px)',
-                    backgroundSize: '9px 9px',
-                }}
-            />
-            <div
-                className="absolute inset-0 pointer-events-none hidden dark:block"
-                style={{
-                    backgroundImage:
-                        'radial-gradient(circle, rgba(232,168,56,0.11) 1.2px, transparent 1.2px)',
-                    backgroundSize: '9px 9px',
-                }}
-            />
-
-            {/* Speed lines */}
-            <SpeedLinesCanvas />
-
-            <div
-                className="relative z-10 w-full max-w-2xl border-[3px] border-[#1a1a1a] bg-[#fffdf5]/90 dark:bg-[#1e1b14]/90 backdrop-blur-sm overflow-hidden"
-                style={{ boxShadow: '7px 7px 0 #1a1a1a' }}
-            >
-                <div
-                    className="absolute top-0 left-0 right-0 h-[4px]"
-                    style={{
-                        background:
-                            'linear-gradient(90deg, #e8a838 0%, #d97706 40%, #b45309 70%, #e8a838 100%)',
-                    }}
-                />
-
-                <div className="flex items-center justify-between px-4 sm:px-5 py-2 bg-[#1a1a1a] dark:bg-[#2a2825] mt-1">
-                    <span className="text-[11px] tracking-[0.25em] text-[#f77c9b] font-bebas">
-                        ◆ LATER N COMIX
-                    </span>
-                    <span className="text-[10px] tracking-[0.18em] text-[#1a1a1a] bg-amber-400 px-2.5 py-0.5 border-2 border-[#1a1a1a] font-bebas">
-                        ISSUE #01
-                    </span>
+        <div className="w-full">
+            {/* Hero */}
+            <section className="min-h-[80vh] flex flex-col items-center justify-center text-center px-4 py-20 gap-6">
+                <p className="text-xs font-medium tracking-[0.18em] uppercase text-muted-foreground">
+                    Later N Comix
+                </p>
+                <h1 className="text-4xl sm:text-6xl font-semibold tracking-tight leading-[1.1] max-w-2xl">
+                    Read webtoons and novels.
+                    <br />
+                    Support the creators.
+                </h1>
+                <p className="text-base text-muted-foreground max-w-md leading-relaxed">
+                    A home for independent storytellers and the readers who love their work.
+                    Discover comics and novels you won't find anywhere else.
+                </p>
+                <div className="flex gap-2.5 flex-wrap justify-center mt-2">
+                    <Button onClick={() => navigate('/comix')}>Start reading</Button>
+                    <Button variant="outline" onClick={() => navigate('/become-creator')}>
+                        Become a creator
+                    </Button>
                 </div>
+                <div className="flex items-center gap-8 mt-4 flex-wrap justify-center">
+                    {[
+                        { val: 'Free', label: 'to start reading' },
+                        { val: 'Webtoon', label: 'and novel format' },
+                        { val: 'Direct', label: 'creator support' },
+                    ].map(({ val, label }, i, arr) => (
+                        <Fragment key={val}>
+                            <div className="text-center">
+                                <p className="text-xl font-semibold">{val}</p>
+                                <p className="text-xs text-muted-foreground">{label}</p>
+                            </div>
+                            {i < arr.length - 1 && <div className="w-px h-8 bg-border" />}
+                        </Fragment>
+                    ))}
+                </div>
+            </section>
 
-                <div className="px-6 sm:px-8 pt-8 pb-7 text-center flex flex-col items-center gap-6">
-                    <motion.div
-                        initial="hidden"
-                        animate="visible"
-                        variants={fadeUp}
-                        transition={{ duration: 0.5, delay: 0.05 }}
-                        className="flex items-center gap-3 w-full justify-center"
-                    >
-                        <div className="flex-1 max-w-[80px] h-[2px] bg-foreground/15" />
-                        <span className="text-[11px] tracking-[0.24em] text-amber-500 font-bebas">
-                            ✦ ISSUE #01 · THE FIRST PAGE ✦
-                        </span>
-                        <div className="flex-1 max-w-[80px] h-[2px] bg-foreground/15" />
-                    </motion.div>
+            <Separator />
 
-                    <div className="flex items-center justify-center gap-4 sm:gap-5 flex-wrap">
-                        <motion.svg
-                            width="80"
-                            height="80"
-                            viewBox="0 0 80 80"
-                            className="flex-shrink-0"
-                            initial={{ opacity: 0, scale: 0.6, rotate: -10 }}
-                            animate={{ opacity: 1, scale: 1, rotate: [-3, 3, -3] }}
-                            transition={{
-                                opacity: { duration: 0.4 },
-                                scale: { duration: 0.4 },
-                                rotate: {
-                                    duration: 2.4,
-                                    repeat: Infinity,
-                                    ease: 'easeInOut',
-                                    delay: 0.4,
-                                },
-                            }}
-                        >
-                            <ellipse
-                                cx="40"
-                                cy="68"
-                                rx="22"
-                                ry="6"
-                                fill="currentColor"
-                                className="text-foreground/10"
-                            />
-                            <path
-                                d="M22 40 Q18 18 32 16 L34 26 Q40 22 46 26 L48 16 Q62 18 58 40 Z"
-                                fill="#f77c9b"
-                            />
-                            <circle cx="40" cy="44" r="22" fill="#f77c9b" />
-                            <circle cx="32" cy="42" r="3.2" fill="#fffdf5" />
-                            <circle cx="48" cy="42" r="3.2" fill="#fffdf5" />
-                            <circle cx="32" cy="42" r="1.3" fill="#4b1528" />
-                            <circle cx="48" cy="42" r="1.3" fill="#4b1528" />
-                            <path
-                                d="M36 50 Q40 54 44 50"
-                                stroke="#4b1528"
-                                strokeWidth="2"
-                                fill="none"
-                                strokeLinecap="round"
-                            />
-                            <ellipse cx="40" cy="47" rx="1.6" ry="1.2" fill="#4b1528" />
-                            <path
-                                d="M14 44 Q4 38 8 28"
-                                stroke="#f77c9b"
-                                strokeWidth="5"
-                                fill="none"
-                                strokeLinecap="round"
-                            />
-                        </motion.svg>
-                    </div>
-
-                    <motion.div
-                        initial="hidden"
-                        animate="visible"
-                        variants={fadeUp}
-                        transition={{ duration: 0.5, delay: 0.3 }}
-                        className="relative mt-1"
-                    >
-                        <div
-                            className="absolute -top-[11px] left-5 w-0 h-0"
-                            style={{
-                                borderLeft: '10px solid transparent',
-                                borderRight: '10px solid transparent',
-                                borderBottom: '11px solid #1a1a1a',
-                            }}
-                        />
-                        <div
-                            className="absolute -top-[8px] left-[22px] w-0 h-0 dark:hidden"
-                            style={{
-                                borderLeft: '8px solid transparent',
-                                borderRight: '8px solid transparent',
-                                borderBottom: '9px solid #fff8e7',
-                            }}
-                        />
-                        <div
-                            className="absolute -top-[8px] left-[22px] w-0 h-0 hidden dark:block"
-                            style={{
-                                borderLeft: '8px solid transparent',
-                                borderRight: '8px solid transparent',
-                                borderBottom: '9px solid #2a2518',
-                            }}
-                        />
-                        <div
-                            className="bg-[#fff8e7] dark:bg-[#2a2518] px-5 sm:px-6 py-3"
-                            style={{
-                                border: '2.5px solid #1a1a1a',
-                                boxShadow: '3px 3px 0 #1a1a1a',
-                                borderRadius: '4px 18px 18px 18px',
-                            }}
-                        >
-                            <p className="text-[13px] sm:text-[14px] tracking-[0.04em] text-foreground dark:text-[#e8dfc8] leading-relaxed">
-                                Welcome to laterncomix 🏮
-                                <br />
-                                These pages are blank — no comics, no novels, not yet.
-                                <br />
-                                <span className="text-amber-600 dark:text-amber-400">
-                                    Be the first creator to publish here, and earn as readers follow
-                                    your story.
-                                </span>
-                            </p>
+            {/* Features */}
+            <section className="py-20 px-4 max-w-3xl mx-auto">
+                <p className="text-xs font-medium tracking-[0.18em] uppercase text-muted-foreground text-center mb-2">
+                    Why Later N Comix
+                </p>
+                <h2 className="text-3xl font-semibold tracking-tight text-center mb-12">
+                    Built for readers and creators
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {features.map(({ icon: Icon, title, desc }) => (
+                        <div key={title} className="p-5 bg-card border border-border rounded-xl">
+                            <Icon className="h-5 w-5 text-muted-foreground mb-3" />
+                            <p className="text-sm font-medium mb-1.5">{title}</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
                         </div>
-                    </motion.div>
-
-                    <motion.div
-                        initial="hidden"
-                        animate="visible"
-                        variants={fadeUp}
-                        transition={{ duration: 0.5, delay: 0.4 }}
-                        className="flex flex-wrap items-center justify-center gap-3"
-                    >
-                        <motion.a
-                            href="/become-creator"
-                            onClick={handleStartCreating}
-                            whileHover={{ x: -2, y: -2, boxShadow: '5px 5px 0 #e8a838' }}
-                            whileTap={{ x: 2, y: 2, boxShadow: '1px 1px 0 #e8a838' }}
-                            className="px-5 py-2.5 border-2 border-foreground bg-[#1a1a1a] dark:bg-[#2a2825] text-[#f77c9b] text-[13px] tracking-[0.14em]"
-                            style={{ boxShadow: '3px 3px 0 #e8a838', textDecoration: 'none' }}
-                        >
-                            ✎ PUBLISH YOUR FIRST CHAPTER
-                        </motion.a>
-                        <motion.a
-                            href="/all-comics"
-                            whileHover={{ x: -2, y: -2, boxShadow: '5px 5px 0 #1a1a1a' }}
-                            whileTap={{ x: 2, y: 2, boxShadow: '1px 1px 0 #1a1a1a' }}
-                            className="px-5 py-2.5 border-2 border-foreground text-foreground text-[13px] tracking-[0.14em] bg-transparent"
-                            style={{ boxShadow: '3px 3px 0 #1a1a1a', textDecoration: 'none' }}
-                        >
-                            ▶ LOOK AROUND
-                        </motion.a>
-                    </motion.div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 w-full text-left mt-1">
-                        {(
-                            [
-                                {
-                                    icon: 'ti-book-2',
-                                    label: 'COMICS',
-                                    sub: 'be the first webtoon',
-                                    accent: '#f77c9b',
-                                    n: '✦',
-                                    dark: false,
-                                },
-                                {
-                                    icon: 'ti-feather',
-                                    label: 'NOVELS',
-                                    sub: 'be the first story',
-                                    accent: '#e8a838',
-                                    n: '✦',
-                                    dark: false,
-                                },
-                                {
-                                    icon: 'ti-coin',
-                                    label: 'PUBLISH + EARN',
-                                    sub: 'get paid as you go',
-                                    accent: '#e8a838',
-                                    n: 'NEW',
-                                    dark: true,
-                                },
-                            ] as {
-                                icon: string
-                                label: string
-                                sub: string
-                                accent: string
-                                n: string
-                                dark: boolean
-                            }[]
-                        ).map(({ icon, label, sub, accent, n, dark }, i) => (
-                            <motion.div
-                                key={label}
-                                initial="hidden"
-                                animate="visible"
-                                variants={fadeUp}
-                                transition={{ duration: 0.5, delay: 0.5 + i * 0.1 }}
-                                whileHover={{ x: -3, y: -3, boxShadow: '4px 4px 0 #1a1a1a' }}
-                                className={`relative border-[2.5px] border-[#1a1a1a] p-4 ${dark ? 'bg-[#1a1a1a] dark:bg-[#3a342c]' : 'bg-[#fffdf5] dark:bg-[#1e1b14]'}`}
-                            >
-                                <div
-                                    className="absolute -top-0.5 -right-0.5 border-2 border-[#1a1a1a] text-[10px] tracking-[0.1em] px-2 py-0.5"
-                                    style={{
-                                        background: accent,
-                                        color: accent === '#e8a838' ? '#412402' : '#4b1528',
-                                        transform: 'translate(4px, -8px) rotate(8deg)',
-                                    }}
-                                >
-                                    {n}
-                                </div>
-                                <i
-                                    className={`ti ${icon}`}
-                                    aria-hidden="true"
-                                    style={{
-                                        fontSize: '26px',
-                                        color: accent,
-                                        display: 'block',
-                                        marginBottom: '10px',
-                                    }}
-                                />
-                                <div
-                                    className={`text-[14px] tracking-[0.1em] font-medium mb-1 ${dark ? 'text-[#fffdf5]' : 'text-foreground'}`}
-                                >
-                                    {label}
-                                </div>
-                                <div
-                                    className={`text-[11px] font-noto ${dark ? 'text-[#fffdf5]/55' : 'text-foreground/55'}`}
-                                >
-                                    {sub}
-                                </div>
-                                <div
-                                    className="h-1 mt-3 w-3/5"
-                                    style={{ background: accent, transform: 'skewX(-8deg)' }}
-                                />
-                            </motion.div>
-                        ))}
-                    </div>
-
-                    <motion.div
-                        initial="hidden"
-                        animate="visible"
-                        variants={fadeUp}
-                        transition={{ duration: 0.5, delay: 0.8 }}
-                        className="flex items-center gap-2 w-full"
-                    >
-                        <div className="flex-1 h-[2px] bg-foreground/10" />
-                        <span className="text-[10px] tracking-[0.22em] text-muted-foreground font-bebas">
-                            ★ LATER N COMIX PUBLISHING ★
-                        </span>
-                        <div className="flex-1 h-[2px] bg-foreground/10" />
-                    </motion.div>
+                    ))}
                 </div>
+            </section>
 
-                <div
-                    className="absolute bottom-0 left-0 right-0 h-[3px]"
-                    style={{
-                        background: 'linear-gradient(90deg, #b45309 0%, #d97706 50%, #e8a838 100%)',
-                    }}
-                />
-            </div>
+            <Separator />
+
+            {/* How it works */}
+            <section className="py-20 px-4 max-w-lg mx-auto">
+                <p className="text-xs font-medium tracking-[0.18em] uppercase text-muted-foreground text-center mb-2">
+                    How it works
+                </p>
+                <h2 className="text-3xl font-semibold tracking-tight text-center mb-12">
+                    Up and reading in minutes
+                </h2>
+                <div className="flex flex-col">
+                    {steps.map(({ step, title, desc }, i) => (
+                        <div key={step} className="flex gap-5">
+                            <div className="flex flex-col items-center">
+                                <div className="w-8 h-8 rounded-full border border-border bg-card flex items-center justify-center text-sm font-medium shrink-0">
+                                    {step}
+                                </div>
+                                {i < steps.length - 1 && (
+                                    <div className="w-px flex-1 bg-border mt-2" />
+                                )}
+                            </div>
+                            <div className={`pt-1 ${i < steps.length - 1 ? 'pb-8' : ''}`}>
+                                <p className="text-sm font-medium mb-1">{title}</p>
+                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                    {desc}
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            <Separator />
+
+            {/* Bottom CTA */}
+            <section className="py-20 px-4 flex flex-col items-center gap-4 text-center">
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+                    Ready to start reading?
+                </h2>
+                <p className="text-sm text-muted-foreground">Join for free. No strings attached.</p>
+                <Button onClick={() => navigate('/register')} className="mt-2">
+                    Get started
+                </Button>
+            </section>
         </div>
     )
 }

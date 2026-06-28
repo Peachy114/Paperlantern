@@ -16,7 +16,7 @@ class AnnouncementService
         return $this->repo->getAll();
     }
 
-    public function create(int $adminId, array $data, ?UploadedFile $image = null): Announcement
+    public function create(string $adminId, array $data, ?UploadedFile $image = null): Announcement
     {
         if ($image) {
             $data['image'] = $image->store('announcements', 'public');
@@ -28,7 +28,6 @@ class AnnouncementService
     public function update(Announcement $announcement, array $data, ?UploadedFile $image = null): Announcement
     {
         if ($image) {
-            // Delete old image if exists
             if ($announcement->image) {
                 \Storage::disk('public')->delete($announcement->image);
             }

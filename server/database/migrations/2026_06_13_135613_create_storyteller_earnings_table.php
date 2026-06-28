@@ -6,20 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
-     {
-         Schema::create('storyteller_earnings', function (Blueprint $table) {
-             $table->id();
-             $table->foreignId('user_id')->constrained()->cascadeOnDelete();  //storyteller
-             $table->unsignedInteger('balance')->default(0);          //in credits
-             $table->decimal('php_balance', 10, 2)->default(0);       //converted PHP
-             $table->timestamps();
-             $table->unique('user_id');
-         });
-     }
+    {
+    Schema::create('storyteller_earnings', function (Blueprint $table) {
+        $table->string('id', 36)->primary();
+        $table->string('user_id', 36);
+        $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+        $table->unsignedInteger('balance')->default(0);
+        $table->decimal('php_balance', 10, 2)->default(0);
+        $table->timestamps();
+        $table->unique('user_id');
+    });
+    }
 
     public function down(): void
     {

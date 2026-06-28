@@ -6,24 +6,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-public function up(): void
-     {
-        Schema::create('earning_transactions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('storyteller_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('reader_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('chapter_id')->constrained()->cascadeOnDelete();
-            $table->unsignedInteger('credits_spent');        //total credits reader paid
-            $table->unsignedInteger('platform_cut');         //20% to laterncomix
-            $table->unsignedInteger('storyteller_cut');      //80% to storyteller
-            $table->decimal('platform_php', 8, 2);         // PHP equivalent
-            $table->decimal('storyteller_php', 8, 2);      // PHP equivalent
-            $table->decimal('credit_to_php_rate', 8, 4);    //rate at time of transaction
-            $table->timestamps();
-        });
+    public function up(): void
+    {
+    Schema::create('earning_transactions', function (Blueprint $table) {
+        $table->string('id', 36)->primary();
+        $table->string('storyteller_id', 36);
+        $table->foreign('storyteller_id')->references('id')->on('users')->cascadeOnDelete();
+        $table->string('reader_id', 36);
+        $table->foreign('reader_id')->references('id')->on('users')->cascadeOnDelete();
+        $table->string('chapter_id', 36);
+        $table->foreign('chapter_id')->references('id')->on('chapters')->cascadeOnDelete();
+        $table->unsignedInteger('credits_spent');
+        $table->unsignedInteger('platform_cut');
+        $table->unsignedInteger('storyteller_cut');
+        $table->decimal('platform_php', 8, 2);
+        $table->decimal('storyteller_php', 8, 2);
+        $table->decimal('credit_to_php_rate', 8, 4);
+        $table->timestamps();
+    });
     }
 
     public function down(): void

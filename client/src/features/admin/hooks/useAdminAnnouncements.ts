@@ -29,7 +29,7 @@ export function useAdminAnnouncements() {
     })
 
     const updateMutation = useMutation({
-        mutationFn: ({ id, payload }: { id: number; payload: Partial<AnnouncementPayload> }) =>
+        mutationFn: ({ id, payload }: { id: string; payload: Partial<AnnouncementPayload> }) =>
             announcementApi.update(id, payload),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-announcements'] })
@@ -41,7 +41,7 @@ export function useAdminAnnouncements() {
     })
 
     const deleteMutation = useMutation({
-        mutationFn: (id: number) => announcementApi.delete(id),
+        mutationFn: (id: string) => announcementApi.delete(id),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['admin-announcements'] })
         },
@@ -56,9 +56,9 @@ export function useAdminAnnouncements() {
         error,
         setError,
         create: (payload: AnnouncementPayload) => createMutation.mutateAsync(payload),
-        update: (id: number, payload: Partial<AnnouncementPayload>) =>
+        update: (id: string, payload: Partial<AnnouncementPayload>) =>
             updateMutation.mutateAsync({ id, payload }),
-        remove: (id: number) => deleteMutation.mutateAsync(id),
+        remove: (id: string) => deleteMutation.mutateAsync(id),
         creating: createMutation.isPending,
         updating: updateMutation.isPending,
         deleting: deleteMutation.isPending,

@@ -13,7 +13,7 @@ return new class extends Migration
             $table->dropColumn('chapter_id');
 
             $table->string('target_type')->after('admin_id');
-            $table->unsignedBigInteger('target_id')->after('target_type');
+            $table->string('target_id', 36)->after('target_type');
             $table->index(['target_type', 'target_id']);
         });
     }
@@ -23,7 +23,7 @@ return new class extends Migration
         Schema::table('violations', function (Blueprint $table) {
             $table->dropIndex(['target_type', 'target_id']);
             $table->dropColumn(['target_type', 'target_id']);
-            $table->foreignId('chapter_id')->constrained()->cascadeOnDelete();
+            $table->foreignUuid('chapter_id')->constrained()->cascadeOnDelete();
         });
     }
 };

@@ -11,7 +11,7 @@ class WalletRepository
     /**
      * Get or create a wallet for a given user.
      */
-    public function findOrCreateByUser(int $userId): Wallet
+    public function findOrCreateByUser(string $userId): Wallet
     {
         return Wallet::firstOrCreate(
             ['user_id' => $userId],
@@ -22,7 +22,7 @@ class WalletRepository
     /**
      * Get wallet with balance for a user.
      */
-    public function getByUser(int $userId): ?Wallet
+    public function getByUser(string $userId): ?Wallet
     {
         return Wallet::where('user_id', $userId)->first();
     }
@@ -79,7 +79,7 @@ class WalletRepository
     /**
      * Paginated transaction history for a user.
      */
-    public function getTransactions(int $userId, int $perPage = 15)
+    public function getTransactions(string $userId, int $perPage = 15)
     {
         return WalletTransaction::where('user_id', $userId)
             ->latest()

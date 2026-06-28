@@ -8,18 +8,21 @@ export const Pages = {
     SearchWork: lazy(() => import('@/features/work/components/SearchWork')),
     ComicShow: lazy(() => import('@/features/work/pages/WorkOverview')),
     ComicChapter: lazy(() => import('@/features/work/pages/WorkShow')),
-    ComicIndex: lazy(() => import('@/features/work/pages/ComicLists')),
-    WattpadIndex: lazy(() => import('@/features/work/pages/NovelLists')),
+    Comix: lazy(() => import('@/features/work/pages/Comix')),
+
     // FOOTER
-    About: lazy(() => import('@/pages/About')),
+    About: lazy(() => import('@/pages/about/About')),
     Blog: lazy(() => import('@/pages/Blog')),
-    PrivacyPolicy: lazy(() => import('@/pages/legal/PrivacyPolicy')),
-    TermsAndServices: lazy(() => import('@/pages/legal/TermsAndServices')),
-    Cookie: lazy(() => import('@/pages/legal/Cookie')),
+    PrivacyPolicy: lazy(() => import('@/pages/legal/privacy/PrivacyPolicy')),
+    TermsAndServices: lazy(() => import('@/pages/legal/terms-and-services/TermsAndServices')),
+    Cookie: lazy(() => import('@/pages/legal/cookies/Cookie')),
 
     // AUTH ==========================================================
     BecomeCreator: lazy(() => import('@/features/auth/pages/BecomeCreatorForm')),
     Wallet: lazy(() => import('@/features/credits/pages/CreditsPage')),
+    Transaction: lazy(() => import('@/features/transactions/TransactionView')),
+    Settings: lazy(() => import('@/features/settings/pages/SettingView')),
+    ProfileSettings: lazy(() => import('@/features/settings/pages/ProfileSettings')),
 
     //STORY TELLER
     StudioDashboard: lazy(() => import('@/features/studio/pages/work/Index')),

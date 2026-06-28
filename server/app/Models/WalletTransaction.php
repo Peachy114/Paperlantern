@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class WalletTransaction extends Model
 {
+    use HasUuids;
+
     protected $fillable = [
         'wallet_id',
         'user_id',
@@ -24,7 +27,7 @@ class WalletTransaction extends Model
         'amount'         => 'integer',
         'balance_before' => 'integer',
         'balance_after'  => 'integer',
-        'meta'           => 'array',
+         'meta' => 'array',
     ];
 
     public function wallet(): BelongsTo

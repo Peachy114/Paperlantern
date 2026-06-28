@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
@@ -83,5 +84,46 @@ class AuthController extends Controller
         ]);
 
         return response()->json(['message' => 'Preferences updated']);
+    }
+
+    // PROFILE
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'name'     => ['sometimes', 'string', 'max:255'],
+            'username' => ['sometimes', 'string', 'max:50', 'unique:users,username,' . $user->id],
+            'email'    => ['sometimes', 'email', 'unique:users,email,' . $user->id],
+            'bio'      => ['nullable', 'string', 'max:500'],
+            'avatar'   => ['nullable', 'image', 'max:2048'],
+        ]);
+
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar) Storage::delete($user->avatar);
+            $validated['avatar'] = $request->file('avatar')->store('avatars', 'public');
+        }
+
+        $user->update($validated);
+
+        return response()->json([
+            'message' => 'Profile updated.',
+            'user'    => $this->service->formatUser($user->fresh()),
+        ]);
+    }
+
+    // update password
+    public function updatePassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'current_password'  => ['required', 'current_password'],
+            'password'          => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
+        ]);
+
+        $request->user()->update([
+            'password' => $request->password,
+        ]);
+
+        return response()->json(['message' => 'Password updated.']);
     }
 }

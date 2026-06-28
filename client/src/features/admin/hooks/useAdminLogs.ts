@@ -3,14 +3,14 @@ import { adminApi } from '@/api/admin'
 import { useState } from 'react'
 
 interface AdminLog {
-    id: number
+    id: string
     action: string
     target_type: string
-    target_id: number
+    target_id: string
     notes: string | null
     created_at: string
     admin: {
-        id: number
+        id: string
         name: string
         username: string
     }

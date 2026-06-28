@@ -1,6 +1,7 @@
 import { useModalStore } from '@/store/modalStore'
 import LoginForm from '@/features/auth/pages/LoginForm'
 import RegisterForm from '@/features/auth/pages/RegisterForm'
+import { Button } from '@/components/ui/button'
 
 export default function AuthModal() {
     const { isOpen, view, openLogin, openRegister, close } = useModalStore()
@@ -8,120 +9,82 @@ export default function AuthModal() {
     if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="relative w-full max-w-md overflow-hidden border-[2.5px] border-[#1a1a1a] bg-[#fffdf5]"
-                style={{ boxShadow: '6px 6px 0 #1a1a1a' }}
+                className="relative w-full max-w-sm bg-background dark:bg-neutral-950 border border-border rounded-xl shadow-lg overflow-hidden"
             >
-                {/* Rainbow top stripe */}
-                <div
-                    className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none z-10"
-                    style={{
-                        background:
-                            'linear-gradient(90deg,#f59e0b 0%,#ec4899 30%,#f59e0b 60%,#14b8a6 100%)',
-                    }}
-                />
+                <div className="relative w-full">
+                    {/* LOGOO */}
+                    <div className="flex justify-center items-center w-full mt-4">
+                        <div className="shrink-0">
+                            <img
+                                src="/logo_white.png"
+                                alt="logo"
+                                width={100}
+                                height={100}
+                                className="dark:block hidden"
+                            />
 
-                {/* Halftone bg */}
-                <div
-                    className="absolute inset-0 pointer-events-none opacity-60"
-                    style={{
-                        backgroundImage:
-                            'radial-gradient(circle,rgba(0,0,0,0.05) 1px,transparent 1px)',
-                        backgroundSize: '8px 8px',
-                    }}
-                />
+                            <img
+                                src="/logo_black.png"
+                                alt="logo"
+                                width={100}
+                                height={100}
+                                className="dark:hidden block"
+                            />
+                        </div>
+                    </div>
 
-                {/* Sticky note */}
-                <div
-                    className="absolute z-20 px-[10px] py-[4px]"
-                    style={{
-                        top: '14px',
-                        right: '52px',
-                        background: view === 'login' ? '#fce7f3' : '#fef3c7',
-                        border: `1.5px solid ${view === 'login' ? '#ec4899' : '#f59e0b'}`,
-                        boxShadow: `2px 2px 0 ${view === 'login' ? '#ec4899' : '#f59e0b'}`,
-                        transform: view === 'login' ? 'rotate(-2deg)' : 'rotate(1.5deg)',
-                        transition: 'all 0.2s',
-                    }}
-                >
-                    <span
-                        className="tracking-[0.15em] font-bebas"
-                        style={{
-                            fontSize: '11px',
-                            color: view === 'login' ? '#be185d' : '#92400e',
-                        }}
+                    <button
+                        onClick={close}
+                        className="absolute right-2 top-0 w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                        aria-label="Close"
                     >
-                        {view === 'login' ? '♥ FREE TO READ' : '✦ JOIN FREE'}
-                    </span>
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                            <path
+                                d="M1 1L13 13M13 1L1 13"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                            />
+                        </svg>
+                    </button>
                 </div>
 
                 {/* Header */}
-                <div className="relative z-10 px-6 pt-6">
-                    {/* Logo + Close */}
-                    <div className="flex items-center justify-between mb-4">
-                        <div
-                            className="flex items-center gap-1.5 px-[10px] py-[4px] bg-amber-400 border-2 border-[#1a1a1a]"
-                            style={{ boxShadow: '2px 2px 0 #1a1a1a' }}
-                        >
-                            <span className="w-[7px] h-[7px] rounded-full bg-pink-400 border-[1.5px] border-[#1a1a1a] shrink-0" />
-                            <span className="text-[16px] tracking-[0.06em] text-[#1a1a1a] leading-none font-bebas">
-                                LATER N COMIX
-                            </span>
-                        </div>
-
-                        <button
-                            onClick={close}
-                            className="w-7 h-7 flex items-center justify-center border-2 border-[#1a1a1a] bg-transparent text-[#1a1a1a] text-xs font-black cursor-pointer hover:bg-[#1a1a1a] hover:text-white transition-colors duration-100"
-                            style={{ boxShadow: '2px 2px 0 #1a1a1a' }}
-                        >
-                            ✕
-                        </button>
-                    </div>
-
-                    {/* Title box */}
-                    <div
-                        className="border-2 border-[#1a1a1a] px-3 py-2.5 mb-4 bg-[#fff8e7]"
-                        style={{ boxShadow: '3px 3px 0 #1a1a1a' }}
-                    >
-                        <div className="text-[26px] tracking-[0.04em] text-[#1a1a1a] leading-none font-bebas">
-                            {view === 'login' ? 'WELCOME BACK!' : 'JOIN THE STORY.'}
-                        </div>
-                        <div className="text-[12px] text-[#6b7280] font-semibold mt-0.5 tracking-[0.04em]">
-                            {view === 'login'
-                                ? 'LOG IN TO CONTINUE READING.'
-                                : 'CREATE YOUR ACCOUNT AND START EXPLORING.'}
-                        </div>
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                    <div>
+                        <p className="text-xs text-muted-foreground">
+                            {view === 'login' ? 'Welcome back' : 'Get started'}
+                        </p>
+                        <h2 className="text-base font-semibold text-foreground leading-tight">
+                            {view === 'login' ? 'Log in to your account' : 'Create an account'}
+                        </h2>
                     </div>
                 </div>
 
                 {/* Form */}
-                <div className="relative z-10 px-6 pb-6">
+                <div className="px-5 py-5">
                     {view === 'login' ? <LoginForm /> : <RegisterForm />}
+                </div>
 
-                    {/* Switch link */}
-                    <div className="flex items-center justify-center gap-1.5 mt-2.5">
-                        <span className="text-[10px] tracking-[0.12em] text-[#9ca3af] font-bebas">
-                            {view === 'login' ? 'NEW READER?' : 'ALREADY A READER?'}
-                        </span>
-                        <button
-                            onClick={view === 'login' ? openRegister : openLogin}
-                            className="text-[10px] tracking-[0.12em] text-pink-500 underline cursor-pointer bg-transparent border-none font-bebas"
-                        >
-                            {view === 'login' ? 'JOIN THE STORY ♥' : 'LOG IN ♥'}
-                        </button>
-                    </div>
+                {/* Footer */}
+                <div className="px-5 pb-5 text-center">
+                    <span className="text-xs text-muted-foreground">
+                        {view === 'login' ? "Don't have an account? " : 'Already have an account? '}
+                    </span>
+                    <button
+                        onClick={view === 'login' ? openRegister : openLogin}
+                        className="text-xs font-medium text-foreground underline underline-offset-2 hover:opacity-70 transition-opacity"
+                    >
+                        {view === 'login' ? 'Sign up' : 'Log in'}
+                    </button>
 
-                    {/* Footer */}
-                    <div className="flex items-center justify-between border-t-2 border-[#1a1a1a] mt-5 pt-2.5 font-bebas">
-                        <span className="text-[10px] tracking-[0.18em] text-[#9ca3af]">
-                            LATER N COMIX PUBLISHING
-                        </span>
-                        <span className="text-[10px] tracking-[0.18em] text-pink-400">
-                            ♥ VOL. 01
-                        </span>
-                    </div>
+                    <span className="w-full flex justify-center mt-5">
+                        <p className="text-xs text-foreground dark:text-white">Powered by</p>
+                        <img src="/devorbit_logo.png" alt="devorbit logo" width={20} height={20} />
+                    </span>
                 </div>
             </div>
         </div>

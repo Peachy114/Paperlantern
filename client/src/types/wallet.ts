@@ -1,16 +1,14 @@
-// types/wallet.ts
-
 export interface CreditPackage {
-    id: number
+    id: string
     name: string
     credits: number
-    price: number // PHP
+    price: number
     is_active: boolean
     sort_order: number
 }
 
 export interface WalletTransaction {
-    id: number
+    id: string
     type: 'credit' | 'debit'
     source: 'purchase' | 'chapter_unlock' | 'refund' | 'bonus'
     amount: number
@@ -34,5 +32,5 @@ export interface UnlockResponse {
     message: string
     balance: number
     requires_top_up?: boolean
-    chapter?: { id: number; title: string }
+    chapter?: { id: string; title: string }
 }

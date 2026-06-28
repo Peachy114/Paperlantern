@@ -8,6 +8,8 @@ interface Props {
 export default function RoleLayout({ roles }: Props) {
     const { user, token } = useAuthStore()
 
+    console.log('user role:', user?.role)
+
     if (!token) return <Navigate to="/" replace />
     if (!user || !roles.includes(user.role)) return <Navigate to="/" replace />
 

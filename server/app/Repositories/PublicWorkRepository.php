@@ -70,7 +70,7 @@ class PublicWorkRepository
         return $work->chapters()
             ->where('status', '!=', 'draft')
             ->orderBy('order')
-            ->get(['id', 'slug', 'title', 'order', 'lock_type', 'unlocks_at', 'likes', 'credits_required', 'created_at']);
+            ->get(['id', 'slug', 'title', 'order', 'lock_type', 'unlocks_at', 'likes', 'credits_required', 'created_at', 'cover']);
     }
 
     public function searchWorks(string $query): \Illuminate\Database\Eloquent\Collection
@@ -109,7 +109,7 @@ class PublicWorkRepository
         return $query->paginate(20, ['id', 'slug', 'title', 'cover', 'type', 'genres', 'views', 'likes', 'status', 'created_at']);
     }
 
-    public function hasViewed(Chapter $chapter, ?int $userId, string $ip): bool
+    public function hasViewed(Chapter $chapter, ?string $userId, string $ip): bool
     {
         return \App\Models\ChapterView::where('chapter_id', $chapter->id)
             ->when($userId,
@@ -119,7 +119,7 @@ class PublicWorkRepository
             ->exists();
     }
 
-    public function recordView(Chapter $chapter, Work $work, ?int $userId, string $ip): int
+    public function recordView(Chapter $chapter, Work $work, ?string $userId, string $ip): int
     {
         ChapterView::create([
             'chapter_id' => $chapter->id,
@@ -136,14 +136,14 @@ class PublicWorkRepository
         return $chapterViews;
     }
 
-    public function getLike(Chapter $chapter, int $userId): ?\App\Models\ChapterLike
+    public function getLike(Chapter $chapter, string $userId): ?\App\Models\ChapterLike
     {
         return ChapterLike::where('chapter_id', $chapter->id)
             ->where('user_id', $userId)
             ->first();
     }
 
-    public function createLike(Chapter $chapter, int $userId): void
+    public function createLike(Chapter $chapter, string $userId): void
     {
         ChapterLike::create([
             'chapter_id' => $chapter->id,
@@ -162,7 +162,7 @@ class PublicWorkRepository
         return $chapterLikes;
     }
 
-    public function getLikeStatus(Chapter $chapter, ?int $userId): array
+    public function getLikeStatus(Chapter $chapter, ?string $userId): array
     {
         $liked = $userId
             ? ChapterLike::where('chapter_id', $chapter->id)->where('user_id', $userId)->exists()

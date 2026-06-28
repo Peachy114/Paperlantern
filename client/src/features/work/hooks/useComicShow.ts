@@ -5,7 +5,7 @@ import { storageUrl } from '@/utils/storage'
 import { useSuspenseQuery } from '@tanstack/react-query'
 
 interface Chapter {
-    id: number
+    id: string
     slug: string
     title: string
     order: number
@@ -14,10 +14,12 @@ interface Chapter {
     credits_required: number
     likes: number
     created_at: string
+    cover: string | null
 }
+
 interface Work {
-    id: number
-    user_id: number
+    id: string
+    user_id: string
     title: string
     description: string | null
     type: 'webtoon' | 'wattpad'
@@ -28,7 +30,7 @@ interface Work {
     views: number
     likes: number
     chapters_count: number
-    user?: { id: number; name: string }
+    user?: { id: string; name: string }
 }
 
 export function useComicShow() {

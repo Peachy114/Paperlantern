@@ -22,8 +22,9 @@ export interface Work {
     slug: string
     title: string
     type: 'webtoon' | 'wattpad'
+    cover: string | null
+    banner: string | null
 }
-
 export function useChapterIndex() {
     const { workSlug } = useParams()
     const navigate = useNavigate()

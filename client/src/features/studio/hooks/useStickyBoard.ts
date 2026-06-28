@@ -136,6 +136,8 @@ export function useStickyBoard() {
     const onTouchMove = useCallback(
         (e: TouchEvent) => {
             if (dragging === null) return
+            if (e.cancelable) e.preventDefault()
+            e.preventDefault()
             const board = boardRef.current
             if (!board) return
             const boardRect = board.getBoundingClientRect()

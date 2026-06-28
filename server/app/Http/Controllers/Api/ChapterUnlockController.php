@@ -37,7 +37,7 @@ class ChapterUnlockController extends Controller
             ]);
         }
 
-        $result = $this->walletService->spendCredits($user, $chapter->id, $cost);
+        $result = $this->walletService->spendCredits($user, $chapter, $cost);
 
         if (! $result['success']) {
             return response()->json([

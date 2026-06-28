@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import api from '@/api/axios'
-import Card from '@/components/ui/Card'
+import WorkCard from '@/features/work/components/ui/WorkCard'
 import CardSkeleton from '@/components/shared/loading/CardSkeleton'
 
 interface Work {
@@ -67,7 +67,7 @@ export default function SearchWork() {
             ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {results.map((work) => (
-                        <Card
+                        <WorkCard
                             key={work.id}
                             id={work.id}
                             title={work.title}

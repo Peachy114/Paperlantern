@@ -2,12 +2,14 @@ import { useSuspenseQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { useNavigate, useParams } from 'react-router-dom'
 import { publicApi } from '@/api/public'
 import { storageUrl } from '@/utils/storage'
+import { useAuthStore } from '@/store/authStore'
 import type { Chapter, ChapterListItem } from '@/types/chapter'
 
 export function usePublicChapterShow() {
     const { slug, chapterSlug } = useParams()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const user = useAuthStore((s) => s.user)
 
     const { data } = useSuspenseQuery({
         queryKey: ['chapter', slug, chapterSlug],
@@ -46,10 +48,12 @@ export function usePublicChapterShow() {
 
     const goTo = (chapterSlug: string) => navigate(`/comics/${slug}/chapters/${chapterSlug}`)
 
+    const isOwner = user?.id === data.chapter.work_user_id
     return {
         chapter: data.chapter,
         prevChapter: data.prevChapter,
         nextChapter: data.nextChapter,
+        isOwner,
         slug,
         chapterSlug,
         navigate,

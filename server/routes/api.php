@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Studio\ViolationController;
 use App\Http\Controllers\Api\EarningsController;
 use App\Http\Controllers\Api\SuperAdmin\WithdrawalController;
 use App\Http\Controllers\Api\Studio\TrashController;
+use App\Http\Controllers\Api\Studio\AnalyticsController;
 
 use App\Http\Controllers\Api\SuperAdmin\SuperAdminController; //Super admin
 use App\Http\Controllers\Api\SuperAdmin\ModerationController;
@@ -57,8 +58,13 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::post('/logout',     [AuthController::class, 'logout']);
         Route::post('/logout-all', [AuthController::class, 'logoutAll']);
     });
-        Route::post('/auth/become-creator', [AuthController::class, 'becomeCreator']);
-        Route::patch('/user/preferences', [AuthController::class, 'updatePreferences']);
+    Route::post('/auth/become-creator', [AuthController::class, 'becomeCreator']);
+    Route::patch('/user/preferences', [AuthController::class, 'updatePreferences']);
+
+    //profile
+    Route::get('/profile',        [AuthController::class, 'profile']);
+    Route::post('/profile',       [AuthController::class, 'updateProfile']);
+    Route::patch('/profile/password', [AuthController::class, 'updatePassword']);
 
 
     // ── Wallet balance & history ──────────────────────────────────────────────────────
@@ -68,7 +74,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::get('/credits/packages',           [WalletController::class, 'packages']);
     Route::post('/credits/checkout',          [WalletController::class, 'checkout']);
     // Chapter unlock
-    Route::post('/chapters/{chapter}/unlock', [ChapterUnlockController::class, 'unlock']);
+    Route::post('/chapters/{chapter:slug}/unlock', [ChapterUnlockController::class, 'unlock']);
 
 
 
@@ -116,6 +122,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::middleware('role:storyteller')->prefix('studio')->group(function () {
         Route::apiResource('works',          WorkController::class);
         Route::apiResource('works.chapters', ChapterController::class);
+        Route::get('/analytics/views', [AnalyticsController::class, 'views']);
 
         Route::get('/sticky-notes',                   [StickyNoteController::class, 'index']);
         Route::post('/sticky-notes',                  [StickyNoteController::class, 'store']);

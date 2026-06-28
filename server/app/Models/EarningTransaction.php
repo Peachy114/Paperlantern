@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class EarningTransaction extends Model
 {
+    use HasUuids;
+
     protected $fillable = [
         'storyteller_id',
         'reader_id',

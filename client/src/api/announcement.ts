@@ -1,8 +1,8 @@
 import api from './axios'
 
 export interface Announcement {
-    id: number
-    created_by: number
+    id: string
+    created_by: string
     title: string
     content: string
     tag: 'event' | 'update' | 'reminder'
@@ -12,7 +12,7 @@ export interface Announcement {
     created_at: string
     updated_at: string
     creator?: {
-        id: number
+        id: string
         name: string
         username: string
     }
@@ -44,7 +44,7 @@ export const announcementApi = {
         })
     },
 
-    update: (id: number, payload: Partial<AnnouncementPayload>) => {
+    update: (id: string, payload: Partial<AnnouncementPayload>) => {
         const form = new FormData()
         if (payload.title) form.append('title', payload.title)
         if (payload.content) form.append('content', payload.content)
@@ -58,7 +58,7 @@ export const announcementApi = {
         })
     },
 
-    delete: (id: number) => api.delete(`/admin/announcements/${id}`),
+    delete: (id: string) => api.delete(`/admin/announcements/${id}`),
 
     // Public
     getPublic: () => api.get('/public/announcements'),

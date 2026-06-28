@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,7 +10,7 @@ use Illuminate\Support\Str;
 
 class Work extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasUuids;
 
     protected $fillable = [
         'user_id',
@@ -26,13 +27,13 @@ class Work extends Model
         'schedule_time',
         'next_chapter_at',
         'views',
-        'likes'
+        'likes',
     ];
 
     protected function casts(): array
     {
         return [
-            'genres'          => 'array',   // JSON → array automatically
+            'genres'          => 'array',
             'next_chapter_at' => 'date',
             'views'           => 'integer',
         ];
@@ -48,11 +49,10 @@ class Work extends Model
         return $this->hasMany(Chapter::class)->orderBy('order');
     }
 
-    // Add this method
-    public static function generateSlug(string $title, ?int $excludeId = null): string
+    public static function generateSlug(string $title, ?string $excludeId = null): string
     {
-        $base = \Illuminate\Support\Str::slug($title);
-        $slug = $base;
+        $base  = Str::slug($title);
+        $slug  = $base;
         $count = 2;
 
         while (
@@ -71,6 +71,4 @@ class Work extends Model
     {
         return 'slug';
     }
-
-
 }
