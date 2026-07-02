@@ -46,7 +46,7 @@ export function usePublicChapterShow() {
         } catch {}
     }
 
-    const goTo = (chapterSlug: string) => navigate(`/comics/${slug}/chapters/${chapterSlug}`)
+    const goTo = (chapterSlug: string) => navigate(`/works/${slug}/chapters/${chapterSlug}`)
 
     const isOwner = user?.id === data.chapter.work_user_id
     return {

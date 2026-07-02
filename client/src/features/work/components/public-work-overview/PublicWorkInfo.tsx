@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import PublicWorkCover from './public-work-Info/PublicWorkCover'
+// import PublicWorkCover from './public-work-Info/PublicWorkCover'
 import PublicWorkTags from './public-work-Info/PublicWorkTags'
 import PublicWorkDescription from './public-work-Info/PublicWorkDescription'
 import PublicWorkStats from './public-work-Info/PublicWorkStats'
@@ -20,7 +20,7 @@ export default function PublicWorkInfo({
     isOwner,
     slug,
     navigate,
-    coverUrl,
+    // coverUrl,
 }: PublicWorkInfoProps) {
     return (
         <Card>

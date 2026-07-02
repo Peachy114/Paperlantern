@@ -278,7 +278,6 @@ export function useCreateWork() {
             if (banner) workFormData.append('banner', banner)
 
             const workRes = await studioApi.createWork(workFormData)
-            console.log('workRes.data', workRes.data)
             const workSlug = workRes.data.slug
 
             // 2. Create chapter only if ongoing/completed
@@ -300,7 +299,6 @@ export function useCreateWork() {
 
                 await studioApi.createChapter(workSlug, chapterFormData)
             }
-            console.log('navigating to:', `/studio/works/${workSlug}/chapters`)
             toast.success(`${type === 'webtoon' ? 'Webtoon' : 'Novel'} created!`)
             navigate(`/studio/works/${workSlug}/chapters`)
         } catch (err: any) {

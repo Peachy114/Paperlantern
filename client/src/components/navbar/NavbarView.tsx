@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import SearchBar from '../pages/SearchBar'
 import Profile from '../pages/Profile'
-// import { Heart, GalleryVertical } from 'lucide-react'
 
 interface NavbarViewProps {
     user: any
@@ -33,7 +32,7 @@ export default function NavbarView({
 }: NavbarViewProps) {
     const navLinks = [
         { label: 'COMIX', to: '/comix', active: isComicsActive },
-        { label: 'ARTISTS', to: '/artists', active: isNovelsActive },
+        { label: 'ARTWORKS', to: '/artworks', active: isNovelsActive },
     ]
 
     return (

@@ -45,5 +45,14 @@ export const roleRoutes = (
                 </Suspense>
             }
         />
+
+        <Route
+            path="/artworks"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.ComingSoon />
+                </Suspense>
+            }
+        />
     </>
 )

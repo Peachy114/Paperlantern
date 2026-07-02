@@ -47,4 +47,7 @@ export const Pages = {
     AdminAnnouncements: lazy(() => import('@/features/admin/pages/Announcements')),
     AdminWithdrawals: lazy(() => import('@/features/admin/pages/Withdrawal')),
     AdminEarnings: lazy(() => import('@/features/admin/pages/Earnings')),
+
+    // COMING SOON.
+    ComingSoon: lazy(() => import('@/components/pages/ComingSoon')),
 }

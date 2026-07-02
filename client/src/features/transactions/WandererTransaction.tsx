@@ -47,7 +47,7 @@ interface SummaryState {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function WandererTransaction() {
-    const [balance, setBalance] = useState<number>(0)
+    // const [balance, setBalance] = useState<number>(0)
     const [purchases, setPurchases] = useState<Transaction[]>([])
     const [unlocks, setUnlocks] = useState<Transaction[]>([])
     const [summary, setSummary] = useState<SummaryState>({
@@ -82,7 +82,7 @@ export default function WandererTransaction() {
 
                 setPurchases(purchaseTx.map(toTableRow))
                 setUnlocks(unlockTx.map(toTableRow))
-                setBalance(walletRes.balance)
+                // setBalance(walletRes.balance)
 
                 setSummary({
                     creditsBalance: walletRes.balance,

@@ -111,10 +111,6 @@ export default function StorytellerTransaction() {
                     getWithdrawalHistory(),
                 ])
 
-                console.log('summary:', summaryRes)
-                console.log('earnings:', earningsRes)
-                console.log('withdrawals:', withdrawalsRes)
-
                 if (cancelled) return
 
                 // Total withdrawn = sum of paid withdrawals

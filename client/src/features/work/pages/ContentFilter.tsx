@@ -86,7 +86,7 @@ export default function ContentFilter() {
 
     return (
         <div className="font-[var(--comix-font-family)]">
-            <div className="w-full max-w-[1390px] mt-8 sm:mt-12 md:mt-5 mx-auto px-4 sm:px-6 md:px-8 py-3">
+            <div className="w-full max-w-[1390px] mt-20 mx-auto px-4 sm:px-6 md:px-8 py-3">
                 {/* Type pills */}
                 <div className="flex gap-2 mb-3">
                     {/* Genre dropdown */}
