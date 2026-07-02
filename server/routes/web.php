@@ -1,8 +1,7 @@
 <?php
 
-
 use Illuminate\Support\Facades\Route;
 
-Route::get('/{any?}', function () {
-    return file_get_contents(public_path('index.html'));
-})->where('any', '.*');
+Route::get('/', function () {
+    return response()->json(['message' => 'API is running']);
+});

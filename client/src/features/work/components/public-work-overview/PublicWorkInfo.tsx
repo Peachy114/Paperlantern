@@ -12,7 +12,7 @@ interface PublicWorkInfoProps {
     isOwner: boolean
     slug: string
     navigate: (path: string) => void
-    coverUrl: (url: string) => string | null
+    coverUrl: (url: string, variant?: 'sm') => string | null
 }
 
 export default function PublicWorkInfo({
@@ -24,15 +24,13 @@ export default function PublicWorkInfo({
 }: PublicWorkInfoProps) {
     return (
         <Card>
-            <CardContent className="pt-6">
-                <div className="flex flex-col md: fle-row sm:flex-row gap-6">
-                    {/* Cover */}
-                    <div className="shrink-0">
-                        <PublicWorkCover coverUrl={coverUrl(work.cover)} title={work.title} />
-                    </div>
+            <CardContent>
+                <div className="flex flex-col gap-6">
+                    {/* Cover
+                    <PublicWorkCover coverUrl={coverUrl(work.cover, 'sm')} title={work.title} /> */}
 
                     {/* Meta */}
-                    <div className="flex-1 min-w-0 space-y-4">
+                    <div className="space-y-4">
                         <PublicWorkTitle work={work} />
                         <PublicWorkTags genres={work.genres} />
 

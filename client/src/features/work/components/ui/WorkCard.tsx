@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Heart } from 'lucide-react'
 
 interface WorkCardProps {
-    id: number
+    id: string
     slug?: string
     title: string
     cover: string | null

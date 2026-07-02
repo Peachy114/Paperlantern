@@ -29,6 +29,9 @@ class User extends Authenticatable
         'ban_reason',
         'banned_at',
         'dark_mode',
+        'twitter_url',
+        'instagram_url',
+        'tiktok_url',
     ];
 
     protected $hidden = [

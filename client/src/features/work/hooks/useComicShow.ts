@@ -54,7 +54,8 @@ export function useComicShow() {
     })
 
     const isOwner = user?.id === data?.work?.user_id
-    const coverUrl = (path: string | null) => (path ? storageUrl(path) : null)
+    const coverUrl = (path: string | null, variant?: 'sm') =>
+        path ? storageUrl(path, variant) : null
 
     return {
         work: data.work,

@@ -45,6 +45,7 @@ function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
         imagePreviews,
         loading,
         error,
+        fieldErrors,
         navigate,
         workSlug,
         handleChange,
@@ -103,6 +104,7 @@ function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
                                     target: { files: dt.files },
                                 } as React.ChangeEvent<HTMLInputElement>)
                             }}
+                            error={fieldErrors?._cover}
                         />
                     </div>
 
@@ -147,6 +149,7 @@ function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
                                     target: { files: dt.files },
                                 } as React.ChangeEvent<HTMLInputElement>)
                             }}
+                            error={fieldErrors?._cover}
                         />
                     </div>
 

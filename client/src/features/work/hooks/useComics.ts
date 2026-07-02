@@ -4,7 +4,7 @@ import api from '@/api/axios'
 import { storageUrl } from '@/utils/storage'
 
 export interface ComicItem {
-    id: number
+    id: string
     slug: string
     title: string
     cover: string | null

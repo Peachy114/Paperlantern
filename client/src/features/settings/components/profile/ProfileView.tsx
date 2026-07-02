@@ -4,7 +4,6 @@ import { usePasswordForm } from '../../hook/usePasswordForm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Camera } from 'lucide-react'
@@ -74,6 +73,54 @@ export default function ProfileView() {
                                 {profile.errors.username.message}
                             </p>
                         )}
+                    </div>
+                    {/* ── Social Media Links ── */}
+                    <div className="space-y-4">
+                        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                            Social Media Links
+                        </h3>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="twitter_url">X / Twitter</Label>
+                            <Input
+                                id="twitter_url"
+                                {...profile.register('twitter_url')}
+                                placeholder="https://x.com/yourhandle"
+                            />
+                            {profile.errors.twitter_url && (
+                                <p className="text-sm text-destructive">
+                                    {profile.errors.twitter_url.message}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="instagram_url">Instagram</Label>
+                            <Input
+                                id="instagram_url"
+                                {...profile.register('instagram_url')}
+                                placeholder="https://instagram.com/yourhandle"
+                            />
+                            {profile.errors.instagram_url && (
+                                <p className="text-sm text-destructive">
+                                    {profile.errors.instagram_url.message}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="tiktok_url">TikTok</Label>
+                            <Input
+                                id="tiktok_url"
+                                {...profile.register('tiktok_url')}
+                                placeholder="https://tiktok.com/@yourhandle"
+                            />
+                            {profile.errors.tiktok_url && (
+                                <p className="text-sm text-destructive">
+                                    {profile.errors.tiktok_url.message}
+                                </p>
+                            )}
+                        </div>
                     </div>
 
                     {profile.error && <p className="text-sm text-destructive">{profile.error}</p>}

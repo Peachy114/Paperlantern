@@ -7,6 +7,9 @@ use App\Models\Chapter;
 use App\Repositories\ChapterRepository;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
 
 class ChapterService
 {
@@ -17,7 +20,7 @@ class ChapterService
         $data['slug'] = Chapter::generateSlug($data['title'], $work->id);
 
         if ($request->hasFile('cover')) {
-            $data['cover'] = $request->file('cover')->store('chapter-covers', 'public');
+            $data['cover'] = $this->storeCoverWithThumbnail($request->file('cover'));
         }
 
         if (isset($data['status']) && $data['status'] === 'published') {
@@ -47,7 +50,10 @@ class ChapterService
         }
 
         if ($request->hasFile('cover')) {
-            $data['cover'] = $request->file('cover')->store('chapter-covers', 'public');
+            if ($chapter->cover) {
+                $this->deleteCoverWithThumbnail($chapter->cover);
+            }
+            $data['cover'] = $this->storeCoverWithThumbnail($request->file('cover'));
         }
 
         if (
@@ -75,10 +81,34 @@ class ChapterService
 
     public function deleteChapter(Chapter $chapter): void
     {
+        if ($chapter->cover) {
+            $this->deleteCoverWithThumbnail($chapter->cover);
+        }
         $this->repo->delete($chapter);
     }
 
     // ── Private Helpers ───────────────────────────────────────────
+
+    private function storeCoverWithThumbnail(UploadedFile $cover): string
+    {
+        $path = $cover->store('chapter-covers', 'public');
+
+        $manager = new ImageManager(new Driver());
+        $thumb = $manager->read(storage_path('app/public/' . $path));
+        $thumb->scale(width: 700);
+
+        $smPath = preg_replace('/(\.[^.]+)$/', '_sm$1', $path);
+        $thumb->save(storage_path('app/public/' . $smPath));
+
+        return $path;
+    }
+
+    private function deleteCoverWithThumbnail(string $path): void
+    {
+        \Storage::disk('public')->delete($path);
+        $smPath = preg_replace('/(\.[^.]+)$/', '_sm$1', $path);
+        \Storage::disk('public')->delete($smPath);
+    }
 
     private function applyLockType(Chapter $chapter, Request $request): Chapter
     {

@@ -12,7 +12,6 @@ interface EditWorkGenresProps {
 export default function EditWorkGenres({
     selectedGenres,
     onGenreToggle,
-    error,
     fieldErrors,
 }: EditWorkGenresProps) {
     return (

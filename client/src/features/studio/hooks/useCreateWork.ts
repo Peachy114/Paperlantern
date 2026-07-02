@@ -5,6 +5,7 @@ import { containsBadWord } from '@/lib/badWords'
 import * as Yup from 'yup'
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { arrayMove } from '@dnd-kit/sortable'
 
 export const GENRES = [
     'Action',
@@ -205,14 +206,8 @@ export function useCreateWork() {
     }
 
     const reorderChapterImages = (from: number, to: number) => {
-        const reorder = <T>(arr: T[]): T[] => {
-            const next = [...arr]
-            const [moved] = next.splice(from, 1)
-            next.splice(to, 0, moved)
-            return next
-        }
-        setChapterImages((prev) => reorder(prev))
-        setChapterImagePreviews((prev) => reorder(prev))
+        setChapterImages((prev) => arrayMove(prev, from, to))
+        setChapterImagePreviews((prev) => arrayMove(prev, from, to))
     }
 
     // ── Derived ───────────────────────────────────────────────────
@@ -229,7 +224,9 @@ export function useCreateWork() {
         setFieldErrors({})
         setChapterFieldErrors({})
 
-        // Validate work
+        let workValid = true
+        let chapterValid = true
+
         try {
             await workSchema.validate({ ...form, cover, banner }, { abortEarly: false })
         } catch (err) {
@@ -239,13 +236,10 @@ export function useCreateWork() {
                     if (e.path) errors[e.path] = e.message
                 })
                 setFieldErrors(errors)
-                toast.error('Please fix the highlighted fields.')
             }
-            setLoading(false)
-            return
+            workValid = false
         }
 
-        // Validate chapter only if ongoing/completed
         if (requiresChapter) {
             try {
                 await makeChapterSchema(type, chapterImages, chapterCover).validate(
@@ -259,11 +253,15 @@ export function useCreateWork() {
                         if (e.path) errors[e.path] = e.message
                     })
                     setChapterFieldErrors(errors)
-                    toast.error('Please fix the chapter fields.')
                 }
-                setLoading(false)
-                return
+                chapterValid = false
             }
+        }
+
+        if (!workValid || !chapterValid) {
+            toast.error('Please fix the highlighted fields.')
+            setLoading(false)
+            return
         }
 
         try {

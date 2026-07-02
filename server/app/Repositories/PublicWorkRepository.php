@@ -22,13 +22,13 @@ class PublicWorkRepository
     public function getWeeklyChart(): \Illuminate\Database\Eloquent\Collection
     {
         return Work::where('status', '!=', 'draft')
-            ->has('chapters') 
-            ->withSum(['chapters as weekly_views' => function ($q) {
-                $q->where('created_at', '>=', now()->startOfWeek());
-            }], 'views')
+            ->has('chapters')
+            ->withCount(['chapterViews as weekly_views' => function ($q) {
+                $q->where('chapter_views.created_at', '>=', now()->startOfWeek());
+            }])
             ->orderByDesc('weekly_views')
             ->limit(10)
-            ->get(['id', 'title', 'cover', 'type', 'views', 'likes']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'views', 'likes']);
     }
 
     public function getFreshReleases(): \Illuminate\Database\Eloquent\Collection
@@ -57,7 +57,7 @@ class PublicWorkRepository
 
     public function getWork(Work $work): Work
     {
-        $work->load('user:id,name');
+        $work->load('user:id,name,twitter_url,instagram_url,tiktok_url');
         $work->loadCount(['chapters as chapters_count' => function ($q) {
             $q->where('status', '!=', 'draft');
         }]);

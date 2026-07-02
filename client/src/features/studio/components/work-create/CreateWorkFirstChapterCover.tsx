@@ -15,13 +15,14 @@ import {
 interface Props {
     coverPreview: string | null
     onCroppedFile: (file: File) => void
+    error?: string
 }
 
 function centerAspectCrop(w: number, h: number, aspect: number): Crop {
     return centerCrop(makeAspectCrop({ unit: '%', width: 90 }, aspect, w, h), w, h)
 }
 
-export default function CreateWorkFirstChapterCover({ coverPreview, onCroppedFile }: Props) {
+export default function CreateWorkFirstChapterCover({ coverPreview, onCroppedFile, error }: Props) {
     const [src, setSrc] = useState<string | null>(null)
     const [crop, setCrop] = useState<Crop>()
     const [completedCrop, setCompletedCrop] = useState<Crop>()
@@ -59,18 +60,26 @@ export default function CreateWorkFirstChapterCover({ coverPreview, onCroppedFil
             canvas.width,
             canvas.height
         )
-        canvas.toBlob((blob) => {
-            if (!blob) return
-            onCroppedFile(new File([blob], 'chapter-cover.jpg', { type: 'image/jpeg' }))
-            setSrc(null)
-        }, 'image/jpeg')
+        canvas.toBlob(
+            (blob) => {
+                if (!blob) return
+                onCroppedFile(new File([blob], 'chapter-cover.jpg', { type: 'image/jpeg' }))
+                setSrc(null)
+            },
+            'image/jpeg',
+            0.85
+        )
     }
 
     return (
         <>
             <div className="flex flex-col gap-1.5">
                 <Label>Chapter cover</Label>
-                <label className="relative flex flex-col items-center justify-center h-[260px] w-full rounded-xl border-2 border-dashed border-border bg-muted cursor-pointer hover:border-foreground/40 transition-colors overflow-hidden">
+                <label
+                    className={`relative flex flex-col items-center justify-center h-[260px] w-full rounded-xl border-2 border-dashed bg-muted cursor-pointer hover:border-foreground/40 transition-colors overflow-hidden ${
+                        error ? 'border-destructive' : 'border-border'
+                    }`}
+                >
                     {coverPreview ? (
                         <img
                             src={coverPreview}
@@ -93,6 +102,7 @@ export default function CreateWorkFirstChapterCover({ coverPreview, onCroppedFil
                         className="sr-only"
                     />
                 </label>
+                {error && <p className="text-xs text-destructive">{error}</p>}
             </div>
 
             <Dialog open={!!src} onOpenChange={(o) => !o && setSrc(null)}>

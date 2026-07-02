@@ -27,7 +27,7 @@ class WalletTransaction extends Model
         'amount'         => 'integer',
         'balance_before' => 'integer',
         'balance_after'  => 'integer',
-         'meta' => 'array',
+         'meta'          => 'array',
     ];
 
     public function wallet(): BelongsTo

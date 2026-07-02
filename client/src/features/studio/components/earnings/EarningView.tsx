@@ -59,7 +59,6 @@ export default function EarningView() {
 
     const canWithdraw = earnings?.can_withdraw ?? false
     const hasPendingWithdrawal = earnings?.latest_withdrawal?.status === 'pending'
-    const withdrawals = history ?? [] // reuse the history you already fetched
     return (
         <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
             <EarningHeader

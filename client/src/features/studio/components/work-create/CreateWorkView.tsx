@@ -84,7 +84,6 @@ export default function CreateWorkView() {
 
     // CROP IMAGE.
     const handleCroppedFile = (file: File, field: 'cover' | 'banner') => {
-        const preview = URL.createObjectURL(file)
         // reuse handleFileChange by faking an event — but simpler to call hook directly
         // Since the hook doesn't expose setters, use handleFileChange with a fake event:
         const dt = new DataTransfer()
@@ -232,6 +231,7 @@ export default function CreateWorkView() {
                                                     target: { files: dt.files },
                                                 } as any)
                                             }}
+                                            error={chapterFieldErrors._cover}
                                         />
                                     </div>
                                 </div>

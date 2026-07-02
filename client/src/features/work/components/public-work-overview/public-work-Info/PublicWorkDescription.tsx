@@ -1,5 +1,3 @@
-import React from 'react'
-
 interface PublicWorkDescriptionProps {
     description: string | null
 }

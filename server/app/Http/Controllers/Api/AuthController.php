@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
@@ -92,11 +93,14 @@ class AuthController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'name'     => ['sometimes', 'string', 'max:255'],
-            'username' => ['sometimes', 'string', 'max:50', 'unique:users,username,' . $user->id],
-            'email'    => ['sometimes', 'email', 'unique:users,email,' . $user->id],
-            'bio'      => ['nullable', 'string', 'max:500'],
-            'avatar'   => ['nullable', 'image', 'max:2048'],
+            'name'          => ['sometimes', 'string', 'max:255'],
+            'username'      => ['sometimes', 'string', 'max:50', 'unique:users,username,' . $user->id],
+            'email'         => ['sometimes', 'email', 'unique:users,email,' . $user->id],
+            'bio'           => ['nullable', 'string', 'max:500'],
+            'avatar'        => ['nullable', 'image', 'max:2048'],
+            'twitter_url'   => ['nullable', 'url', 'max:255'],
+            'instagram_url' => ['nullable', 'url', 'max:255'],
+            'tiktok_url'    => ['nullable', 'url', 'max:255'],
         ]);
 
         if ($request->hasFile('avatar')) {
@@ -125,5 +129,25 @@ class AuthController extends Controller
         ]);
 
         return response()->json(['message' => 'Password updated.']);
+    }
+
+    //google
+    public function googleRedirect(): \Illuminate\Http\RedirectResponse
+    {
+        return Socialite::driver('google')->stateless()->redirect();
+    }
+
+    public function googleCallback(): \Illuminate\Http\RedirectResponse
+    {
+        try {
+            $googleUser = Socialite::driver('google')->stateless()->user();
+            $result     = $this->service->handleGoogleLogin($googleUser);
+            $token      = $result['token'];
+            $user       = urlencode(json_encode($result['user']));
+
+            return redirect("http://localhost:5173/auth/callback?token={$token}&user={$user}");
+        } catch (\Exception $e) {
+            return redirect('http://localhost:5173/auth/callback?error=failed');
+        }
     }
 }

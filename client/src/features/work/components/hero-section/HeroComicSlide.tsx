@@ -17,7 +17,7 @@ interface Props {
     onClick: () => void
 }
 
-export default function HeroComicSlide({ work, cover, isActive, isFirst, onClick }: Props) {
+export default function HeroComicSlide({ work, cover, isFirst, onClick }: Props) {
     const imgSrc = cover(work.banner ?? work.cover)
     return (
         <div

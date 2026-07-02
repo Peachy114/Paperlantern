@@ -96,5 +96,14 @@ export const publicRoutes = (
                 </Suspense>
             }
         />
+
+        <Route
+            path="/auth/callback"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.GoogleCallback />
+                </Suspense>
+            }
+        />
     </>
 )

@@ -5,6 +5,9 @@ namespace App\Services;
 use App\Models\Work;
 use App\Repositories\WorkRepository;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
 
 class WorkService
 {
@@ -20,11 +23,11 @@ class WorkService
         $validated['slug'] = Work::generateSlug($validated['title']);
 
         if ($request->hasFile('cover')) {
-            $validated['cover'] = $request->file('cover')->store('covers', 'public');
+            $validated['cover'] = $this->storeImageWithThumbnail($request->file('cover'), 'covers');
         }
 
         if ($request->hasFile('banner')) {
-            $validated['banner'] = $request->file('banner')->store('banners', 'public');
+            $validated['banner'] = $this->storeImageWithThumbnail($request->file('banner'), 'banners');
         }
 
         return $this->repo->create($user, $validated);
@@ -35,15 +38,21 @@ class WorkService
         if (isset($validated['title'])) {
             $validated['slug'] = Work::generateSlug($validated['title'], $work->id);
         }
-        
+
         if ($request->hasFile('cover')) {
-            $validated['cover'] = $request->file('cover')->store('covers', 'public');
+            if ($work->cover) {
+                $this->deleteImageWithThumbnail($work->cover);
+            }
+            $validated['cover'] = $this->storeImageWithThumbnail($request->file('cover'), 'covers');
         } else {
             unset($validated['cover']);
         }
 
         if ($request->hasFile('banner')) {
-            $validated['banner'] = $request->file('banner')->store('banners', 'public');
+            if ($work->banner) {
+                $this->deleteImageWithThumbnail($work->banner);
+            }
+            $validated['banner'] = $this->storeImageWithThumbnail($request->file('banner'), 'banners');
         } else {
             unset($validated['banner']);
         }
@@ -79,6 +88,36 @@ class WorkService
                 });
         }
 
+        if ($work->cover) {
+            $this->deleteImageWithThumbnail($work->cover);
+        }
+        if ($work->banner) {
+            $this->deleteImageWithThumbnail($work->banner);
+        }
+
         $this->repo->delete($work);
+    }
+
+    // ── Private Helpers ───────────────────────────────────────────
+
+    private function storeImageWithThumbnail(UploadedFile $file, string $folder): string
+    {
+        $path = $file->store($folder, 'public');
+
+        $manager = new ImageManager(new Driver());
+        $thumb = $manager->read(storage_path('app/public/' . $path));
+        $thumb->scale(width: 700);
+
+        $smPath = preg_replace('/(\.[^.]+)$/', '_sm$1', $path);
+        $thumb->save(storage_path('app/public/' . $smPath));
+
+        return $path;
+    }
+
+    private function deleteImageWithThumbnail(string $path): void
+    {
+        \Storage::disk('public')->delete($path);
+        $smPath = preg_replace('/(\.[^.]+)$/', '_sm$1', $path);
+        \Storage::disk('public')->delete($smPath);
     }
 }

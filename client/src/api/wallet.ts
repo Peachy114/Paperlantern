@@ -79,4 +79,6 @@ export const getWithdrawalHistory = (
     page = 1,
     perPage = 15
 ): Promise<PaginatedResponse<WithdrawalTransaction>> =>
-    api.get('/studio/withdrawals').then((r) => r.data)
+    api
+        .get('/studio/earnings/withdrawals', { params: { page, per_page: perPage } })
+        .then((r) => r.data)

@@ -22,7 +22,7 @@ class EarningsController extends Controller
 
         return response()->json([
             'balance_credits'   => $earning->balance,
-            'balance_php'       => $earning->php_balance,
+            'balance_php'       => (float) $earning->php_balance,
             'min_withdrawal'    => CommissionService::MIN_WITHDRAWAL_PHP,
             'can_withdraw'      => $earning->php_balance >= CommissionService::MIN_WITHDRAWAL_PHP,
             'latest_withdrawal' => $latestWithdrawal ? [
@@ -92,5 +92,14 @@ class EarningsController extends Controller
             'pending_withdrawals_count'  => (int)   ($pendingWithdrawals->count          ?? 0),
             'pending_withdrawals_php'    => (float) ($pendingWithdrawals->total_php      ?? 0),
         ]);
+    }
+
+    public function withdrawalHistory(Request $request): JsonResponse
+    {
+        $withdrawals = \App\Models\WithdrawalRequest::where('user_id', $request->user()->id)
+            ->latest()
+            ->paginate($request->integer('per_page', 15));
+
+        return response()->json($withdrawals);
     }
 }

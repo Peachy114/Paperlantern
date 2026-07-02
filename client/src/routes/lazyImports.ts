@@ -9,6 +9,7 @@ export const Pages = {
     ComicShow: lazy(() => import('@/features/work/pages/WorkOverview')),
     ComicChapter: lazy(() => import('@/features/work/pages/WorkShow')),
     Comix: lazy(() => import('@/features/work/pages/Comix')),
+    GoogleCallback: lazy(() => import('@/pages/GoogleCallback')),
 
     // FOOTER
     About: lazy(() => import('@/pages/about/About')),

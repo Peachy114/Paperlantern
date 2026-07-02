@@ -8,7 +8,6 @@ import Subscribe from '@/components/pages/Subscribe'
 
 export default function PublicLayout() {
     const [showRotateScreen, setShowRotateScreen] = useState(false)
-    const [isMobile, setIsMobile] = useState(false)
 
     useEffect(() => {
         const checkDevice = () => {
@@ -19,7 +18,6 @@ export default function PublicLayout() {
             const isLandscape = window.innerWidth >= window.innerHeight
 
             setShowRotateScreen(isMobileDevice && isLandscape)
-            setIsMobile(isMobileDevice)
         }
 
         checkDevice()
@@ -40,7 +38,7 @@ export default function PublicLayout() {
         <div className="flex flex-col min-h-screen bg-white dark:bg-black/70">
             <div className="flex-1">
                 <NavbarWrapper />
-                <main className="overflow-hidden max-w-[1360px] mx-auto py-3 md:pt-3 pt-16 mt-20">
+                <main className="overflow-hidden w-full">
                     <Outlet />
                 </main>
             </div>
@@ -53,3 +51,5 @@ export default function PublicLayout() {
         </div>
     )
 }
+
+//max-w-[1360px] mx-auto py-3 md:pt-3 pt-16 mt-20

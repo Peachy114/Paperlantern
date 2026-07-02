@@ -38,6 +38,7 @@ export default function EditWorkView() {
         handleChapterCoverChange,
         handleChapterImagesChange,
         removeChapterImage,
+        reorderChapterImages,
     } = useEditWork()
 
     const fe = (field: string) => !!fieldErrors[field]
@@ -48,19 +49,6 @@ export default function EditWorkView() {
                 — LOADING... —
             </div>
         )
-
-    // CROP IMAGE.
-    const handleCroppedFile = (file: File, field: 'cover' | 'banner') => {
-        const preview = URL.createObjectURL(file)
-        // reuse handleFileChange by faking an event — but simpler to call hook directly
-        // Since the hook doesn't expose setters, use handleFileChange with a fake event:
-        const dt = new DataTransfer()
-        dt.items.add(file)
-        const fakeEvent = {
-            target: { files: dt.files },
-        } as React.ChangeEvent<HTMLInputElement>
-        handleFileChange(fakeEvent, field)
-    }
 
     return (
         <div className="px-6 py-10 max-w-6xl mx-auto">
@@ -169,7 +157,7 @@ export default function EditWorkView() {
                                     chapterContent={chapterForm.content}
                                     onImagesChange={handleChapterImagesChange}
                                     onImageRemove={removeChapterImage}
-                                    onImagesReorder={() => {}} // edit view doesn't need reorder
+                                    onImagesReorder={reorderChapterImages}
                                     onContentChange={handleChapterChange}
                                     chapterFieldErrors={chapterFieldErrors}
                                 />

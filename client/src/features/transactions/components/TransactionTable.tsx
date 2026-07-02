@@ -10,7 +10,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import type { Transaction, TransactionStatus } from '@/types/transaction'
+import type { Transaction } from '@/types/transaction'
 
 interface TransactionTableProps {
     rows: Transaction[]

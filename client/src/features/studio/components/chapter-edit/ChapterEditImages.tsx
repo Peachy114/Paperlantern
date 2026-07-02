@@ -33,11 +33,7 @@ function centerAspectCrop(w: number, h: number, aspect: number): Crop {
     return centerCrop(makeAspectCrop({ unit: '%', width: 90 }, aspect, w, h), w, h)
 }
 
-export function ChapterEditImages({
-    workType,
-    coverPreview,
-    onCroppedFile,
-}: ChapterEditImagesProps) {
+export function ChapterEditImages({ coverPreview, onCroppedFile }: ChapterEditImagesProps) {
     const [src, setSrc] = useState<string | null>(null)
     const [crop, setCrop] = useState<Crop>()
     const [completedCrop, setCompletedCrop] = useState<Crop>()

@@ -1,15 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import api from '@/api/axios'
 import WorkCard from '@/features/work/components/ui/WorkCard'
-import CardSkeleton from '@/components/shared/loading/CardSkeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface Work {
-    id: number
+    id: string
     title: string
     cover: string | null
     type: 'webtoon' | 'wattpad'
     genres: string[]
+}
+
+function CardSkeleton() {
+    return (
+        <div className="flex flex-col gap-2">
+            <Skeleton className="aspect-[3/4] w-full rounded-lg" />
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+        </div>
+    )
 }
 
 export default function SearchWork() {

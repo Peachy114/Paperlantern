@@ -45,4 +45,22 @@ class AuthRepository
         $user->update(['role' => 'storyteller']);
         return $user->fresh();
     }
+
+    public function findByEmail(string $email): ?User
+    {
+        return User::where('email', $email)->first();
+    }
+
+    public function generateUsername(string $name): string
+    {
+        $base     = strtolower(preg_replace('/\s+/', '_', $name));
+        $username = $base;
+        $i        = 1;
+
+        while (User::where('username', $username)->exists()) {
+            $username = $base . '_' . $i++;
+        }
+
+        return $username;
+    }
 }

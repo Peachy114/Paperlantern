@@ -19,8 +19,8 @@ export default function Homepage() {
             {isEmpty ? (
                 <Welcome />
             ) : (
-                <div className="w-full max-w-[1326px] mx-auto">
-                    <HeroSection hero={hero} cover={cover} />
+                <div className="w-full">
+                    <HeroSection audience="public" />
                     <WeeklyChartSection weeklyChart={weeklyChart} cover={cover} />
                     <FreshReleasesSection freshReleases={freshReleases} cover={cover} />
                     <LatestChaptersSection latestChapters={latestChapters} cover={cover} />

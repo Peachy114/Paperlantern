@@ -7,6 +7,7 @@ use App\Repositories\AuthRepository;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Socialite\Contracts\User as SocialiteUser;
 
 class AuthService
 {
@@ -80,6 +81,38 @@ class AuthService
             'dark_mode' => (bool) $user->dark_mode,
             'avatar'    => $user->avatar ? url(Storage::url($user->avatar)) : null,
             'bio'       => $user->bio,
+            'twitter_url'   => $user->twitter_url,
+            'instagram_url' => $user->instagram_url,
+            'tiktok_url'    => $user->tiktok_url,
+        ];
+    }
+
+    public function handleGoogleLogin(SocialiteUser $googleUser): array
+    {
+        $user = $this->repo->findByEmail($googleUser->getEmail());
+
+        if (!$user) {
+            $user = $this->repo->create([
+                'name'     => $googleUser->getName(),
+                'username' => $this->repo->generateUsername($googleUser->getName()),
+                'email'    => $googleUser->getEmail(),
+                'password' => bcrypt(\Illuminate\Support\Str::random(32)),
+                'role'     => 'wanderer',
+            ]);
+        }
+
+        if ($user->is_banned) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'login' => ['Your account has been banned.'],
+            ]);
+        }
+
+        $token = $this->repo->createToken($user);
+
+        return [
+            'message' => 'Login successful.',
+            'user'    => $this->formatUser($user),
+            'token'   => $token,
         ];
     }
 }

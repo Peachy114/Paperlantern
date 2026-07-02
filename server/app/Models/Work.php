@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use App\Models\ChapterView;
 
 class Work extends Model
 {
@@ -49,6 +50,11 @@ class Work extends Model
         return $this->hasMany(Chapter::class)->orderBy('order');
     }
 
+    public function chapterViews(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    {
+        return $this->hasManyThrough(ChapterView::class, Chapter::class);
+    }
+
     public static function generateSlug(string $title, ?string $excludeId = null): string
     {
         $base  = Str::slug($title);
@@ -71,4 +77,5 @@ class Work extends Model
     {
         return 'slug';
     }
+
 }

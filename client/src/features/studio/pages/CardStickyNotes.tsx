@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import AddStickyModal from '../components/AddStickyModal'
+import AddStickyModal from '../components/sticky-modal/AddStickyModal'
 import { useStickyBoard } from '@/features/studio/hooks/useStickyBoard'
 import { useMyViolations } from '@/features/studio/hooks/useMyViolations'
 

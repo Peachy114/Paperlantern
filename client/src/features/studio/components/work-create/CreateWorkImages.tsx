@@ -31,7 +31,6 @@ export default function CreateWorkImages({
     coverPreview,
     bannerPreview,
     fieldErrors,
-    onFileChange,
     onCroppedFile,
 }: CreateWorkImagesProps) {
     const previews = { cover: coverPreview, banner: bannerPreview }
@@ -81,12 +80,16 @@ export default function CreateWorkImages({
             canvas.width,
             canvas.height
         )
-        canvas.toBlob((blob) => {
-            if (!blob) return
-            const file = new File([blob], `${cropModal.field}.jpg`, { type: 'image/jpeg' })
-            onCroppedFile(file, cropModal.field)
-            setCropModal(null)
-        }, 'image/jpeg')
+        canvas.toBlob(
+            (blob) => {
+                if (!blob) return
+                const file = new File([blob], `${cropModal.field}.jpg`, { type: 'image/jpeg' })
+                onCroppedFile(file, cropModal.field)
+                setCropModal(null)
+            },
+            'image/jpeg',
+            0.85
+        )
     }
 
     return (

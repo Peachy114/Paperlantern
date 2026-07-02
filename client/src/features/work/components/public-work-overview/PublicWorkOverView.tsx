@@ -81,23 +81,12 @@ export default function PublicWorkOverview() {
                 unlocking={unlocking}
             />
 
-            <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+            <div className="max-w-7xl mx-auto px-4 py-8 space-y-6 mt-15">
                 {/* Banner — full width */}
                 <PublicWorkHeader work={work} coverUrl={coverUrl} />
 
                 {/* Below banner: stacked on mobile, 2-col on desktop */}
                 <div className="flex flex-col lg:flex-row gap-6 items-start">
-                    {/* Left — cover + info */}
-                    <div className="w-full lg:w-[40%] lg:shrink-0">
-                        <PublicWorkInfo
-                            work={work}
-                            isOwner={isOwner}
-                            slug={slug ?? ''}
-                            navigate={navigate}
-                            coverUrl={coverUrl}
-                        />
-                    </div>
-
                     {/* Right — table of contents, grows to fill */}
                     <div className="w-full lg:w-[60%] min-w-0">
                         <PublicWorkChapterList
@@ -106,6 +95,17 @@ export default function PublicWorkOverview() {
                             slug={slug ?? ''}
                             isOwner={isOwner}
                             onChapterClick={handleChapterClick}
+                        />
+                    </div>
+
+                    {/* Left — cover + info */}
+                    <div className="w-full lg:w-[40%] lg:shrink-0">
+                        <PublicWorkInfo
+                            work={work}
+                            isOwner={isOwner}
+                            slug={slug ?? ''}
+                            navigate={navigate}
+                            coverUrl={coverUrl}
                         />
                     </div>
                 </div>

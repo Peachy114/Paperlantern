@@ -30,8 +30,10 @@ export default function StudioTrashChapterRow({ chapter, daysLeft, onSetConfirm 
             <div className="w-10 h-14 shrink-0 rounded overflow-hidden bg-muted">
                 {chapter.cover ? (
                     <img
-                        src={storageUrl(chapter.cover)!}
+                        src={storageUrl(chapter.cover, 'sm')!}
                         alt={chapter.title}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover grayscale opacity-60"
                     />
                 ) : (

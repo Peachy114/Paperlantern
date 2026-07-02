@@ -85,12 +85,12 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
                 credits_required:
                     (chapter.lock_type ?? 'free') === 'free' ? 0 : (chapter.credits_required ?? 3),
             })
-            if (chapter.cover) setCoverPreview(storageUrl(chapter.cover))
+            if (chapter.cover) setCoverPreview(storageUrl(chapter.cover, 'sm'))
             if (chapter.images?.length) {
                 setImageItems(
                     chapter.images.map((img: any) => ({
                         id: img.id,
-                        preview: storageUrl(img.path)!,
+                        preview: storageUrl(img.path, 'sm')!,
                     }))
                 )
             }

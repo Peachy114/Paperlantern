@@ -39,7 +39,6 @@ function SortableImage({
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: src,
     })
-
     return (
         <div
             ref={setNodeRef}
@@ -89,18 +88,16 @@ export default function CreateWorkFirstStoryContent({
     const dragIndex = useRef<number | null>(null)
     const imageRefs = useRef<Map<number, HTMLDivElement>>(new Map())
     const touchStartY = useRef<number>(0)
-
-    const handleDragStart = (i: number) => {
-        dragIndex.current = i
-    }
-
-    const handleDrop = (i: number) => {
-        const from = dragIndex.current
-        if (from === null || from === i) return
-        dragIndex.current = null
-        onImagesReorder(from, i)
-    }
-
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8, // must drag 8px before activating
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: { delay: 250, tolerance: 5 },
+        })
+    )
     // Register non-passive touch listeners — same as sticky notes
     useEffect(() => {
         const listeners: Array<{ el: HTMLDivElement; fn: (e: TouchEvent) => void }> = []
@@ -124,26 +121,8 @@ export default function CreateWorkFirstStoryContent({
         }
     }, [chapterImagePreviews])
 
-    const handleTouchEnd = (e: React.TouchEvent, i: number) => {
-        const deltaY = e.changedTouches[0].clientY - touchStartY.current
-        const itemHeight = (e.currentTarget as HTMLElement).clientHeight
-        const steps = Math.round(deltaY / itemHeight)
-        const to = Math.max(0, Math.min(chapterImagePreviews.length - 1, i + steps))
-        if (dragIndex.current !== null && dragIndex.current !== to) {
-            onImagesReorder(dragIndex.current, to)
-        }
-        dragIndex.current = null
-    }
-
     // IF WEBTOOOOOOOOOON -----------------------------------------------
     if (type === 'webtoon') {
-        const sensors = useSensors(
-            useSensor(PointerSensor),
-            useSensor(TouchSensor, {
-                activationConstraint: { delay: 250, tolerance: 5 }, // hold 250ms to activate
-            })
-        )
-
         const handleDragEnd = (event: DragEndEvent) => {
             const { active, over } = event
             if (!over || active.id === over.id) return

@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import WorkCard from '@/features/work/components/ui/WorkCard'
 
 interface Work {
-    id: number
+    id: string
     slug: string
     title: string
     cover: string | null
@@ -17,7 +17,7 @@ export default function WeeklyChartSection({
     cover,
 }: {
     weeklyChart: Work[]
-    cover: (path: string | null) => string | null
+    cover: (path: string | null, variant?: 'sm') => string | null
 }) {
     const scrollRef = useRef<HTMLDivElement>(null)
     const [canScrollLeft, setCanScrollLeft] = useState(false)
@@ -45,7 +45,7 @@ export default function WeeklyChartSection({
     if (weeklyChart.length === 0) return null
 
     return (
-        <div className="w-full max-w-[1360px] mx-auto px-4 py-6">
+        <div className="w-full max-w-[1360px] mx-auto px-4 py-6 ">
             <div className="mb-4">
                 <div className="text-xs text-muted-foreground uppercase tracking-widest">
                     Top by views this week
@@ -88,7 +88,7 @@ export default function WeeklyChartSection({
                                 id={work.id}
                                 slug={work.slug}
                                 title={work.title}
-                                cover={cover(work.cover)}
+                                cover={cover(work.cover, 'sm')}
                                 type={work.type}
                                 likes={work.likes}
                                 rank={i + 1}

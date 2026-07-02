@@ -5,6 +5,7 @@ import { storageUrl } from '@/utils/storage'
 import { containsBadWord } from '@/lib/badWords'
 import * as Yup from 'yup'
 import { toast } from 'sonner'
+import { arrayMove } from '@dnd-kit/sortable'
 
 export const GENRES = [
     'Action',
@@ -238,14 +239,8 @@ export function useEditWork() {
     }
 
     const reorderChapterImages = (from: number, to: number) => {
-        const reorder = <T>(arr: T[]): T[] => {
-            const next = [...arr]
-            const [moved] = next.splice(from, 1)
-            next.splice(to, 0, moved)
-            return next
-        }
-        setChapterImages((prev) => reorder(prev))
-        setChapterImagePreviews((prev) => reorder(prev))
+        setChapterImages((prev) => arrayMove(prev, from, to))
+        setChapterImagePreviews((prev) => arrayMove(prev, from, to))
     }
 
     // ── Derived ───────────────────────────────────────────────────

@@ -3,7 +3,7 @@ import api from '@/api/axios'
 import { storageUrl } from '@/utils/storage'
 
 export interface WorkItem {
-    id: number
+    id: string
     slug: string
     title: string
     cover: string | null
@@ -19,14 +19,14 @@ export interface WorkItem {
 }
 
 export interface ChapterItem {
-    id: number
-    work_id: number
+    id: string
+    work_id: string
     title: string
     cover: string | null
     order: number
     created_at: string
     work: {
-        id: number
+        id: string
         slug: string
         title: string
         cover: string | null
@@ -61,7 +61,7 @@ export function useHome() {
         },
     })
 
-    const cover = (path: string | null) => (path ? storageUrl(path) : null)
+    const cover = (path: string | null, variant?: 'sm') => (path ? storageUrl(path, variant) : null)
 
     return {
         hero: data?.hero ?? [],

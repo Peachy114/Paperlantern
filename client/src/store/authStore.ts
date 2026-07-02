@@ -11,6 +11,9 @@ export interface User {
     dark_mode?: boolean
     avatar?: string | null
     bio?: string | null
+    twitter_url?: string | null
+    instagram_url?: string | null
+    tiktok_url?: string | null
 }
 
 interface AuthState {

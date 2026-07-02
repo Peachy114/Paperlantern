@@ -13,7 +13,6 @@ export default function CreateWorkGenres({
     genres,
     selectedGenres,
     onGenreToggle,
-    error,
     fieldErrors,
 }: CreateWorkGenresProps) {
     return (

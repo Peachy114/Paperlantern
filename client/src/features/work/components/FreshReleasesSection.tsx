@@ -4,7 +4,7 @@ import Pagination from './ui/Pagination'
 import { usePagination } from '../hooks/usePagination'
 
 interface Work {
-    id: number
+    id: string
     slug: string
     title: string
     cover: string | null
@@ -19,7 +19,7 @@ export default function FreshReleasesSection({
     cover,
 }: {
     freshReleases: Work[]
-    cover: (path: string | null) => string | null
+    cover: (path: string | null, variant?: 'sm') => string | null
 }) {
     const fresh = usePagination(freshReleases)
     if (freshReleases.length === 0) return null
@@ -40,9 +40,9 @@ export default function FreshReleasesSection({
                         <Link to={`/works/${work.slug}`} className="group block">
                             {/* Portrait cover */}
                             <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-muted">
-                                {cover(work.cover) && (
+                                {cover(work.cover, 'sm') && (
                                     <img
-                                        src={cover(work.cover)!}
+                                        src={cover(work.cover, 'sm')!}
                                         alt={work.title}
                                         loading="lazy"
                                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"

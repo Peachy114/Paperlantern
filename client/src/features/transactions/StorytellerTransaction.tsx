@@ -9,7 +9,6 @@ import {
     getWithdrawalHistory,
     type EarningTransaction,
     type WithdrawalTransaction,
-    type EarningsSummary,
 } from '@/api/wallet'
 import type { Transaction, TransactionStatus } from '@/types/transaction'
 
@@ -38,11 +37,10 @@ function earningToRow(tx: EarningTransaction): Transaction {
         date: formatDate(tx.created_at),
         description: `Chapter unlock — ${tx.chapter?.title ?? 'Unknown chapter'}`,
         amount: '—',
-        credits: `+₱${tx.storyteller_php.toFixed(2)}`,
+        credits: `+₱${parseFloat(tx.storyteller_php as any).toFixed(2)}`,
         status: 'success' as TransactionStatus,
     }
 }
-
 /**
  * WithdrawalTransaction → TransactionTable row
  *
@@ -110,8 +108,12 @@ export default function StorytellerTransaction() {
                 const [summaryRes, earningsRes, withdrawalsRes] = await Promise.all([
                     getEarningsSummary(),
                     getEarningsHistory(1, 100),
-                    getWithdrawalHistory(1, 100),
+                    getWithdrawalHistory(),
                 ])
+
+                console.log('summary:', summaryRes)
+                console.log('earnings:', earningsRes)
+                console.log('withdrawals:', withdrawalsRes)
 
                 if (cancelled) return
 
@@ -134,6 +136,7 @@ export default function StorytellerTransaction() {
                     chaptersSold: earningsRes.total,
                 })
             } catch (err) {
+                console.error('Load error:', err)
                 if (!cancelled) setError('Failed to load earnings. Please try again.')
             } finally {
                 if (!cancelled) setLoading(false)

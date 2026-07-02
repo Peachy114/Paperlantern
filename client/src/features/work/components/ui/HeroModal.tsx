@@ -31,7 +31,7 @@ export default function HeroModal({
     onClose,
 }: {
     slide: HeroModalSlide | null
-    cover: (path: string | null) => string | null
+    cover: (path: string | null, variant?: 'sm') => string | null
     onClose: () => void
 }) {
     const navigate = useNavigate()

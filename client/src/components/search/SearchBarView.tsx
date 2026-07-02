@@ -24,7 +24,7 @@ export default function SearchBarView() {
     const [results, setResults] = useState<SearchResult[]>([])
     const [open, setOpen] = useState(false)
     const [searching, setSearching] = useState(false)
-    const [searchFocused, setSearchFocused] = useState(false)
+    const [, setSearchFocused] = useState(false)
     const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
 
     const searchRef = useRef<HTMLDivElement>(null)

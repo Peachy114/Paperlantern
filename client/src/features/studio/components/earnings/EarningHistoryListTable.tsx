@@ -6,7 +6,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import type { EarningTransaction } from '@/features/studio/hooks/useEarnings'
 
 interface Props {

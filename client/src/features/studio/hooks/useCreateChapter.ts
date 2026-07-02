@@ -40,11 +40,7 @@ const makeSchema = (workType: 'webtoon' | 'wattpad', images: File[], cover: File
             'Please add at least one chapter page.',
             () => workType !== 'webtoon' || images.length > 0
         ),
-        _cover: Yup.mixed().test(
-            'has-cover',
-            'Please fill out all required fields.',
-            () => cover !== null
-        ),
+        _cover: Yup.mixed().test('has-cover', 'Cover image is required.', () => cover !== null),
     })
 
 export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
@@ -66,6 +62,16 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
     const [imagePreviews, setImagePreviews] = useState<string[]>([])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+    const clearFieldError = (field: string) => {
+        setFieldErrors((prev) => {
+            if (!(field in prev)) return prev
+            const next = { ...prev }
+            delete next[field]
+            return next
+        })
+    }
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -75,6 +81,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
             ...prev,
             [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
         }))
+        clearFieldError(name)
     }
 
     const handleLockTypeChange = (value: 'free' | 'early_access' | 'premium') => {
@@ -95,6 +102,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
         if (!file) return
         setCover(file)
         setCoverPreview(URL.createObjectURL(file))
+        clearFieldError('_cover')
     }
 
     const handleImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -102,6 +110,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
         if (!files.length) return
         setImages((prev) => [...prev, ...files])
         setImagePreviews((prev) => [...prev, ...files.map((f) => URL.createObjectURL(f))])
+        clearFieldError('_images')
     }
 
     const removeImage = (index: number) => {
@@ -120,30 +129,26 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
         setImagePreviews((prev) => reorder(prev))
     }
 
-    const handleSubmit = async (e: React.SubmitEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
         setError(null)
-
-        if (!cover) {
-            setError('Please fill out all required fields.')
-            setLoading(false)
-            return
-        }
-
-        if (workType === 'webtoon' && images.length === 0) {
-            setError('Please add at least one chapter page.')
-            setLoading(false)
-            return
-        }
+        setFieldErrors({})
 
         try {
             await makeSchema(workType, images, cover).validate(
                 { ...form, _images: images, _cover: cover },
-                { abortEarly: true }
+                { abortEarly: false }
             )
         } catch (err) {
-            if (err instanceof Yup.ValidationError) setError(err.message)
+            if (err instanceof Yup.ValidationError) {
+                const errors: Record<string, string> = {}
+                err.inner.forEach((e) => {
+                    if (e.path && !errors[e.path]) errors[e.path] = e.message
+                })
+                setFieldErrors(errors)
+                setError('Please fix the highlighted fields.')
+            }
             setLoading(false)
             return
         }
@@ -165,11 +170,19 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
             await studioApi.createChapter(workSlug!, formData)
             navigate(`/studio/works/${workSlug}/chapters`)
         } catch (err: any) {
-            const message =
-                err?.response?.data?.errors?.scheduled_at?.[0] ??
-                err?.response?.data?.message ??
-                'Failed to create chapter. Please try again.'
-            setError(message)
+            if (err.response?.status === 422 && err.response?.data?.errors) {
+                const raw: Record<string, string[]> = err.response.data.errors
+                const parsed: Record<string, string> = {}
+                for (const [key, messages] of Object.entries(raw)) {
+                    if (!parsed[key]) parsed[key] = messages[0]
+                }
+                setFieldErrors(parsed)
+                setError('Please fix the highlighted fields.')
+            } else {
+                const message =
+                    err?.response?.data?.message ?? 'Failed to create chapter. Please try again.'
+                setError(message)
+            }
         } finally {
             setLoading(false)
         }
@@ -183,6 +196,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
         imagePreviews,
         loading,
         error,
+        fieldErrors,
         navigate,
         workSlug,
         handleChange,

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import SearchBar from '../pages/SearchBar'
 import Profile from '../pages/Profile'
-import { Heart, GalleryVertical } from 'lucide-react'
+// import { Heart, GalleryVertical } from 'lucide-react'
 
 interface NavbarViewProps {
     user: any
@@ -92,24 +92,24 @@ export default function NavbarView({
                 <div className="relative flex items-center gap-1 md:gap-2">
                     <SearchBar />
                     {/* Wishlist placeholder */}
-                    <Button
+                    {/* <Button
                         variant="ghost"
                         size="lg"
                         className="text-black dark:text-white"
                         disabled
                     >
                         <Heart className="w-6 h-6" />
-                    </Button>
+                    </Button> */}
 
                     {/* Library placeholder */}
-                    <Button
+                    {/* <Button
                         variant="ghost"
                         size="lg"
                         className="text-black dark:text-white"
                         disabled
                     >
                         <GalleryVertical className="w-6 h-6" />
-                    </Button>
+                    </Button> */}
                     <Button
                         ref={profileButtonRef}
                         variant="ghost"

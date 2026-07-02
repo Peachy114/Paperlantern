@@ -20,12 +20,11 @@ interface PublicWorkChapterListProps {
     slug: string
     isOwner: boolean
     onChapterClick: (chapter: Chapter) => void
-    coverUrl: (path: string | null) => string | null
+    coverUrl: (path: string | null, variant?: 'sm') => string | null
 }
 
 export default function PublicWorkChapterList({
     chapters,
-    slug,
     isOwner,
     coverUrl,
     onChapterClick,
@@ -59,8 +58,10 @@ export default function PublicWorkChapterList({
                             {/* Thumbnail */}
                             {chapter.cover ? (
                                 <img
-                                    src={coverUrl(chapter.cover)!}
+                                    src={coverUrl(chapter.cover, 'sm')!}
                                     alt={chapter.title}
+                                    loading="lazy"
+                                    decoding="async"
                                     className="w-8 h-11 sm:w-10 sm:h-14 object-cover rounded shrink-0"
                                 />
                             ) : (

@@ -23,14 +23,15 @@ export default function PublicShowWebtoonContent({
 
     return (
         <div className="flex flex-col overflow-hidden bg-zinc-950 rounded-lg my-5">
-            {images.map((img) => (
+            {images.map((img, index) => (
                 <img
                     key={img.id}
                     src={imageUrl(img.path)!}
                     alt={`Page ${img.order + 1}`}
                     className="w-full block"
                     draggable={false}
-                    loading="eager"
+                    loading={index < 2 ? 'eager' : 'lazy'}
+                    decoding="async"
                 />
             ))}
         </div>

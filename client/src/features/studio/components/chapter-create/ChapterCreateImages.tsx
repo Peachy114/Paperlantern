@@ -16,13 +16,14 @@ import {
 interface Props {
     coverPreview: string | null
     onCroppedFile: (file: File) => void
+    error?: string
 }
 
 function centerAspectCrop(w: number, h: number, aspect: number): Crop {
     return centerCrop(makeAspectCrop({ unit: '%', width: 90 }, aspect, w, h), w, h)
 }
 
-export default function ChapterCreateImages({ coverPreview, onCroppedFile }: Props) {
+export default function ChapterCreateImages({ coverPreview, onCroppedFile, error }: Props) {
     const [src, setSrc] = useState<string | null>(null)
     const [crop, setCrop] = useState<Crop>()
     const [completedCrop, setCompletedCrop] = useState<Crop>()
@@ -74,7 +75,10 @@ export default function ChapterCreateImages({ coverPreview, onCroppedFile }: Pro
                 <label
                     className={cn(
                         'relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed cursor-pointer transition-colors overflow-hidden',
-                        'border-border hover:border-muted-foreground/50 bg-muted/20 h-36'
+                        'bg-muted/20 h-36',
+                        error
+                            ? 'border-destructive'
+                            : 'border-border hover:border-muted-foreground/50'
                     )}
                 >
                     {coverPreview ? (
@@ -96,6 +100,7 @@ export default function ChapterCreateImages({ coverPreview, onCroppedFile }: Pro
                         className="sr-only"
                     />
                 </label>
+                {error && <p className="text-xs text-destructive">{error}</p>}
             </div>
 
             <Dialog open={!!src} onOpenChange={(o) => !o && setSrc(null)}>

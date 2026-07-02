@@ -1,7 +1,6 @@
 import { useModalStore } from '@/store/modalStore'
 import LoginForm from '@/features/auth/pages/LoginForm'
 import RegisterForm from '@/features/auth/pages/RegisterForm'
-import { Button } from '@/components/ui/button'
 
 export default function AuthModal() {
     const { isOpen, view, openLogin, openRegister, close } = useModalStore()
@@ -69,8 +68,30 @@ export default function AuthModal() {
                     {view === 'login' ? <LoginForm /> : <RegisterForm />}
                 </div>
 
+                {/* GOOGLE */}
+
+                <div className="px-10">
+                    <div className="relative my-4">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-border" />
+                        </div>
+                        <div className="relative flex justify-center text-xs">
+                            <span className="bg-background px-2 text-muted-foreground">or</span>
+                        </div>
+                    </div>
+
+                    <a
+                        href={`${import.meta.env.VITE_API_URL}/auth/google/redirect`}
+                        target="__blank"
+                        className="flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm hover:bg-muted/50 transition-colors"
+                    >
+                        <img src="https://www.google.com/favicon.ico" className="w-4 h-4" />
+                        Continue with Google
+                    </a>
+                </div>
+
                 {/* Footer */}
-                <div className="px-5 pb-5 text-center">
+                <div className="px-5 pb-5 text-center mt-5">
                     <span className="text-xs text-muted-foreground">
                         {view === 'login' ? "Don't have an account? " : 'Already have an account? '}
                     </span>

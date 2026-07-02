@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\SuperAdmin\WithdrawalController;
 use App\Http\Controllers\Api\Studio\TrashController;
 use App\Http\Controllers\Api\Studio\AnalyticsController;
 
+
 use App\Http\Controllers\Api\SuperAdmin\SuperAdminController; //Super admin
 use App\Http\Controllers\Api\SuperAdmin\ModerationController;
 use App\Http\Controllers\Api\SuperAdmin\AnnouncementController;
@@ -26,6 +27,9 @@ use App\Http\Controllers\Api\SuperAdmin\AnnouncementController;
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login',    [AuthController::class, 'login']);
+
+    Route::get('/google/redirect',  [AuthController::class, 'googleRedirect']);
+    Route::get('/google/callback',  [AuthController::class, 'googleCallback']);
 });
 
 
@@ -36,6 +40,7 @@ Route::prefix('public')->group(function () {
     Route::get('/fresh-releases',  [PublicWorkController::class, 'freshReleases']);
     Route::get('/latest-chapters', [PublicWorkController::class, 'latestChapters']);
     Route::get('/announcements',    fn() => response()->json(app(\App\Services\AnnouncementService::class)->getByAudience('public')));
+    
 
     Route::post('/webhooks/paymongo', [PayMongoWebhookController::class, 'handle'])
     ->withoutMiddleware(['auth:sanctum', \App\Http\Middleware\VerifyCsrfToken::class]);
@@ -135,6 +140,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::get('/earnings',                 [EarningsController::class, 'show']);
         Route::get('/earnings/history',         [EarningsController::class, 'history']);
         Route::post('/earnings/withdraw',       [EarningsController::class, 'withdraw']);
+        Route::get('/earnings/withdrawals',     [EarningsController::class, 'withdrawalHistory']);
 
 
         Route::prefix('trash')->group(function () {
