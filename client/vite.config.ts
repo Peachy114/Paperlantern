@@ -31,7 +31,19 @@ export default defineConfig({
                             return 'vendor-icons'
                         if (id.includes('zustand')) return 'vendor-state'
                         if (id.includes('react') || id.includes('react-dom')) return 'vendor-react'
-                        return 'vendor-misc'
+
+                        // Isolate the heavy, page-specific libraries into their own chunks
+                        // instead of dumping them into one shared vendor-misc bucket.
+                        if (id.includes('recharts') || id.includes('d3-')) return 'vendor-charts'
+                        if (id.includes('xlsx')) return 'vendor-xlsx'
+                        if (id.includes('@reduxjs/toolkit') || id.includes('redux'))
+                            return 'vendor-redux'
+                        if (id.includes('@dnd-kit')) return 'vendor-dnd'
+                        if (id.includes('embla-carousel')) return 'vendor-carousel'
+                        if (id.includes('date-fns')) return 'vendor-dates'
+
+                        // Let everything else auto-chunk naturally (small, truly shared deps)
+                        return undefined
                     }
                 },
             },
