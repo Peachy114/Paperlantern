@@ -90,7 +90,7 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
                 setImageItems(
                     chapter.images.map((img: any) => ({
                         id: img.id,
-                        preview: storageUrl(img.path, 'sm')!,
+                        preview: storageUrl(img.path)!,
                     }))
                 )
             }

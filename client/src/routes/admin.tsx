@@ -16,6 +16,14 @@ export const adminRoutes = (
             }
         />
         <Route
+            path="/admin/tickets"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.AdminTickets />
+                </Suspense>
+            }
+        />
+        <Route
             path="/admin/users"
             element={
                 <Suspense fallback={<Loading />}>
@@ -36,6 +44,15 @@ export const adminRoutes = (
             element={
                 <Suspense fallback={<Loading />}>
                     <Pages.AdminWithdrawals />
+                </Suspense>
+            }
+        />
+
+        <Route
+            path="/admin/tickets/:id"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.AdminTicketShow />
                 </Suspense>
             }
         />

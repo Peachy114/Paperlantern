@@ -101,7 +101,7 @@ interface Props {
 
 export default function CookiesPolicy({ onBack }: Props) {
     return (
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto mt-20">
             <div className="bg-white lg:bg-card rounded-xl px-4 py-5 my-6 mx-5 border">
                 {/* Header */}
                 <div className="mb-6">

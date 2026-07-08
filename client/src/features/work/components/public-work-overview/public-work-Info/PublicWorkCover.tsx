@@ -14,7 +14,7 @@ export default function PublicWorkCover({ coverUrl, title }: PublicWorkCoverProp
             alt={title}
             loading="lazy"
             decoding="async"
-            className="w-full h-52 object-cover rounded-md shadow-sm"
+            className="w-full h-auto object-cover rounded-md shadow-sm"
         />
     )
 }

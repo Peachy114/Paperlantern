@@ -3,12 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class AdminLog extends Model
 {
-    use HasUuids;
-
     protected $fillable = [
         'admin_id',
         'action',

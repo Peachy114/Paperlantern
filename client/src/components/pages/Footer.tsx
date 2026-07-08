@@ -5,9 +5,8 @@ import { useModalStore } from '@/store/modalStore'
 const PROTECTED = ['/become-creator', '/studio']
 
 const NAV_LINKS = [
-    { label: 'Comics', to: '/all-comics' },
-    { label: 'Novels', to: '/all-wattpad' },
-    { label: 'Rankings', to: '/all-comics?view=rankings' },
+    { label: 'Comix', to: '/comix' },
+    { label: 'Arts', to: '/arts' },
     { label: 'Become a Creator', to: '/become-creator' },
     { label: 'Studio', to: '/studio' },
     { label: 'About', to: '/about' },

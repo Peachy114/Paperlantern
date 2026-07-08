@@ -35,8 +35,8 @@ export default function PublicLayout() {
     }
 
     return (
-        <div className="flex flex-col min-h-screen bg-white dark:bg-black/70">
-            <div className="flex-1">
+        <div className="relative flex flex-col min-h-screen bg-white dark:bg-black/70 overflow-hidden">
+            <div className="relative z-10 flex-1">
                 <NavbarWrapper />
                 <main className="overflow-hidden w-full">
                     <Outlet />
@@ -44,7 +44,7 @@ export default function PublicLayout() {
             </div>
 
             <AuthModal />
-            <div>
+            <div className="relative z-10">
                 <Subscribe />
                 <Footer />
             </div>

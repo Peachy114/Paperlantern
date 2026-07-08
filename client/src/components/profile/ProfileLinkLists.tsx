@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
-import { Coins, BookOpen, LogOut, ChevronRight } from 'lucide-react'
+import { Coins, BookOpen, LogOut, ChevronRight, Bug } from 'lucide-react'
 
 interface Props {
     token: string | null
@@ -58,6 +58,14 @@ export default function ProfileLinkLists({
                 <Link to="/credits" onClick={onClose} className="flex items-center gap-2">
                     <Coins className="w-4 h-4" />
                     Credits — {walletBalance ?? '—'}
+                    <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
+                </Link>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem asChild>
+                <Link to="/tickets" onClick={onClose} className="flex items-center gap-2">
+                    <Bug className="w-4 h-4" />
+                    Report
                     <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
                 </Link>
             </DropdownMenuItem>

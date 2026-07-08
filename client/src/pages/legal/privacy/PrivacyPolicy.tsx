@@ -174,7 +174,7 @@ const SECTIONS: Section[] = [
 
 export default function PrivacyPolicy() {
     return (
-        <div className="max-w-2xl mx-auto px-4 py-12">
+        <div className="max-w-2xl mx-auto px-4 py-12 mt-20">
             <PolicyHeader />
             <div className="space-y-3">
                 {SECTIONS.map((section, i) => (

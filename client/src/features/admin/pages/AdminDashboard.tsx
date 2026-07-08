@@ -139,6 +139,14 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 divide-y-[2px] sm:divide-y-0 sm:divide-x-[2px] divide-[#1a1a1a] border-b-[2px] border-[#1a1a1a]">
                             {[
                                 {
+                                    label: 'TICKETS',
+                                    desc: 'view, ban, unban, or delete users',
+                                    note: 'handle with care!',
+                                    color: '#ffc6a6',
+                                    rotate: '1.5deg',
+                                    route: '/admin/tickets',
+                                },
+                                {
                                     label: 'USER MANAGEMENT',
                                     desc: 'view, ban, unban, or delete users',
                                     note: 'handle with care!',

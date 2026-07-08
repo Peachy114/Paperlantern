@@ -24,6 +24,8 @@ export const Pages = {
     Transaction: lazy(() => import('@/features/transactions/TransactionView')),
     Settings: lazy(() => import('@/features/settings/pages/SettingView')),
     ProfileSettings: lazy(() => import('@/features/settings/pages/ProfileSettings')),
+    Tickets: lazy(() => import('@/features/tickets/Tickets')),
+    TicketShow: lazy(() => import('@/features/tickets/TicketShow')),
 
     //STORY TELLER
     StudioDashboard: lazy(() => import('@/features/studio/pages/work/Index')),
@@ -47,6 +49,8 @@ export const Pages = {
     AdminAnnouncements: lazy(() => import('@/features/admin/pages/Announcements')),
     AdminWithdrawals: lazy(() => import('@/features/admin/pages/Withdrawal')),
     AdminEarnings: lazy(() => import('@/features/admin/pages/Earnings')),
+    AdminTickets: lazy(() => import('@/features/admin/tickets/Tickets')),
+    AdminTicketShow: lazy(() => import('@/features/admin/tickets/AdminTicketShow')),
 
     // COMING SOON.
     ComingSoon: lazy(() => import('@/components/pages/ComingSoon')),

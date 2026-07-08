@@ -1,17 +1,61 @@
 import { useState } from 'react'
 import { FaThreads } from 'react-icons/fa6'
+import type { IconType } from 'react-icons'
+import axios from 'axios'
+import api from '@/api/axios'
 
-const SOCIAL = [{ label: 'Threads', href: 'https://www.threads.com/@laterncomix', icon: FaThreads }]
+interface SocialLink {
+    label: string
+    href: string
+    icon: IconType
+}
+
+const SOCIAL: SocialLink[] = [
+    { label: 'Threads', href: 'https://www.threads.com/@laterncomix', icon: FaThreads },
+]
+
+const SUBSCRIBE_ENDPOINT = '/public/subscribe'
+
+type SubscribeStatus = 'idle' | 'loading' | 'success' | 'error'
+
+interface SubscribeResponse {
+    message?: string
+}
 
 export default function Subscribe() {
-    const [email, setEmail] = useState('')
-    const [agreed, setAgreed] = useState(false)
+    const [email, setEmail] = useState<string>('')
+    const [agreed, setAgreed] = useState<boolean>(false)
+    const [status, setStatus] = useState<SubscribeStatus>('idle')
+    const [message, setMessage] = useState<string>('')
 
-    const handleSubmit = () => {
-        if (!email || !agreed) return
-        // TODO: hook up to backend
-        console.log('subscribe', email)
+    const handleSubmit = async (): Promise<void> => {
+        if (!email || !agreed || status === 'loading') return
+
+        setStatus('loading')
+        setMessage('')
+
+        try {
+            const res = await api.post<SubscribeResponse>(SUBSCRIBE_ENDPOINT, {
+                email,
+                agreed,
+            })
+
+            setStatus('success')
+            setMessage(
+                res.data?.message || 'You are subscribed! Check your inbox for confirmation.'
+            )
+            setEmail('')
+            setAgreed(false)
+        } catch (err) {
+            setStatus('error')
+            if (axios.isAxiosError(err)) {
+                setMessage(err.response?.data?.message || 'Something went wrong. Please try again.')
+            } else {
+                setMessage('Something went wrong. Please try again.')
+            }
+        }
     }
+
     return (
         <div className="w-full bg-[#181818] dark:bg-black border-t mt-20">
             {/* Social icons */}
@@ -51,7 +95,8 @@ export default function Subscribe() {
                             placeholder="Email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="flex-1 px-4 py-3.5 rounded-full bg-[#2a2a2a] border border-[#3a3a3a] text-white placeholder:text-gray-500 text-sm outline-none focus:ring-1 focus:ring-ring"
+                            disabled={status === 'loading'}
+                            className="flex-1 px-4 py-3.5 rounded-full bg-[#2a2a2a] border border-[#3a3a3a] text-white placeholder:text-gray-500 text-sm outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
                         />
 
                         <label className="flex items-start gap-2 cursor-pointer mt-2">
@@ -59,6 +104,7 @@ export default function Subscribe() {
                                 type="checkbox"
                                 checked={agreed}
                                 onChange={(e) => setAgreed(e.target.checked)}
+                                disabled={status === 'loading'}
                                 className="mt-0.5 accent-foreground"
                             />
                             <span className="text-xs text-muted-foreground">
@@ -69,14 +115,24 @@ export default function Subscribe() {
                                 </a>
                             </span>
                         </label>
+
+                        {message && (
+                            <p
+                                className={`text-xs ${
+                                    status === 'success' ? 'text-green-400' : 'text-red-400'
+                                }`}
+                            >
+                                {message}
+                            </p>
+                        )}
                     </div>
-                    {/* search button */}
+                    {/* subscribe button */}
                     <button
                         onClick={handleSubmit}
-                        disabled={!email || !agreed}
+                        disabled={!email || !agreed || status === 'loading'}
                         className="px-6 py-2 rounded-full lg:max-w-50 w-full h-12 bg-comix-accent text-white text-sm hover:opacity-80 transition-opacity disabled:opacity-30"
                     >
-                        Subscribe Now
+                        {status === 'loading' ? 'Subscribing…' : 'Subscribe Now'}
                     </button>
                 </div>
             </div>

@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 use App\Models\Work;
 
 Artisan::command('inspire', function () {
@@ -15,3 +16,4 @@ Schedule::call(function () {
 })->daily();
 
 Schedule::command('chapters:publish-scheduled')->everyMinute();
+Schedule::command('tickets:delete-old')->daily();

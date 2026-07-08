@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChapterUnlockController;
 use App\Http\Controllers\Api\PayMongoWebhookController;
 use App\Http\Controllers\Api\WalletController;
+use App\Http\Controllers\SubscribeController;
 
 use App\Http\Controllers\Api\Studio\WorkController; // Story teller
 use App\Http\Controllers\Api\Studio\ChapterController;
@@ -20,6 +21,8 @@ use App\Http\Controllers\Api\Studio\AnalyticsController;
 use App\Http\Controllers\Api\SuperAdmin\SuperAdminController; //Super admin
 use App\Http\Controllers\Api\SuperAdmin\ModerationController;
 use App\Http\Controllers\Api\SuperAdmin\AnnouncementController;
+use App\Http\Controllers\Api\TicketController;
+use App\Http\Controllers\Api\SuperAdmin\TicketController as AdminTicketController;
 
 
 
@@ -40,6 +43,7 @@ Route::prefix('public')->group(function () {
     Route::get('/fresh-releases',  [PublicWorkController::class, 'freshReleases']);
     Route::get('/latest-chapters', [PublicWorkController::class, 'latestChapters']);
     Route::get('/announcements',    fn() => response()->json(app(\App\Services\AnnouncementService::class)->getByAudience('public')));
+    Route::post('/subscribe', [SubscribeController::class, 'store']);
     
 
     Route::post('/webhooks/paymongo', [PayMongoWebhookController::class, 'handle'])
@@ -65,6 +69,13 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     });
     Route::post('/auth/become-creator', [AuthController::class, 'becomeCreator']);
     Route::patch('/user/preferences', [AuthController::class, 'updatePreferences']);
+
+    // Tickets
+    Route::get('/tickets', [TicketController::class, 'index']);
+    Route::post('/tickets', [TicketController::class, 'store']);
+    Route::get('/tickets/{ticket}', [TicketController::class, 'show']);
+    Route::get('/tickets/{ticket}/replies', [TicketController::class, 'replies']);
+    Route::post('/tickets/{ticket}/replies', [TicketController::class, 'storeReply']);
 
     //profile
     Route::get('/profile',        [AuthController::class, 'profile']);
@@ -95,6 +106,15 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::get('chapters/{chapter}',    [SuperAdminController::class, 'viewChapter']);
         Route::delete('chapters/{chapter}', [SuperAdminController::class, 'deleteChapter']);
         Route::get('logs',                  [SuperAdminController::class, 'logs']);
+
+        // Tickets
+        Route::get('/tickets', [AdminTicketController::class, 'index']);
+        Route::patch('/tickets/{ticket}', [AdminTicketController::class, 'update']);
+        Route::delete('/tickets/{ticket}', [AdminTicketController::class, 'destroy']);
+        Route::get('/tickets-export', [AdminTicketController::class, 'export']);
+        Route::get('/tickets/{ticket}/replies', [AdminTicketController::class, 'replies']);
+        Route::post('/tickets/{ticket}/replies', [AdminTicketController::class, 'storeReply']);
+        Route::get('/tickets/{ticket}', [AdminTicketController::class, 'show']);
 
         Route::apiResource('announcements', AnnouncementController::class)->except(['show']);
         Route::get('/withdrawals',                      [WithdrawalController::class, 'index']);

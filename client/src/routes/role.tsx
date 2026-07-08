@@ -47,10 +47,28 @@ export const roleRoutes = (
         />
 
         <Route
-            path="/artworks"
+            path="/arts"
             element={
                 <Suspense fallback={<Loading />}>
                     <Pages.ComingSoon />
+                </Suspense>
+            }
+        />
+
+        <Route
+            path="/tickets"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.Tickets />
+                </Suspense>
+            }
+        />
+
+        <Route
+            path="/tickets/:id"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.TicketShow />
                 </Suspense>
             }
         />

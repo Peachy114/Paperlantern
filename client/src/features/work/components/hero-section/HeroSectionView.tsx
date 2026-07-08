@@ -17,10 +17,15 @@ interface Announcement {
     creator?: { name?: string | null } | null
 }
 
-// Desktop card size — used once we know we have room for it
 const DESKTOP_CARD_WIDTH = 700
-const MOBILE_BREAKPOINT = 640 // ← was 200, fixed back to 640
-const MOBILE_CARD_RATIO = 0.78 // ← smaller card, clearer peek both sides
+const MOBILE_BREAKPOINT = 640
+const MOBILE_CARD_RATIO = 0.78
+
+const tagStyles: Record<string, { bg: string; label: string }> = {
+    event: { bg: 'var(--chart-2)', label: 'Event' },
+    reminder: { bg: 'var(--destructive)', label: 'Reminder' },
+    update: { bg: 'var(--comix-badge-new)', label: 'Update' },
+}
 
 export default function HeroSectionView({
     audience = 'public',
@@ -36,7 +41,6 @@ export default function HeroSectionView({
     const [viewportWidth, setViewportWidth] = React.useState(0)
     const containerRef = React.useRef<HTMLDivElement>(null)
 
-    // Track prev/next availability
     React.useEffect(() => {
         if (!api) return
         const update = () => {
@@ -49,7 +53,6 @@ export default function HeroSectionView({
         api.on('reInit', update)
     }, [api])
 
-    // Track available width — drives both card sizing and loop-duplication math
     React.useEffect(() => {
         const update = () => setViewportWidth(window.innerWidth)
         update()
@@ -58,8 +61,6 @@ export default function HeroSectionView({
     }, [])
 
     const isMobile = viewportWidth > 0 && viewportWidth < MOBILE_BREAKPOINT
-
-    // On mobile, card is a fraction of viewport width so the next card peeks in.
     const CARD_WIDTH = isMobile ? Math.round(viewportWidth * MOBILE_CARD_RATIO) : DESKTOP_CARD_WIDTH
     const CARD_GAP = isMobile ? 8 : 12
 
@@ -80,40 +81,15 @@ export default function HeroSectionView({
 
     const totalContentWidth = slides.length * (CARD_WIDTH + CARD_GAP)
     const hasOverflow = totalContentWidth > viewportWidth
-
     const isLoop = hasOverflow && slides.length > 1
     const needsCentering = !hasOverflow
 
     return (
         <div
             ref={containerRef}
-            className="relative w-full pt-30 sm:pt-40 py-6 sm:py-10 px-3 sm:px-4 overflow-hidden bg-black"
+            className="relative w-full py-6 sm:py-10 px-3 sm:px-4 overflow-hidden"
         >
-            {/* Ambient blurred background — crossfades to match the active slide's image */}
-            <div className="absolute inset-0">
-                {slides.map((announcement, index) => {
-                    const img = storageUrl(announcement.image ?? null)
-                    if (!img) return null
-                    return (
-                        <div
-                            key={`${announcement.id}-${index}`}
-                            className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
-                            style={{ opacity: index === current ? 1 : 0 }}
-                        >
-                            <div
-                                className="absolute inset-0 bg-center bg-cover scale-125 blur-3xl"
-                                style={{ backgroundImage: `url(${img})` }}
-                            />
-                        </div>
-                    )
-                })}
-                <div className="absolute inset-0 bg-black/55" />
-            </div>
-
-            {/* Bottom fade — white in light mode, black in dark mode */}
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-100 sm:h-100 bg-gradient-to-t from-white dark:from-black to-transparent" />
-
-            {/* Main carousel — multiple cards visible */}
+            {/* Main carousel */}
             <div className="relative">
                 <div className="flex">
                     <Carousel
@@ -138,9 +114,22 @@ export default function HeroSectionView({
                                             onClick={() =>
                                                 setModalSlide({ kind: 'news', data: announcement })
                                             }
-                                            className="relative overflow-hidden rounded-lg text-left block w-full aspect-[4/5] sm:aspect-[7/5] focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
+                                            className="relative overflow-hidden text-left block w-full aspect-[4/5] sm:aspect-[7/5] rounded-2xl focus:outline-none"
+                                            style={{
+                                                border:
+                                                    index === current
+                                                        ? '1px solid var(--comix-orange)'
+                                                        : '1px solid var(--border)',
+                                                boxShadow:
+                                                    index === current
+                                                        ? '0 0 14px 1px rgba(255,138,31,0.35)'
+                                                        : 'none',
+                                            }}
                                         >
-                                            <div className="absolute inset-0 bg-zinc-900">
+                                            <div
+                                                className="absolute inset-0"
+                                                style={{ background: '#1a1a22' }}
+                                            >
                                                 {img ? (
                                                     <img
                                                         src={img}
@@ -153,19 +142,55 @@ export default function HeroSectionView({
                                                         className="w-full h-full object-cover"
                                                     />
                                                 ) : (
-                                                    <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900" />
+                                                    <div
+                                                        className="w-full h-full"
+                                                        style={{ background: '#1a1a22' }}
+                                                    />
                                                 )}
                                             </div>
 
-                                            {/* Slide counter badge */}
-                                            <span className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10 rounded-full bg-black/55 px-2 py-0.5 sm:px-2.5 sm:py-1 text-[10px] sm:text-xs font-medium text-white backdrop-blur-sm">
+                                            {/* Slide counter — glass style */}
+                                            <span
+                                                className="badge-game absolute top-2 left-2 sm:top-3 sm:left-3 z-10 rounded-full p-3"
+                                                style={{
+                                                    background: 'rgba(255, 255, 255, 0.12)',
+                                                    color: '#fff',
+                                                    backdropFilter: 'blur(8px)',
+                                                    WebkitBackdropFilter: 'blur(8px)',
+                                                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                                                }}
+                                            >
                                                 {index + 1} / {slides.length}
                                             </span>
 
-                                            {/* Gradient + text overlay */}
+                                            {announcement.is_pinned && (
+                                                <span className="badge-game badge-game-pink absolute top-2 right-2 sm:top-3 sm:right-3 z-10 rounded-full">
+                                                    Pinned
+                                                </span>
+                                            )}
+
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
                                             <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
-                                                <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
+                                                {announcement.tag &&
+                                                    tagStyles[announcement.tag] && (
+                                                        <span
+                                                            className="inline-block text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full mb-1.5"
+                                                            style={{
+                                                                background:
+                                                                    tagStyles[announcement.tag].bg,
+                                                                color: '#fff',
+                                                            }}
+                                                        >
+                                                            {tagStyles[announcement.tag].label}
+                                                        </span>
+                                                    )}
+                                                <h2
+                                                    className="text-base sm:text-lg text-white leading-tight"
+                                                    style={{
+                                                        fontFamily: 'var(--comix-font-display)',
+                                                        fontWeight: 700,
+                                                    }}
+                                                >
                                                     {announcement.title}
                                                 </h2>
                                                 <p className="text-[11px] sm:text-xs text-white/70 mt-1 line-clamp-1">
@@ -183,7 +208,15 @@ export default function HeroSectionView({
                     <button
                         onClick={() => api?.scrollPrev()}
                         aria-label="Previous"
-                        className="hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 z-30 w-9 h-9 items-center justify-center rounded-full bg-black/40 border border-white/20 text-white hover:bg-black/60 transition-colors"
+                        className="hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 z-30 w-9 h-9 items-center justify-center text-white transition-shadow rounded-full"
+                        style={{
+                            background: 'var(--comix-void)',
+                            border: '1px solid var(--border)',
+                        }}
+                        onMouseEnter={(e) =>
+                            (e.currentTarget.style.boxShadow = '0 0 10px 1px rgba(47,243,208,0.5)')
+                        }
+                        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
                     >
                         <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -192,24 +225,37 @@ export default function HeroSectionView({
                     <button
                         onClick={() => api?.scrollNext()}
                         aria-label="Next"
-                        className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 z-30 w-9 h-9 items-center justify-center rounded-full bg-black/40 border border-white/20 text-white hover:bg-black/60 transition-colors"
+                        className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 z-30 w-9 h-9 items-center justify-center text-white transition-shadow rounded-full"
+                        style={{
+                            background: 'var(--comix-void)',
+                            border: '1px solid var(--border)',
+                        }}
+                        onMouseEnter={(e) =>
+                            (e.currentTarget.style.boxShadow = '0 0 10px 1px rgba(47,243,208,0.5)')
+                        }
+                        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
                     >
                         <ChevronRight className="w-5 h-5" />
                     </button>
                 )}
             </div>
 
-            {/* Dots */}
+            {/* Progression rail */}
             {slides.length > 1 && (
-                <div className="relative flex justify-center gap-1.5 mt-2 sm:mt-3">
+                <div className="relative flex justify-center gap-1.5 mt-3">
                     {slides.map((_, i) => (
                         <button
                             key={i}
                             onClick={() => api?.scrollTo(i)}
                             aria-label={`Go to slide ${i + 1}`}
-                            className={`h-1.5 rounded-full transition-all ${
-                                i === current ? 'w-5 bg-white' : 'w-1.5 bg-white/30'
-                            }`}
+                            className="h-1.5 rounded-full transition-all"
+                            style={{
+                                width: i === current ? 20 : 6,
+                                background:
+                                    i === current
+                                        ? 'var(--comix-orange)'
+                                        : 'rgba(255,255,255,0.25)',
+                            }}
                         />
                     ))}
                 </div>

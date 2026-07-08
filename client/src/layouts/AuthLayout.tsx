@@ -10,11 +10,13 @@ export default function AuthLayout() {
 
     return (
         <>
-            <div className="relative z-10 flex flex-col min-h-screen bg-white dark:bg-black/70">
-                <NavbarWrapper />
-                <main className="w-full flex-1 max-w-[1360px] mx-auto py-3 px-1 mb-32 mt-20">
-                    <Outlet />
-                </main>
+            <div className="relative z-10 flex flex-col min-h-screen bg-white dark:bg-black/70 overflow-hidden">
+                <div className="relative z-10 flex flex-col flex-1">
+                    <NavbarWrapper />
+                    <main className="w-full flex-1 max-w-[1360px] mx-auto py-3 px-1 mb-32">
+                        <Outlet />
+                    </main>
+                </div>
             </div>
 
             <Toaster richColors position="top-center" />
