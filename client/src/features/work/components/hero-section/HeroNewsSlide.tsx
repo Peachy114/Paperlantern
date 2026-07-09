@@ -21,10 +21,7 @@ interface Props {
 export default function HeroNewsSlide({ announcement, isFirst, onClick }: Props) {
     const img = storageUrl(announcement.image ?? null)
     return (
-        <div
-            onClick={onClick}
-            className="relative w-full cursor-pointer overflow-hidden rounded-lg"
-        >
+        <div onClick={onClick} className="relative w-full cursor-pointer overflow-hidden">
             <div className="w-full aspect-square bg-zinc-900">
                 {img ? (
                     <img

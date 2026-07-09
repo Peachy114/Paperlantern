@@ -17,9 +17,9 @@ interface Announcement {
     creator?: { name?: string | null } | null
 }
 
-const DESKTOP_CARD_WIDTH = 700
+const DESKTOP_CARD_WIDTH = 780
 const MOBILE_BREAKPOINT = 640
-const MOBILE_CARD_RATIO = 0.78
+const MOBILE_CARD_RATIO = 0.85
 
 const tagStyles: Record<string, { bg: string; label: string }> = {
     event: { bg: 'var(--chart-2)', label: 'Event' },
@@ -62,7 +62,6 @@ export default function HeroSectionView({
 
     const isMobile = viewportWidth > 0 && viewportWidth < MOBILE_BREAKPOINT
     const CARD_WIDTH = isMobile ? Math.round(viewportWidth * MOBILE_CARD_RATIO) : DESKTOP_CARD_WIDTH
-    const CARD_GAP = isMobile ? 8 : 12
 
     const slides: Announcement[] = React.useMemo(() => {
         const pinned = announcements.filter((a) => a.is_pinned)
@@ -79,16 +78,13 @@ export default function HeroSectionView({
     if (newsLoading) return <HeroSkeleton />
     if (slides.length === 0) return null
 
-    const totalContentWidth = slides.length * (CARD_WIDTH + CARD_GAP)
+    const totalContentWidth = slides.length * CARD_WIDTH
     const hasOverflow = totalContentWidth > viewportWidth
     const isLoop = hasOverflow && slides.length > 1
     const needsCentering = !hasOverflow
 
     return (
-        <div
-            ref={containerRef}
-            className="relative w-full py-6 sm:py-10 px-3 sm:px-4 overflow-hidden"
-        >
+        <div ref={containerRef} className="relative w-full overflow-hidden ">
             {/* Main carousel */}
             <div className="relative">
                 <div className="flex">
@@ -99,7 +95,6 @@ export default function HeroSectionView({
                     >
                         <CarouselContent
                             className={`ml-0 ${needsCentering ? 'justify-center' : ''}`}
-                            style={{ marginLeft: -CARD_GAP }}
                         >
                             {slides.map((announcement, index) => {
                                 const img = storageUrl(announcement.image ?? null, 'sm')
@@ -107,24 +102,15 @@ export default function HeroSectionView({
                                 return (
                                     <CarouselItem
                                         key={`${announcement.id}-${index}`}
-                                        className="basis-auto shrink-0 pl-2 sm:pl-3"
+                                        className="basis-auto shrink-0 pl-0"
                                         style={{ width: CARD_WIDTH }}
                                     >
                                         <button
                                             onClick={() =>
                                                 setModalSlide({ kind: 'news', data: announcement })
                                             }
-                                            className="relative overflow-hidden text-left block w-full aspect-[4/5] sm:aspect-[7/5] rounded-2xl focus:outline-none"
-                                            style={{
-                                                border:
-                                                    index === current
-                                                        ? '1px solid var(--comix-orange)'
-                                                        : '1px solid var(--border)',
-                                                boxShadow:
-                                                    index === current
-                                                        ? '0 0 14px 1px rgba(255,138,31,0.35)'
-                                                        : 'none',
-                                            }}
+                                            className="relative overflow-hidden text-left block w-full focus:outline-none"
+                                            style={{ aspectRatio: isMobile ? '2 / 3' : '5 / 4' }}
                                         >
                                             <div
                                                 className="absolute inset-0"

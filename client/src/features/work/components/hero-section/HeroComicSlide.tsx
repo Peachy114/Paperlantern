@@ -20,10 +20,7 @@ interface Props {
 export default function HeroComicSlide({ work, cover, isFirst, onClick }: Props) {
     const imgSrc = cover(work.banner ?? work.cover)
     return (
-        <div
-            onClick={onClick}
-            className="relative w-full cursor-pointer overflow-hidden rounded-lg"
-        >
+        <div onClick={onClick} className="relative w-full cursor-pointer overflow-hidden">
             <div className="w-full aspect-square bg-zinc-900">
                 {imgSrc && (
                     <img
