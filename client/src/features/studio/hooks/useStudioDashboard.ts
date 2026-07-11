@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { studioApi } from '@/api/studio'
 
 interface Work {
+    id: string
     slug: string
     title: string
     type: 'webtoon' | 'wattpad'
@@ -15,6 +16,7 @@ interface Work {
     likes: number
     chapters_count: number
     created_at: string
+    boosted_until?: string | null
 }
 
 export function useStudioDashboard() {

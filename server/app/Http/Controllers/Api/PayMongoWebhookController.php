@@ -39,10 +39,12 @@ class PayMongoWebhookController extends Controller
         $eventType   = $webhookData['event'];
 
         // 3. Route event
-    match ($eventType) {
-        'checkout_session.payment.paid' => $this->walletService->handlePaymentSuccess($webhookData),
-        default => Log::info("PayMongo webhook: unhandled event [{$eventType}]"),
-    };
+        match ($eventType) {
+            'checkout_session.payment.paid' => $this->walletService->handlePaymentSuccess($webhookData),
+            'checkout_session.payment.failed' => $this->walletService->handlePaymentFailure($webhookData, 'failed'),
+            'checkout_session.expired' => $this->walletService->handlePaymentFailure($webhookData, 'expired'),
+            default => Log::info("PayMongo webhook: unhandled event [{$eventType}]"),
+        };
 
         return response('OK', 200);
     }

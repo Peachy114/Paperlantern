@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
-import NavbarWrapper from '@/components/pages/NavbarWrapper'
+import NavbarWrapper from '@/components/layout/NavbarWrapper'
 import { Toaster } from '@/components/ui/sonner'
 
 export default function AuthLayout() {

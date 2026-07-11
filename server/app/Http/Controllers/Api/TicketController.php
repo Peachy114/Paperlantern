@@ -15,6 +15,7 @@ class TicketController extends Controller
     {
         $tickets = $request->user()
             ->tickets()
+            ->with('source')
             ->latest()
             ->get();
 
@@ -40,7 +41,7 @@ class TicketController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
-        return response()->json($ticket);
+        return response()->json($ticket->load('source'));
     }
 
     public function replies(Request $request, Ticket $ticket): JsonResponse

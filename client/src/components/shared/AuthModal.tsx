@@ -1,6 +1,7 @@
 import { useModalStore } from '@/store/modalStore'
 import LoginForm from '@/features/auth/pages/LoginForm'
 import RegisterForm from '@/features/auth/pages/RegisterForm'
+import ThemedLogo from '@/components/layout/ThemedLogo'
 
 export default function AuthModal() {
     const { isOpen, view, openLogin, openRegister, close } = useModalStore()
@@ -17,20 +18,10 @@ export default function AuthModal() {
                     {/* LOGOO */}
                     <div className="flex justify-center items-center w-full mt-4">
                         <div className="shrink-0">
-                            <img
-                                src="/logo_white.png"
-                                alt="logo"
+                            <ThemedLogo
                                 width={100}
                                 height={100}
-                                className="dark:block hidden"
-                            />
-
-                            <img
-                                src="/logo_black.png"
-                                alt="logo"
-                                width={100}
-                                height={100}
-                                className="dark:hidden block"
+                                decoding="async"
                             />
                         </div>
                     </div>
@@ -85,7 +76,13 @@ export default function AuthModal() {
                         target="__blank"
                         className="flex items-center justify-center gap-2 border border-border rounded-md py-2 text-sm hover:bg-muted/50 transition-colors"
                     >
-                        <img src="https://www.google.com/favicon.ico" className="w-4 h-4" />
+                        <img
+                            src="https://www.google.com/favicon.ico"
+                            alt=""
+                            className="w-4 h-4"
+                            loading="lazy"
+                            decoding="async"
+                        />
                         Continue with Google
                     </a>
                 </div>
@@ -104,7 +101,14 @@ export default function AuthModal() {
 
                     <span className="w-full flex justify-center mt-5">
                         <p className="text-xs text-foreground dark:text-white">Powered by</p>
-                        <img src="/devorbit_logo.png" alt="devorbit logo" width={20} height={20} />
+                        <img
+                            src="/devorbit_logo_small.png"
+                            alt="devorbit logo"
+                            width={20}
+                            height={20}
+                            loading="lazy"
+                            decoding="async"
+                        />
                     </span>
                 </div>
             </div>

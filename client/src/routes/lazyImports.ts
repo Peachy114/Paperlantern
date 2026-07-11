@@ -1,7 +1,7 @@
 import { lazy } from 'react'
 
 export const Pages = {
-    NotFound: lazy(() => import('@/components/pages/NotFound')),
+    NotFound: lazy(() => import('@/pages/NotFound')),
 
     //PUBLIC ===================================================
     IndexHome: lazy(() => import('@/features/work/pages/Homepage')),
@@ -9,6 +9,8 @@ export const Pages = {
     ComicShow: lazy(() => import('@/features/work/pages/WorkOverview')),
     ComicChapter: lazy(() => import('@/features/work/pages/WorkShow')),
     Comix: lazy(() => import('@/features/work/pages/Comix')),
+    ExploreArts: lazy(() => import('@/features/arts/pages/ExploreArts')),
+    ArtistProfile: lazy(() => import('@/features/artist-profile/pages/ArtistProfile')),
     GoogleCallback: lazy(() => import('@/pages/GoogleCallback')),
 
     // FOOTER
@@ -21,11 +23,17 @@ export const Pages = {
     // AUTH ==========================================================
     BecomeCreator: lazy(() => import('@/features/auth/pages/BecomeCreatorForm')),
     Wallet: lazy(() => import('@/features/credits/pages/CreditsPage')),
+    CreditPayment: lazy(() => import('@/features/credits/pages/CreditPaymentPage')),
     Transaction: lazy(() => import('@/features/transactions/TransactionView')),
     Settings: lazy(() => import('@/features/settings/pages/SettingView')),
     ProfileSettings: lazy(() => import('@/features/settings/pages/ProfileSettings')),
     Tickets: lazy(() => import('@/features/tickets/Tickets')),
     TicketShow: lazy(() => import('@/features/tickets/TicketShow')),
+    MyArts: lazy(() => import('@/features/arts/pages/MyArts')),
+    MyStickers: lazy(() => import('@/features/stickers/pages/MyStickers')),
+    Favorites: lazy(() => import('@/features/account/pages/Favorites')),
+    MyComments: lazy(() => import('@/features/account/pages/MyComments')),
+    History: lazy(() => import('@/features/account/pages/History')),
 
     //STORY TELLER
     StudioDashboard: lazy(() => import('@/features/studio/pages/work/Index')),
@@ -42,6 +50,7 @@ export const Pages = {
     AdminDashboard: lazy(() => import('@/features/admin/pages/AdminDashboard')),
     AdminUsersList: lazy(() => import('@/features/admin/pages/UsersList')),
     AdminActionLogs: lazy(() => import('@/features/admin/pages/ActionLogs')),
+    AdminArts: lazy(() => import('@/features/admin/pages/AdminArts')),
     ModerationPage: lazy(() => import('@/features/admin/pages/ModerationLists')),
     ModerationShow: lazy(() => import('@/features/admin/pages/ModerationShow')),
     ModerationShowWork: lazy(() => import('@/features/admin/pages/ModerationWork')),
@@ -53,5 +62,5 @@ export const Pages = {
     AdminTicketShow: lazy(() => import('@/features/admin/tickets/AdminTicketShow')),
 
     // COMING SOON.
-    ComingSoon: lazy(() => import('@/components/pages/ComingSoon')),
+    ComingSoon: lazy(() => import('@/pages/ComingSoon')),
 }

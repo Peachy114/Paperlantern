@@ -5,17 +5,26 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Work;
 use App\Models\Chapter;
+use App\Services\ContentSuspensionService;
 use App\Services\PublicWorkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PublicWorkController extends Controller
 {
-    public function __construct(private PublicWorkService $service) {}
+    public function __construct(
+        private PublicWorkService $service,
+        private ContentSuspensionService $contentSuspensions,
+    ) {}
 
     public function hero(): JsonResponse
     {
         return response()->json($this->service->getHeroWorks());
+    }
+
+    public function home(): JsonResponse
+    {
+        return response()->json($this->service->getHome());
     }
 
     public function weeklyChart(): JsonResponse
@@ -40,7 +49,7 @@ class PublicWorkController extends Controller
 
     public function showWork(Work $work): JsonResponse
     {
-        if ($work->status === 'draft') {
+        if ($work->status === 'draft' || $this->contentSuspensions->isHidden($work)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -51,7 +60,7 @@ class PublicWorkController extends Controller
 
     public function showChapters(Work $work, Request $request): JsonResponse
     {
-        if ($work->status === 'draft') {
+        if ($work->status === 'draft' || $this->contentSuspensions->isHidden($work)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -63,13 +72,28 @@ class PublicWorkController extends Controller
     
     public function showChapter(Work $work, Chapter $chapter): JsonResponse
     {
-        if ($work->status === 'draft') {
+        if ($work->status === 'draft'
+            || $chapter->status === 'draft'
+            || $this->contentSuspensions->isHidden($work)
+            || $this->contentSuspensions->isHidden($chapter)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
-        $chapter->load('images');
+        $chapter->load([
+            'activeContentSuspensions',
+            'images.activeContentSuspensions',
+            'work.user:id,name,username',
+        ]);
+        $chapter = $this->contentSuspensions->maskChapter($chapter);
+        $chapter->setRelation(
+            'images',
+            $chapter->images->reject(fn($image) => $this->contentSuspensions->isHidden($image))->values()
+        );
         $chapter->work_type = $work->type;
         $chapter->work_user_id = $work->user_id;
+        $chapter->artist_username = $chapter->work?->user?->username;
+        $chapter->artist_name = $chapter->work?->user?->name;
+        $chapter->work_title = $work->title;
 
         return response()->json($chapter);
     }
@@ -96,6 +120,10 @@ class PublicWorkController extends Controller
 
     public function recordView(Request $request, Work $work, Chapter $chapter): JsonResponse
     {
+        if ($this->contentSuspensions->isHidden($work) || $this->contentSuspensions->isHidden($chapter)) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
         $views = $this->service->recordView($request, $work, $chapter);
 
         return response()->json(['views' => $views]);
@@ -105,6 +133,10 @@ class PublicWorkController extends Controller
 
     public function toggleLike(Request $request, Work $work, Chapter $chapter): JsonResponse
     {
+        if ($this->contentSuspensions->isHidden($work) || $this->contentSuspensions->isHidden($chapter)) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
         if (!auth()->id()) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
@@ -116,6 +148,45 @@ class PublicWorkController extends Controller
     
     public function getLikeStatus(Request $request, Work $work, Chapter $chapter): JsonResponse
     {
+        if ($this->contentSuspensions->isHidden($work) || $this->contentSuspensions->isHidden($chapter)) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
         return response()->json($this->service->getLikeStatus($chapter));
+    }
+
+    public function getWorkEngagementStatus(Request $request, Work $work): JsonResponse
+    {
+        if ($this->contentSuspensions->isHidden($work)) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
+        return response()->json($this->service->getWorkEngagementStatus($work));
+    }
+
+    public function toggleWorkLike(Request $request, Work $work): JsonResponse
+    {
+        if ($this->contentSuspensions->isHidden($work)) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
+        if (! auth()->id()) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        return response()->json($this->service->toggleWorkLike($work));
+    }
+
+    public function toggleWorkFavorite(Request $request, Work $work): JsonResponse
+    {
+        if ($this->contentSuspensions->isHidden($work)) {
+            return response()->json(['message' => 'Not found.'], 404);
+        }
+
+        if (! auth()->id()) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        return response()->json($this->service->toggleWorkFavorite($work));
     }
 }

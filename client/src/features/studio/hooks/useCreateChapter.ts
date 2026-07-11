@@ -147,7 +147,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
                     if (e.path && !errors[e.path]) errors[e.path] = e.message
                 })
                 setFieldErrors(errors)
-                setError('Please fix the highlighted fields.')
+                setError('Please fix the fields marked in red.')
             }
             setLoading(false)
             return
@@ -177,7 +177,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
                     if (!parsed[key]) parsed[key] = messages[0]
                 }
                 setFieldErrors(parsed)
-                setError('Please fix the highlighted fields.')
+                setError('Please fix the fields marked in red.')
             } else {
                 const message =
                     err?.response?.data?.message ?? 'Failed to create chapter. Please try again.'

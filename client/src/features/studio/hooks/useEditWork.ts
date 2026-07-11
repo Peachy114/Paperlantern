@@ -53,7 +53,10 @@ const schema = Yup.object({
     description: noBadWords('Description')
         .required('Description is required.')
         .max(300, 'Description must be 300 characters or less.'),
-    genres: Yup.array().of(Yup.string().required()).min(1, 'Please select at least one genre.'),
+    genres: Yup.array()
+        .of(Yup.string().required())
+        .min(1, 'Please select at least one genre.')
+        .max(5, 'Select up to 5 genres.'),
 })
 
 const makeChapterSchema = (workType: 'webtoon' | 'wattpad', images: File[], cover: File | null) =>
@@ -170,6 +173,12 @@ export function useEditWork() {
     }
 
     const handleGenreToggle = (genre: string) => {
+        if (!form.genres.includes(genre) && form.genres.length >= 5) {
+            setFieldErrors((prev) => ({ ...prev, genres: 'Select up to 5 genres.' }))
+            toast.error('Select up to 5 genres.')
+            return
+        }
+
         setForm((prev) => ({
             ...prev,
             genres: prev.genres.includes(genre)
@@ -266,7 +275,7 @@ export function useEditWork() {
                     if (e.path) errors[e.path] = e.message
                 })
                 setFieldErrors(errors)
-                toast.error('Please fix the highlighted fields.')
+                toast.error('Please fix the fields marked in red.')
             }
             setLoading(false)
             return
@@ -286,7 +295,7 @@ export function useEditWork() {
                         if (e.path) errors[e.path] = e.message
                     })
                     setChapterFieldErrors(errors)
-                    toast.error('Please fix the chapter fields.')
+                    toast.error('Please fix the chapter fields marked in red.')
                 }
                 setLoading(false)
                 return
@@ -345,7 +354,7 @@ export function useEditWork() {
                     if (!parsed[field]) parsed[field] = messages[0]
                 }
                 setFieldErrors(parsed)
-                toast.error('Please fix the highlighted fields.')
+                toast.error('Please fix the fields marked in red.')
             } else {
                 setError('Failed to update work. Please try again.')
                 toast.error('Something went wrong. Please try again.')

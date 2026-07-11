@@ -6,6 +6,7 @@ interface ModerationUser {
     name: string
     username: string
     strike_count: number
+    is_suspended?: boolean
 }
 
 interface ModerationWork {
@@ -20,6 +21,7 @@ interface ModerationChapter {
     id: number
     slug: string
     title: string
+    cover: string | null
     order: number
     status: string
     moderation_status: string
@@ -54,6 +56,59 @@ interface ModerationQueue {
     works: ModerationWorkItem[]
     sticky_notes: ModerationStickyNote[]
     pending_count: number
+    review: ModerationReview
+}
+
+interface ActiveSuspension {
+    id: string
+    target_type: string
+    target_id: string
+    target_field: string | null
+    reason: string
+    status: 'active' | 'restored'
+    hidden_at: string | null
+    user: ModerationUser
+    ticket?: {
+        id: string
+        subject: string
+        status: string
+    } | null
+}
+
+interface ReviewArtImage {
+    id: string
+    image_path: string
+    active_content_suspensions?: ActiveSuspension[]
+}
+
+interface ReviewArt {
+    id: string
+    slug: string
+    title: string
+    image_path: string | null
+    created_at: string
+    user: ModerationUser
+    images: ReviewArtImage[]
+    active_content_suspensions?: ActiveSuspension[]
+}
+
+interface ReviewProfileBlock {
+    id: string
+    type: 'image' | 'text'
+    text_content?: string | null
+    image_path?: string | null
+    image_url?: string | null
+    created_at: string
+    user: ModerationUser
+    active_content_suspensions?: ActiveSuspension[]
+}
+
+interface ModerationReview {
+    works: ModerationWorkItem[]
+    chapters: ModerationChapter[]
+    arts: ReviewArt[]
+    profile_blocks: ReviewProfileBlock[]
+    active_suspensions: ActiveSuspension[]
 }
 
 const QUEUE_KEY = ['admin-moderation-queue'] as const
@@ -175,11 +230,38 @@ export function useAdminModerationQueue() {
         },
     })
 
+    const suspendContent = useMutation({
+        mutationFn: ({
+            type,
+            id,
+            reason,
+            field,
+        }: {
+            type: string
+            id: string
+            reason: string
+            field?: string | null
+        }) => moderationApi.suspendContent(type, id, reason, field),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: QUEUE_KEY })
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+        },
+    })
+
+    const restoreSuspension = useMutation({
+        mutationFn: (id: string) => moderationApi.restoreSuspension(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: QUEUE_KEY })
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+        },
+    })
+
     return {
         chapters: data.chapters,
         works: data.works,
         stickyNotes: data.sticky_notes,
         pendingCount: data.pending_count,
+        review: data.review,
 
         approveChapter: (slug: string) => approveChapter.mutate(slug),
         violateChapter: (slug: string, reason: string) => violateChapter.mutate({ slug, reason }),
@@ -189,6 +271,9 @@ export function useAdminModerationQueue() {
         // sticky notes unchanged (still by id)
         approveStickyNote: (id: string) => approveStickyNote.mutate(id),
         violateStickyNote: (id: string, reason: string) => violateStickyNote.mutate({ id, reason }),
+        suspendContent: (type: string, id: string, reason: string, field?: string | null) =>
+            suspendContent.mutate({ type, id, reason, field }),
+        restoreSuspension: (id: string) => restoreSuspension.mutate(id),
 
         approvingChapter: approveChapter.isPending ? approveChapter.variables : null,
         violatingChapter: violateChapter.isPending ? violateChapter.variables?.slug : null,
@@ -196,5 +281,9 @@ export function useAdminModerationQueue() {
         violatingWork: violateWork.isPending ? violateWork.variables?.slug : null,
         approvingStickyNote: approveStickyNote.isPending ? approveStickyNote.variables : null,
         violatingStickyNote: violateStickyNote.isPending ? violateStickyNote.variables?.id : null,
+        suspendingContent: suspendContent.isPending
+            ? `${suspendContent.variables?.type}:${suspendContent.variables?.id}:${suspendContent.variables?.field ?? ''}`
+            : null,
+        restoringSuspension: restoreSuspension.isPending ? restoreSuspension.variables : null,
     }
 }

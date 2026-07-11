@@ -1,9 +1,11 @@
 // features/studio/components/work-view/WorkView.tsx
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useStudioDashboard } from '@/features/studio/hooks/useStudioDashboard'
 import CardStickyNotes from '@/features/studio/pages/CardStickyNotes'
-import News from '@/components/pages/News'
+import News from '@/features/announcements/components/News'
+import BoostModal from '@/features/boosts/components/BoostModal'
 
 import {
     AlertDialog,
@@ -21,6 +23,7 @@ import WorkViewHeader from './WorkViewHeader'
 import WorkTypeSelectModal from './WorkTypeSelectModal'
 
 export default function WorkView() {
+    const queryClient = useQueryClient()
     const {
         works,
         showTypeSelect,
@@ -33,6 +36,7 @@ export default function WorkView() {
     } = useStudioDashboard()
 
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+    const [boostWork, setBoostWork] = useState<(typeof works)[number] | null>(null)
     const [deleting, setDeleting] = useState(false)
 
     const totalChapters = works.reduce((s, w) => s + w.chapters_count, 0)
@@ -95,9 +99,27 @@ export default function WorkView() {
                     works={works}
                     onNavigate={navigate}
                     onDeleteRequest={setPendingDeleteId}
+                    onBoostRequest={setBoostWork}
                     onCreateFirst={() => setShowTypeSelect(true)}
                 />
             </div>
+
+            {boostWork && (
+                <BoostModal
+                    open={boostWork !== null}
+                    onOpenChange={(open) => {
+                        if (!open) setBoostWork(null)
+                    }}
+                    kind={boostWork.type === 'wattpad' ? 'novel' : 'webtoon'}
+                    targetType="work"
+                    targetId={boostWork.id}
+                    title={boostWork.title}
+                    placement={
+                        boostWork.type === 'wattpad' ? 'Novel Explore' : 'Webtoon Explore'
+                    }
+                    onBoosted={() => queryClient.invalidateQueries({ queryKey: ['studio-works'] })}
+                />
+            )}
 
             {/* New Work Modal */}
             <WorkTypeSelectModal

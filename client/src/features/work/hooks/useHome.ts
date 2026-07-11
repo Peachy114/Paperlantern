@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import api from '@/api/axios'
 import { storageUrl } from '@/utils/storage'
 
@@ -35,15 +35,10 @@ export interface ChapterItem {
 }
 
 export function useHome() {
-    const { data } = useSuspenseQuery({
+    const { data, isLoading } = useQuery({
         queryKey: ['home'],
         queryFn: async () => {
-            const [heroRes, chartRes, freshRes, latestRes] = await Promise.all([
-                api.get('/public/hero'),
-                api.get('/public/weekly-chart'),
-                api.get('/public/fresh-releases'),
-                api.get('/public/latest-chapters'),
-            ])
+            const res = await api.get('/public/home')
 
             // helper: force array safety
             const toArray = <T>(value: any): T[] => {
@@ -53,12 +48,13 @@ export function useHome() {
             }
 
             return {
-                hero: toArray<WorkItem>(heroRes.data),
-                weeklyChart: toArray<WorkItem>(chartRes.data),
-                freshReleases: toArray<WorkItem>(freshRes.data),
-                latestChapters: toArray<ChapterItem>(latestRes.data),
+                hero: toArray<WorkItem>(res.data?.hero),
+                weeklyChart: toArray<WorkItem>(res.data?.weeklyChart),
+                freshReleases: toArray<WorkItem>(res.data?.freshReleases),
+                latestChapters: toArray<ChapterItem>(res.data?.latestChapters),
             }
         },
+        staleTime: 60_000,
     })
 
     const cover = (path: string | null, variant?: 'sm') => (path ? storageUrl(path, variant) : null)
@@ -68,6 +64,7 @@ export function useHome() {
         weeklyChart: data?.weeklyChart ?? [],
         freshReleases: data?.freshReleases ?? [],
         latestChapters: data?.latestChapters ?? [],
+        isLoading,
         cover,
     }
 }

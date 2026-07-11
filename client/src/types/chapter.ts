@@ -19,7 +19,13 @@ export interface Chapter {
     status: string
     views: number
     likes: number
+    comments_count?: number
+    super_likes_count?: number
+    super_like_credits?: number
     work_user_id: string
+    artist_username?: string | null
+    artist_name?: string | null
+    work_title?: string | null
 }
 
 export type ChapterListItem = Pick<

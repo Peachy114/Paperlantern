@@ -22,5 +22,11 @@ class EarningSnapshot extends Model
 
     protected $casts = [
         'earned_at' => 'datetime',
+        'credits_spent' => 'decimal:2',
+        'platform_cut' => 'decimal:2',
+        'storyteller_cut' => 'decimal:2',
+        'platform_php' => 'decimal:2',
+        'storyteller_php' => 'decimal:2',
+        'credit_to_php_rate' => 'decimal:4',
     ];
 }

@@ -93,7 +93,7 @@ export default function CreateTicketForm({ onCreated }: { onCreated?: () => void
                 disabled={submitting}
                 className="px-4 py-2 rounded-md bg-blue-600 text-white disabled:opacity-50"
             >
-                {submitting ? 'Submitting…' : 'Submit Ticket'}
+                {submitting ? 'Submitting...' : 'Submit Ticket'}
             </button>
         </form>
     )

@@ -23,7 +23,7 @@ class WithdrawalRequest extends Model
 
     protected $casts = [
         'amount_php'       => 'decimal:2',
-        'credits_redeemed' => 'integer',
+        'credits_redeemed' => 'decimal:2',
         'processed_at'     => 'datetime',
     ];
 

@@ -27,7 +27,7 @@ class SuperAdminRepository
     {
         return User::withCount('works')
             ->latest()
-            ->get(['id', 'name', 'username', 'email', 'role', 'is_banned', 'strike_count', 'created_at']);
+            ->get(['id', 'name', 'username', 'email', 'role', 'is_banned', 'is_suspended', 'strike_count', 'created_at']);
     }
 
     public function getUserWithWorks(User $user): User

@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\HasContentSuspensions;
 
 class Chapter extends Model
 {
-    use HasFactory, SoftDeletes, HasUuids;
+    use HasFactory, SoftDeletes, HasUuids, HasContentSuspensions;
 
     protected $fillable = [
         'work_id',
@@ -26,6 +27,9 @@ class Chapter extends Model
         'unlocks_at',
         'views',
         'likes',
+        'comments_count',
+        'super_likes_count',
+        'super_like_credits',
         'moderation_status',
     ];
 
@@ -59,6 +63,10 @@ class Chapter extends Model
             'is_locked'        => 'boolean',
             'credits_required' => 'integer',
             'views'            => 'integer',
+            'likes'            => 'integer',
+            'comments_count'   => 'integer',
+            'super_likes_count' => 'integer',
+            'super_like_credits' => 'decimal:2',
             'scheduled_at'     => 'datetime',
             'unlocks_at'       => 'datetime',
         ];
@@ -77,5 +85,10 @@ class Chapter extends Model
     public function chapterViews()
     {
         return $this->hasMany(ChapterView::class);
+    }
+
+    public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
     }
 }

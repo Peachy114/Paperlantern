@@ -4,16 +4,21 @@ namespace App\Http\Controllers\Api\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Chapter;
+use App\Models\ContentSuspension;
 use App\Models\StickyNote;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\ContentSuspensionService;
 use App\Services\ModerationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ModerationController extends Controller
 {
-    public function __construct(private ModerationService $service) {}
+    public function __construct(
+        private ModerationService $service,
+        private ContentSuspensionService $contentSuspensions,
+    ) {}
 
     // GET /api/admin/moderation
     public function index(): JsonResponse
@@ -23,7 +28,33 @@ class ModerationController extends Controller
             'works'         => $this->service->getPendingWorks(),
             'sticky_notes'  => $this->service->getPendingStickyNotes(),
             'pending_count' => $this->service->getPendingCount(),
+            'review'        => $this->contentSuspensions->reviewQueue(),
         ]);
+    }
+
+    public function suspendContent(Request $request, string $type, string $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+            'field' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        return response()->json(
+            $this->contentSuspensions->suspendByType(
+                $type,
+                $id,
+                $validated['field'] ?? null,
+                $validated['reason'],
+                $request->user()
+            )
+        );
+    }
+
+    public function restoreSuspension(Request $request, ContentSuspension $suspension): JsonResponse
+    {
+        return response()->json(
+            $this->contentSuspensions->restore($suspension, $request->user())
+        );
     }
 
     // ── Chapters ──────────────────────────────────────────────────

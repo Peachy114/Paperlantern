@@ -24,6 +24,14 @@ export const publicRoutes = (
             }
         />
         <Route
+            path="/explore/arts"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.ExploreArts />
+                </Suspense>
+            }
+        />
+        <Route
             path="/works/:slug"
             element={
                 <Suspense fallback={<Loading />}>
@@ -36,6 +44,22 @@ export const publicRoutes = (
             element={
                 <Suspense fallback={<Loading />}>
                     <Pages.ComicChapter />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/artists/:username"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.ArtistProfile />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/users/:username"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.ArtistProfile />
                 </Suspense>
             }
         />

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from '@/components/ui/carousel'
-import { useAnnouncements } from '@/hooks/usePublicNews'
+import { useAnnouncements } from '@/features/announcements/hooks/useAnnouncements'
 import HeroModal, { type HeroModalSlide } from '../ui/HeroModal'
 import HeroSkeleton from './HeroSkeleton'
 import { storageUrl } from '@/utils/storage'
@@ -38,7 +38,7 @@ export default function HeroSectionView({
     const [modalSlide, setModalSlide] = React.useState<HeroModalSlide | null>(null)
     const [canScrollPrev, setCanScrollPrev] = React.useState(false)
     const [canScrollNext, setCanScrollNext] = React.useState(false)
-    const [viewportWidth, setViewportWidth] = React.useState(0)
+    const [viewportWidth, setViewportWidth] = React.useState(() => window.innerWidth)
     const containerRef = React.useRef<HTMLDivElement>(null)
 
     React.useEffect(() => {
@@ -60,7 +60,7 @@ export default function HeroSectionView({
         return () => window.removeEventListener('resize', update)
     }, [])
 
-    const isMobile = viewportWidth > 0 && viewportWidth < MOBILE_BREAKPOINT
+    const isMobile = viewportWidth < MOBILE_BREAKPOINT
     const CARD_WIDTH = isMobile ? Math.round(viewportWidth * MOBILE_CARD_RATIO) : DESKTOP_CARD_WIDTH
 
     const slides: Announcement[] = React.useMemo(() => {

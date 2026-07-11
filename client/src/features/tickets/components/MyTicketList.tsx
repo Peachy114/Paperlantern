@@ -22,27 +22,32 @@ interface Props {
 }
 
 export default function MyTicketList({ tickets, loading, error }: Props) {
-    if (loading) return <p className="text-sm text-gray-500 mt-6">Loading your tickets…</p>
+    if (loading) return <p className="text-sm text-gray-500 mt-6">Loading your tickets...</p>
     if (error) return <p className="text-sm text-red-500 mt-6">{error}</p>
     if (tickets.length === 0)
         return <p className="text-sm text-gray-500 mt-6">You haven't submitted any tickets yet.</p>
 
     return (
         <div className="mt-6 flex flex-col divide-y border rounded-md">
-            {tickets.map((t) => (
+            {tickets.map((ticket) => (
                 <Link
-                    key={t.id}
-                    to={`/tickets/${t.id}`}
+                    key={ticket.id}
+                    to={`/tickets/${ticket.id}`}
                     className="flex items-center justify-between px-4 py-3 hover:bg-gray-50"
                 >
                     <div>
-                        <p className="font-medium">{t.subject}</p>
+                        <p className="font-medium">{ticket.subject}</p>
                         <p className="text-xs text-gray-500 capitalize">
-                            {t.category} · {new Date(t.created_at).toLocaleDateString()}
+                            {ticket.category} - {new Date(ticket.created_at).toLocaleDateString()}
                         </p>
+                        {ticket.source_type && (
+                            <p className="mt-0.5 text-xs text-red-500">Moderation appeal</p>
+                        )}
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${STATUS_STYLES[t.status]}`}>
-                        {STATUS_LABELS[t.status]}
+                    <span
+                        className={`text-xs px-2 py-1 rounded-full ${STATUS_STYLES[ticket.status]}`}
+                    >
+                        {STATUS_LABELS[ticket.status]}
                     </span>
                 </Link>
             ))}

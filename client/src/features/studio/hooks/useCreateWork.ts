@@ -39,7 +39,10 @@ const workSchema = Yup.object({
     description: noBadWords('Description')
         .required('Description is required.')
         .max(300, 'Description must be 300 characters or less.'),
-    genres: Yup.array().of(Yup.string().required()).min(1, 'Please select at least one genre.'),
+    genres: Yup.array()
+        .of(Yup.string().required())
+        .min(1, 'Please select at least one genre.')
+        .max(5, 'Select up to 5 genres.'),
     cover: Yup.mixed().required('Cover image is required.'),
     banner: Yup.mixed().required('Banner image is required.'),
 })
@@ -126,6 +129,12 @@ export function useCreateWork() {
     }
 
     const handleGenreToggle = (genre: string) => {
+        if (!form.genres.includes(genre) && form.genres.length >= 5) {
+            setFieldErrors((prev) => ({ ...prev, genres: 'Select up to 5 genres.' }))
+            toast.error('Select up to 5 genres.')
+            return
+        }
+
         setForm((prev) => ({
             ...prev,
             genres: prev.genres.includes(genre)
@@ -259,7 +268,7 @@ export function useCreateWork() {
         }
 
         if (!workValid || !chapterValid) {
-            toast.error('Please fix the highlighted fields.')
+            toast.error('Please fix the fields marked in red.')
             setLoading(false)
             return
         }
@@ -310,7 +319,7 @@ export function useCreateWork() {
                     if (!parsed[field]) parsed[field] = messages[0]
                 }
                 setFieldErrors(parsed)
-                toast.error('Please fix the highlighted fields.')
+                toast.error('Please fix the fields marked in red.')
             } else {
                 setError('Something went wrong. Please try again.')
                 toast.error('Something went wrong. Please try again.')

@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Link } from 'react-router-dom'
 // import PublicWorkCover from './public-work-Info/PublicWorkCover'
 import PublicWorkTags from './public-work-Info/PublicWorkTags'
 import PublicWorkDescription from './public-work-Info/PublicWorkDescription'
@@ -22,6 +23,9 @@ export default function PublicWorkInfo({
     navigate,
     // coverUrl,
 }: PublicWorkInfoProps) {
+    const authorName = work.user?.name || 'Unknown'
+    const authorUsername = work.user?.username
+
     return (
         <Card>
             <CardContent>
@@ -37,9 +41,16 @@ export default function PublicWorkInfo({
                         <div className="flex items-center gap-3">
                             <p className="text-sm text-muted-foreground">
                                 By{' '}
-                                <span className="font-medium text-foreground">
-                                    {work.user?.name || 'Unknown'}
-                                </span>
+                                {authorUsername ? (
+                                    <Link
+                                        to={`/artists/${encodeURIComponent(authorUsername)}`}
+                                        className="font-medium text-foreground no-underline"
+                                    >
+                                        {authorName}
+                                    </Link>
+                                ) : (
+                                    <span className="font-medium text-foreground">{authorName}</span>
+                                )}
                             </p>
                             {isOwner && (
                                 <Button

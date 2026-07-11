@@ -20,11 +20,12 @@ class PayMongoService
     /**
      * Create a PayMongo checkout link for a credit package.
      *
-     * @param  array{amount: int, description: string, metadata: array}  $payload
+     * @param  array{amount: int|float, description: string, metadata: array, success_url?: string, cancel_url?: string}  $payload
      */
     public function createCheckoutLink(array $payload): array
     {
         $amountInCentavos = (int) round($payload['amount'] * 100);
+        $frontendUrl = env('FRONTEND_URL', 'http://localhost:5173');
 
         $response = Http::withBasicAuth($this->secretKey, '')
             ->post("{$this->baseUrl}/checkout_sessions", [
@@ -37,8 +38,8 @@ class PayMongoService
                             'quantity' => 1,
                         ]],
                         'payment_method_types' => ["qrph"],
-                        'success_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/credits/',
-                        'cancel_url'  => env('FRONTEND_URL', 'http://localhost:5173') . '/credits',
+                        'success_url' => $payload['success_url'] ?? "{$frontendUrl}/credits?payment_status=success",
+                        'cancel_url'  => $payload['cancel_url'] ?? "{$frontendUrl}/credits?payment_status=failed",
                         'metadata'    => $payload['metadata'],
                     ],
                 ],
@@ -58,6 +59,16 @@ class PayMongoService
             'checkout_url' => $data['attributes']['checkout_url'],
             'reference_id' => $data['id'],
         ];
+    }
+
+    public function mode(): string
+    {
+        return str_starts_with((string) $this->secretKey, 'sk_test_') ? 'test' : 'live';
+    }
+
+    public function canSimulatePayments(): bool
+    {
+        return app()->environment(['local', 'testing']) || $this->mode() === 'test';
     }
 
     /**

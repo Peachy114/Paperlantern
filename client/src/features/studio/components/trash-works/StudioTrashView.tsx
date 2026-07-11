@@ -36,7 +36,7 @@ export default function StudioTrashView() {
     const [acting, setActing] = useState(false)
 
     const daysLeft = (deletedAt: string) => {
-        const expires = new Date(new Date(deletedAt).getTime() + 15 * 24 * 60 * 60 * 1000)
+        const expires = new Date(new Date(deletedAt).getTime() + 30 * 24 * 60 * 60 * 1000)
         return Math.max(0, Math.ceil((expires.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
     }
 
@@ -82,7 +82,7 @@ export default function StudioTrashView() {
                     </Button>
                     <h1 className="text-xl font-bold">Trash</h1>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                        Items are permanently deleted after 15 days.
+                        Items are permanently deleted after 30 days.
                     </p>
                 </div>
             </div>

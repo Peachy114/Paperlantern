@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useWallet } from '@/hooks/useWallet'
 import { useAuth } from '@/features/auth/hooks/useAuth'
@@ -41,6 +42,7 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
     const displayRole = (user?.role ?? 'Wanderer').replace(/^\w/, (c) => c.toUpperCase())
     const isAdmin = user?.role === 'super_admin'
     const isStoryteller = user?.role === 'storyteller'
+    const profilePath = !isAdmin && user?.username ? `/users/${user.username}` : null
 
     return (
         <>
@@ -58,26 +60,15 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
                         className="w-80"
                     >
                         {/* Avatar + name */}
-                        <DropdownMenuLabel className="flex gap-3 items-center">
-                            <div className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
-                                {user?.avatar ? (
-                                    <img
-                                        src={user.avatar}
-                                        alt={avatarLetter}
-                                        className="w-full h-full object-cover"
-                                    />
-                                ) : (
-                                    avatarLetter
-                                )}
-                            </div>
-                            <div>
-                                <div className="text-base font-semibold text-foreground">
-                                    {displayName}
-                                </div>
-                                <div className="text-xs text-muted-foreground font-normal">
-                                    {displayRole}
-                                </div>
-                            </div>
+                        <DropdownMenuLabel className="p-1.5">
+                            <ProfileIdentity
+                                to={profilePath}
+                                avatar={user?.avatar}
+                                avatarLetter={avatarLetter}
+                                displayName={displayName}
+                                displayRole={displayRole}
+                                onClick={() => setOpen(false)}
+                            />
                         </DropdownMenuLabel>
 
                         {!!token && (
@@ -126,23 +117,15 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between px-4 py-4 border-b">
-                            <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
-                                    {user?.avatar ? (
-                                        <img
-                                            src={user.avatar}
-                                            alt={avatarLetter}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        avatarLetter
-                                    )}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold">{displayName}</p>
-                                    <p className="text-xs text-muted-foreground">{displayRole}</p>
-                                </div>
-                            </div>
+                            <ProfileIdentity
+                                to={profilePath}
+                                avatar={user?.avatar}
+                                avatarLetter={avatarLetter}
+                                displayName={displayName}
+                                displayRole={displayRole}
+                                onClick={() => setOpen(false)}
+                                mobile
+                            />
                             <button onClick={() => setOpen(false)}>
                                 <X className="w-5 h-5" />
                             </button>
@@ -184,5 +167,53 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
                 )}
             </AnimatePresence>
         </>
+    )
+}
+
+function ProfileIdentity({
+    to,
+    avatar,
+    avatarLetter,
+    displayName,
+    displayRole,
+    onClick,
+    mobile = false,
+}: {
+    to: string | null
+    avatar?: string | null
+    avatarLetter: string
+    displayName: string
+    displayRole: string
+    onClick: () => void
+    mobile?: boolean
+}) {
+    const content = (
+        <div
+            className={`flex items-center gap-3 ${
+                to ? 'rounded-md hover:bg-muted transition-colors' : ''
+            } ${mobile ? '' : 'p-1.5'}`}
+        >
+            <div className="w-9 h-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
+                {avatar ? (
+                    <img src={avatar} alt={avatarLetter} className="w-full h-full object-cover" />
+                ) : (
+                    avatarLetter
+                )}
+            </div>
+            <div>
+                <div className={mobile ? 'text-sm font-semibold' : 'text-base font-semibold text-foreground'}>
+                    {displayName}
+                </div>
+                <div className="text-xs text-muted-foreground font-normal">{displayRole}</div>
+            </div>
+        </div>
+    )
+
+    if (!to) return content
+
+    return (
+        <Link to={to} onClick={onClick} className="block outline-none">
+            {content}
+        </Link>
     )
 }

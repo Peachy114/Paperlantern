@@ -8,6 +8,8 @@ export interface Ticket {
     subject: string
     message: string
     status: TicketStatus
+    source_type?: string | null
+    source_id?: string | null
     admin_notes: string | null
     resolved_at: string | null
     created_at: string

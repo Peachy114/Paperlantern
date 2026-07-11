@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 interface Props {
     balancePhp: number
     balanceCredits: number
-    minWithdrawal: number
+    minWithdrawalCredits: number
     canWithdraw: boolean
     loading: boolean
 }
@@ -12,24 +12,27 @@ interface Props {
 export default function EarningOverview({
     balancePhp,
     balanceCredits,
-    minWithdrawal,
+    minWithdrawalCredits,
     canWithdraw,
     loading,
 }: Props) {
     const stats = [
         {
             label: 'PHP Balance',
-            value: `₱${balancePhp.toFixed(2)}`,
+            value: `PHP ${balancePhp.toFixed(2)}`,
             note: 'cash out anytime',
         },
         {
             label: 'Credits Earned',
-            value: balanceCredits.toLocaleString(),
+            value: balanceCredits.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }),
             note: 'keep it up!',
         },
         {
             label: 'Min. Withdrawal',
-            value: `₱${minWithdrawal.toFixed(0)}`,
+            value: `${minWithdrawalCredits.toFixed(0)} credits`,
             note: canWithdraw ? 'ready to cash out!' : 'almost there!',
         },
     ]

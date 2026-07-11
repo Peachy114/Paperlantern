@@ -74,6 +74,14 @@ function UserRow({
                             BANNED
                         </span>
                     )}
+                    {!user.is_banned && user.is_suspended && (
+                        <span
+                            className="text-[9px] px-1.5 py-0.5 bg-orange-100 text-orange-700"
+                            style={{ fontFamily: "'Kalam', cursive" }}
+                        >
+                            SUSPENDED
+                        </span>
+                    )}
                     {!user.is_banned && user.strike_count > 0 && (
                         <span
                             className="text-[9px] px-1.5 py-0.5"

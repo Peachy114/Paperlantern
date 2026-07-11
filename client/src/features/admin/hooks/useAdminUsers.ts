@@ -9,6 +9,7 @@ interface AdminUser {
     email: string
     role: string
     is_banned: boolean
+    is_suspended?: boolean
     created_at: string
     works_count: number
 }

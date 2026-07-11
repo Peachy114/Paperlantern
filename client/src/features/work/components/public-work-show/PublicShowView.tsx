@@ -13,6 +13,8 @@ import PublicShowWebtoonContent from './PublicShowWebtoonContent'
 import PublicShowNovelContent from './PublicShowNovelContent'
 import PublicShowLikes from './PublicShowLikes'
 import PublicShowNavButtons from './PublicShowNavButtons'
+import CommentSection from '@/features/comments/components/CommentSection'
+import SuperLikeButton from '@/features/comments/components/SuperLikeButton'
 
 export default function PublicShowView() {
     const {
@@ -147,6 +149,24 @@ export default function PublicShowView() {
                 )}
 
                 <PublicShowLikes liked={liked} likes={likes} toggleLike={toggleLike} />
+
+                <div className="mt-4 flex justify-end">
+                    <SuperLikeButton
+                        targetType="chapter"
+                        targetId={chapter.id}
+                        initialCount={chapter.super_likes_count ?? 0}
+                        ownerUserId={chapter.work_user_id}
+                    />
+                </div>
+
+                <div className="mt-6">
+                    <CommentSection
+                        targetType="chapter"
+                        targetId={chapter.id}
+                        artistUsername={chapter.artist_username}
+                        title="Chapter comments"
+                    />
+                </div>
 
                 {showBottomNav && (
                     <PublicShowNavButtons
