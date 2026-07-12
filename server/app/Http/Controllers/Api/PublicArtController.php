@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Art;
+use App\Models\ArtLike;
 use App\Models\FeatureBoost;
 use App\Services\ContentSuspensionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PublicArtController extends Controller
 {
@@ -23,7 +25,7 @@ class PublicArtController extends Controller
                 'activeContentSuspensions',
                 'images' => fn($q) => $q->whereDoesntHave('activeContentSuspensions', fn($inner) => $inner->whereNull('target_field')),
                 'images.activeContentSuspensions',
-                'user:id,name,username,role,avatar',
+                'user:id,name,username,role,avatar,artist_verified',
             ])
             ->selectSub($this->activeBoostSubquery('art'), 'boosted_until');
 
@@ -49,12 +51,53 @@ class PublicArtController extends Controller
             ->latest()
             ->paginate(30);
 
-        $arts->getCollection()->transform(fn(Art $art) => $this->contentSuspensions->maskArt($art));
+        $arts->getCollection()->transform(function (Art $art) {
+            $art = $this->contentSuspensions->maskArt($art);
+            $art->setAttribute('liked_by_me', auth('sanctum')->check()
+                ? $art->likedByUsers()->where('user_id', auth('sanctum')->id())->exists()
+                : false);
+
+            return $art;
+        });
 
         return response()->json([
             'featured_artists' => $this->featuredArtists(),
             'tags' => $this->tags($request)->getData(true),
             'arts' => $arts,
+        ]);
+    }
+
+    public function toggleLike(Request $request, Art $art): JsonResponse
+    {
+        abort_unless($art->status === 'published', 404);
+        abort_if($this->contentSuspensions->isHidden($art), 404, 'Art not found.');
+
+        $liked = false;
+
+        DB::transaction(function () use ($request, $art, &$liked) {
+            $existing = ArtLike::query()
+                ->where('art_id', $art->id)
+                ->where('user_id', $request->user()->id)
+                ->first();
+
+            if ($existing) {
+                $existing->delete();
+                $art->update(['likes' => max(0, ((int) $art->likes) - 1)]);
+                $liked = false;
+                return;
+            }
+
+            ArtLike::create([
+                'art_id' => $art->id,
+                'user_id' => $request->user()->id,
+            ]);
+            $art->increment('likes');
+            $liked = true;
+        });
+
+        return response()->json([
+            'liked' => $liked,
+            'likes' => max(0, (int) $art->fresh()->likes),
         ]);
     }
 

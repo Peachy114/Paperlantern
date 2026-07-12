@@ -25,9 +25,20 @@ class SuperAdminRepository
 
     public function getAllUsers(): \Illuminate\Database\Eloquent\Collection
     {
-        return User::withCount('works')
+        return User::withCount(['works', 'arts', 'comments'])
             ->latest()
-            ->get(['id', 'name', 'username', 'email', 'role', 'is_banned', 'is_suspended', 'strike_count', 'created_at']);
+            ->get([
+                'id',
+                'name',
+                'username',
+                'email',
+                'role',
+                'artist_verified',
+                'is_banned',
+                'is_suspended',
+                'strike_count',
+                'created_at',
+            ]);
     }
 
     public function getUserWithWorks(User $user): User
@@ -55,6 +66,13 @@ class SuperAdminRepository
             'strike_count' => 0,
         ]);
         return $user->fresh();
+    }
+
+    public function updateArtistVerification(User $user, bool $verified): User
+    {
+        $user->update(['artist_verified' => $verified]);
+
+        return $user->fresh()->loadCount(['works', 'arts', 'comments']);
     }
 
     public function deleteUser(User $user): void

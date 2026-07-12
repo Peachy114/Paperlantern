@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { studioApi } from '@/api/studio'
 import { containsBadWord } from '@/lib/badWords'
+import { uploadChapterImagesInBatches } from '../utils/chapterImageUpload'
 import * as Yup from 'yup'
 
 const noBadWords = (field: string) =>
@@ -165,9 +166,12 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
             )
             if (form.scheduled_at) formData.append('scheduled_at', form.scheduled_at)
             if (cover) formData.append('cover', cover)
-            if (workType === 'webtoon') images.forEach((img) => formData.append('images[]', img))
+            if (workType === 'webtoon') formData.append('defer_images', '1')
 
-            await studioApi.createChapter(workSlug!, formData)
+            const chapterRes = await studioApi.createChapter(workSlug!, formData)
+            if (workType === 'webtoon') {
+                await uploadChapterImagesInBatches(workSlug!, chapterRes.data.slug, images)
+            }
             navigate(`/studio/works/${workSlug}/chapters`)
         } catch (err: any) {
             if (err.response?.status === 422 && err.response?.data?.errors) {

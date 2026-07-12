@@ -55,6 +55,7 @@ class ChapterController extends Controller
             'scheduled_at'     => ['required_if:status,scheduled', 'nullable', 'date', 'after:now'],
             'is_locked'        => ['sometimes', 'boolean'],
             'lock_type'        => ['sometimes', 'in:free,early_access,premium'],
+            'defer_images'     => ['sometimes', 'boolean'],
             'credits_required' => [
                 'sometimes',
                 'integer',
@@ -73,7 +74,7 @@ class ChapterController extends Controller
                 },
             ],
             'images'           => ['sometimes', 'array'],
-            'images.*'         => ['image', 'max:5120'],
+            'images.*'         => ['image', 'max:20480'],
         ]);
 
         if (isset($validated['content'])) {
@@ -120,7 +121,8 @@ class ChapterController extends Controller
                 },
             ],
             'images'               => ['sometimes', 'array'],
-            'images.*'             => ['image', 'max:5120'],
+            'images.*'             => ['image', 'max:20480'],
+            'replace_images'       => ['sometimes', 'boolean'],
             'existing_image_ids'   => ['sometimes', 'array'],
             'existing_image_ids.*' => ['nullable', 'string'],
         ]);
@@ -130,6 +132,22 @@ class ChapterController extends Controller
         }
 
         $chapter = $this->chapterService->updateChapter($chapter, $validated, $request);
+
+        return response()->json($chapter);
+    }
+
+    public function storeImages(Request $request, Work $work, Chapter $chapter): JsonResponse
+    {
+        if ($work->user_id !== $request->user()->id || $chapter->work_id !== $work->id) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
+        $request->validate([
+            'images'   => ['required', 'array', 'min:1', 'max:5'],
+            'images.*' => ['required', 'image', 'max:20480'],
+        ]);
+
+        $chapter = $this->chapterService->appendImages($chapter, $request);
 
         return response()->json($chapter);
     }

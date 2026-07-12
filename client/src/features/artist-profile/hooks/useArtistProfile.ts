@@ -16,7 +16,12 @@ export function useArtistProfile(username: string) {
     const updateHeader = useMutation({
         mutationFn: (payload: FormData) =>
             artistProfileApi.updateHeader(payload).then((res) => res.data),
-        onSuccess: invalidate,
+        onSuccess: (data) => {
+            queryClient.setQueryData<ArtistProfileResponse>(queryKey, (current) =>
+                current ? { ...current, artist: { ...current.artist, ...data.artist } } : current
+            )
+            invalidate()
+        },
     })
 
     const createBlock = useMutation({

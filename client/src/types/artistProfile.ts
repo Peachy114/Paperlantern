@@ -9,6 +9,7 @@ export interface ArtistProfileUser {
     name: string
     username: string
     role: 'super_admin' | 'storyteller' | 'wanderer'
+    artist_verified: boolean
     avatar: string | null
     profile_cover: string | null
     profile_cover_position_x: number
@@ -74,9 +75,13 @@ export interface ProfileCanvasItem {
     page?: ProfileTabId
     display?:
         | 'grid'
+        | 'standard'
         | 'masonry'
         | 'pinterest'
         | 'instagram'
+        | 'bento'
+        | 'magazine'
+        | 'gallery'
         | 'carousel'
         | 'row'
         | 'image'
@@ -85,6 +90,7 @@ export interface ProfileCanvasItem {
         | 'table'
         | 'cards'
     pagination?: boolean
+    locked?: boolean
     x: number
     y: number
     w: number
@@ -104,6 +110,14 @@ export interface ProfileTabsConfig {
     border_offset?: {
         x: number
         y: number
+    }
+    border_scale?: number
+    border_layer?: 'front' | 'back'
+    nav_locked?: boolean
+    header_locks?: {
+        cover_frame: boolean
+        avatar_frame: boolean
+        avatar_border: boolean
     }
 }
 
@@ -198,6 +212,7 @@ export interface ArtistProfileWork {
     description: string | null
     type: 'webtoon' | 'wattpad'
     genres: string[]
+    language: 'en' | 'ko' | 'id' | 'th'
     cover: string | null
     status: string
     views: number

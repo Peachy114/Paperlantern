@@ -44,6 +44,10 @@ export const studioApi = {
         api.post(`/studio/works/${workSlug}/chapters/${chapterSlug}`, data, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
+    uploadChapterImages: (workSlug: string, chapterSlug: string, data: FormData) =>
+        api.post(`/studio/works/${workSlug}/chapters/${chapterSlug}/images`, data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
     trashChapter: (workSlug: string, chapterSlug: string) =>
         api.post(`/studio/works/${workSlug}/chapters/${chapterSlug}/trash`),
     deleteChapter: (workSlug: string, chapterSlug: string) =>

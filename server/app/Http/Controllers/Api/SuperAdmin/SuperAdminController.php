@@ -52,6 +52,21 @@ class SuperAdminController extends Controller
         return response()->json($this->service->unbanUser($request->user()->id, $user));
     }
 
+    public function updateArtistVerification(Request $request, User $user): JsonResponse
+    {
+        $validated = $request->validate([
+            'artist_verified' => ['required', 'boolean'],
+        ]);
+
+        return response()->json(
+            $this->service->updateArtistVerification(
+                $request->user()->id,
+                $user,
+                (bool) $validated['artist_verified']
+            )
+        );
+    }
+
     // DELETE /api/admin/users/{user}
     public function deleteUser(Request $request, User $user): JsonResponse
     {

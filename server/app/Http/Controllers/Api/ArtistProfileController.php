@@ -24,7 +24,7 @@ class ArtistProfileController extends Controller
         $validated = $request->validate([
             'artist_title' => ['nullable', 'string', 'max:100'],
             'cover' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
-            'avatar' => ['nullable', 'image', 'max:4096'],
+            'avatar' => ['nullable', 'image', 'max:10240'],
             'background_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
             'profile_cover_position_x' => ['sometimes', 'numeric', 'min:0', 'max:100'],
             'profile_cover_position_y' => ['sometimes', 'numeric', 'min:0', 'max:100'],

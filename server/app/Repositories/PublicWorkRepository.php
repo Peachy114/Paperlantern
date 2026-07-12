@@ -19,7 +19,7 @@ class PublicWorkRepository
             ->has('chapters')
             ->orderByDesc('views')
             ->limit(5)
-            ->get(['id', 'slug', 'title', 'cover', 'banner', 'type', 'genres', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'description', 'status']);
+            ->get(['id', 'slug', 'title', 'cover', 'banner', 'type', 'genres', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'description', 'status']);
     }
 
     public function getWeeklyChart(): \Illuminate\Database\Eloquent\Collection
@@ -31,7 +31,7 @@ class PublicWorkRepository
             }])
             ->orderByDesc('weekly_views')
             ->limit(10)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits']);
     }
 
     public function getFreshReleases(): \Illuminate\Database\Eloquent\Collection
@@ -41,7 +41,7 @@ class PublicWorkRepository
             ->where('created_at', '>=', now()->subDays(7))
             ->orderByDesc('created_at')
             ->limit(10)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at']);
     }
 
     public function getLatestChapters(): \Illuminate\Database\Eloquent\Collection
@@ -61,7 +61,7 @@ class PublicWorkRepository
     public function getWork(Work $work): Work
     {
         abort_if(
-            $work->status === 'draft'
+            ! in_array($work->status, ['ongoing', 'completed'], true)
                 || $work->moderation_status === 'violated'
                 || $work->hasActiveSuspension(),
             404
@@ -264,7 +264,7 @@ class PublicWorkRepository
     private function visibleWorks()
     {
         return Work::query()
-            ->where('status', '!=', 'draft')
+            ->whereIn('status', ['ongoing', 'completed'])
             ->where('moderation_status', '!=', 'violated')
             ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'))
             ->with('activeContentSuspensions');
@@ -281,7 +281,7 @@ class PublicWorkRepository
     private function applyVisibleWorkConstraints($query)
     {
         return $query
-            ->where('status', '!=', 'draft')
+            ->whereIn('status', ['ongoing', 'completed'])
             ->where('moderation_status', '!=', 'violated')
             ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'));
     }

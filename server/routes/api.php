@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\SuperAdmin\SuperAdminController; //Super admin
 use App\Http\Controllers\Api\SuperAdmin\ModerationController;
 use App\Http\Controllers\Api\SuperAdmin\AnnouncementController;
 use App\Http\Controllers\Api\SuperAdmin\ArtController as AdminArtController;
+use App\Http\Controllers\Api\SuperAdmin\SuperLikeAwardController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\SuperAdmin\TicketController as AdminTicketController;
 
@@ -73,10 +74,12 @@ Route::prefix('public')->group(function () {
     Route::get('/comics', [PublicWorkController::class, 'comics']);
     Route::get('/arts', [PublicArtController::class, 'index']);
     Route::get('/arts/tags', [PublicArtController::class, 'tags']);
+    Route::post('/arts/{art}/like', [PublicArtController::class, 'toggleLike'])->middleware('auth:sanctum');
     Route::get('/artists/{username}', [ArtistProfileController::class, 'show']);
     Route::get('/users/{username}', [AccountLibraryController::class, 'publicProfile']);
     Route::get('/artists/{username}/stickers', [ArtistStickerLibraryController::class, 'artistStore']);
     Route::get('/comments/{type}/{id}', [CommentController::class, 'index']);
+    Route::get('/super-like-awards', [SuperLikeController::class, 'awards']);
 });
 
 // ── Authenticated (any role) ──────────────────────────────────────────────────
@@ -110,6 +113,9 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::post('/credits/checkout',          [WalletController::class, 'checkout']);
     Route::get('/credits/payments/{payment}', [WalletController::class, 'payment']);
     Route::post('/credits/payments/{payment}/simulate', [WalletController::class, 'simulatePayment']);
+    Route::post('/comments/{comment}/like',   [CommentController::class, 'toggleLike']);
+    Route::patch('/comments/{comment}/pin',   [CommentController::class, 'pin']);
+    Route::delete('/comments/{comment}',      [CommentController::class, 'destroy']);
     Route::post('/comments/{type}/{id}',      [CommentController::class, 'store']);
     Route::get('/account/favorites',          [AccountLibraryController::class, 'favorites']);
     Route::get('/account/comments',           [AccountLibraryController::class, 'comments']);
@@ -133,6 +139,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::get('users/{user}',          [SuperAdminController::class, 'showUser']);
         Route::put('users/{user}/ban',      [SuperAdminController::class, 'banUser']);
         Route::put('users/{user}/unban',    [SuperAdminController::class, 'unbanUser']);
+        Route::patch('users/{user}/artist-verification', [SuperAdminController::class, 'updateArtistVerification']);
         Route::delete('users/{user}',       [SuperAdminController::class, 'deleteUser']);
         Route::delete('works/{work}',       [SuperAdminController::class, 'deleteWork']);
         Route::get('chapters/{chapter}',    [SuperAdminController::class, 'viewChapter']);
@@ -159,6 +166,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::get('/profile-borders', [AdminArtController::class, 'profileBorders']);
         Route::post('/profile-borders', [AdminArtController::class, 'storeProfileBorder']);
         Route::delete('/profile-borders/{border}', [AdminArtController::class, 'destroyProfileBorder']);
+        Route::apiResource('super-like-awards', SuperLikeAwardController::class)->except(['show']);
 
         Route::prefix('moderation')->group(function () {
             Route::get('/',                                          [ModerationController::class, 'index']);
@@ -182,6 +190,8 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
 
             Route::post('/content/{type}/{id}/suspend',              [ModerationController::class, 'suspendContent']);
             Route::put('/suspensions/{suspension}/restore',          [ModerationController::class, 'restoreSuspension']);
+            Route::put('/comments/{comment}/image/approve',          [ModerationController::class, 'approveCommentImage']);
+            Route::put('/comments/{comment}/image/suspend',          [ModerationController::class, 'suspendCommentImage']);
         });
     });
 
@@ -197,6 +207,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::delete('/arts/{slug}',       [ArtController::class, 'destroy']);
 
         Route::apiResource('works',          WorkController::class);
+        Route::post('/works/{work}/chapters/{chapter}/images', [ChapterController::class, 'storeImages']);
         Route::apiResource('works.chapters', ChapterController::class);
         Route::get('/analytics/views', [AnalyticsController::class, 'views']);
 

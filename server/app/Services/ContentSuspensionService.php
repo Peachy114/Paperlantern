@@ -6,6 +6,7 @@ use App\Models\Art;
 use App\Models\ArtImage;
 use App\Models\ArtistProfileBlock;
 use App\Models\Chapter;
+use App\Models\Comment;
 use App\Models\ContentSuspension;
 use App\Models\Ticket;
 use App\Models\User;
@@ -43,6 +44,14 @@ class ContentSuspensionService
                 ->latest()
                 ->limit(30)
                 ->get(),
+            'comment_images' => Comment::query()
+                ->whereNotNull('image_path')
+                ->where('image_moderation_status', 'pending')
+                ->where('status', 'visible')
+                ->with(['user:id,name,username,strike_count,is_suspended', 'commentable'])
+                ->latest()
+                ->limit(40)
+                ->get(['id', 'user_id', 'commentable_type', 'commentable_id', 'body', 'image_path', 'image_moderation_status', 'created_at']),
             'active_suspensions' => ContentSuspension::query()
                 ->where('status', 'active')
                 ->with(['user:id,name,username,strike_count,is_suspended', 'admin:id,name,username', 'ticket:id,status,subject'])
@@ -261,6 +270,7 @@ class ContentSuspensionService
             'art' => Art::whereKey($id)->orWhere('slug', $id)->firstOrFail(),
             'art_image' => ArtImage::findOrFail($id),
             'profile_block' => ArtistProfileBlock::findOrFail($id),
+            'comment' => Comment::findOrFail($id),
             default => throw ValidationException::withMessages([
                 'type' => ['Unsupported moderation target.'],
             ]),
@@ -275,6 +285,7 @@ class ContentSuspensionService
             'art' => [null, 'image_path'],
             'art_image' => [null],
             'profile_block' => [null],
+            'comment' => [null, 'image_path'],
         ];
 
         if (! in_array($field, $allowed[$type] ?? [], true)) {
@@ -310,6 +321,7 @@ class ContentSuspensionService
             $target instanceof Art => "Art{$fieldLabel} - {$target->title}",
             $target instanceof ArtImage => "Art image - {$target->art?->title}",
             $target instanceof ArtistProfileBlock => "Profile board block",
+            $target instanceof Comment => "Comment{$fieldLabel}",
             default => 'Content',
         };
     }

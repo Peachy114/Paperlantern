@@ -15,16 +15,24 @@ class CommentTargetResolver
     public function resolve(string $type, string $id): Model
     {
         $target = match ($type) {
-            'work' => Work::where('status', '!=', 'draft')
+            'work' => Work::whereIn('status', ['ongoing', 'completed'])
                 ->where('moderation_status', '!=', 'violated')
                 ->findOrFail($id),
             'chapter' => Chapter::where('status', '!=', 'draft')
                 ->where('moderation_status', '!=', 'violated')
+                ->whereHas('work', fn($query) => $query
+                    ->whereIn('status', ['ongoing', 'completed'])
+                    ->where('moderation_status', '!=', 'violated'))
                 ->findOrFail($id),
             'art' => Art::where('status', 'published')->findOrFail($id),
             'comment' => Comment::where('status', 'visible')->findOrFail($id),
             default => abort(404, 'Unsupported comment target.'),
         };
+
+        if ($target instanceof Chapter) {
+            $target->loadMissing('work');
+            abort_if($target->work && $this->contentSuspensions->isHidden($target->work), 404, 'Content not found.');
+        }
 
         if ($target instanceof Work || $target instanceof Chapter || $target instanceof Art) {
             abort_if($this->contentSuspensions->isHidden($target), 404, 'Content not found.');

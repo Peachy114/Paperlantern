@@ -21,6 +21,7 @@ class Work extends Model
         'type',
         'slug',
         'genres',
+        'language',
         'cover',
         'banner',
         'status',

@@ -23,4 +23,8 @@ export const moderationApi = {
     suspendContent: (type: string, id: string, reason: string, field?: string | null) =>
         api.post(`/admin/moderation/content/${type}/${id}/suspend`, { reason, field }),
     restoreSuspension: (id: string) => api.put(`/admin/moderation/suspensions/${id}/restore`),
+    approveCommentImage: (commentId: string) =>
+        api.put(`/admin/moderation/comments/${commentId}/image/approve`),
+    suspendCommentImage: (commentId: string, reason: string) =>
+        api.put(`/admin/moderation/comments/${commentId}/image/suspend`, { reason }),
 }

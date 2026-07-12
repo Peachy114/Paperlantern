@@ -18,4 +18,5 @@ export const publicApi = {
     getArts: (params?: URLSearchParams) =>
         api.get(`/public/arts${params ? `?${params.toString()}` : ''}`),
     getArtTags: (q = '') => api.get(`/public/arts/tags${q ? `?q=${encodeURIComponent(q)}` : ''}`),
+    toggleArtLike: (artId: string) => api.post(`/public/arts/${artId}/like`),
 }

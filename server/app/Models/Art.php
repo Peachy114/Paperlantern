@@ -60,6 +60,11 @@ class Art extends Model
         return $this->morphMany(Comment::class, 'commentable');
     }
 
+    public function likedByUsers()
+    {
+        return $this->hasMany(ArtLike::class);
+    }
+
     public static function generateSlug(string $title, string $userId, ?string $excludeId = null): string
     {
         $base = Str::slug($title);

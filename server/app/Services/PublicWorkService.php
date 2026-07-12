@@ -23,7 +23,7 @@ class PublicWorkService
 
     public function getHome(): array
     {
-        return Cache::remember('public_home_payload:v2', now()->addMinute(), fn () => [
+        return Cache::remember('public_home_payload:v3', now()->addMinute(), fn () => [
             'hero' => $this->getHeroWorks(),
             'weeklyChart' => $this->getWeeklyChart(),
             'freshReleases' => $this->getFreshReleases(),

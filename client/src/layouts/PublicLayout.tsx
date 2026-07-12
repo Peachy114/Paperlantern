@@ -50,7 +50,7 @@ export default function PublicLayout() {
             </div>
 
             <LazyAuthModal />
-            <div className="relative z-10">
+            <div className="relative z-3">
                 <Suspense fallback={null}>
                     <Subscribe />
                     <Footer />

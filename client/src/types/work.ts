@@ -4,6 +4,7 @@ export interface Work {
     type: 'webtoon' | 'wattpad'
     status: 'draft' | 'ongoing' | 'completed' | 'hiatus'
     genres: string[]
+    language: 'en' | 'ko' | 'id' | 'th'
     cover: string | null
     views: number
     chapters_count: number

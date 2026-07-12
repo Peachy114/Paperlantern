@@ -8,7 +8,7 @@ import {
     type PointerEvent,
 } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
     CalendarDays,
     ChevronLeft,
@@ -23,8 +23,11 @@ import {
     Search,
     Sparkles,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { publicApi } from '@/api/public'
 import { storageUrl } from '@/utils/storage'
+import { useAuthStore } from '@/store/authStore'
+import { useModalStore } from '@/store/modalStore'
 import type { Art, ArtImage } from '@/types/art'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -278,7 +281,12 @@ function ArtDetailDialog({
     const [activeIndex, setActiveIndex] = useState(0)
     const [zoom, setZoom] = useState(1)
     const [isPanning, setIsPanning] = useState(false)
+    const [liked, setLiked] = useState(false)
+    const [likes, setLikes] = useState(0)
     const imageScrollerRef = useRef<HTMLDivElement | null>(null)
+    const queryClient = useQueryClient()
+    const { token } = useAuthStore()
+    const { openLogin } = useModalStore()
     const panRef = useRef({
         pointerId: -1,
         startX: 0,
@@ -294,7 +302,21 @@ function ArtDetailDialog({
         setActiveIndex(0)
         setZoom(1)
         setIsPanning(false)
+        setLiked(Boolean(art?.liked_by_me))
+        setLikes(art?.likes ?? 0)
     }, [art?.id])
+
+    const likeMutation = useMutation({
+        mutationFn: () => publicApi.toggleArtLike(art!.id).then((res) => res.data),
+        onSuccess: (result) => {
+            setLiked(result.liked)
+            setLikes(result.likes)
+            queryClient.invalidateQueries({ queryKey: ['public-arts'] })
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message ?? 'Could not like this art.')
+        },
+    })
 
     useEffect(() => {
         const scroller = imageScrollerRef.current
@@ -388,7 +410,23 @@ function ArtDetailDialog({
                             )}
                         </div>
 
-                        <div className="mb-4">
+                        <div className="mb-4 flex flex-wrap items-center gap-2">
+                            <Button
+                                type="button"
+                                variant={liked ? 'secondary' : 'outline'}
+                                onClick={() => {
+                                    if (!token) {
+                                        openLogin()
+                                        return
+                                    }
+                                    likeMutation.mutate()
+                                }}
+                                disabled={likeMutation.isPending}
+                            >
+                                <Heart className={liked ? 'h-4 w-4 fill-current text-red-500' : 'h-4 w-4'} />
+                                Like
+                                <span className="text-xs text-muted-foreground">{likes.toLocaleString()}</span>
+                            </Button>
                             <SuperLikeButton
                                 targetType="art"
                                 targetId={art.id}
@@ -398,7 +436,7 @@ function ArtDetailDialog({
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
-                            <Stat icon={Heart} label="Likes" value={art.likes} />
+                            <Stat icon={Heart} label="Likes" value={likes} />
                             <Stat icon={Eye} label="Views" value={art.views} />
                             <Stat icon={MessageCircle} label="Comments" value={art.comments_count} />
                             <Stat icon={Gift} label="Super likes" value={art.super_likes_count} />

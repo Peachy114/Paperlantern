@@ -103,11 +103,21 @@ interface ReviewProfileBlock {
     active_content_suspensions?: ActiveSuspension[]
 }
 
+interface ReviewCommentImage {
+    id: string
+    body: string | null
+    image_path: string
+    image_moderation_status: string
+    created_at: string
+    user: ModerationUser
+}
+
 interface ModerationReview {
     works: ModerationWorkItem[]
     chapters: ModerationChapter[]
     arts: ReviewArt[]
     profile_blocks: ReviewProfileBlock[]
+    comment_images?: ReviewCommentImage[]
     active_suspensions: ActiveSuspension[]
 }
 
@@ -256,6 +266,34 @@ export function useAdminModerationQueue() {
         },
     })
 
+    const approveCommentImage = useMutation({
+        mutationFn: (id: string) => moderationApi.approveCommentImage(id),
+        onSuccess: (_, id) => {
+            queryClient.setQueryData<ModerationQueue>(QUEUE_KEY, (prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          review: {
+                              ...prev.review,
+                              comment_images: (prev.review.comment_images ?? []).filter(
+                                  (comment) => comment.id !== id
+                              ),
+                          },
+                      }
+                    : prev
+            )
+        },
+    })
+
+    const suspendCommentImage = useMutation({
+        mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+            moderationApi.suspendCommentImage(id, reason),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: QUEUE_KEY })
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+        },
+    })
+
     return {
         chapters: data.chapters,
         works: data.works,
@@ -274,6 +312,9 @@ export function useAdminModerationQueue() {
         suspendContent: (type: string, id: string, reason: string, field?: string | null) =>
             suspendContent.mutate({ type, id, reason, field }),
         restoreSuspension: (id: string) => restoreSuspension.mutate(id),
+        approveCommentImage: (id: string) => approveCommentImage.mutate(id),
+        suspendCommentImage: (id: string, reason: string) =>
+            suspendCommentImage.mutate({ id, reason }),
 
         approvingChapter: approveChapter.isPending ? approveChapter.variables : null,
         violatingChapter: violateChapter.isPending ? violateChapter.variables?.slug : null,
@@ -285,5 +326,9 @@ export function useAdminModerationQueue() {
             ? `${suspendContent.variables?.type}:${suspendContent.variables?.id}:${suspendContent.variables?.field ?? ''}`
             : null,
         restoringSuspension: restoreSuspension.isPending ? restoreSuspension.variables : null,
+        approvingCommentImage: approveCommentImage.isPending ? approveCommentImage.variables : null,
+        suspendingCommentImage: suspendCommentImage.isPending
+            ? suspendCommentImage.variables?.id
+            : null,
     }
 }

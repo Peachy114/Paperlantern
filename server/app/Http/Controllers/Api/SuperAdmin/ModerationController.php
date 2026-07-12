@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Chapter;
+use App\Models\Comment;
 use App\Models\ContentSuspension;
 use App\Models\StickyNote;
 use App\Models\User;
@@ -58,6 +59,41 @@ class ModerationController extends Controller
     }
 
     // ── Chapters ──────────────────────────────────────────────────
+
+    public function approveCommentImage(Request $request, Comment $comment): JsonResponse
+    {
+        abort_unless($comment->image_path, 422, 'This comment does not have an uploaded image.');
+
+        $comment->update(['image_moderation_status' => 'approved']);
+
+        return response()->json([
+            'message' => 'Comment image approved.',
+            'comment' => $comment->fresh(['user:id,name,username,strike_count,is_suspended']),
+        ]);
+    }
+
+    public function suspendCommentImage(Request $request, Comment $comment): JsonResponse
+    {
+        abort_unless($comment->image_path, 422, 'This comment does not have an uploaded image.');
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $result = $this->contentSuspensions->suspend(
+            $comment,
+            $request->user(),
+            $validated['reason'],
+            'image_path'
+        );
+
+        $comment->update(['image_moderation_status' => 'suspended']);
+
+        return response()->json([
+            ...$result,
+            'comment' => $comment->fresh(['user:id,name,username,strike_count,is_suspended']),
+        ]);
+    }
 
     // GET /api/admin/moderation/chapters/{chapter}
     public function show(Chapter $chapter): JsonResponse

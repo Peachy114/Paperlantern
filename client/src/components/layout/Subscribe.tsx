@@ -57,7 +57,7 @@ export default function Subscribe() {
     }
 
     return (
-        <div className="w-full bg-[#181818] dark:bg-black border-t mt-20">
+        <div className="w-full bg-[#181818] dark:bg-black border-t mt-20 z-90">
             {/* Social icons */}
             <div className="flex justify-center items-center gap-3 py-5 border border-[#3f3f3f] dark:border-[#181818] ">
                 {SOCIAL.map(({ label, href, icon: Icon }) => (

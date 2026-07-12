@@ -40,6 +40,19 @@ class SuperAdminService
         return ['message' => 'User unbanned and strike count reset.', 'user' => $result];
     }
 
+    public function updateArtistVerification(string $adminId, User $user, bool $verified): array
+    {
+        $result = $this->repo->updateArtistVerification($user, $verified);
+        $this->repo->log(
+            $adminId,
+            $verified ? 'verified_artist' : 'unverified_artist',
+            'user',
+            $user->id
+        );
+
+        return ['message' => $verified ? 'Artist verified.' : 'Artist verification removed.', 'user' => $result];
+    }
+
     public function deleteUser(string $adminId, User $user): void
     {
         $this->repo->log($adminId, 'deleted_user', 'user', $user->id);

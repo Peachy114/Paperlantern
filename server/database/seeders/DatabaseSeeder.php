@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             SuperAdminSeeder::class,
             CreditPackageSeeder::class,
+            SuperLikeAwardSeeder::class,
             // WorkSeeder::class,
         ]);
 

@@ -12,6 +12,7 @@ export interface Art {
     moderation_status: 'pending' | 'approved' | 'rejected'
     views: number
     likes: number
+    liked_by_me?: boolean
     comments_count: number
     super_likes_count: number
     super_like_credits: number
@@ -23,6 +24,7 @@ export interface Art {
         username: string
         role: 'super_admin' | 'storyteller' | 'wanderer'
         avatar?: string | null
+        artist_verified?: boolean
     } | null
     created_at: string
     updated_at: string

@@ -34,12 +34,18 @@ class ChapterRepository
         return $work->chapters()->max('order') + 1;
     }
 
-    public function saveImages(Chapter $chapter, array $files): void
+    public function saveImages(Chapter $chapter, array $files, int $startOrder = 0): void
     {
         foreach ($files as $index => $file) {
             $path = $file->store('chapter-images', 'public');
-            $chapter->images()->create(['path' => $path, 'order' => $index]);
+            $chapter->images()->create(['path' => $path, 'order' => $startOrder + $index]);
         }
+    }
+
+    public function appendImages(Chapter $chapter, array $files): void
+    {
+        $lastOrder = $chapter->images()->max('order');
+        $this->saveImages($chapter, $files, $lastOrder === null ? 0 : ((int) $lastOrder) + 1);
     }
 
     public function deleteImages(Chapter $chapter): void

@@ -49,7 +49,7 @@ class PublicWorkController extends Controller
 
     public function showWork(Work $work): JsonResponse
     {
-        if ($work->status === 'draft' || $this->contentSuspensions->isHidden($work)) {
+        if ($this->publicWorkIsUnavailable($work)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -60,7 +60,7 @@ class PublicWorkController extends Controller
 
     public function showChapters(Work $work, Request $request): JsonResponse
     {
-        if ($work->status === 'draft' || $this->contentSuspensions->isHidden($work)) {
+        if ($this->publicWorkIsUnavailable($work)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -72,23 +72,20 @@ class PublicWorkController extends Controller
     
     public function showChapter(Work $work, Chapter $chapter): JsonResponse
     {
-        if ($work->status === 'draft'
+        if ($this->publicWorkIsUnavailable($work)
+            || $chapter->work_id !== $work->id
             || $chapter->status === 'draft'
-            || $this->contentSuspensions->isHidden($work)
             || $this->contentSuspensions->isHidden($chapter)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
         $chapter->load([
             'activeContentSuspensions',
-            'images.activeContentSuspensions',
+            'images',
             'work.user:id,name,username',
         ]);
         $chapter = $this->contentSuspensions->maskChapter($chapter);
-        $chapter->setRelation(
-            'images',
-            $chapter->images->reject(fn($image) => $this->contentSuspensions->isHidden($image))->values()
-        );
+        $chapter->setRelation('images', $chapter->images->values());
         $chapter->work_type = $work->type;
         $chapter->work_user_id = $work->user_id;
         $chapter->artist_username = $chapter->work?->user?->username;
@@ -120,7 +117,10 @@ class PublicWorkController extends Controller
 
     public function recordView(Request $request, Work $work, Chapter $chapter): JsonResponse
     {
-        if ($this->contentSuspensions->isHidden($work) || $this->contentSuspensions->isHidden($chapter)) {
+        if ($this->publicWorkIsUnavailable($work)
+            || $chapter->work_id !== $work->id
+            || $chapter->status === 'draft'
+            || $this->contentSuspensions->isHidden($chapter)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -133,7 +133,10 @@ class PublicWorkController extends Controller
 
     public function toggleLike(Request $request, Work $work, Chapter $chapter): JsonResponse
     {
-        if ($this->contentSuspensions->isHidden($work) || $this->contentSuspensions->isHidden($chapter)) {
+        if ($this->publicWorkIsUnavailable($work)
+            || $chapter->work_id !== $work->id
+            || $chapter->status === 'draft'
+            || $this->contentSuspensions->isHidden($chapter)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -148,7 +151,10 @@ class PublicWorkController extends Controller
     
     public function getLikeStatus(Request $request, Work $work, Chapter $chapter): JsonResponse
     {
-        if ($this->contentSuspensions->isHidden($work) || $this->contentSuspensions->isHidden($chapter)) {
+        if ($this->publicWorkIsUnavailable($work)
+            || $chapter->work_id !== $work->id
+            || $chapter->status === 'draft'
+            || $this->contentSuspensions->isHidden($chapter)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -157,7 +163,7 @@ class PublicWorkController extends Controller
 
     public function getWorkEngagementStatus(Request $request, Work $work): JsonResponse
     {
-        if ($this->contentSuspensions->isHidden($work)) {
+        if ($this->publicWorkIsUnavailable($work)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -166,7 +172,7 @@ class PublicWorkController extends Controller
 
     public function toggleWorkLike(Request $request, Work $work): JsonResponse
     {
-        if ($this->contentSuspensions->isHidden($work)) {
+        if ($this->publicWorkIsUnavailable($work)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -179,7 +185,7 @@ class PublicWorkController extends Controller
 
     public function toggleWorkFavorite(Request $request, Work $work): JsonResponse
     {
-        if ($this->contentSuspensions->isHidden($work)) {
+        if ($this->publicWorkIsUnavailable($work)) {
             return response()->json(['message' => 'Not found.'], 404);
         }
 
@@ -188,5 +194,11 @@ class PublicWorkController extends Controller
         }
 
         return response()->json($this->service->toggleWorkFavorite($work));
+    }
+
+    private function publicWorkIsUnavailable(Work $work): bool
+    {
+        return ! in_array($work->status, ['ongoing', 'completed'], true)
+            || $this->contentSuspensions->isHidden($work);
     }
 }

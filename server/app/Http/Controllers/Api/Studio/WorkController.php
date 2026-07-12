@@ -19,12 +19,15 @@ class WorkController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->normalizeWorkRequest($request);
+
         $validated = $request->validate([
             'title'           => ['required', 'string', 'max:255'],
             'description'     => ['required', 'string', 'max:300'],
             'type'            => ['required', 'in:webtoon,wattpad'],
             'genres'          => ['required', 'array', 'min:1', 'max:5'],
             'genres.*'        => ['string', 'max:50'],
+            'language'        => ['nullable', 'in:en,ko,id,th'],
             'cover'           => ['required', 'image', 'max:2048'],
             'banner'          => ['required', 'image', 'max:2048'], 
             'status'          => ['sometimes', 'in:draft,ongoing,completed,hiatus'],
@@ -55,12 +58,15 @@ class WorkController extends Controller
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
+        $this->normalizeWorkRequest($request);
+
         $validated = $request->validate([
             'title'           => ['sometimes', 'string', 'max:255'],
             'description'     => ['nullable', 'string'],
             'type'            => ['sometimes', 'in:webtoon,wattpad'],
             'genres'          => ['sometimes', 'array', 'min:1', 'max:5'],
             'genres.*'        => ['string', 'max:50'],
+            'language'        => ['sometimes', 'in:en,ko,id,th'],
             'cover'           => ['nullable', 'image', 'max:2048'],
             'banner'          => ['nullable', 'image', 'max:2048'],
             'status'          => ['sometimes', 'in:draft,ongoing,completed,hiatus'],
@@ -100,5 +106,34 @@ class WorkController extends Controller
     private function notOwner(Request $request, Work $work): bool
     {
         return $work->user_id !== $request->user()->id;
+    }
+
+    private function normalizeWorkRequest(Request $request): void
+    {
+        if (! $request->has('schedule_time')) {
+            return;
+        }
+
+        $request->merge([
+            'schedule_time' => $this->normalizeScheduleTime($request->input('schedule_time')),
+        ]);
+    }
+
+    private function normalizeScheduleTime(mixed $value): mixed
+    {
+        if (! is_string($value)) {
+            return $value;
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^(\d{1,2}):(\d{2})(?::\d{2})?$/', $value, $matches)) {
+            return str_pad($matches[1], 2, '0', STR_PAD_LEFT) . ':' . $matches[2];
+        }
+
+        return $value;
     }
 }

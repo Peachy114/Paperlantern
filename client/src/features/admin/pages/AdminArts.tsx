@@ -1,12 +1,14 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowDown, ArrowLeft, ArrowUp, ImageOff, PlusCircle, Sparkles, Trash2 } from 'lucide-react'
 import { adminArtsApi } from '@/api/adminArts'
+import { adminApi } from '@/api/admin'
 import { storageUrl } from '@/utils/storage'
 import type { Art } from '@/types/art'
 import type { ProfileBorder } from '@/types/artistProfile'
+import type { SuperLikeAward } from '@/types/comment'
 import { Button } from '@/components/ui/button'
 import {
     Dialog,
@@ -25,6 +27,16 @@ type FormState = {
     description: string
     labels: string
     images: File[]
+}
+
+type AdminArtistOption = {
+    id: string
+    name: string
+    username: string
+    role: string
+    artist_verified?: boolean
+    works_count?: number
+    arts_count?: number
 }
 
 const EMPTY_FORM: FormState = {
@@ -52,6 +64,29 @@ export default function AdminArts() {
         queryKey: ['admin-profile-borders'],
         queryFn: () => adminArtsApi.profileBorders().then((res) => res.data),
     })
+
+    const { data: users = [] } = useQuery<AdminArtistOption[]>({
+        queryKey: ['admin-users'],
+        queryFn: () => adminApi.getUsers().then((res) => res.data),
+    })
+
+    const artistOptions = useMemo(
+        () => users.filter((user) => user.role === 'storyteller'),
+        [users]
+    )
+
+    const artistMatches = useMemo(() => {
+        const query = featureUsername.trim().toLowerCase()
+        if (!query) return artistOptions.slice(0, 6)
+
+        return artistOptions
+            .filter(
+                (artist) =>
+                    artist.name.toLowerCase().includes(query) ||
+                    artist.username.toLowerCase().includes(query)
+            )
+            .slice(0, 8)
+    }, [artistOptions, featureUsername])
 
     const createArt = useMutation({
         mutationFn: (payload: FormData) => adminArtsApi.create(payload),
@@ -197,23 +232,57 @@ export default function AdminArts() {
                         also appear there automatically.
                     </p>
                 </div>
-                <form onSubmit={handleFeatureArtist} className="grid gap-3 sm:grid-cols-[1fr_120px_auto]">
-                    <Input
-                        value={featureUsername}
-                        onChange={(event) => setFeatureUsername(event.target.value)}
-                        placeholder="artist username"
-                    />
-                    <Input
-                        type="number"
-                        min={1}
-                        max={30}
-                        value={featureDays}
-                        onChange={(event) => setFeatureDays(Number(event.target.value) || 1)}
-                    />
-                    <Button type="submit" disabled={featureArtist.isPending}>
-                        <Sparkles className="h-4 w-4" />
-                        Feature
-                    </Button>
+                <form onSubmit={handleFeatureArtist} className="space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-[1fr_120px_auto]">
+                        <Input
+                            value={featureUsername}
+                            onChange={(event) => setFeatureUsername(event.target.value)}
+                            placeholder="Type artist name or username"
+                        />
+                        <Input
+                            type="number"
+                            min={1}
+                            max={30}
+                            value={featureDays}
+                            onChange={(event) => setFeatureDays(Number(event.target.value) || 1)}
+                            aria-label="Feature days"
+                        />
+                        <Button type="submit" disabled={featureArtist.isPending}>
+                            <Sparkles className="h-4 w-4" />
+                            Feature
+                        </Button>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {artistMatches.map((artist) => (
+                            <button
+                                key={artist.id}
+                                type="button"
+                                onClick={() => setFeatureUsername(artist.username)}
+                                className={`rounded-md border p-3 text-left transition hover:bg-muted ${
+                                    featureUsername.trim().toLowerCase() === artist.username.toLowerCase()
+                                        ? 'border-amber-500 bg-amber-500/10'
+                                        : 'border-border'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="truncate text-sm font-medium">{artist.name}</span>
+                                    {artist.artist_verified && (
+                                        <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium text-sky-700">
+                                            Verified
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="mt-0.5 text-xs text-muted-foreground">@{artist.username}</p>
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                    {(artist.works_count ?? 0).toLocaleString()} works ·{' '}
+                                    {(artist.arts_count ?? 0).toLocaleString()} arts
+                                </p>
+                            </button>
+                        ))}
+                    </div>
+                    {artistOptions.length === 0 && (
+                        <p className="text-xs text-muted-foreground">No storytellers found yet.</p>
+                    )}
                 </form>
             </section>
 
@@ -273,6 +342,8 @@ export default function AdminArts() {
                     </div>
                 )}
             </section>
+
+            <SuperLikeAwardsSection />
 
             {boostedArts.length > 0 && (
                 <section className="mb-6 rounded-lg border bg-amber-500/5">
@@ -399,6 +470,225 @@ export default function AdminArts() {
                     </form>
                 </DialogContent>
             </Dialog>
+        </div>
+    )
+}
+
+type AwardDraft = {
+    name: string
+    icon: string
+    credit_cost: number
+    sort_order: number
+    is_active: boolean
+}
+
+const EMPTY_AWARD: AwardDraft = {
+    name: 'Star',
+    icon: 'star',
+    credit_cost: 1,
+    sort_order: 0,
+    is_active: true,
+}
+
+function iconFromAwardName(name: string): string {
+    const normalized = name.trim().toLowerCase()
+    if (normalized.includes('rocket')) return 'rocket'
+    if (normalized.includes('glass')) return 'glasses'
+    if (normalized.includes('star')) return 'star'
+
+    return 'sparkles'
+}
+
+function SuperLikeAwardsSection() {
+    const queryClient = useQueryClient()
+    const [draft, setDraft] = useState<AwardDraft>(EMPTY_AWARD)
+
+    const { data: awards = [] } = useQuery<SuperLikeAward[]>({
+        queryKey: ['admin-super-like-awards'],
+        queryFn: () => adminApi.getSuperLikeAwards().then((res) => res.data.data),
+    })
+
+    const createAward = useMutation({
+        mutationFn: (payload: AwardDraft) => adminApi.createSuperLikeAward(payload),
+        onSuccess: () => {
+            toast.success('Super Like award added.')
+            queryClient.invalidateQueries({ queryKey: ['admin-super-like-awards'] })
+            queryClient.invalidateQueries({ queryKey: ['super-like-awards'] })
+            setDraft(EMPTY_AWARD)
+        },
+        onError: () => toast.error('Could not add Super Like award.'),
+    })
+
+    const updateAward = useMutation({
+        mutationFn: ({ id, payload }: { id: string; payload: AwardDraft }) =>
+            adminApi.updateSuperLikeAward(id, payload),
+        onSuccess: () => {
+            toast.success('Super Like award updated.')
+            queryClient.invalidateQueries({ queryKey: ['admin-super-like-awards'] })
+            queryClient.invalidateQueries({ queryKey: ['super-like-awards'] })
+        },
+        onError: () => toast.error('Could not update Super Like award.'),
+    })
+
+    const disableAward = useMutation({
+        mutationFn: (id: string) => adminApi.deleteSuperLikeAward(id),
+        onSuccess: () => {
+            toast.success('Super Like award disabled.')
+            queryClient.invalidateQueries({ queryKey: ['admin-super-like-awards'] })
+            queryClient.invalidateQueries({ queryKey: ['super-like-awards'] })
+        },
+        onError: () => toast.error('Could not disable Super Like award.'),
+    })
+
+    const submit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault()
+        if (!draft.name.trim()) {
+            toast.error('Award name is required.')
+            return
+        }
+        createAward.mutate({
+            ...draft,
+            name: draft.name.trim(),
+            icon: draft.icon.trim() || iconFromAwardName(draft.name),
+            sort_order: draft.sort_order || awards.length + 1,
+        })
+    }
+
+    return (
+        <section className="mb-6 rounded-lg border bg-background p-4">
+            <div className="mb-3">
+                <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                    Super Like Awards
+                </p>
+                <h2 className="mt-1 text-lg font-semibold">Default Award Types</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Configure the awards users can send to comments, chapters, works, and arts.
+                </p>
+            </div>
+
+            <form onSubmit={submit} className="grid gap-3 md:grid-cols-[1fr_140px_auto]">
+                <div className="grid gap-1.5">
+                    <Label htmlFor="award-name">Name</Label>
+                    <Input
+                        id="award-name"
+                        value={draft.name}
+                        onChange={(event) =>
+                            setDraft((current) => ({
+                                ...current,
+                                name: event.target.value,
+                                icon: iconFromAwardName(event.target.value),
+                            }))
+                        }
+                        placeholder="Star"
+                    />
+                </div>
+                <div className="grid gap-1.5">
+                    <Label htmlFor="award-credit">Credit</Label>
+                    <Input
+                        id="award-credit"
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={draft.credit_cost}
+                        onChange={(event) =>
+                            setDraft((current) => ({ ...current, credit_cost: Number(event.target.value) || 1 }))
+                        }
+                    />
+                </div>
+                <Button type="submit" disabled={createAward.isPending}>
+                    <PlusCircle className="h-4 w-4" />
+                    Add Award
+                </Button>
+            </form>
+
+            <div className="mt-4 grid gap-2">
+                {awards.map((award) => (
+                    <SuperLikeAwardRow
+                        key={award.id}
+                        award={award}
+                        busy={updateAward.isPending || disableAward.isPending}
+                        onSave={(payload) => updateAward.mutate({ id: award.id, payload })}
+                        onDisable={() => disableAward.mutate(award.id)}
+                    />
+                ))}
+            </div>
+        </section>
+    )
+}
+
+function SuperLikeAwardRow({
+    award,
+    busy,
+    onSave,
+    onDisable,
+}: {
+    award: SuperLikeAward
+    busy: boolean
+    onSave: (payload: AwardDraft) => void
+    onDisable: () => void
+}) {
+    const [draft, setDraft] = useState<AwardDraft>({
+        name: award.name,
+        icon: award.icon,
+        credit_cost: award.credit_cost,
+        sort_order: award.sort_order ?? 0,
+        is_active: Boolean(award.is_active),
+    })
+
+    useEffect(() => {
+        setDraft({
+            name: award.name,
+            icon: award.icon,
+            credit_cost: award.credit_cost,
+            sort_order: award.sort_order ?? 0,
+            is_active: Boolean(award.is_active),
+        })
+    }, [award])
+
+    return (
+        <div className="grid gap-2 rounded-md border bg-muted/20 p-2 md:grid-cols-[1fr_120px_110px_110px_90px_auto_auto]">
+            <Input
+                value={draft.name}
+                onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+            />
+            <Input
+                value={draft.icon}
+                onChange={(event) => setDraft((current) => ({ ...current, icon: event.target.value }))}
+            />
+            <Input
+                type="number"
+                min={1}
+                max={100}
+                value={draft.credit_cost}
+                onChange={(event) =>
+                    setDraft((current) => ({ ...current, credit_cost: Number(event.target.value) || 1 }))
+                }
+            />
+            <Input
+                type="number"
+                min={0}
+                max={999}
+                value={draft.sort_order}
+                onChange={(event) =>
+                    setDraft((current) => ({ ...current, sort_order: Number(event.target.value) || 0 }))
+                }
+            />
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                    type="checkbox"
+                    checked={draft.is_active}
+                    onChange={(event) =>
+                        setDraft((current) => ({ ...current, is_active: event.target.checked }))
+                    }
+                />
+                Active
+            </label>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => onSave(draft)}>
+                Save
+            </Button>
+            <Button type="button" variant="ghost" className="text-red-500 hover:text-red-500" disabled={busy} onClick={onDisable}>
+                Disable
+            </Button>
         </div>
     )
 }

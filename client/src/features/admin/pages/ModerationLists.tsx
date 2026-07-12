@@ -494,11 +494,23 @@ function ReviewContentSection({
     review,
     suspendContent,
     restoreSuspension,
+    approveCommentImage,
+    suspendCommentImage,
     suspendingContent,
     restoringSuspension,
+    approvingCommentImage,
+    suspendingCommentImage,
 }: Pick<
     ReturnType<typeof useAdminModerationQueue>,
-    'review' | 'suspendContent' | 'restoreSuspension' | 'suspendingContent' | 'restoringSuspension'
+    | 'review'
+    | 'suspendContent'
+    | 'restoreSuspension'
+    | 'approveCommentImage'
+    | 'suspendCommentImage'
+    | 'suspendingContent'
+    | 'restoringSuspension'
+    | 'approvingCommentImage'
+    | 'suspendingCommentImage'
 >) {
     const navigate = useNavigate()
     const [suspendTarget, setSuspendTarget] = useState<{
@@ -507,12 +519,18 @@ function ReviewContentSection({
         field?: string | null
         label: string
     } | null>(null)
+    const [commentImageSuspend, setCommentImageSuspend] = useState<{
+        id: string
+        label: string
+    } | null>(null)
+    const commentImages = review.comment_images ?? []
 
     const itemsCount =
         review.works.length +
         review.chapters.length +
         review.arts.length +
-        review.profile_blocks.length
+        review.profile_blocks.length +
+        commentImages.length
 
     const keyFor = (type: string, id: string, field?: string | null) =>
         `${type}:${id}:${field ?? ''}`
@@ -693,6 +711,49 @@ function ReviewContentSection({
                                 }
                             />
                         ))}
+                        {commentImages.map((comment) => (
+                            <ReviewRow
+                                key={`comment-image-${comment.id}`}
+                                image={comment.image_path}
+                                title={comment.body || 'Comment image upload'}
+                                meta={`Comment image by @${comment.user?.username ?? 'unknown'}`}
+                                actions={
+                                    <>
+                                        <button
+                                            onClick={() => approveCommentImage(comment.id)}
+                                            disabled={approvingCommentImage === comment.id}
+                                            className="border-[2px] border-green-400 text-green-700 px-2 py-1 text-[10px] disabled:opacity-50"
+                                            style={{
+                                                fontFamily: "'Bebas Neue', sans-serif",
+                                                letterSpacing: '0.1em',
+                                            }}
+                                        >
+                                            {approvingCommentImage === comment.id
+                                                ? 'APPROVING...'
+                                                : 'APPROVE'}
+                                        </button>
+                                        <button
+                                            onClick={() =>
+                                                setCommentImageSuspend({
+                                                    id: comment.id,
+                                                    label: comment.body || 'comment image',
+                                                })
+                                            }
+                                            disabled={suspendingCommentImage === comment.id}
+                                            className="border-[2px] border-red-300 text-red-500 hover:bg-red-50 px-2 py-1 text-[10px] disabled:opacity-50"
+                                            style={{
+                                                fontFamily: "'Bebas Neue', sans-serif",
+                                                letterSpacing: '0.1em',
+                                            }}
+                                        >
+                                            {suspendingCommentImage === comment.id
+                                                ? 'SUSPENDING...'
+                                                : 'SUSPEND IMAGE'}
+                                        </button>
+                                    </>
+                                }
+                            />
+                        ))}
                         {review.profile_blocks.map((block) => (
                             <ReviewRow
                                 key={`profile-block-${block.id}`}
@@ -728,6 +789,15 @@ function ReviewContentSection({
                         setSuspendTarget(null)
                     }}
                     onCancel={() => setSuspendTarget(null)}
+                />
+            )}
+            {commentImageSuspend && (
+                <ViolateForm
+                    onConfirm={(reason) => {
+                        suspendCommentImage(commentImageSuspend.id, reason)
+                        setCommentImageSuspend(null)
+                    }}
+                    onCancel={() => setCommentImageSuspend(null)}
                 />
             )}
         </>
@@ -860,8 +930,12 @@ function ModerationQueue() {
                             review={queue.review}
                             suspendContent={queue.suspendContent}
                             restoreSuspension={queue.restoreSuspension}
+                            approveCommentImage={queue.approveCommentImage}
+                            suspendCommentImage={queue.suspendCommentImage}
                             suspendingContent={queue.suspendingContent}
                             restoringSuspension={queue.restoringSuspension}
+                            approvingCommentImage={queue.approvingCommentImage}
+                            suspendingCommentImage={queue.suspendingCommentImage}
                         />
 
                         {/* Footer */}

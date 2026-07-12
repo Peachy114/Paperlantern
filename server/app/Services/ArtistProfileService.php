@@ -8,6 +8,7 @@ use App\Models\ArtistProfileBlock;
 use App\Models\ArtistSticker;
 use App\Models\Comment;
 use App\Models\ProfileBorder;
+use App\Models\SuperLike;
 use App\Models\User;
 use App\Models\Work;
 use Illuminate\Http\Request;
@@ -58,7 +59,7 @@ class ArtistProfileService
                 ->with('activeContentSuspensions')
                 ->withCount(['chapters' => fn($query) => $query->where('status', '!=', 'draft')])
                 ->latest()
-                ->get(['id', 'slug', 'title', 'description', 'type', 'genres', 'cover', 'status', 'views', 'likes', 'created_at'])
+                ->get(['id', 'slug', 'title', 'description', 'type', 'genres', 'language', 'cover', 'status', 'views', 'likes', 'created_at'])
                 ->map(fn(Work $work) => $this->contentSuspensions->maskWork($work)),
             'comments' => Comment::where('user_id', $artist->id)
                 ->where('status', 'visible')
@@ -88,7 +89,7 @@ class ArtistProfileService
             }
             $validated['avatar'] = $request->file('avatar')->store('avatars', 'public');
         }
-        unset($validated['avatar']);
+        // unset($validated['avatar']);
 
         if ($request->hasFile('background_image')) {
             if ($user->profile_background_image) {
@@ -319,6 +320,7 @@ class ArtistProfileService
             'name' => $artist->name,
             'username' => $artist->username,
             'role' => $artist->role,
+            'artist_verified' => (bool) ($artist->artist_verified ?? false),
             'avatar' => $artist->avatar,
             'profile_cover' => $artist->profile_cover,
             'artist_title' => $artist->artist_title,
@@ -460,8 +462,41 @@ class ArtistProfileService
                 'y' => $this->clampNumber($value['cover_offset']['y'] ?? 0, -180, 180),
             ],
             'border_offset' => [
-                'x' => $this->clampNumber($value['border_offset']['x'] ?? 0, -80, 80),
-                'y' => $this->clampNumber($value['border_offset']['y'] ?? 0, -80, 80),
+                'x' => (float) ($value['border_offset']['x'] ?? 0),
+                'y' => (float) ($value['border_offset']['y'] ?? 0),
+            ],
+
+            'border_scale' => max(
+                0.05,
+                (float) ($value['border_scale'] ?? 1.35)
+            ),
+
+            'border_width' => max(
+                0.05,
+                (float) (
+                    $value['border_width']
+                    ?? $value['border_scale']
+                    ?? 1.35
+                )
+            ),
+
+            'border_height' => max(
+                0.05,
+                (float) (
+                    $value['border_height']
+                    ?? $value['border_scale']
+                    ?? 1.35
+                )
+            ),
+
+            'border_layer' => ($value['border_layer'] ?? 'front') === 'back'
+                ? 'back'
+                : 'front',
+            'nav_locked' => (bool) ($value['nav_locked'] ?? false),
+            'header_locks' => [
+                'cover_frame' => (bool) ($value['header_locks']['cover_frame'] ?? false),
+                'avatar_frame' => (bool) ($value['header_locks']['avatar_frame'] ?? false),
+                'avatar_border' => (bool) ($value['header_locks']['avatar_border'] ?? false),
             ],
         ];
     }
@@ -496,6 +531,16 @@ class ArtistProfileService
             ],
             'cover_offset' => ['x' => 0, 'y' => 0],
             'border_offset' => ['x' => 0, 'y' => 0],
+            'border_scale' => 1.35,
+            'border_width' => 1.35,
+            'border_height' => 1.35,
+            'border_layer' => 'front',
+            'nav_locked' => false,
+            'header_locks' => [
+                'cover_frame' => false,
+                'avatar_frame' => false,
+                'avatar_border' => false,
+            ],
         ];
     }
 
@@ -504,9 +549,13 @@ class ArtistProfileService
         $allowedTypes = ['board', 'arts', 'works', 'stickers', 'comments'];
         $allowedDisplays = [
             'grid',
+            'standard',
             'masonry',
             'pinterest',
             'instagram',
+            'bento',
+            'magazine',
+            'gallery',
             'carousel',
             'row',
             'image',
@@ -539,6 +588,7 @@ class ArtistProfileService
                 'pagination' => array_key_exists('pagination', $item)
                     ? (bool) $item['pagination']
                     : true,
+                'locked' => (bool) ($item['locked'] ?? false),
                 'x' => $this->clampNumber($item['x'] ?? 0, 0, 95),
                 'y' => $this->clampNumber($item['y'] ?? 0, 0, 2400),
                 'w' => $this->clampNumber($item['w'] ?? 30, $kind === 'tab' ? 10 : 5, 100),
@@ -586,12 +636,6 @@ class ArtistProfileService
                 ]);
             }
 
-            if (!filter_var($url, FILTER_VALIDATE_URL)) {
-                throw ValidationException::withMessages([
-                    'profile_links' => ['Each public link needs a valid URL.'],
-                ]);
-            }
-
             $imagePath = $link['image_path'] ?? null;
             if (isset($files[$index])) {
                 if ($imagePath) {
@@ -636,8 +680,21 @@ class ArtistProfileService
     {
         return [
             'id' => $comment->id,
+            'parent_id' => $comment->parent_id,
             'body' => $comment->body,
             'created_at' => $comment->created_at,
+            'likes_count' => (int) $comment->likes_count,
+            'replies_count' => (int) $comment->replies_count,
+            'super_likes_count' => (int) $comment->super_likes_count,
+            'awards' => $this->commentAwardSummary($comment),
+            'parent' => $comment->parent ? [
+                'id' => $comment->parent->id,
+                'body' => $comment->parent->body,
+                'user' => $comment->parent->user ? [
+                    'name' => $comment->parent->user->name,
+                    'username' => $comment->parent->user->username,
+                ] : null,
+            ] : null,
             'origin' => $this->formatCommentOrigin($comment->commentable),
             'sticker' => $comment->sticker ? [
                 'id' => $comment->sticker->id,
@@ -645,6 +702,28 @@ class ArtistProfileService
                 'image_path' => $comment->sticker->image_path,
             ] : null,
         ];
+    }
+
+    private function commentAwardSummary(Comment $comment): array
+    {
+        return SuperLike::query()
+            ->where('super_likeable_type', $comment::class)
+            ->where('super_likeable_id', $comment->id)
+            ->with('award:id,name,icon,credit_cost')
+            ->get()
+            ->groupBy('super_like_award_id')
+            ->map(function ($items) {
+                $first = $items->first();
+                return [
+                    'id' => $first->award?->id,
+                    'name' => $first->award?->name ?? 'Super Like',
+                    'icon' => $first->award?->icon ?? 'star',
+                    'credit_cost' => (int) ($first->award?->credit_cost ?? 1),
+                    'count' => $items->count(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function formatCommentOrigin(mixed $target): array

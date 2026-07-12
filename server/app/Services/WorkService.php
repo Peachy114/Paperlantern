@@ -21,6 +21,7 @@ class WorkService
     public function createWork($user, array $validated, Request $request): Work
     {
         $validated['slug'] = Work::generateSlug($validated['title']);
+        $validated['language'] = $validated['language'] ?? 'en';
 
         if ($request->hasFile('cover')) {
             $validated['cover'] = $this->storeImageWithThumbnail($request->file('cover'), 'covers');

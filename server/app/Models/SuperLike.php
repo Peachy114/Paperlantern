@@ -14,6 +14,7 @@ class SuperLike extends Model
     protected $fillable = [
         'sender_id',
         'receiver_id',
+        'super_like_award_id',
         'super_likeable_type',
         'super_likeable_id',
         'credits_spent',
@@ -38,6 +39,11 @@ class SuperLike extends Model
     public function receiver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'receiver_id');
+    }
+
+    public function award(): BelongsTo
+    {
+        return $this->belongsTo(SuperLikeAward::class, 'super_like_award_id');
     }
 
     public function superLikeable(): MorphTo

@@ -148,13 +148,13 @@ export default function PublicShowView() {
                     <PublicShowNovelContent content={chapter.content} />
                 )}
 
-                <PublicShowLikes liked={liked} likes={likes} toggleLike={toggleLike} />
-
-                <div className="mt-4 flex justify-end">
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <PublicShowLikes liked={liked} likes={likes} toggleLike={toggleLike} />
                     <SuperLikeButton
                         targetType="chapter"
                         targetId={chapter.id}
                         initialCount={chapter.super_likes_count ?? 0}
+                        label="Super Like this chapter"
                         ownerUserId={chapter.work_user_id}
                     />
                 </div>

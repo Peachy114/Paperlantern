@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { studioApi } from '@/api/studio'
 import { storageUrl } from '@/utils/storage'
 import { containsBadWord } from '@/lib/badWords'
+import { uploadChapterImagesInBatches } from '../utils/chapterImageUpload'
 import * as Yup from 'yup'
 
 interface ImageItem {
@@ -180,11 +181,14 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
             if (form.scheduled_at) formData.append('scheduled_at', form.scheduled_at)
             if (cover) formData.append('cover', cover)
 
+            const newFiles = imageItems
+                .filter((item) => item.file)
+                .map((item) => item.file!)
+
             if (workType === 'webtoon') {
-                const newFiles = imageItems.filter((item) => item.file)
                 const existingIds = imageItems.filter((item) => item.id && !item.file)
                 if (newFiles.length > 0) {
-                    newFiles.forEach((item) => formData.append('images[]', item.file!))
+                    formData.append('replace_images', '1')
                 } else if (existingIds.length > 0) {
                     existingIds.forEach((item) =>
                         formData.append('existing_image_ids[]', String(item.id))
@@ -192,7 +196,14 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
                 }
             }
 
-            await studioApi.updateChapter(workSlug!, chapterSlug!, formData)
+            const chapterRes = await studioApi.updateChapter(workSlug!, chapterSlug!, formData)
+            if (workType === 'webtoon' && newFiles.length > 0) {
+                await uploadChapterImagesInBatches(
+                    workSlug!,
+                    chapterRes.data.slug ?? chapterSlug!,
+                    newFiles
+                )
+            }
             navigate(`/studio/works/${workSlug}/chapters`)
         } catch (err: any) {
             const message =
