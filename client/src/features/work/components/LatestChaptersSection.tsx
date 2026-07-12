@@ -54,7 +54,10 @@ export default function LatestChaptersSection({
                                     <img
                                         src={cover(chapter.cover ?? chapter.work!.cover, 'sm')!}
                                         alt={chapter.work!.title}
+                                        width={220}
+                                        height={293}
                                         loading="lazy"
+                                        decoding="async"
                                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                                     />
                                 )}

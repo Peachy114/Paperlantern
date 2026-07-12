@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use App\Models\ChapterView;
+use App\Models\Concerns\HasContentSuspensions;
 
 class Work extends Model
 {
-    use HasFactory, SoftDeletes, HasUuids;
+    use HasFactory, SoftDeletes, HasUuids, HasContentSuspensions;
 
     protected $fillable = [
         'user_id',
@@ -20,6 +21,7 @@ class Work extends Model
         'type',
         'slug',
         'genres',
+        'language',
         'cover',
         'banner',
         'status',
@@ -29,6 +31,11 @@ class Work extends Model
         'next_chapter_at',
         'views',
         'likes',
+        'work_likes_count',
+        'favorites_count',
+        'comments_count',
+        'super_likes_count',
+        'super_like_credits',
     ];
 
     protected function casts(): array
@@ -37,6 +44,12 @@ class Work extends Model
             'genres'          => 'array',
             'next_chapter_at' => 'date',
             'views'           => 'integer',
+            'likes'           => 'integer',
+            'work_likes_count' => 'integer',
+            'favorites_count' => 'integer',
+            'comments_count'  => 'integer',
+            'super_likes_count' => 'integer',
+            'super_like_credits' => 'decimal:2',
         ];
     }
 
@@ -48,6 +61,21 @@ class Work extends Model
     public function chapters()
     {
         return $this->hasMany(Chapter::class)->orderBy('order');
+    }
+
+    public function comments()
+    {
+        return $this->morphMany(Comment::class, 'commentable');
+    }
+
+    public function workLikes()
+    {
+        return $this->hasMany(WorkLike::class);
+    }
+
+    public function favorites()
+    {
+        return $this->hasMany(WorkFavorite::class);
     }
 
     public function chapterViews(): \Illuminate\Database\Eloquent\Relations\HasManyThrough

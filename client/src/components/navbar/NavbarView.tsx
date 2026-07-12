@@ -1,11 +1,14 @@
-import type { Dispatch, SetStateAction } from 'react'
+import { lazy, Suspense, type Dispatch, type SetStateAction } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import SearchBar from '../pages/SearchBar'
-import Profile from '../pages/Profile'
+import SearchBar from '@/components/search/SearchBar'
+import ThemedLogo from '@/components/layout/ThemedLogo'
+import type { User } from '@/store/authStore'
+
+const Profile = lazy(() => import('@/components/profile/Profile'))
 
 interface NavbarViewProps {
-    user: any
+    user: User | null
     token: string | null
     isChapterPage: boolean
     isComicsActive: boolean
@@ -31,7 +34,7 @@ export default function NavbarView({
 }: NavbarViewProps) {
     const navLinks = [
         { label: 'COMIX', to: '/comix', active: isComicsActive },
-        { label: 'ARTS', to: '/arts', active: isNovelsActive },
+        { label: 'ARTS', to: '/explore/arts', active: isNovelsActive },
     ]
 
     return (
@@ -50,20 +53,11 @@ export default function NavbarView({
                 {/* LOGO — left column */}
                 <div className="flex items-center gap-4 justify-self-start">
                     <Link to="/" className="shrink-0">
-                        <img
-                            src="/logo_white.png"
-                            alt="logo"
+                        <ThemedLogo
                             width={100}
                             height={100}
-                            className="dark:block hidden"
-                        />
-
-                        <img
-                            src="/logo_black.png"
-                            alt="logo"
-                            width={100}
-                            height={100}
-                            className="dark:hidden block"
+                            fetchPriority="high"
+                            decoding="async"
                         />
                     </Link>
                 </div>
@@ -128,11 +122,13 @@ export default function NavbarView({
                     )}
 
                     {profileOpen && (
-                        <Profile
-                            open={profileOpen}
-                            setOpen={setProfileOpen}
-                            buttonRef={profileButtonRef}
-                        />
+                        <Suspense fallback={null}>
+                            <Profile
+                                open={profileOpen}
+                                setOpen={setProfileOpen}
+                                buttonRef={profileButtonRef}
+                            />
+                        </Suspense>
                     )}
                 </div>
             </div>

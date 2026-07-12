@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use App\Models\Art;
 use App\Models\Work;
 
 Artisan::command('inspire', function () {
@@ -11,7 +12,11 @@ Artisan::command('inspire', function () {
 
 Schedule::call(function () {
     Work::onlyTrashed()
-        ->where('deleted_at', '<', now()->subDays(15))
+        ->where('deleted_at', '<', now()->subDays(30))
+        ->forceDelete();
+
+    Art::onlyTrashed()
+        ->where('deleted_at', '<', now()->subDays(30))
         ->forceDelete();
 })->daily();
 

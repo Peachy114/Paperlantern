@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { studioApi } from '@/api/studio'
 import { containsBadWord } from '@/lib/badWords'
+import { uploadChapterImagesInBatches } from '../utils/chapterImageUpload'
 import * as Yup from 'yup'
 
 const noBadWords = (field: string) =>
@@ -147,7 +148,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
                     if (e.path && !errors[e.path]) errors[e.path] = e.message
                 })
                 setFieldErrors(errors)
-                setError('Please fix the highlighted fields.')
+                setError('Please fix the fields marked in red.')
             }
             setLoading(false)
             return
@@ -165,9 +166,12 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
             )
             if (form.scheduled_at) formData.append('scheduled_at', form.scheduled_at)
             if (cover) formData.append('cover', cover)
-            if (workType === 'webtoon') images.forEach((img) => formData.append('images[]', img))
+            if (workType === 'webtoon') formData.append('defer_images', '1')
 
-            await studioApi.createChapter(workSlug!, formData)
+            const chapterRes = await studioApi.createChapter(workSlug!, formData)
+            if (workType === 'webtoon') {
+                await uploadChapterImagesInBatches(workSlug!, chapterRes.data.slug, images)
+            }
             navigate(`/studio/works/${workSlug}/chapters`)
         } catch (err: any) {
             if (err.response?.status === 422 && err.response?.data?.errors) {
@@ -177,7 +181,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
                     if (!parsed[key]) parsed[key] = messages[0]
                 }
                 setFieldErrors(parsed)
-                setError('Please fix the highlighted fields.')
+                setError('Please fix the fields marked in red.')
             } else {
                 const message =
                     err?.response?.data?.message ?? 'Failed to create chapter. Please try again.'

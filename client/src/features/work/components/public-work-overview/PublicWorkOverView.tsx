@@ -3,12 +3,18 @@ import { useComicShow } from '@/features/work/hooks/useComicShow'
 import { useAuthStore } from '@/store/authStore'
 import { useModalStore } from '@/store/modalStore'
 import { useWallet, unlockChapter } from '@/hooks/useWallet'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Bookmark, Heart, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import UnlockModal from '@/components/shared/UnlockModalChapter'
 
 import PublicWorkHeader from './PublicWorkHeader'
 import PublicWorkInfo from './PublicWorkInfo'
 import PublicWorkChapterList from './PublicWorkChapterList'
+import CommentSection from '@/features/comments/components/CommentSection'
+import SuperLikeButton from '@/features/comments/components/SuperLikeButton'
+import { publicApi } from '@/api/public'
+import { Button } from '@/components/ui/button'
 
 export default function PublicWorkOverview() {
     const { work, chapters, isOwner, navigate, coverUrl, slug } = useComicShow()
@@ -109,7 +115,136 @@ export default function PublicWorkOverview() {
                         />
                     </div>
                 </div>
+
+                {work?.id && (
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                            <WorkEngagementButtons
+                                slug={slug ?? ''}
+                                initialLikeCount={work.work_likes_count ?? 0}
+                                initialFavoriteCount={work.favorites_count ?? 0}
+                            />
+                            <SuperLikeButton
+                                targetType="work"
+                                targetId={work.id}
+                                initialCount={work.super_likes_count ?? 0}
+                                ownerUserId={work.user_id}
+                            />
+                        </div>
+                        <CommentSection
+                            targetType="work"
+                            targetId={work.id}
+                            artistUsername={work.user?.username}
+                            title={`${work.title} comments`}
+                        />
+                    </div>
+                )}
             </div>
+        </>
+    )
+}
+
+interface WorkEngagement {
+    liked: boolean
+    favorited: boolean
+    work_likes_count: number
+    favorites_count: number
+}
+
+function WorkEngagementButtons({
+    slug,
+    initialLikeCount,
+    initialFavoriteCount,
+}: {
+    slug: string
+    initialLikeCount: number
+    initialFavoriteCount: number
+}) {
+    const { token } = useAuthStore()
+    const { openLogin } = useModalStore()
+    const queryClient = useQueryClient()
+    const queryKey = ['work-engagement', slug]
+
+    const fallback: WorkEngagement = {
+        liked: false,
+        favorited: false,
+        work_likes_count: initialLikeCount,
+        favorites_count: initialFavoriteCount,
+    }
+
+    const { data = fallback } = useQuery<WorkEngagement>({
+        queryKey,
+        queryFn: () => publicApi.getWorkEngagement(slug).then((res) => res.data),
+        enabled: Boolean(slug),
+        initialData: fallback,
+    })
+
+    const mergeEngagement = (next: Partial<WorkEngagement>) => {
+        queryClient.setQueryData<WorkEngagement>(queryKey, (current) => ({
+            ...(current ?? fallback),
+            ...next,
+        }))
+    }
+
+    const likeMutation = useMutation({
+        mutationFn: () => publicApi.toggleWorkLike(slug).then((res) => res.data),
+        onSuccess: (result) => mergeEngagement(result),
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message ?? 'Could not update like.')
+        },
+    })
+
+    const favoriteMutation = useMutation({
+        mutationFn: () => publicApi.toggleWorkFavorite(slug).then((res) => res.data),
+        onSuccess: (result) => mergeEngagement(result),
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message ?? 'Could not update favorite.')
+        },
+    })
+
+    const requireLogin = () => {
+        if (token) return true
+        openLogin()
+        return false
+    }
+
+    return (
+        <>
+            <Button
+                type="button"
+                size="sm"
+                variant={data.favorited ? 'default' : 'outline'}
+                onClick={() => {
+                    if (requireLogin()) favoriteMutation.mutate()
+                }}
+                disabled={favoriteMutation.isPending}
+            >
+                {favoriteMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <Bookmark className={`h-4 w-4 ${data.favorited ? 'fill-current' : ''}`} />
+                )}
+                Favorite
+                <span className="text-xs opacity-75">{data.favorites_count.toLocaleString()}</span>
+            </Button>
+
+            <Button
+                type="button"
+                size="sm"
+                variant={data.liked ? 'default' : 'outline'}
+                onClick={() => {
+                    if (requireLogin()) likeMutation.mutate()
+                }}
+                disabled={likeMutation.isPending}
+            >
+                {likeMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <Heart className={`h-4 w-4 ${data.liked ? 'fill-current' : ''}`} />
+                )}
+                Like
+                <span className="text-xs opacity-75">{data.work_likes_count.toLocaleString()}</span>
+            </Button>
         </>
     )
 }

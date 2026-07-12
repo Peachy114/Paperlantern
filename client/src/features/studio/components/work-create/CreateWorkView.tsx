@@ -1,6 +1,8 @@
-import { useCreateWork, GENRES } from '@/features/studio/hooks/useCreateWork'
+import { useCreateWork, GENRES, WORK_LANGUAGES } from '@/features/studio/hooks/useCreateWork'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Label } from '@/components/ui/label'
+import FieldError from '@/components/ui/FieldError'
 import { ChevronLeft } from 'lucide-react'
 
 import CreateWorkTitle from './CreateWorkTitle'
@@ -192,6 +194,27 @@ export default function CreateWorkView() {
                             error={fe('description')}
                             fieldErrors={fieldErrors}
                         />
+
+                        <div className="flex flex-col gap-1.5">
+                            <Label>
+                                Language <span className="text-red-400">*</span>
+                            </Label>
+                            <select
+                                name="language"
+                                value={form.language}
+                                onChange={handleChange}
+                                className={`h-9 rounded-lg border bg-background px-3 text-sm ${
+                                    fe('language') ? 'border-red-400' : 'border-input'
+                                }`}
+                            >
+                                {WORK_LANGUAGES.map((language) => (
+                                    <option key={language.value} value={language.value}>
+                                        {language.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <FieldError fieldErrors={fieldErrors} field="language" />
+                        </div>
 
                         {/* Genres */}
                         <CreateWorkGenres

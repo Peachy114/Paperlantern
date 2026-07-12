@@ -157,7 +157,7 @@ export default function CardStickyNotes() {
 
                                 {note.type === 'text' ? (
                                     <div
-                                        className="px-3 pt-4 pb-2 text-[11px] leading-snug w-32 min-h-16 shadow-sm"
+                                        className="px-3 pt-4 pb-2 text-[11px] leading-snug w-32 min-h-16 shadow-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
                                         style={{ background: note.color, color: '#1a1a1a' }}
                                     >
                                         {note.text}

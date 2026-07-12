@@ -44,7 +44,10 @@ export default function FreshReleasesSection({
                                     <img
                                         src={cover(work.cover, 'sm')!}
                                         alt={work.title}
+                                        width={220}
+                                        height={293}
                                         loading="lazy"
+                                        decoding="async"
                                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                                     />
                                 )}

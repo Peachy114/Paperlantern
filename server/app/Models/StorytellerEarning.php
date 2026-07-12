@@ -19,7 +19,7 @@ class StorytellerEarning extends Model
     ];
 
     protected $casts = [
-        'balance'     => 'integer',
+        'balance'     => 'decimal:2',
         'php_balance' => 'decimal:2',
     ];
 

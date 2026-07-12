@@ -25,6 +25,40 @@ export interface Wallet {
 export interface CheckoutResponse {
     checkout_url: string
     reference_id: string
+    payment_id: string
+    payment_url: string
+    status: CreditPaymentStatus
+}
+
+export type CreditPaymentStatus = 'pending' | 'paid' | 'failed' | 'expired'
+
+export interface CreditPayment {
+    id: string
+    reference_id: string | null
+    checkout_url: string | null
+    status: CreditPaymentStatus
+    currency: string
+    amount: number
+    credits: number
+    description: string | null
+    provider: string
+    provider_mode: 'test' | 'live' | string
+    can_simulate: boolean
+    paid_at: string | null
+    failed_at: string | null
+    expired_at: string | null
+    expires_at: string | null
+    package: {
+        id: string
+        name: string
+        credits: number
+        price: number
+    } | null
+}
+
+export interface CreditPaymentResponse {
+    payment: CreditPayment
+    wallet: Wallet
 }
 
 export interface UnlockResponse {

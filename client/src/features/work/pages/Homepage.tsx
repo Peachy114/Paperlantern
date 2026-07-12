@@ -1,12 +1,14 @@
+import { lazy, Suspense } from 'react'
 import { useHome } from '@/features/work/hooks/useHome'
-import Welcome from '@/components/pages/Welcome'
+import Welcome from '@/features/work/components/Welcome'
 import HeroSection from '../components/HeroSection'
-import WeeklyChartSection from '../components/WeeklyChartSection'
-import FreshReleasesSection from '../components/FreshReleasesSection'
-import LatestChaptersSection from '../components/LatestChaptersSection'
+
+const WeeklyChartSection = lazy(() => import('../components/WeeklyChartSection'))
+const FreshReleasesSection = lazy(() => import('../components/FreshReleasesSection'))
+const LatestChaptersSection = lazy(() => import('../components/LatestChaptersSection'))
 
 export default function Homepage() {
-    const { hero, weeklyChart, freshReleases, latestChapters, cover } = useHome()
+    const { hero, weeklyChart, freshReleases, latestChapters, cover, isLoading } = useHome()
 
     const isEmpty =
         weeklyChart.length === 0 &&
@@ -16,14 +18,16 @@ export default function Homepage() {
 
     return (
         <>
-            {isEmpty ? (
+            {!isLoading && isEmpty ? (
                 <Welcome />
             ) : (
                 <div className="w-full">
                     <HeroSection audience="public" />
-                    <WeeklyChartSection weeklyChart={weeklyChart} cover={cover} />
-                    <FreshReleasesSection freshReleases={freshReleases} cover={cover} />
-                    <LatestChaptersSection latestChapters={latestChapters} cover={cover} />
+                    <Suspense fallback={null}>
+                        <WeeklyChartSection weeklyChart={weeklyChart} cover={cover} />
+                        <FreshReleasesSection freshReleases={freshReleases} cover={cover} />
+                        <LatestChaptersSection latestChapters={latestChapters} cover={cover} />
+                    </Suspense>
                 </div>
             )}
         </>

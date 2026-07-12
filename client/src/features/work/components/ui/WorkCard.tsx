@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Heart } from 'lucide-react'
+import { Heart, Sparkles } from 'lucide-react'
 
 interface WorkCardProps {
     id: string
@@ -13,6 +13,7 @@ interface WorkCardProps {
     rank?: number
     showStats?: boolean
     lastChapterAt?: string | Date | null
+    boostedUntil?: string | null
     variant?: 'default' | 'weekly' // ← new
 }
 
@@ -37,6 +38,7 @@ export default function WorkCard({
     rank,
     showStats,
     lastChapterAt,
+    boostedUntil,
     variant = 'default',
 }: WorkCardProps) {
     const hasNewChapter = isNewThisWeek(lastChapterAt)
@@ -97,6 +99,17 @@ export default function WorkCard({
                 {type && (
                     <span className="absolute top-1.5 left-1.5 text-[10px] font-semibold px-2 py-0.5 rounded bg-[var(--comix-badge-type)] text-white capitalize">
                         {type}
+                    </span>
+                )}
+
+                {boostedUntil && (
+                    <span
+                        className={`absolute right-1.5 inline-flex items-center gap-1 rounded bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-black ${
+                            rank !== undefined ? 'top-8' : 'top-1.5'
+                        }`}
+                    >
+                        <Sparkles className="h-3 w-3" />
+                        Boosted
                     </span>
                 )}
 

@@ -163,6 +163,14 @@ export default function AdminDashboard() {
                                     route: '/admin/logs',
                                 },
                                 {
+                                    label: 'ARTS BROWSE',
+                                    desc: 'upload admin arts and organize public arts explore',
+                                    note: 'curate!',
+                                    color: '#ffbacf',
+                                    rotate: '-1deg',
+                                    route: '/admin/arts',
+                                },
+                                {
                                     label: 'WITHDRAWALS',
                                     desc: 'review and process storyteller withdrawal requests',
                                     note: 'pay them out!',

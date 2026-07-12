@@ -40,6 +40,14 @@ export const adminRoutes = (
             }
         />
         <Route
+            path="/admin/arts"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.AdminArts />
+                </Suspense>
+            }
+        />
+        <Route
             path="/admin/withdrawals"
             element={
                 <Suspense fallback={<Loading />}>

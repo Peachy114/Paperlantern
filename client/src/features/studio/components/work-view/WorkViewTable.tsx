@@ -15,7 +15,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { Heart, Trash2, MoreHorizontal, BookOpen, Pencil } from 'lucide-react'
+import { Heart, Trash2, MoreHorizontal, BookOpen, Pencil, Sparkles } from 'lucide-react'
 
 const STATUS_COLOR: Record<string, string> = {
     draft: 'text-gray-400',
@@ -25,19 +25,25 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export interface Work {
+    id: string
     slug: string
     title: string
-    status: string
+    type: 'webtoon' | 'wattpad'
+    status: 'draft' | 'ongoing' | 'completed' | 'hiatus'
+    cover: string | null
     chapters_count: number
     views: number
-    likes?: number
-    genres?: string[]
+    likes: number
+    genres: string[]
+    created_at: string
+    boosted_until?: string | null
 }
 
 interface WorkViewTableProps {
     works: Work[]
     onNavigate: (path: string) => void
     onDeleteRequest: (slug: string) => void
+    onBoostRequest: (work: Work) => void
     onCreateFirst: () => void
 }
 
@@ -45,6 +51,7 @@ export default function WorkViewTable({
     works,
     onNavigate,
     onDeleteRequest,
+    onBoostRequest,
     onCreateFirst,
 }: WorkViewTableProps) {
     if (works.length === 0) {
@@ -82,6 +89,12 @@ export default function WorkViewTable({
                                     <p className="font-medium text-sm leading-snug truncate max-w-[200px]">
                                         {work.title}
                                     </p>
+                                    {work.boosted_until && (
+                                        <p className="mt-0.5 text-[11px] text-amber-500">
+                                            Boosted until{' '}
+                                            {new Date(work.boosted_until).toLocaleDateString()}
+                                        </p>
+                                    )}
                                     {/* Mobile: show stats inline */}
                                     <p className="sm:hidden text-xs text-muted-foreground mt-0.5">
                                         <span className={`${statusColor} capitalize`}>
@@ -143,6 +156,10 @@ export default function WorkViewTable({
                                         >
                                             <Pencil size={14} className="mr-2" />
                                             Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => onBoostRequest(work)}>
+                                            <Sparkles size={14} className="mr-2" />
+                                            Boost
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem

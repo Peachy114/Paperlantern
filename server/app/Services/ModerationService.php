@@ -49,7 +49,7 @@ class ModerationService
         return [
             'message'   => $this->strikeMessage($violation, $strikeCount),
             'strike'    => $strikeCount,
-            'banned'    => $violation->resulted_in_ban,
+            'suspended' => $strikeCount >= 3,
             'violation' => $violation,
         ];
     }
@@ -85,7 +85,7 @@ class ModerationService
         return [
             'message'   => $this->strikeMessage($violation, $strikeCount),
             'strike'    => $strikeCount,
-            'banned'    => $violation->resulted_in_ban,
+            'suspended' => $strikeCount >= 3,
             'violation' => $violation,
         ];
     }
@@ -121,7 +121,7 @@ class ModerationService
         return [
             'message'   => $this->strikeMessage($violation, $strikeCount),
             'strike'    => $strikeCount,
-            'banned'    => $violation->resulted_in_ban,
+            'suspended' => $strikeCount >= 3,
             'violation' => $violation,
         ];
     }
@@ -146,6 +146,7 @@ class ModerationService
         return [
             'strike_count' => $strikeCount,
             'is_banned'    => $user->is_banned,
+            'is_suspended' => (bool) ($user->is_suspended ?? false),
             'at_risk'      => $user->isAtRisk(),
             'violations'   => $violations,
         ];
@@ -156,7 +157,7 @@ class ModerationService
     private function strikeMessage(Violation $violation, int $strikeCount): string
     {
         return match(true) {
-            $violation->resulted_in_ban => 'User has been banned after 3 strikes.',
+            $strikeCount >= 3           => 'User has been suspended after 3 strikes.',
             $strikeCount === 2          => 'Final warning — next violation bans the user.',
             default                     => 'Warning issued. ',
         };

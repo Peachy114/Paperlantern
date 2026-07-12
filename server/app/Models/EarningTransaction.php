@@ -13,7 +13,10 @@ class EarningTransaction extends Model
     protected $fillable = [
         'storyteller_id',
         'reader_id',
+        'source',
         'chapter_id',
+        'earnable_type',
+        'earnable_id',
         'credits_spent',
         'platform_cut',
         'storyteller_cut',
@@ -23,9 +26,9 @@ class EarningTransaction extends Model
     ];
 
     protected $casts = [
-        'credits_spent'      => 'integer',
-        'platform_cut'       => 'integer',
-        'storyteller_cut'    => 'integer',
+        'credits_spent'      => 'decimal:2',
+        'platform_cut'       => 'decimal:2',
+        'storyteller_cut'    => 'decimal:2',
         'platform_php'       => 'decimal:2',
         'storyteller_php'    => 'decimal:2',
         'credit_to_php_rate' => 'decimal:4',

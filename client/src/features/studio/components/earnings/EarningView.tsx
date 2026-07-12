@@ -72,7 +72,7 @@ export default function EarningView() {
             <EarningOverview
                 balancePhp={Number(earnings?.balance_php ?? 0)}
                 balanceCredits={earnings?.balance_credits ?? 0}
-                minWithdrawal={Number(earnings?.min_withdrawal ?? 200)}
+                minWithdrawalCredits={Number(earnings?.min_withdrawal_credits ?? 10)}
                 canWithdraw={earnings?.can_withdraw ?? false}
                 loading={earningsLoading}
             />
@@ -115,6 +115,8 @@ export default function EarningView() {
             <EarningWithdrawal
                 open={showWithdraw}
                 balancePhp={Number(earnings?.balance_php ?? 0)}
+                balanceCredits={Number(earnings?.balance_credits ?? 0)}
+                minWithdrawalCredits={Number(earnings?.min_withdrawal_credits ?? 10)}
                 method={method}
                 details={details}
                 amount={amount}

@@ -5,6 +5,9 @@ import { useAuthStore } from '@/store/authStore'
 import type {
     Wallet,
     CreditPackage,
+    CreditPayment,
+    CreditPaymentResponse,
+    CreditPaymentStatus,
     WalletTransaction,
     CheckoutResponse,
     UnlockResponse,
@@ -78,6 +81,22 @@ export async function initiateCheckout(packageId: string): Promise<CheckoutRespo
     const { data } = await api.post<CheckoutResponse>('/credits/checkout', {
         package_id: packageId,
     })
+    return data
+}
+
+export async function getCreditPayment(paymentId: string): Promise<CreditPayment> {
+    const { data } = await api.get<CreditPayment>(`/credits/payments/${paymentId}`)
+    return data
+}
+
+export async function simulateCreditPayment(
+    paymentId: string,
+    status: CreditPaymentStatus | 'success'
+): Promise<CreditPaymentResponse> {
+    const { data } = await api.post<CreditPaymentResponse>(
+        `/credits/payments/${paymentId}/simulate`,
+        { status }
+    )
     return data
 }
 

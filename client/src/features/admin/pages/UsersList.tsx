@@ -19,6 +19,7 @@ function UserRow({
     actionLoading,
     banUser,
     unbanUser,
+    updateArtistVerification,
     setConfirmDelete,
 }: {
     user: any
@@ -26,6 +27,7 @@ function UserRow({
     actionLoading: any
     banUser: (id: string) => void
     unbanUser: (id: string) => void
+    updateArtistVerification: (id: string, verified: boolean) => void
     setConfirmDelete: (id: string) => void
 }) {
     const badge = ROLE_BADGE[user.role] ?? {
@@ -74,6 +76,22 @@ function UserRow({
                             BANNED
                         </span>
                     )}
+                    {!user.is_banned && user.is_suspended && (
+                        <span
+                            className="text-[9px] px-1.5 py-0.5 bg-orange-100 text-orange-700"
+                            style={{ fontFamily: "'Kalam', cursive" }}
+                        >
+                            SUSPENDED
+                        </span>
+                    )}
+                    {user.artist_verified && (
+                        <span
+                            className="text-[9px] px-1.5 py-0.5 bg-sky-100 text-sky-700"
+                            style={{ fontFamily: "'Kalam', cursive" }}
+                        >
+                            VERIFIED
+                        </span>
+                    )}
                     {!user.is_banned && user.strike_count > 0 && (
                         <span
                             className="text-[9px] px-1.5 py-0.5"
@@ -108,11 +126,35 @@ function UserRow({
                     >
                         {user.works_count} works
                     </span>
+                    <span className="text-[#1a1a1a]/20 text-[10px]">Â·</span>
+                    <span
+                        className="text-[#1a1a1a]/40 dark:text-foreground/40 text-[10px]"
+                        style={{ fontFamily: "'Noto Serif', serif" }}
+                    >
+                        {user.arts_count ?? 0} arts
+                    </span>
+                    <span className="text-[#1a1a1a]/20 text-[10px]">Â·</span>
+                    <span
+                        className="text-[#1a1a1a]/40 dark:text-foreground/40 text-[10px]"
+                        style={{ fontFamily: "'Noto Serif', serif" }}
+                    >
+                        {user.comments_count ?? 0} comments
+                    </span>
                 </div>
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-1 shrink-0">
+                {user.role === 'storyteller' && (
+                    <button
+                        onClick={() => updateArtistVerification(user.id, !user.artist_verified)}
+                        disabled={isLoading}
+                        className="border-[2px] border-sky-300 text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors px-2 py-1 text-[10px] sm:text-xsmall disabled:opacity-50 cursor-pointer"
+                        style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.1em' }}
+                    >
+                        {user.artist_verified ? 'UNVERIFY' : 'VERIFY'}
+                    </button>
+                )}
                 {user.is_banned ? (
                     <button
                         onClick={() => unbanUser(user.id)}
@@ -170,7 +212,14 @@ function SectionHeader({ label, count, tag }: { label: string; count: number; ta
 }
 
 export default function AdminUsersList() {
-    const { users, actionLoading, banUser, unbanUser, deleteUser } = useAdminUsers()
+    const {
+        users,
+        actionLoading,
+        banUser,
+        unbanUser,
+        deleteUser,
+        updateArtistVerification,
+    } = useAdminUsers()
     const navigate = useNavigate()
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
@@ -264,6 +313,7 @@ export default function AdminUsersList() {
                                         actionLoading={actionLoading}
                                         banUser={banUser}
                                         unbanUser={unbanUser}
+                                        updateArtistVerification={updateArtistVerification}
                                         setConfirmDelete={setConfirmDelete}
                                     />
                                 ))
@@ -294,6 +344,7 @@ export default function AdminUsersList() {
                                         actionLoading={actionLoading}
                                         banUser={banUser}
                                         unbanUser={unbanUser}
+                                        updateArtistVerification={updateArtistVerification}
                                         setConfirmDelete={setConfirmDelete}
                                     />
                                 ))

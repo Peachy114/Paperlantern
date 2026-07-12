@@ -149,6 +149,7 @@ function WorkLists({ type }: { type: 'webtoon' | 'wattpad' }) {
                         status={work.status}
                         likes={work.likes}
                         rank={isRankings ? (page - 1) * PAGE_SIZE + i + 1 : undefined}
+                        boostedUntil={work.boosted_until}
                         showStats
                     />
                 ))}

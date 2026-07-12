@@ -490,6 +490,343 @@ function StickyNotesSection({
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+function ReviewContentSection({
+    review,
+    suspendContent,
+    restoreSuspension,
+    approveCommentImage,
+    suspendCommentImage,
+    suspendingContent,
+    restoringSuspension,
+    approvingCommentImage,
+    suspendingCommentImage,
+}: Pick<
+    ReturnType<typeof useAdminModerationQueue>,
+    | 'review'
+    | 'suspendContent'
+    | 'restoreSuspension'
+    | 'approveCommentImage'
+    | 'suspendCommentImage'
+    | 'suspendingContent'
+    | 'restoringSuspension'
+    | 'approvingCommentImage'
+    | 'suspendingCommentImage'
+>) {
+    const navigate = useNavigate()
+    const [suspendTarget, setSuspendTarget] = useState<{
+        type: string
+        id: string
+        field?: string | null
+        label: string
+    } | null>(null)
+    const [commentImageSuspend, setCommentImageSuspend] = useState<{
+        id: string
+        label: string
+    } | null>(null)
+    const commentImages = review.comment_images ?? []
+
+    const itemsCount =
+        review.works.length +
+        review.chapters.length +
+        review.arts.length +
+        review.profile_blocks.length +
+        commentImages.length
+
+    const keyFor = (type: string, id: string, field?: string | null) =>
+        `${type}:${id}:${field ?? ''}`
+
+    const actionButton = (
+        type: string,
+        id: string,
+        label: string,
+        field?: string | null,
+        danger = false
+    ) => {
+        const key = keyFor(type, id, field)
+        return (
+            <button
+                onClick={() => setSuspendTarget({ type, id, field, label })}
+                disabled={suspendingContent === key}
+                className={`border-[2px] px-2 py-1 text-[10px] disabled:opacity-50 cursor-pointer transition-colors ${
+                    danger
+                        ? 'border-red-300 text-red-500 hover:bg-red-50'
+                        : 'border-amber-300 text-amber-700 hover:bg-amber-50'
+                }`}
+                style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.1em' }}
+            >
+                {suspendingContent === key ? 'SUSPENDING...' : label.toUpperCase()}
+            </button>
+        )
+    }
+
+    return (
+        <>
+            <SectionHeader label="LIVE CONTENT REVIEW" count={itemsCount} />
+            <div className="divide-y divide-blue-200/30 dark:divide-white/10 relative">
+                {review.active_suspensions.length > 0 && (
+                    <div className="bg-red-50 dark:bg-red-950/20 px-3 sm:pl-14 sm:pr-4 py-4">
+                        <p
+                            className="text-[12px] text-red-700 dark:text-red-300 mb-3"
+                            style={{ fontFamily: "'Kalam', cursive" }}
+                        >
+                            Active suspensions hidden from public view
+                        </p>
+                        <div className="grid gap-2">
+                            {review.active_suspensions.map((suspension) => (
+                                <div
+                                    key={suspension.id}
+                                    className="flex flex-wrap items-center justify-between gap-2 border border-red-200 dark:border-red-900 bg-white/70 dark:bg-black/20 px-3 py-2"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium truncate">
+                                            @{suspension.user?.username ?? 'unknown'} -{' '}
+                                            {suspension.target_field ?? 'content'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground line-clamp-1">
+                                            {suspension.reason}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {suspension.ticket && (
+                                            <button
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/admin/tickets/${suspension.ticket!.id}`
+                                                    )
+                                                }
+                                                className="border-[2px] border-[#1a1a1a] px-2 py-1 text-[10px]"
+                                                style={{
+                                                    fontFamily: "'Bebas Neue', sans-serif",
+                                                    letterSpacing: '0.1em',
+                                                }}
+                                            >
+                                                OPEN SUPPORT
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => restoreSuspension(suspension.id)}
+                                            disabled={restoringSuspension === suspension.id}
+                                            className="border-[2px] border-green-400 text-green-700 px-2 py-1 text-[10px] disabled:opacity-50"
+                                            style={{
+                                                fontFamily: "'Bebas Neue', sans-serif",
+                                                letterSpacing: '0.1em',
+                                            }}
+                                        >
+                                            {restoringSuspension === suspension.id
+                                                ? 'RESTORING...'
+                                                : 'RESTORE'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {itemsCount === 0 ? (
+                    <EmptyState label="live content" />
+                ) : (
+                    <div className="grid gap-3 px-3 sm:pl-14 sm:pr-4 py-4 bg-[#fffdf5] dark:bg-[#1c1a17]">
+                        {review.works.map((work) => (
+                            <ReviewRow
+                                key={`work-${work.id}`}
+                                image={work.cover}
+                                title={work.title}
+                                meta={`Work by @${work.user?.username ?? 'unknown'}`}
+                                actions={
+                                    <>
+                                        {actionButton(
+                                            'work',
+                                            String(work.id),
+                                            'Suspend Cover',
+                                            'cover'
+                                        )}
+                                        {actionButton(
+                                            'work',
+                                            String(work.id),
+                                            'Suspend Banner',
+                                            'banner'
+                                        )}
+                                        {actionButton(
+                                            'work',
+                                            String(work.id),
+                                            'Suspend Work',
+                                            null,
+                                            true
+                                        )}
+                                    </>
+                                }
+                            />
+                        ))}
+                        {review.chapters.map((chapter) => (
+                            <ReviewRow
+                                key={`chapter-${chapter.id}`}
+                                image={chapter.cover ?? chapter.work?.cover ?? null}
+                                title={`${chapter.work?.title ?? 'Unknown'} - Ch.${chapter.order} ${chapter.title}`}
+                                meta={`Chapter by @${chapter.work?.user?.username ?? 'unknown'}`}
+                                actions={
+                                    <>
+                                        {actionButton(
+                                            'chapter',
+                                            String(chapter.id),
+                                            'Suspend Cover',
+                                            'cover'
+                                        )}
+                                        {actionButton(
+                                            'chapter',
+                                            String(chapter.id),
+                                            'Suspend Chapter',
+                                            null,
+                                            true
+                                        )}
+                                    </>
+                                }
+                            />
+                        ))}
+                        {review.arts.map((art) => (
+                            <ReviewRow
+                                key={`art-${art.id}`}
+                                image={art.image_path}
+                                title={art.title}
+                                meta={`Art by @${art.user?.username ?? 'unknown'} - ${art.images.length} image(s)`}
+                                actions={
+                                    <>
+                                        {actionButton(
+                                            'art',
+                                            art.id,
+                                            'Suspend Primary Image',
+                                            'image_path'
+                                        )}
+                                        {actionButton('art', art.id, 'Suspend Art', null, true)}
+                                        {art.images.slice(0, 3).map((image, index) =>
+                                            actionButton(
+                                                'art_image',
+                                                image.id,
+                                                `Image ${index + 1}`,
+                                                null,
+                                                true
+                                            )
+                                        )}
+                                    </>
+                                }
+                            />
+                        ))}
+                        {commentImages.map((comment) => (
+                            <ReviewRow
+                                key={`comment-image-${comment.id}`}
+                                image={comment.image_path}
+                                title={comment.body || 'Comment image upload'}
+                                meta={`Comment image by @${comment.user?.username ?? 'unknown'}`}
+                                actions={
+                                    <>
+                                        <button
+                                            onClick={() => approveCommentImage(comment.id)}
+                                            disabled={approvingCommentImage === comment.id}
+                                            className="border-[2px] border-green-400 text-green-700 px-2 py-1 text-[10px] disabled:opacity-50"
+                                            style={{
+                                                fontFamily: "'Bebas Neue', sans-serif",
+                                                letterSpacing: '0.1em',
+                                            }}
+                                        >
+                                            {approvingCommentImage === comment.id
+                                                ? 'APPROVING...'
+                                                : 'APPROVE'}
+                                        </button>
+                                        <button
+                                            onClick={() =>
+                                                setCommentImageSuspend({
+                                                    id: comment.id,
+                                                    label: comment.body || 'comment image',
+                                                })
+                                            }
+                                            disabled={suspendingCommentImage === comment.id}
+                                            className="border-[2px] border-red-300 text-red-500 hover:bg-red-50 px-2 py-1 text-[10px] disabled:opacity-50"
+                                            style={{
+                                                fontFamily: "'Bebas Neue', sans-serif",
+                                                letterSpacing: '0.1em',
+                                            }}
+                                        >
+                                            {suspendingCommentImage === comment.id
+                                                ? 'SUSPENDING...'
+                                                : 'SUSPEND IMAGE'}
+                                        </button>
+                                    </>
+                                }
+                            />
+                        ))}
+                        {review.profile_blocks.map((block) => (
+                            <ReviewRow
+                                key={`profile-block-${block.id}`}
+                                image={block.image_path ?? null}
+                                title={
+                                    block.type === 'text'
+                                        ? block.text_content || 'Profile board text'
+                                        : 'Profile board image'
+                                }
+                                meta={`Board block by @${block.user?.username ?? 'unknown'}`}
+                                actions={actionButton(
+                                    'profile_block',
+                                    block.id,
+                                    'Suspend Block',
+                                    null,
+                                    true
+                                )}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {suspendTarget && (
+                <ViolateForm
+                    onConfirm={(reason) => {
+                        suspendContent(
+                            suspendTarget.type,
+                            suspendTarget.id,
+                            reason,
+                            suspendTarget.field
+                        )
+                        setSuspendTarget(null)
+                    }}
+                    onCancel={() => setSuspendTarget(null)}
+                />
+            )}
+            {commentImageSuspend && (
+                <ViolateForm
+                    onConfirm={(reason) => {
+                        suspendCommentImage(commentImageSuspend.id, reason)
+                        setCommentImageSuspend(null)
+                    }}
+                    onCancel={() => setCommentImageSuspend(null)}
+                />
+            )}
+        </>
+    )
+}
+
+function ReviewRow({
+    image,
+    title,
+    meta,
+    actions,
+}: {
+    image?: string | null
+    title: string
+    meta: string
+    actions: React.ReactNode
+}) {
+    return (
+        <div className="flex items-center gap-3 border border-black/10 dark:border-white/10 bg-white/70 dark:bg-black/20 px-3 py-3">
+            <Cover src={image ?? null} alt={title} />
+            <div className="min-w-0 flex-1 text-start">
+                <p className="truncate text-sm font-medium">{title}</p>
+                <p className="text-xs text-muted-foreground">{meta}</p>
+            </div>
+            <div className="flex flex-wrap justify-end gap-1">{actions}</div>
+        </div>
+    )
+}
+
 function ModerationQueue() {
     const navigate = useNavigate()
 
@@ -588,6 +925,17 @@ function ModerationQueue() {
                             violateStickyNote={queue.violateStickyNote}
                             approvingStickyNote={queue.approvingStickyNote}
                             violatingStickyNote={queue.violatingStickyNote}
+                        />
+                        <ReviewContentSection
+                            review={queue.review}
+                            suspendContent={queue.suspendContent}
+                            restoreSuspension={queue.restoreSuspension}
+                            approveCommentImage={queue.approveCommentImage}
+                            suspendCommentImage={queue.suspendCommentImage}
+                            suspendingContent={queue.suspendingContent}
+                            restoringSuspension={queue.restoringSuspension}
+                            approvingCommentImage={queue.approvingCommentImage}
+                            suspendingCommentImage={queue.suspendingCommentImage}
                         />
 
                         {/* Footer */}

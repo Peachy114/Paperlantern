@@ -21,10 +21,11 @@ class EarningsController extends Controller
         $latestWithdrawal = $this->commissionService->getLatestWithdrawal($request->user());
 
         return response()->json([
-            'balance_credits'   => $earning->balance,
+            'balance_credits'   => (float) $earning->balance,
             'balance_php'       => (float) $earning->php_balance,
             'min_withdrawal'    => CommissionService::MIN_WITHDRAWAL_PHP,
-            'can_withdraw'      => $earning->php_balance >= CommissionService::MIN_WITHDRAWAL_PHP,
+            'min_withdrawal_credits' => CommissionService::MIN_WITHDRAWAL_CREDITS,
+            'can_withdraw'      => (float) $earning->balance >= CommissionService::MIN_WITHDRAWAL_CREDITS,
             'latest_withdrawal' => $latestWithdrawal ? [
                 'status'        => $latestWithdrawal->status,
                 'amount_php'    => $latestWithdrawal->amount_php,
@@ -56,7 +57,7 @@ class EarningsController extends Controller
     public function withdraw(Request $request): JsonResponse
     {
         $request->validate([
-            'amount_php'     => ['required', 'numeric', 'min:' . CommissionService::MIN_WITHDRAWAL_PHP],
+            'amount_php'     => ['required', 'numeric', 'min:1'],
             'payout_method'  => ['required', 'in:gcash,maya,bank'],
             'payout_details' => ['required', 'string', 'max:255'],
         ]);
@@ -83,9 +84,9 @@ class EarningsController extends Controller
             ->first();
 
         return response()->json([
-            'total_credits_spent'        => (int)   ($totals->total_credits_spent        ?? 0),
-            'total_platform_credits'     => (int)   ($totals->total_platform_credits     ?? 0),
-            'total_storyteller_credits'  => (int)   ($totals->total_storyteller_credits  ?? 0),
+            'total_credits_spent'        => (float) ($totals->total_credits_spent        ?? 0),
+            'total_platform_credits'     => (float) ($totals->total_platform_credits     ?? 0),
+            'total_storyteller_credits'  => (float) ($totals->total_storyteller_credits  ?? 0),
             'total_platform_php'         => (float) ($totals->total_platform_php         ?? 0),
             'total_storyteller_php'      => (float) ($totals->total_storyteller_php      ?? 0),
             'total_transactions'         => (int)   ($totals->total_transactions         ?? 0),

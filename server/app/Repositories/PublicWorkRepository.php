@@ -2,64 +2,80 @@
 
 namespace App\Repositories;
 
-use App\Models\Work;
 use App\Models\Chapter;
-use App\Models\ChapterView;
 use App\Models\ChapterLike;
+use App\Models\ChapterView;
+use App\Models\FeatureBoost;
+use App\Models\Work;
+use App\Models\WorkFavorite;
+use App\Models\WorkLike;
 use Illuminate\Http\Request;
 
 class PublicWorkRepository
 {
     public function getHeroWorks(): \Illuminate\Database\Eloquent\Collection
     {
-        return Work::where('status', '!=', 'draft')
-            ->has('chapters')  // ← add
+        return $this->visibleWorks()
+            ->has('chapters')
             ->orderByDesc('views')
             ->limit(5)
-            ->get(['id', 'slug', 'title', 'cover', 'banner', 'type', 'genres', 'views', 'likes', 'description', 'status']);
+            ->get(['id', 'slug', 'title', 'cover', 'banner', 'type', 'genres', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'description', 'status']);
     }
 
     public function getWeeklyChart(): \Illuminate\Database\Eloquent\Collection
     {
-        return Work::where('status', '!=', 'draft')
+        return $this->visibleWorks()
             ->has('chapters')
             ->withCount(['chapterViews as weekly_views' => function ($q) {
                 $q->where('chapter_views.created_at', '>=', now()->startOfWeek());
             }])
             ->orderByDesc('weekly_views')
             ->limit(10)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'views', 'likes']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits']);
     }
 
     public function getFreshReleases(): \Illuminate\Database\Eloquent\Collection
     {
-        return Work::where('status', '!=', 'draft')
-            ->has('chapters') 
+        return $this->visibleWorks()
+            ->has('chapters')
             ->where('created_at', '>=', now()->subDays(7))
             ->orderByDesc('created_at')
             ->limit(10)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'likes', 'created_at']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at']);
     }
 
     public function getLatestChapters(): \Illuminate\Database\Eloquent\Collection
     {
-        return Chapter::where('status', '!=', 'draft')
+        return $this->visibleChapters()
             ->where('created_at', '>=', now()->subDays(7))
-            ->whereHas('work', fn($q) => $q->where('status', '!=', 'draft'))
+            ->whereHas('work', fn($q) => $this->applyVisibleWorkConstraints($q))
             ->orderByDesc('created_at')
-            ->with(['work:id,slug,title,cover,type,user_id'])  // ← add user_id
-            ->limit(50)  // ← fetch more so dedup has enough to work with
+            ->with(['activeContentSuspensions', 'work:id,slug,title,cover,type,user_id', 'work.activeContentSuspensions'])
+            ->limit(50)
             ->get(['id', 'work_id', 'title', 'cover', 'order', 'created_at'])
-            ->unique(fn($chapter) => $chapter->work?->user_id)  // ← one per user
+            ->unique(fn($chapter) => $chapter->work?->user_id)
             ->take(10)
             ->values();
     }
 
     public function getWork(Work $work): Work
     {
-        $work->load('user:id,name,twitter_url,instagram_url,tiktok_url');
+        abort_if(
+            ! in_array($work->status, ['ongoing', 'completed'], true)
+                || $work->moderation_status === 'violated'
+                || $work->hasActiveSuspension(),
+            404
+        );
+
+        $work->load([
+            'activeContentSuspensions',
+            'user:id,name,username,twitter_url,instagram_url,tiktok_url',
+        ]);
+
         $work->loadCount(['chapters as chapters_count' => function ($q) {
-            $q->where('status', '!=', 'draft');
+            $q->where('status', '!=', 'draft')
+                ->where('moderation_status', '!=', 'violated')
+                ->whereDoesntHave('activeContentSuspensions', fn($inner) => $inner->whereNull('target_field'));
         }]);
 
         return $work;
@@ -69,13 +85,16 @@ class PublicWorkRepository
     {
         return $work->chapters()
             ->where('status', '!=', 'draft')
+            ->where('moderation_status', '!=', 'violated')
+            ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'))
+            ->with('activeContentSuspensions')
             ->orderBy('order')
-            ->get(['id', 'slug', 'title', 'order', 'lock_type', 'unlocks_at', 'likes', 'credits_required', 'created_at', 'cover']);
+            ->get(['id', 'slug', 'title', 'order', 'lock_type', 'unlocks_at', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'credits_required', 'created_at', 'cover']);
     }
 
     public function searchWorks(string $query): \Illuminate\Database\Eloquent\Collection
     {
-        return Work::where('status', '!=', 'draft')
+        return $this->visibleWorks()
             ->where('title', 'like', "%{$query}%")
             ->limit(8)
             ->get(['id', 'slug', 'title', 'cover', 'type']);
@@ -83,10 +102,12 @@ class PublicWorkRepository
 
     public function getComics(Request $request): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
-        $type  = $request->query('type', 'webtoon');
-        $query = Work::where('status', '!=', 'draft')
+        $type = $request->query('type', 'webtoon');
+        $query = $this->visibleWorks()
+            ->select('works.*')
+            ->selectSub($this->activeWorkBoostSubquery(), 'boosted_until')
             ->where('type', $type)
-            ->has('chapters'); 
+            ->has('chapters');
 
         if ($request->has('day')) {
             $query->where('schedule', strtolower($request->day));
@@ -101,18 +122,23 @@ class PublicWorkRepository
         }
 
         if ($request->sort === 'rankings') {
-            $query->orderByDesc('views');
+            $query->orderByRaw('CASE WHEN boosted_until IS NULL THEN 1 ELSE 0 END ASC')
+                ->orderByDesc('boosted_until')
+                ->orderByDesc('views');
         } else {
-            $query->latest();
+            $query->orderByRaw('CASE WHEN boosted_until IS NULL THEN 1 ELSE 0 END ASC')
+                ->orderByDesc('boosted_until')
+                ->latest();
         }
 
-        return $query->paginate(20, ['id', 'slug', 'title', 'cover', 'type', 'genres', 'views', 'likes', 'status', 'created_at']);
+        return $query->paginate(20);
     }
 
     public function hasViewed(Chapter $chapter, ?string $userId, string $ip): bool
     {
-        return \App\Models\ChapterView::where('chapter_id', $chapter->id)
-            ->when($userId,
+        return ChapterView::where('chapter_id', $chapter->id)
+            ->when(
+                $userId,
                 fn($q) => $q->where('user_id', $userId),
                 fn($q) => $q->where('ip_address', $ip)
             )
@@ -123,7 +149,7 @@ class PublicWorkRepository
     {
         ChapterView::create([
             'chapter_id' => $chapter->id,
-            'user_id'    => $userId,
+            'user_id' => $userId,
             'ip_address' => $userId ? null : $ip,
         ]);
 
@@ -136,7 +162,7 @@ class PublicWorkRepository
         return $chapterViews;
     }
 
-    public function getLike(Chapter $chapter, string $userId): ?\App\Models\ChapterLike
+    public function getLike(Chapter $chapter, string $userId): ?ChapterLike
     {
         return ChapterLike::where('chapter_id', $chapter->id)
             ->where('user_id', $userId)
@@ -147,7 +173,7 @@ class PublicWorkRepository
     {
         ChapterLike::create([
             'chapter_id' => $chapter->id,
-            'user_id'    => $userId,
+            'user_id' => $userId,
         ]);
     }
 
@@ -169,5 +195,105 @@ class PublicWorkRepository
             : false;
 
         return ['liked' => $liked, 'likes' => $chapter->likes];
+    }
+
+    public function getWorkEngagementStatus(Work $work, ?string $userId): array
+    {
+        $liked = $userId
+            ? WorkLike::where('work_id', $work->id)->where('user_id', $userId)->exists()
+            : false;
+
+        $favorited = $userId
+            ? WorkFavorite::where('work_id', $work->id)->where('user_id', $userId)->exists()
+            : false;
+
+        return [
+            'liked' => $liked,
+            'favorited' => $favorited,
+            'work_likes_count' => (int) ($work->work_likes_count ?? 0),
+            'favorites_count' => (int) ($work->favorites_count ?? 0),
+        ];
+    }
+
+    public function getWorkLike(Work $work, string $userId): ?WorkLike
+    {
+        return WorkLike::where('work_id', $work->id)
+            ->where('user_id', $userId)
+            ->first();
+    }
+
+    public function createWorkLike(Work $work, string $userId): void
+    {
+        WorkLike::create([
+            'work_id' => $work->id,
+            'user_id' => $userId,
+        ]);
+    }
+
+    public function getWorkFavorite(Work $work, string $userId): ?WorkFavorite
+    {
+        return WorkFavorite::where('work_id', $work->id)
+            ->where('user_id', $userId)
+            ->first();
+    }
+
+    public function createWorkFavorite(Work $work, string $userId): void
+    {
+        WorkFavorite::create([
+            'work_id' => $work->id,
+            'user_id' => $userId,
+        ]);
+    }
+
+    public function syncWorkLikeCount(Work $work): int
+    {
+        $count = WorkLike::where('work_id', $work->id)->count();
+        $work->update(['work_likes_count' => $count]);
+
+        return $count;
+    }
+
+    public function syncWorkFavoriteCount(Work $work): int
+    {
+        $count = WorkFavorite::where('work_id', $work->id)->count();
+        $work->update(['favorites_count' => $count]);
+
+        return $count;
+    }
+
+    private function visibleWorks()
+    {
+        return Work::query()
+            ->whereIn('status', ['ongoing', 'completed'])
+            ->where('moderation_status', '!=', 'violated')
+            ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'))
+            ->with('activeContentSuspensions');
+    }
+
+    private function visibleChapters()
+    {
+        return Chapter::query()
+            ->where('status', '!=', 'draft')
+            ->where('moderation_status', '!=', 'violated')
+            ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'));
+    }
+
+    private function applyVisibleWorkConstraints($query)
+    {
+        return $query
+            ->whereIn('status', ['ongoing', 'completed'])
+            ->where('moderation_status', '!=', 'violated')
+            ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'));
+    }
+
+    private function activeWorkBoostSubquery()
+    {
+        return FeatureBoost::query()
+            ->selectRaw('MAX(ends_at)')
+            ->whereColumn('target_id', 'works.id')
+            ->where('target_type', 'work')
+            ->where('status', 'active')
+            ->where('starts_at', '<=', now())
+            ->where('ends_at', '>', now());
     }
 }

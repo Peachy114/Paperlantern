@@ -29,10 +29,50 @@ export const roleRoutes = (
             }
         />
         <Route
+            path="/favorites"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.Favorites />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/comments"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.MyComments />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/history"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.History />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/stickers"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.MyStickers />
+                </Suspense>
+            }
+        />
+        <Route
             path="/credits"
             element={
                 <Suspense fallback={<Loading />}>
                     <Pages.Wallet />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/credits/payment/:paymentId"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.CreditPayment />
                 </Suspense>
             }
         />
@@ -42,15 +82,6 @@ export const roleRoutes = (
             element={
                 <Suspense fallback={<Loading />}>
                     <Pages.ProfileSettings />
-                </Suspense>
-            }
-        />
-
-        <Route
-            path="/arts"
-            element={
-                <Suspense fallback={<Loading />}>
-                    <Pages.ComingSoon />
                 </Suspense>
             }
         />

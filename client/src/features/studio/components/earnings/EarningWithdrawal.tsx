@@ -23,12 +23,14 @@ const METHOD_LABEL: Record<PayoutMethod, string> = {
 const METHOD_PLACEHOLDER: Record<PayoutMethod, string> = {
     gcash: 'GCash number (e.g. 09171234567)',
     maya: 'Maya number (e.g. 09171234567)',
-    bank: 'Bank name · Account number · Account name',
+    bank: 'Bank name / Account number / Account name',
 }
 
 interface Props {
     open: boolean
     balancePhp: number
+    balanceCredits: number
+    minWithdrawalCredits: number
     method: PayoutMethod
     details: string
     amount: string
@@ -44,6 +46,8 @@ interface Props {
 export default function EarningWithdrawal({
     open,
     balancePhp,
+    balanceCredits,
+    minWithdrawalCredits,
     method,
     details,
     amount,
@@ -55,21 +59,27 @@ export default function EarningWithdrawal({
     onAmountChange,
     onSubmit,
 }: Props) {
+    const canWithdraw = balanceCredits >= minWithdrawalCredits
+
     return (
         <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
             <DialogContent className="max-w-sm">
                 <DialogHeader>
                     <DialogTitle>Withdraw Earnings</DialogTitle>
                     <DialogDescription>
-                        Available: ₱{balancePhp.toFixed(2)} · Min. withdrawal ₱200
+                        Available: PHP {balancePhp.toFixed(2)} / {balanceCredits.toFixed(2)} credits.
+                        Minimum withdrawal is {minWithdrawalCredits.toFixed(0)} credits.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="flex flex-col gap-4">
-                    {error && (
-                        <Alert variant="destructive">
+                    {(error || !canWithdraw) && (
+                        <Alert variant={error ? 'destructive' : 'default'}>
                             <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>{error}</AlertDescription>
+                            <AlertDescription>
+                                {error ??
+                                    `You need at least ${minWithdrawalCredits.toFixed(0)} credits before withdrawing.`}
+                            </AlertDescription>
                         </Alert>
                     )}
 
@@ -77,11 +87,11 @@ export default function EarningWithdrawal({
                         <Label>Amount (PHP)</Label>
                         <Input
                             type="number"
-                            min={200}
+                            min={1}
                             max={balancePhp}
                             value={amount}
                             onChange={(e) => onAmountChange(e.target.value)}
-                            placeholder="e.g. 500"
+                            placeholder="e.g. 50"
                         />
                     </div>
 
@@ -116,7 +126,7 @@ export default function EarningWithdrawal({
                     </div>
 
                     <p className="text-xs text-muted-foreground">
-                        Processing takes 3–5 business days. You'll be notified once approved.
+                        Processing takes 3-5 business days. You'll be notified once approved.
                     </p>
 
                     <div className="flex gap-2">
@@ -125,10 +135,10 @@ export default function EarningWithdrawal({
                         </Button>
                         <Button
                             className="flex-1"
-                            disabled={submitting || !amount || !details || parseFloat(amount) < 200}
+                            disabled={submitting || !amount || !details || !canWithdraw}
                             onClick={onSubmit}
                         >
-                            {submitting ? 'Submitting…' : 'Submit request'}
+                            {submitting ? 'Submitting...' : 'Submit request'}
                         </Button>
                     </div>
                 </div>

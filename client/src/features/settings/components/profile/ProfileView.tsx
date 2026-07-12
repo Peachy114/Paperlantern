@@ -1,17 +1,11 @@
-import { useAuthStore } from '@/store/authStore'
-import { useProfileForm } from '../../hook/useProfileForm'
-import { usePasswordForm } from '../../hook/usePasswordForm'
+import { useProfileForm } from '../../hooks/useProfileForm'
+import { usePasswordForm } from '../../hooks/usePasswordForm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Camera } from 'lucide-react'
 
 export default function ProfileView() {
-    const { user } = useAuthStore()
-    const avatarLetter = (user?.username ?? 'U')[0].toUpperCase()
-
     const profile = useProfileForm()
     const password = usePasswordForm()
 
@@ -21,32 +15,6 @@ export default function ProfileView() {
             <div>
                 <h2 className="text-base font-semibold mb-4">General Info</h2>
                 <form onSubmit={profile.handleSubmit} className="space-y-5">
-                    <div className="flex items-center gap-4">
-                        <div className="relative">
-                            <Avatar className="w-16 h-16">
-                                <AvatarImage src={profile.avatarPreview ?? undefined} />
-                                <AvatarFallback className="text-lg">{avatarLetter}</AvatarFallback>
-                            </Avatar>
-                            <button
-                                type="button"
-                                onClick={() => profile.fileRef.current?.click()}
-                                className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
-                            >
-                                <Camera className="w-3 h-3" />
-                            </button>
-                            <input
-                                ref={profile.fileRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={profile.handleAvatarChange}
-                            />
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                            Click the camera to change your profile picture.
-                        </p>
-                    </div>
-
                     <div className="space-y-1.5">
                         <Label htmlFor="name">Full name</Label>
                         <Input
@@ -75,7 +43,7 @@ export default function ProfileView() {
                         )}
                     </div>
                     {/* ── Social Media Links ── */}
-                    <div className="space-y-4">
+                    <div className="hidden">
                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                             Social Media Links
                         </h3>

@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useRef, useEffect } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
 import api from '@/api/axios'
 import { Button } from '@/components/ui/button'
 import { Search } from 'lucide-react'
@@ -115,50 +114,43 @@ export default function SearchBarView() {
                     <Search className="w-5 h-5" />
                 </Button>
 
-                <AnimatePresence>
-                    {mobileSearchOpen && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
-                            className="fixed inset-0 z-50 bg-background flex flex-col p-4 gap-4"
-                        >
-                            <SearchInput
-                                query={query}
-                                onSearch={handleSearch}
-                                onReset={resetSearch}
-                                onBack={() => {
-                                    setMobileSearchOpen(false)
-                                    resetSearch()
-                                }}
-                                mobile
-                            />
+                {mobileSearchOpen && (
+                    <div className="fixed inset-0 z-50 bg-background flex flex-col p-4 gap-4">
+                        <SearchInput
+                            query={query}
+                            onSearch={handleSearch}
+                            onReset={resetSearch}
+                            onBack={() => {
+                                setMobileSearchOpen(false)
+                                resetSearch()
+                            }}
+                            mobile
+                        />
 
-                            <div className="flex-1 overflow-y-auto">
-                                {query.length < 2 && (
-                                    <SearchRecent
-                                        recentSearches={recentSearches}
-                                        onSelect={handleSearch}
-                                        onClear={clearRecent}
-                                    />
-                                )}
-                                {query.length >= 2 && (
-                                    <SearchResults
-                                        results={results}
-                                        searching={searching}
-                                        query={query}
-                                        onSelect={(work) =>
-                                            handleSelect(work, () => setMobileSearchOpen(false))
-                                        }
-                                        onSeeAll={() =>
-                                            handleSeeAll(() => setMobileSearchOpen(false))
-                                        }
-                                    />
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                        <div className="flex-1 overflow-y-auto">
+                            {query.length < 2 && (
+                                <SearchRecent
+                                    recentSearches={recentSearches}
+                                    onSelect={handleSearch}
+                                    onClear={clearRecent}
+                                />
+                            )}
+                            {query.length >= 2 && (
+                                <SearchResults
+                                    results={results}
+                                    searching={searching}
+                                    query={query}
+                                    onSelect={(work) =>
+                                        handleSelect(work, () => setMobileSearchOpen(false))
+                                    }
+                                    onSeeAll={() =>
+                                        handleSeeAll(() => setMobileSearchOpen(false))
+                                    }
+                                />
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Desktop */}
@@ -174,24 +166,17 @@ export default function SearchBarView() {
                     onBlur={() => setSearchFocused(false)}
                 />
 
-                <AnimatePresence>
-                    {open && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 4 }}
-                            className="absolute top-full mt-1 left-0 w-full z-50 bg-background border rounded-md shadow-md p-2"
-                        >
-                            <SearchResults
-                                results={results}
-                                searching={searching}
-                                query={query}
-                                onSelect={(work) => handleSelect(work, () => setOpen(false))}
-                                onSeeAll={() => handleSeeAll(() => setOpen(false))}
-                            />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                {open && (
+                    <div className="absolute top-full mt-1 left-0 w-full z-50 bg-background border rounded-md shadow-md p-2">
+                        <SearchResults
+                            results={results}
+                            searching={searching}
+                            query={query}
+                            onSelect={(work) => handleSelect(work, () => setOpen(false))}
+                            onSeeAll={() => handleSeeAll(() => setOpen(false))}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     )

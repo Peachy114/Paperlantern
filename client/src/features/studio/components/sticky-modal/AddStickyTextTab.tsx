@@ -13,7 +13,7 @@ export default function AddStickyTextTab({ text, onTextChange, color, onColorCha
             {/* Live preview */}
             <div className="flex justify-center mb-4">
                 <div
-                    className="px-4 py-3 w-40 min-h-[80px] text-[12px] leading-snug relative"
+                    className="px-4 py-3 w-40 min-h-[80px] text-[12px] leading-snug relative whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
                     style={{
                         background: color,
                         fontFamily: "'Kalam', cursive",

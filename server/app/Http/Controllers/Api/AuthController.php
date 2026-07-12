@@ -97,7 +97,7 @@ class AuthController extends Controller
             'username'      => ['sometimes', 'string', 'max:50', 'unique:users,username,' . $user->id],
             'email'         => ['sometimes', 'email', 'unique:users,email,' . $user->id],
             'bio'           => ['nullable', 'string', 'max:500'],
-            'avatar'        => ['nullable', 'image', 'max:2048'],
+            'avatar'        => ['nullable', 'image', 'max:10240'],
             'twitter_url'   => ['nullable', 'url', 'max:255'],
             'instagram_url' => ['nullable', 'url', 'max:255'],
             'tiktok_url'    => ['nullable', 'url', 'max:255'],

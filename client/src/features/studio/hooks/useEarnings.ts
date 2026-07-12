@@ -16,6 +16,7 @@ export interface Earnings {
     balance_credits: number
     balance_php: number
     min_withdrawal: number
+    min_withdrawal_credits: number
     can_withdraw: boolean
     latest_withdrawal: LatestWithdrawal | null
 }

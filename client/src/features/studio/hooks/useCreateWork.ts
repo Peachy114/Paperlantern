@@ -6,6 +6,7 @@ import * as Yup from 'yup'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { arrayMove } from '@dnd-kit/sortable'
+import { uploadChapterImagesInBatches } from '../utils/chapterImageUpload'
 
 export const GENRES = [
     'Action',
@@ -25,6 +26,13 @@ export const GENRES = [
     'Psychological',
 ]
 
+export const WORK_LANGUAGES = [
+    { value: 'en', label: 'English' },
+    { value: 'ko', label: 'Korean' },
+    { value: 'id', label: 'Indonesian' },
+    { value: 'th', label: 'Thai' },
+] as const
+
 const noBadWords = (field: string) =>
     Yup.string().test(
         'no-bad-words',
@@ -39,7 +47,13 @@ const workSchema = Yup.object({
     description: noBadWords('Description')
         .required('Description is required.')
         .max(300, 'Description must be 300 characters or less.'),
-    genres: Yup.array().of(Yup.string().required()).min(1, 'Please select at least one genre.'),
+    genres: Yup.array()
+        .of(Yup.string().required())
+        .min(1, 'Please select at least one genre.')
+        .max(5, 'Select up to 5 genres.'),
+    language: Yup.string()
+        .oneOf(WORK_LANGUAGES.map((language) => language.value), 'Choose a supported language.')
+        .required('Language is required.'),
     cover: Yup.mixed().required('Cover image is required.'),
     banner: Yup.mixed().required('Banner image is required.'),
 })
@@ -75,6 +89,7 @@ export function useCreateWork() {
         description: '',
         type,
         genres: [] as string[],
+        language: 'en',
         status: 'draft',
         schedule: '',
         schedule_time: '',
@@ -109,7 +124,8 @@ export function useCreateWork() {
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
     ) => {
         const { name, value } = e.target
-        setForm((prev) => ({ ...prev, [name]: value }))
+        const nextValue = name === 'schedule_time' ? normalizeTimeInput(value) : value
+        setForm((prev) => ({ ...prev, [name]: nextValue }))
 
         // When work status changes to ongoing/completed, lock chapter to published
         if (name === 'status' && (value === 'ongoing' || value === 'completed')) {
@@ -126,6 +142,12 @@ export function useCreateWork() {
     }
 
     const handleGenreToggle = (genre: string) => {
+        if (!form.genres.includes(genre) && form.genres.length >= 5) {
+            setFieldErrors((prev) => ({ ...prev, genres: 'Select up to 5 genres.' }))
+            toast.error('Select up to 5 genres.')
+            return
+        }
+
         setForm((prev) => ({
             ...prev,
             genres: prev.genres.includes(genre)
@@ -259,7 +281,7 @@ export function useCreateWork() {
         }
 
         if (!workValid || !chapterValid) {
-            toast.error('Please fix the highlighted fields.')
+            toast.error('Please fix the fields marked in red.')
             setLoading(false)
             return
         }
@@ -294,10 +316,12 @@ export function useCreateWork() {
                 if (chapterForm.scheduled_at)
                     chapterFormData.append('scheduled_at', chapterForm.scheduled_at)
                 if (chapterCover) chapterFormData.append('cover', chapterCover)
-                if (type === 'webtoon')
-                    chapterImages.forEach((img) => chapterFormData.append('images[]', img))
+                if (type === 'webtoon') chapterFormData.append('defer_images', '1')
 
-                await studioApi.createChapter(workSlug, chapterFormData)
+                const chapterRes = await studioApi.createChapter(workSlug, chapterFormData)
+                if (type === 'webtoon') {
+                    await uploadChapterImagesInBatches(workSlug, chapterRes.data.slug, chapterImages)
+                }
             }
             toast.success(`${type === 'webtoon' ? 'Webtoon' : 'Novel'} created!`)
             navigate(`/studio/works/${workSlug}/chapters`)
@@ -310,7 +334,7 @@ export function useCreateWork() {
                     if (!parsed[field]) parsed[field] = messages[0]
                 }
                 setFieldErrors(parsed)
-                toast.error('Please fix the highlighted fields.')
+                toast.error('Please fix the fields marked in red.')
             } else {
                 setError('Something went wrong. Please try again.')
                 toast.error('Something went wrong. Please try again.')
@@ -350,4 +374,11 @@ export function useCreateWork() {
         reorderChapterImages,
         handleSubmit,
     }
+}
+
+function normalizeTimeInput(value: string) {
+    if (!value) return ''
+    const match = value.match(/^(\d{1,2}):(\d{2})/)
+    if (!match) return value
+    return `${match[1].padStart(2, '0')}:${match[2]}`
 }

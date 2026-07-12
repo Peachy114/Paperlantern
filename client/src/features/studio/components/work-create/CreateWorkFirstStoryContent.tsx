@@ -13,6 +13,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { Move } from 'lucide-react'
 
 interface CreateWorkFirstStoryContentProps {
     type: string
@@ -43,14 +44,13 @@ function SortableImage({
         <div
             ref={setNodeRef}
             {...attributes}
-            {...listeners}
             style={{
                 transform: CSS.Transform.toString(transform),
                 transition,
                 opacity: isDragging ? 0.5 : 1,
                 touchAction: 'none',
             }}
-            className="group relative rounded-lg overflow-hidden border border-border aspect-[3/4] cursor-grab active:cursor-grabbing"
+            className="group relative rounded-lg overflow-hidden border border-border aspect-[3/4]"
         >
             <img
                 src={src}
@@ -62,6 +62,20 @@ function SortableImage({
             </div>
             <button
                 type="button"
+                {...listeners}
+                onPointerDown={(event) => {
+                    event.stopPropagation()
+                    listeners?.onPointerDown?.(event)
+                }}
+                className="absolute top-1.5 right-1.5 rounded-md bg-black/60 p-1 text-white opacity-0 transition-opacity cursor-grab active:cursor-grabbing group-hover:opacity-100"
+                title="Drag to reorder"
+                aria-label={`Reorder page ${index + 1}`}
+            >
+                <Move className="h-3 w-3" />
+            </button>
+            <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                     e.stopPropagation()
                     onRemove()

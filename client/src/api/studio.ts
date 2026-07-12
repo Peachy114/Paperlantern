@@ -16,6 +16,22 @@ export const studioApi = {
     getWork: (slug: string) => api.get(`/studio/works/${slug}`),
     getViewsChart: () => api.get('/studio/analytics/views'),
 
+    // ===================================Storyteller Art Management=======================================//
+    getArts: () => api.get('/studio/arts'),
+    createArt: (data: FormData) =>
+        api.post('/studio/arts', data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    updateArt: (slug: string, data: FormData) =>
+        api.post(`/studio/arts/${slug}`, data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    getArt: (slug: string) => api.get(`/studio/arts/${slug}`),
+    trashArt: (slug: string) => api.delete(`/studio/arts/${slug}`),
+    getTrashedArts: () => api.get('/studio/arts/trash'),
+    restoreArt: (slug: string) => api.post(`/studio/arts/trash/${slug}/restore`),
+    forceDeleteArt: (slug: string) => api.delete(`/studio/arts/trash/${slug}`),
+
     // ======================================Chapter Management===========================================//
     getChapters: (workSlug: string) => api.get(`/studio/works/${workSlug}/chapters`),
     createChapter: (workSlug: string, data: FormData) =>
@@ -26,6 +42,10 @@ export const studioApi = {
         api.get(`/studio/works/${workSlug}/chapters/${chapterSlug}`),
     updateChapter: (workSlug: string, chapterSlug: string, data: FormData) =>
         api.post(`/studio/works/${workSlug}/chapters/${chapterSlug}`, data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    uploadChapterImages: (workSlug: string, chapterSlug: string, data: FormData) =>
+        api.post(`/studio/works/${workSlug}/chapters/${chapterSlug}/images`, data, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
     trashChapter: (workSlug: string, chapterSlug: string) =>

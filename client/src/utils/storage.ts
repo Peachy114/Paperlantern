@@ -7,6 +7,13 @@ const STORAGE_URL = import.meta.env.DEV
 
 export const storageUrl = (path: string | null, variant?: 'sm') => {
     if (!path) return null
-    const finalPath = variant === 'sm' ? path.replace(/(\.[^.]+)$/, '_sm$1') : path
+    if (/^(https?:|data:|blob:)/i.test(path)) return path
+
+    const cleanPath = path.replace(/^\/+/, '')
+    if (cleanPath.startsWith('storage/')) {
+        return `${STORAGE_URL.replace(/\/storage$/, '')}/${cleanPath}`
+    }
+
+    const finalPath = variant === 'sm' ? cleanPath.replace(/(\.[^.]+)$/, '_sm$1') : cleanPath
     return `${STORAGE_URL}/${finalPath}`
 }

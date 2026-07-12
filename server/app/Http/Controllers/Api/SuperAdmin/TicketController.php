@@ -14,7 +14,7 @@ class TicketController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Ticket::with(['user:id,name,email', 'latestReply'])->latest();
+        $query = Ticket::with(['user:id,name,email', 'latestReply', 'source'])->latest();
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -29,7 +29,7 @@ class TicketController extends Controller
 
     public function show(Ticket $ticket): JsonResponse
     {
-        return response()->json($ticket->load('user:id,name,email'));
+        return response()->json($ticket->load(['user:id,name,email', 'source']));
     }
 
     public function update(Request $request, Ticket $ticket): JsonResponse

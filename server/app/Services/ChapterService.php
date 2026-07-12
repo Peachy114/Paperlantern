@@ -17,6 +17,8 @@ class ChapterService
 
     public function createChapter(Work $work, array $data, Request $request): Chapter
     {
+        unset($data['images'], $data['defer_images']);
+
         $data['slug'] = Chapter::generateSlug($data['title'], $work->id);
 
         if ($request->hasFile('cover')) {
@@ -45,6 +47,8 @@ class ChapterService
 
     public function updateChapter(Chapter $chapter, array $data, Request $request): Chapter
     {
+        unset($data['images'], $data['existing_image_ids'], $data['replace_images']);
+
         if (isset($data['title'])) {
             $data['slug'] = Chapter::generateSlug($data['title'], $chapter->work_id, $chapter->id);
         }
@@ -70,10 +74,21 @@ class ChapterService
         if ($request->hasFile('images')) {
             $this->repo->deleteImages($chapter);
             $this->repo->saveImages($chapter, $request->file('images'));
+        } elseif ($request->boolean('replace_images')) {
+            $this->repo->deleteImages($chapter);
         } elseif ($request->has('existing_image_ids')) {
             $this->repo->reorderImages($chapter, $request->existing_image_ids);
         } else {
             $this->repo->deleteImages($chapter);
+        }
+
+        return $chapter->load('images');
+    }
+
+    public function appendImages(Chapter $chapter, Request $request): Chapter
+    {
+        if ($request->hasFile('images')) {
+            $this->repo->appendImages($chapter, $request->file('images'));
         }
 
         return $chapter->load('images');

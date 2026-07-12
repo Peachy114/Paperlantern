@@ -40,6 +40,11 @@ export default function AdminTicketShow() {
                         >
                             {STATUS_LABELS[ticket.status]}
                         </span>
+                        {ticket.source_type && (
+                            <span className="rounded-full bg-red-100 px-2 py-1 text-xs text-red-700">
+                                Moderation appeal
+                            </span>
+                        )}
                     </div>
                     <p className="text-sm text-gray-500 capitalize">{ticket.category}</p>
                     <p className="text-sm mt-1">{ticket.message}</p>

@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion'
 import { storageUrl } from '@/utils/storage'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,19 +25,20 @@ export default function SearchResults({ results, searching, query, onSelect, onS
             )}
 
             {!searching &&
-                results.map((work, i) => (
-                    <motion.div
+                results.map((work) => (
+                    <div
                         key={work.id}
-                        initial={{ opacity: 0, x: 8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: i * 0.04 }}
                         onClick={() => onSelect(work)}
                         className="flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-muted"
                     >
                         {work.cover && (
                             <img
-                                src={storageUrl(work.cover)!}
+                                src={storageUrl(work.cover, 'sm')!}
                                 alt={work.title}
+                                width={40}
+                                height={40}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-10 h-10 object-cover rounded"
                             />
                         )}
@@ -48,7 +48,7 @@ export default function SearchResults({ results, searching, query, onSelect, onS
                                 {work.type === 'webtoon' ? 'WEBTOON' : 'NOVEL'}
                             </Badge>
                         </div>
-                    </motion.div>
+                    </div>
                 ))}
 
             {!searching && results.length >= 4 && (

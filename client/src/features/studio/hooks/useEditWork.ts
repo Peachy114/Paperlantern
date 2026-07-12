@@ -6,6 +6,8 @@ import { containsBadWord } from '@/lib/badWords'
 import * as Yup from 'yup'
 import { toast } from 'sonner'
 import { arrayMove } from '@dnd-kit/sortable'
+import { WORK_LANGUAGES } from './useCreateWork'
+import { uploadChapterImagesInBatches } from '../utils/chapterImageUpload'
 
 export const GENRES = [
     'Action',
@@ -53,7 +55,13 @@ const schema = Yup.object({
     description: noBadWords('Description')
         .required('Description is required.')
         .max(300, 'Description must be 300 characters or less.'),
-    genres: Yup.array().of(Yup.string().required()).min(1, 'Please select at least one genre.'),
+    genres: Yup.array()
+        .of(Yup.string().required())
+        .min(1, 'Please select at least one genre.')
+        .max(5, 'Select up to 5 genres.'),
+    language: Yup.string()
+        .oneOf(WORK_LANGUAGES.map((language) => language.value), 'Choose a supported language.')
+        .required('Language is required.'),
 })
 
 const makeChapterSchema = (workType: 'webtoon' | 'wattpad', images: File[], cover: File | null) =>
@@ -86,6 +94,7 @@ export function useEditWork() {
         description: '',
         type: 'webtoon' as 'webtoon' | 'wattpad',
         genres: [] as string[],
+        language: 'en',
         status: 'draft',
         schedule: '',
         schedule_time: '',
@@ -132,9 +141,10 @@ export function useEditWork() {
                 description: work.description ?? '',
                 type: work.type ?? 'webtoon',
                 genres: work.genres ?? [],
+                language: work.language ?? 'en',
                 status: work.status ?? 'draft',
                 schedule: work.schedule ?? '',
-                schedule_time: work.schedule_time ?? '',
+                schedule_time: normalizeTimeInput(work.schedule_time ?? ''),
                 next_chapter_at: work.next_chapter_at ? work.next_chapter_at.split('T')[0] : '',
             })
             setHasChapters((chaptersRes.data?.length ?? 0) > 0)
@@ -160,7 +170,8 @@ export function useEditWork() {
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
     ) => {
         const { name, value } = e.target
-        setForm((prev) => ({ ...prev, [name]: value }))
+        const nextValue = name === 'schedule_time' ? normalizeTimeInput(value) : value
+        setForm((prev) => ({ ...prev, [name]: nextValue }))
 
         if (name === 'status' && (value === 'ongoing' || value === 'completed')) {
             setChapterForm((prev) => ({ ...prev, status: 'published' }))
@@ -170,6 +181,12 @@ export function useEditWork() {
     }
 
     const handleGenreToggle = (genre: string) => {
+        if (!form.genres.includes(genre) && form.genres.length >= 5) {
+            setFieldErrors((prev) => ({ ...prev, genres: 'Select up to 5 genres.' }))
+            toast.error('Select up to 5 genres.')
+            return
+        }
+
         setForm((prev) => ({
             ...prev,
             genres: prev.genres.includes(genre)
@@ -266,7 +283,7 @@ export function useEditWork() {
                     if (e.path) errors[e.path] = e.message
                 })
                 setFieldErrors(errors)
-                toast.error('Please fix the highlighted fields.')
+                toast.error('Please fix the fields marked in red.')
             }
             setLoading(false)
             return
@@ -286,7 +303,7 @@ export function useEditWork() {
                         if (e.path) errors[e.path] = e.message
                     })
                     setChapterFieldErrors(errors)
-                    toast.error('Please fix the chapter fields.')
+                    toast.error('Please fix the chapter fields marked in red.')
                 }
                 setLoading(false)
                 return
@@ -312,7 +329,8 @@ export function useEditWork() {
             if (cover) formData.append('cover', cover)
             if (banner) formData.append('banner', banner)
 
-            await studioApi.updateWork(slug!, formData)
+            const workRes = await studioApi.updateWork(slug!, formData)
+            const workSlug = workRes.data.slug ?? slug!
 
             // Create first chapter if required
             if (requiresChapter) {
@@ -328,10 +346,12 @@ export function useEditWork() {
                 if (chapterForm.scheduled_at)
                     chapterFormData.append('scheduled_at', chapterForm.scheduled_at)
                 if (chapterCover) chapterFormData.append('cover', chapterCover)
-                if (form.type === 'webtoon')
-                    chapterImages.forEach((img) => chapterFormData.append('images[]', img))
+                if (form.type === 'webtoon') chapterFormData.append('defer_images', '1')
 
-                await studioApi.createChapter(slug!, chapterFormData)
+                const chapterRes = await studioApi.createChapter(workSlug, chapterFormData)
+                if (form.type === 'webtoon') {
+                    await uploadChapterImagesInBatches(workSlug, chapterRes.data.slug, chapterImages)
+                }
             }
 
             toast.success('Changes saved successfully!')
@@ -345,7 +365,7 @@ export function useEditWork() {
                     if (!parsed[field]) parsed[field] = messages[0]
                 }
                 setFieldErrors(parsed)
-                toast.error('Please fix the highlighted fields.')
+                toast.error('Please fix the fields marked in red.')
             } else {
                 setError('Failed to update work. Please try again.')
                 toast.error('Something went wrong. Please try again.')
@@ -384,4 +404,11 @@ export function useEditWork() {
         removeChapterImage,
         reorderChapterImages,
     }
+}
+
+function normalizeTimeInput(value: string) {
+    if (!value) return ''
+    const match = value.match(/^(\d{1,2}):(\d{2})/)
+    if (!match) return value
+    return `${match[1].padStart(2, '0')}:${match[2]}`
 }

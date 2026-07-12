@@ -15,6 +15,7 @@ export interface ComicItem {
     status: string
     created_at: string
     chapters_count: number
+    boosted_until?: string | null
 }
 
 export function useComics(type: 'webtoon' | 'wattpad' = 'webtoon') {

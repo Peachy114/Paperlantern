@@ -15,6 +15,8 @@ class Ticket extends Model
         'subject',
         'message',
         'status',
+        'source_type',
+        'source_id',
         'admin_notes',
         'resolved_at',
     ];
@@ -39,5 +41,10 @@ class Ticket extends Model
     public function latestReply()
     {
         return $this->hasOne(TicketReply::class)->latestOfMany();
+    }
+
+    public function source()
+    {
+        return $this->morphTo(__FUNCTION__, 'source_type', 'source_id');
     }
 }

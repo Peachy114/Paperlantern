@@ -27,9 +27,10 @@ export default function WorkViewHeader({ onNew, onNavigate }: WorkViewHeaderProp
                 </button>
                 <button
                     onClick={onNew}
-                    className="text-sm px-3 py-1.5 bg-foreground text-background rounded-md hover:opacity-80 transition-opacity"
+                    className="text-sm px-3 py-1.5 bg-foreground text-background rounded-md hover:opacity-80 transition-opacity inline-flex items-center gap-2"
                 >
-                    + New
+                    <PlusCircle size={15} />
+                    New Work
                 </button>
                 <button
                     onClick={() => onNavigate('/studio/trash')}

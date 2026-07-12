@@ -29,8 +29,13 @@ interface Work {
     status: string
     views: number
     likes: number
+    work_likes_count?: number
+    favorites_count?: number
+    comments_count?: number
+    super_likes_count?: number
+    super_like_credits?: number
     chapters_count: number
-    user?: { id: string; name: string }
+    user?: { id: string; name: string; username?: string | null }
 }
 
 export function useComicShow() {

@@ -29,7 +29,7 @@ export default function WeeklyChartSection({
 
     const total = weeklyChart.length
     const work = weeklyChart[index]
-    const bg = cover(work.cover)
+    const bg = cover(work.cover, 'sm')
 
     const goPrev = () => setIndex((i) => (i - 1 + total) % total)
     const goNext = () => setIndex((i) => (i + 1) % total)
@@ -51,6 +51,8 @@ export default function WeeklyChartSection({
                             src={bg}
                             alt=""
                             aria-hidden
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover scale-110 blur-2xl opacity-40"
                         />
                     )}
@@ -84,6 +86,10 @@ export default function WeeklyChartSection({
                                 <img
                                     src={cover(work.cover, 'sm')!}
                                     alt={work.title}
+                                    width={130}
+                                    height={174}
+                                    loading="lazy"
+                                    decoding="async"
                                     className="w-full h-full object-cover"
                                 />
                             )}

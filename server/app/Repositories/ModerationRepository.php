@@ -123,10 +123,14 @@ class ModerationRepository
         }
 
         $strikeCount     = $user->strike_count;
-        $resulted_in_ban = $strikeCount >= 3;
+        $resulted_in_ban = false;
 
-        if ($resulted_in_ban) {
-            $user->update(['is_banned' => true]);
+        if ($strikeCount >= 3 && ! $user->is_suspended) {
+            $user->update([
+                'is_suspended' => true,
+                'suspension_reason' => 'Account suspended after 3 moderation strikes.',
+                'suspended_at' => now(),
+            ]);
         }
 
         return Violation::create([

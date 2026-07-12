@@ -1,9 +1,9 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "paperlantern/server",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "description": "Laravel API for the Paperlantern creator publishing platform.",
+    "keywords": ["paperlantern", "laravel", "api"],
     "license": "MIT",
     "require": {
         "php": "^8.2",
