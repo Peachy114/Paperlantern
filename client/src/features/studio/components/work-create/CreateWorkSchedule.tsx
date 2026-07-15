@@ -11,70 +11,42 @@ import {
 import { Separator } from '@/components/ui/separator'
 
 interface CreateWorkScheduleProps {
-    status: string
     schedule: string
     scheduleTime: string
     scheduleMode: string
     selectValue: string
     selectedDays: string[]
+    monthlyDay: string
     days: readonly { readonly value: string; readonly label: string }[]
     recurring: readonly string[]
-    onStatusChange: (e: any) => void
+    onScheduleClear: () => void
     onScheduleModeChange: (mode: string) => void
-    onRecurringChange: (val: string) => void
     onDayToggle: (day: string) => void
+    onMonthlyDayChange: (day: string) => void
     onScheduleTimeChange: (e: any) => void
-    statusError: boolean
     scheduleTimeError: boolean
     fieldErrors: Record<string, string>
 }
 
 export default function CreateWorkSchedule({
-    status,
     schedule,
     scheduleTime,
     scheduleMode,
     selectValue,
     selectedDays,
+    monthlyDay,
     days,
-    recurring,
-    onStatusChange,
+    onScheduleClear,
     onScheduleModeChange,
-    onRecurringChange,
     onDayToggle,
+    onMonthlyDayChange,
     onScheduleTimeChange,
-    statusError,
     scheduleTimeError,
     fieldErrors,
 }: CreateWorkScheduleProps) {
     return (
         <>
-            {/* Status + Schedule */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Status */}
-                <div className="flex flex-col gap-1.5">
-                    <Label>Status</Label>
-                    <Select
-                        value={status}
-                        onValueChange={(val) =>
-                            onStatusChange({
-                                target: { name: 'status', value: val },
-                            })
-                        }
-                    >
-                        <SelectTrigger className={statusError ? 'border-red-400' : ''}>
-                            <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="ongoing">Ongoing</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="hiatus">Hiatus</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <FieldError fieldErrors={fieldErrors} field="status" />
-                </div>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Update Schedule */}
                 <div className="flex flex-col gap-1.5">
                     <Label>Update schedule</Label>
@@ -82,13 +54,11 @@ export default function CreateWorkSchedule({
                         value={selectValue}
                         onValueChange={(val) => {
                             if (val === '__none__') {
-                                onStatusChange({
-                                    target: { name: 'schedule', value: '' },
-                                })
-                            } else if (val === 'days') {
-                                onScheduleModeChange('days')
+                                onScheduleClear()
+                            } else if (['daily', 'weekly', 'biweekly', 'monthly'].includes(val)) {
+                                onScheduleModeChange(val)
                             } else {
-                                onRecurringChange(val)
+                                onScheduleClear()
                             }
                         }}
                     >
@@ -97,13 +67,12 @@ export default function CreateWorkSchedule({
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="__none__">No schedule</SelectItem>
-                            <SelectItem value="days">Specific days</SelectItem>
+                            <SelectItem value="daily">Daily</SelectItem>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="biweekly">Bi-weekly</SelectItem>
+                            <SelectItem value="monthly">Monthly</SelectItem>
                             <Separator className="my-1" />
-                            {recurring.map((r) => (
-                                <SelectItem key={r} value={r}>
-                                    {r.charAt(0).toUpperCase() + r.slice(1)}
-                                </SelectItem>
-                            ))}
+                            <SelectItem value="__none__">Clear schedule</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -125,9 +94,13 @@ export default function CreateWorkSchedule({
             </div>
 
             {/* Day picker — shows when "Specific days" selected */}
-            {scheduleMode === 'days' && (
+            {(scheduleMode === 'weekly' || scheduleMode === 'biweekly') && (
                 <div className="flex flex-col gap-2">
-                    <Label className="text-sm text-muted-foreground">Pick days</Label>
+                    <Label className="text-sm text-muted-foreground">
+                        {scheduleMode === 'weekly'
+                            ? 'Pick one weekly update day'
+                            : 'Pick two bi-weekly update days'}
+                    </Label>
                     <div className="flex flex-wrap gap-2">
                         {days.map((d) => (
                             <button
@@ -144,6 +117,26 @@ export default function CreateWorkSchedule({
                             </button>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {scheduleMode === 'monthly' && (
+                <div className="flex flex-col gap-2 max-w-[220px]">
+                    <Label className="text-sm text-muted-foreground">Monthly update date</Label>
+                    <Select value={monthlyDay || '1'} onValueChange={onMonthlyDayChange}>
+                        <SelectTrigger>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {Array.from({ length: 31 }, (_, index) => String(index + 1)).map(
+                                (day) => (
+                                    <SelectItem key={day} value={day}>
+                                        Day {day}
+                                    </SelectItem>
+                                )
+                            )}
+                        </SelectContent>
+                    </Select>
                 </div>
             )}
         </>

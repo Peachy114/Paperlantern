@@ -6,7 +6,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
-import type { EarningTransaction } from '@/features/studio/hooks/useEarnings'
+import type { EarningTransaction } from '@/api/wallet'
 
 interface Props {
     history: EarningTransaction[]
@@ -33,7 +33,7 @@ export default function EarningHistoryListTable({ history }: Props) {
                             </TableCell>
                             <TableCell>
                                 <p className="text-sm font-medium truncate max-w-[180px]">
-                                    {tx.chapter?.title ?? `Chapter #${tx.chapter_id}`}
+                                    {earningLabel(tx)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                     {new Date(tx.created_at).toLocaleDateString('en-PH', {
@@ -63,4 +63,21 @@ export default function EarningHistoryListTable({ history }: Props) {
             </Table>
         </div>
     )
+}
+
+function earningLabel(tx: EarningTransaction) {
+    const source = (tx.source ?? 'earning')
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ')
+    const title =
+        tx.chapter?.title ??
+        tx.earnable?.title ??
+        tx.earnable?.service?.title ??
+        tx.earnable?.work?.title ??
+        tx.earnable?.name ??
+        tx.earnable?.body ??
+        ''
+
+    return title ? `${source} - ${title}` : source
 }

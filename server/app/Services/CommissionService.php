@@ -3,11 +3,18 @@
 namespace App\Services;
 
 use App\Models\Chapter;
+use App\Models\AppSetting;
+use App\Models\Art;
+use App\Models\ArtistSticker;
+use App\Models\Comment;
+use App\Models\CommissionOrder;
 use App\Models\EarningTransaction;
 use App\Models\StorytellerEarning;
+use App\Models\Work;
 use App\Models\User;
 use App\Models\WithdrawalRequest;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -16,8 +23,8 @@ class CommissionService
     public const PLATFORM_RATE = 0.20;
     public const STORYTELLER_RATE = 0.80;
     public const MIN_WITHDRAWAL_CREDITS = 10.00;
-    public const MIN_WITHDRAWAL_PHP = 14.50;
-    public const CREDIT_TO_PHP_RATE = 1.45;
+    public const MIN_WITHDRAWAL_PHP = 10.00;
+    public const CREDIT_TO_PHP_RATE = 1.00;
 
     public function splitEarnings(User $reader, Chapter $chapter, int $creditsSpent): void
     {
@@ -39,8 +46,10 @@ class CommissionService
         string $source,
         ?Model $earnable = null,
         ?Chapter $chapter = null,
+        float $receiverRate = self::STORYTELLER_RATE,
     ): array {
-        $receiverCut = round($creditsSpent * self::STORYTELLER_RATE, 2);
+        $receiverRate = max(0, min(1, $receiverRate));
+        $receiverCut = round($creditsSpent * $receiverRate, 2);
         $platformCut = round($creditsSpent - $receiverCut, 2);
         $receiverPhp = round($receiverCut * self::CREDIT_TO_PHP_RATE, 2);
         $platformPhp = round($platformCut * self::CREDIT_TO_PHP_RATE, 2);
@@ -97,10 +106,40 @@ class CommissionService
         );
     }
 
+    public function withdrawablePhp(StorytellerEarning $earning): float
+    {
+        return round((float) $earning->php_balance, 2);
+    }
+
+    public function creditsToRedeemForWithdrawal(StorytellerEarning $earning, float $amountPhp): float
+    {
+        $phpBalance = (float) $earning->php_balance;
+        $creditBalance = (float) $earning->balance;
+
+        if ($phpBalance <= 0 || $creditBalance <= 0) {
+            return 0.0;
+        }
+
+        return round(min($creditBalance, ($amountPhp / $phpBalance) * $creditBalance), 2);
+    }
+
     public function getEarningHistory(User $user, int $perPage = 15)
     {
         return EarningTransaction::where('storyteller_id', $user->id)
-            ->with(['reader:id,name', 'chapter:id,title'])
+            ->with([
+                'reader:id,name',
+                'chapter:id,title',
+                'earnable' => function (MorphTo $morphTo) {
+                    $morphTo->morphWith([
+                        Art::class => [],
+                        ArtistSticker::class => [],
+                        Chapter::class => ['work:id,title'],
+                        Comment::class => [],
+                        CommissionOrder::class => ['service:id,title'],
+                        Work::class => [],
+                    ]);
+                },
+            ])
             ->latest()
             ->paginate($perPage);
     }
@@ -136,20 +175,21 @@ class CommissionService
         }
 
         $amountPhp = (float) $data['amount_php'];
-        $creditsToRedeem = round($amountPhp / self::CREDIT_TO_PHP_RATE, 2);
+        $withdrawablePhp = $this->withdrawablePhp($earning);
+        $creditsToRedeem = $this->creditsToRedeemForWithdrawal($earning, $amountPhp);
 
-        if ($amountPhp > (float) $earning->php_balance) {
+        if ($amountPhp > $withdrawablePhp) {
             return [
                 'success' => false,
-                'message' => 'Insufficient earnings balance.',
-                'balance' => $earning->php_balance,
+                'message' => 'You can withdraw up to PHP ' . number_format($withdrawablePhp, 2) . ' right now.',
+                'balance' => $withdrawablePhp,
             ];
         }
 
-        if ($creditsToRedeem > (float) $earning->balance) {
+        if ($creditsToRedeem <= 0) {
             return [
                 'success' => false,
-                'message' => 'Insufficient credit earnings balance.',
+                'message' => 'No withdrawable credit earnings are available yet.',
                 'balance' => $earning->balance,
             ];
         }
@@ -170,8 +210,42 @@ class CommissionService
 
         return [
             'success' => true,
-            'message' => 'Withdrawal request submitted. Processing within 3-5 business days.',
+            'message' => 'Withdrawal request submitted. Transfer fees are shouldered by the withdrawing artist or wanderer.',
         ];
+    }
+
+    public function payoutSettings(): array
+    {
+        return AppSetting::valueFor('payout_settings', [
+            'day' => 'thursday',
+            'notice' => 'Withdrawals are available every Thursday. Requests may be reviewed and processed throughout the payout day. Transfer fees are shouldered by the withdrawing artist or wanderer.',
+        ]);
+    }
+
+    public function isPayoutDay(): bool
+    {
+        return strtolower(now()->format('l')) === strtolower($this->payoutSettings()['day'] ?? 'thursday');
+    }
+
+    public function nextPayoutAt(): \Carbon\Carbon
+    {
+        $day = strtolower($this->payoutSettings()['day'] ?? 'thursday');
+        $today = strtolower(now()->format('l'));
+
+        if ($today === $day) {
+            return now();
+        }
+
+        return now()->next($day);
+    }
+
+    public function payoutNotice(): string
+    {
+        $settings = $this->payoutSettings();
+        $day = ucfirst($settings['day'] ?? 'thursday');
+
+        return $settings['notice']
+            ?? "Withdrawals are available every {$day}. Requests may be reviewed and processed throughout the payout day. Transfer fees are shouldered by the withdrawing artist or wanderer.";
     }
 
     public function processWithdrawal(WithdrawalRequest $request, string $status, ?string $notes = null): void

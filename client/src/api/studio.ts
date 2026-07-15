@@ -31,6 +31,44 @@ export const studioApi = {
     getTrashedArts: () => api.get('/studio/arts/trash'),
     restoreArt: (slug: string) => api.post(`/studio/arts/trash/${slug}/restore`),
     forceDeleteArt: (slug: string) => api.delete(`/studio/arts/trash/${slug}`),
+    getCommissionProfile: () => api.get('/studio/commissions/profile'),
+    applyCommission: (data: { application_reason: string }) =>
+        api.post('/studio/commissions/apply', data),
+    updateCommissionProfile: (data: {
+        commissions_enabled?: boolean
+        commission_status?: 'open' | 'waitlist' | 'closed'
+        terms?: string
+    }) => api.patch('/studio/commissions/profile', data),
+    createCommissionService: (data: FormData) =>
+        api.post('/studio/commissions/services', data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    updateCommissionService: (slug: string, data: FormData) =>
+        api.post(`/studio/commissions/services/${slug}`, data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    deleteCommissionService: (slug: string) => api.delete(`/studio/commissions/services/${slug}`),
+    updateCommissionOrder: (
+        id: string,
+        payload: { status: 'in_progress' | 'delivered' | 'cancelled' | 'disputed' }
+    ) => api.patch(`/studio/commissions/orders/${id}`, payload),
+    archiveCommissionOrder: (id: string) => api.post(`/studio/commissions/orders/${id}/archive`),
+    quoteCommissionOrder: (
+        id: string,
+        payload: { quote_credits: number; quote_note?: string; flow?: unknown[] }
+    ) => api.post(`/studio/commissions/orders/${id}/quote`, payload),
+    advanceCommissionStage: (id: string, payload: { step_index: number; note?: string }) =>
+        api.patch(`/studio/commissions/orders/${id}/stage`, payload),
+    uploadCommissionDeliveryFile: (id: string, payload: FormData) =>
+        api.post(`/studio/commissions/orders/${id}/delivery-files`, payload, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    updateCommissionRevision: (
+        id: string,
+        payload: { status: 'in_progress' | 'resolved' | 'rejected'; artist_response?: string }
+    ) => api.patch(`/studio/commissions/revisions/${id}`, payload),
+    appealCommissionRating: (id: string, appeal_reason: string) =>
+        api.patch(`/studio/commissions/ratings/${id}/appeal`, { appeal_reason }),
 
     // ======================================Chapter Management===========================================//
     getChapters: (workSlug: string) => api.get(`/studio/works/${workSlug}/chapters`),

@@ -20,6 +20,7 @@ export default function NavbarWrapper() {
     const isChapterPage = /\/comics\/\d+\/chapters\/\d+/.test(location.pathname)
     const isComixActive = location.pathname.startsWith('/comix')
     const isArtistsActive = location.pathname.startsWith('/explore/arts')
+    const isCommissionsActive = location.pathname.startsWith('/commissions')
 
     useEffect(() => {
         isChapterPageRef.current = isChapterPage
@@ -81,6 +82,7 @@ export default function NavbarWrapper() {
             isChapterPage={isChapterPage}
             isComicsActive={isComixActive}
             isNovelsActive={isArtistsActive}
+            isCommissionsActive={isCommissionsActive}
             navbarHidden={navbarHidden}
             profileOpen={profileOpen}
             profileButtonRef={profileButtonRef}

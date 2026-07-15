@@ -40,7 +40,7 @@ class WalletService
     {
         $package = $this->packageRepo->find($packageId);
 
-        if (! $package || ! $package->is_active) {
+        if (! $package || ! $package->isAvailableForPurchase()) {
             throw new \InvalidArgumentException('Credit package not found or inactive.');
         }
 

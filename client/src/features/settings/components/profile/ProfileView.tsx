@@ -43,6 +43,40 @@ export default function ProfileView() {
                         )}
                     </div>
                     {/* ── Social Media Links ── */}
+                    <div className="space-y-2">
+                        <Label>Account menu style</Label>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition hover:bg-muted/40">
+                                <input
+                                    type="radio"
+                                    value="circular"
+                                    {...profile.register('account_menu_style')}
+                                    className="mt-1"
+                                />
+                                <span>
+                                    <span className="block font-medium">Circular icons</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        Default compact account menu.
+                                    </span>
+                                </span>
+                            </label>
+                            <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm transition hover:bg-muted/40">
+                                <input
+                                    type="radio"
+                                    value="detailed"
+                                    {...profile.register('account_menu_style')}
+                                    className="mt-1"
+                                />
+                                <span>
+                                    <span className="block font-medium">Detailed rows</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        Larger creator menu with descriptions.
+                                    </span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
                     <div className="hidden">
                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                             Social Media Links

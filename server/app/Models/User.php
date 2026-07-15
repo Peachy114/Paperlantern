@@ -66,6 +66,11 @@ class User extends Authenticatable
         'ban_reason',
         'banned_at',
         'dark_mode',
+        'account_menu_style',
+        'message_read_receipts_enabled',
+        'message_design_id',
+        'message_background_id',
+        'payment_settings',
         'twitter_url',
         'instagram_url',
         'tiktok_url',
@@ -111,6 +116,8 @@ class User extends Authenticatable
             'profile_background_has_gradient' => 'boolean',
             'profile_tabs_config' => 'array',
             'profile_links' => 'array',
+            'message_read_receipts_enabled' => 'boolean',
+            'payment_settings' => 'array',
         ];
     }
 
@@ -154,6 +161,21 @@ class User extends Authenticatable
         return $this->hasMany(Art::class);
     }
 
+    public function commissionArtistProfile()
+    {
+        return $this->hasOne(CommissionArtistProfile::class);
+    }
+
+    public function commissionServices()
+    {
+        return $this->hasMany(CommissionService::class);
+    }
+
+    public function commissionRatings()
+    {
+        return $this->hasMany(CommissionRating::class, 'artist_id');
+    }
+
     public function wallet()
     {
         return $this->hasOne(Wallet::class);
@@ -195,6 +217,43 @@ class User extends Authenticatable
         return $this->belongsToMany(ArtistSticker::class, 'artist_sticker_purchases')
             ->withPivot('credits_spent')
             ->withTimestamps();
+    }
+
+    public function nobleRoyaltyGifts()
+    {
+        return $this->hasMany(NobleRoyaltyGift::class, 'recipient_id');
+    }
+
+    public function subscriptions()
+    {
+        return $this->hasMany(UserSubscription::class);
+    }
+
+    public function feedPosts()
+    {
+        return $this->hasMany(FeedPost::class);
+    }
+
+    public function followers()
+    {
+        return $this->belongsToMany(User::class, 'user_follows', 'followee_id', 'follower_id')
+            ->withTimestamps();
+    }
+
+    public function following()
+    {
+        return $this->belongsToMany(User::class, 'user_follows', 'follower_id', 'followee_id')
+            ->withTimestamps();
+    }
+
+    public function activeSubscription()
+    {
+        return $this->hasOne(UserSubscription::class)
+            ->where('status', 'active')
+            ->where(function ($query) {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->latestOfMany();
     }
 
     public function stickyNotes()

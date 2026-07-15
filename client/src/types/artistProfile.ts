@@ -1,4 +1,5 @@
 import type { Art, ArtImage } from '@/types/art'
+import type { FeedPost } from '@/api/feeds'
 
 export type ProfileBlockType = 'image' | 'text'
 export type ProfileBlockWidth = 'small' | 'medium' | 'large' | 'full'
@@ -49,9 +50,10 @@ export interface ArtistProfileUser {
     twitter_url: string | null
     instagram_url: string | null
     tiktok_url: string | null
+    followers_count?: number
 }
 
-export type ProfileTabId = 'board' | 'arts' | 'works' | 'stickers' | 'comments'
+export type ProfileTabId = 'board' | 'arts' | 'works' | 'stickers' | 'comments' | 'feeds'
 
 export type ProfileSectionMode =
     | 'separate_pages'
@@ -91,6 +93,9 @@ export interface ProfileCanvasItem {
         | 'cards'
     pagination?: boolean
     locked?: boolean
+    sort?: string
+    filter?: string
+    filters?: string[]
     x: number
     y: number
     w: number
@@ -112,6 +117,8 @@ export interface ProfileTabsConfig {
         y: number
     }
     border_scale?: number
+    border_width?: number
+    border_height?: number
     border_layer?: 'front' | 'back'
     nav_locked?: boolean
     header_locks?: {
@@ -125,7 +132,7 @@ export interface ProfileLink {
     id: string
     title: string
     url: string
-    image_path: string | null
+    image_path?: string | null
     is_public: boolean
 }
 
@@ -133,8 +140,51 @@ export interface ProfileBorder {
     id: string
     user_id: string | null
     name: string
+    description?: string | null
     image_path: string
     is_default: boolean
+    is_public?: boolean
+    is_free?: boolean
+    credit_cost?: number
+    purchase_cost?: number
+    subscription_free?: boolean
+    gifted?: boolean
+    owned?: boolean
+    can_use?: boolean
+    published_at?: string | null
+    owner?: {
+        id: string
+        name: string
+        username: string
+        avatar: string | null
+        role?: string
+    } | null
+    sort_order: number
+    created_at: string
+    updated_at: string
+}
+
+export type RoyaltyDesignType =
+    | 'message_design'
+    | 'message_background'
+    | 'comment_border'
+    | 'board_button'
+
+export interface RoyaltyDesignAsset {
+    id: string
+    user_id?: string | null
+    type: RoyaltyDesignType
+    name: string
+    description?: string | null
+    image_path: string
+    is_active: boolean
+    is_public?: boolean
+    subscription_free?: boolean
+    owned?: boolean
+    can_use?: boolean
+    subscription_unlocked?: boolean
+    published_at?: string | null
+    gifted?: boolean
     sort_order: number
     created_at: string
     updated_at: string
@@ -164,6 +214,17 @@ export interface ArtistProfileBlock {
     font_size: number
     z_index: number
     rotation: number
+    background_color: string | null
+    transparent_background: boolean
+    overlay: boolean
+    show_border: boolean
+    border_color: string | null
+    border_radius: number
+    font_family: string | null
+    font_color: string | null
+    locked: boolean
+    image_position_x: number
+    image_position_y: number
     sort_order: number
     created_at: string
     updated_at: string
@@ -173,6 +234,16 @@ export interface ArtistSticker {
     id: string
     user_id: string
     name: string
+    description?: string | null
+    bundle_name?: string | null
+    is_free?: boolean
+    credit_cost?: number
+    purchase_cost?: number
+    is_public?: boolean
+    subscription_free?: boolean
+    subscription_unlocked?: boolean
+    gifted?: boolean
+    published_at?: string | null
     image_path: string
     sort_order: number
     subscriptions_count?: number
@@ -182,7 +253,6 @@ export interface ArtistSticker {
     bought?: boolean
     subscribed?: boolean
     can_use?: boolean
-    purchase_cost?: number
     owner?: {
         id: string
         name: string
@@ -228,9 +298,36 @@ export interface ArtistProfileResponse {
     stickers: ArtistSticker[]
     arts: Art[]
     works: ArtistProfileWork[]
+    feeds?: FeedPost[]
+    stats?: {
+        works_total: number
+        arts_total: number
+        followers_count: number
+        feed_posts_count: number
+        is_following: boolean
+    }
     comments?: Array<{
         id: string
+        parent_id?: string | null
         body: string | null
+        likes_count?: number
+        replies_count?: number
+        super_likes_count?: number
+        awards?: Array<{
+            id: string | null
+            name: string
+            icon: string
+            credit_cost: number
+            count: number
+        }>
+        parent?: {
+            id: string
+            body: string | null
+            user: {
+                name: string
+                username: string
+            } | null
+        } | null
         created_at: string
         origin: {
             type: string

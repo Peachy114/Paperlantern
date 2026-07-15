@@ -1,4 +1,5 @@
 export type ArtStatus = 'draft' | 'published' | 'archived'
+export type ArtDownloadPolicy = 'disabled' | 'free' | 'paid'
 
 export interface Art {
     id: string
@@ -10,6 +11,11 @@ export interface Art {
     images: ArtImage[]
     status: ArtStatus
     moderation_status: 'pending' | 'approved' | 'rejected'
+    download_policy: ArtDownloadPolicy
+    download_credits: number
+    download_unlocked?: boolean
+    downloads_count: number
+    apply_watermark: boolean
     views: number
     likes: number
     liked_by_me?: boolean
@@ -52,5 +58,26 @@ export interface MyArtsStats {
 
 export interface MyArtsDashboardResponse {
     stats: MyArtsStats
+    commission_profile: CommissionProfile
     arts: Art[]
+}
+
+export type CommissionApplicationStatus =
+    | 'not_applied'
+    | 'pending'
+    | 'approved'
+    | 'rejected'
+    | 'suspended'
+
+export interface CommissionProfile {
+    id?: string
+    application_status: CommissionApplicationStatus
+    commissions_enabled: boolean
+    commission_status: 'open' | 'waitlist' | 'closed'
+    application_reason: string | null
+    terms: string | null
+    terms_moderation_status: 'pending' | 'approved' | 'hidden' | 'suspended'
+    customers_count: number
+    average_rating: number
+    ratings_count: number
 }

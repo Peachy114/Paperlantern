@@ -9,6 +9,10 @@ import { authApi } from '@/api/auth'
 const schema = yup.object({
     name: yup.string().required('Full name is required').max(255),
     username: yup.string().required('Username is required').max(50),
+    account_menu_style: yup
+        .mixed<'circular' | 'detailed'>()
+        .oneOf(['circular', 'detailed'])
+        .required(),
     bio: yup.string().max(500).nullable().optional(),
     twitter_url: yup.string().url('Enter a valid URL').nullable().optional(),
     instagram_url: yup.string().url('Enter a valid URL').nullable().optional(),
@@ -31,6 +35,7 @@ export function useProfileForm() {
         defaultValues: {
             name: user?.name ?? '',
             username: user?.username ?? '',
+            account_menu_style: user?.account_menu_style ?? 'circular',
             bio: user?.bio ?? '',
             twitter_url: user?.twitter_url ?? '',
             instagram_url: user?.instagram_url ?? '',
@@ -43,6 +48,7 @@ export function useProfileForm() {
             const form = new FormData()
             form.append('name', data.name)
             form.append('username', data.username)
+            form.append('account_menu_style', data.account_menu_style)
             form.append('bio', data.bio ?? '')
 
             // Always append social fields, even if empty

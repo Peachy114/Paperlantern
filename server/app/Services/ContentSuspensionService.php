@@ -7,6 +7,8 @@ use App\Models\ArtImage;
 use App\Models\ArtistProfileBlock;
 use App\Models\Chapter;
 use App\Models\Comment;
+use App\Models\CommissionDeliveryFile;
+use App\Models\CommissionMessage;
 use App\Models\ContentSuspension;
 use App\Models\Ticket;
 use App\Models\User;
@@ -52,6 +54,19 @@ class ContentSuspensionService
                 ->latest()
                 ->limit(40)
                 ->get(['id', 'user_id', 'commentable_type', 'commentable_id', 'body', 'image_path', 'image_moderation_status', 'created_at']),
+            'commission_message_images' => CommissionMessage::query()
+                ->whereNotNull('image_path')
+                ->where('image_moderation_status', 'pending')
+                ->with(['sender:id,name,username,strike_count,is_suspended', 'order.service:id,title,slug'])
+                ->latest()
+                ->limit(40)
+                ->get(['id', 'commission_order_id', 'sender_id', 'body', 'image_path', 'image_moderation_status', 'created_at']),
+            'commission_delivery_files' => CommissionDeliveryFile::query()
+                ->where('moderation_status', 'pending')
+                ->with(['uploader:id,name,username,strike_count,is_suspended', 'order.service:id,title,slug'])
+                ->latest()
+                ->limit(40)
+                ->get(['id', 'commission_order_id', 'uploaded_by', 'file_path', 'original_name', 'mime_type', 'size_bytes', 'note', 'moderation_status', 'created_at']),
             'active_suspensions' => ContentSuspension::query()
                 ->where('status', 'active')
                 ->with(['user:id,name,username,strike_count,is_suspended', 'admin:id,name,username', 'ticket:id,status,subject'])
@@ -271,6 +286,8 @@ class ContentSuspensionService
             'art_image' => ArtImage::findOrFail($id),
             'profile_block' => ArtistProfileBlock::findOrFail($id),
             'comment' => Comment::findOrFail($id),
+            'commission_message' => CommissionMessage::findOrFail($id),
+            'commission_delivery_file' => CommissionDeliveryFile::findOrFail($id),
             default => throw ValidationException::withMessages([
                 'type' => ['Unsupported moderation target.'],
             ]),
@@ -286,6 +303,8 @@ class ContentSuspensionService
             'art_image' => [null],
             'profile_block' => [null],
             'comment' => [null, 'image_path'],
+            'commission_message' => [null, 'image_path'],
+            'commission_delivery_file' => [null, 'file_path'],
         ];
 
         if (! in_array($field, $allowed[$type] ?? [], true)) {
@@ -307,6 +326,16 @@ class ContentSuspensionService
             return $target->art->user;
         }
 
+        if ($target instanceof CommissionMessage) {
+            $target->loadMissing('sender');
+            return $target->sender;
+        }
+
+        if ($target instanceof CommissionDeliveryFile) {
+            $target->loadMissing('uploader');
+            return $target->uploader;
+        }
+
         $target->loadMissing('user');
         return $target->user;
     }
@@ -322,6 +351,8 @@ class ContentSuspensionService
             $target instanceof ArtImage => "Art image - {$target->art?->title}",
             $target instanceof ArtistProfileBlock => "Profile board block",
             $target instanceof Comment => "Comment{$fieldLabel}",
+            $target instanceof CommissionMessage => "Commission message{$fieldLabel}",
+            $target instanceof CommissionDeliveryFile => "Commission delivery file{$fieldLabel}",
             default => 'Content',
         };
     }

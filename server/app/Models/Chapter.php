@@ -17,6 +17,7 @@ class Chapter extends Model
         'title',
         'slug',
         'content',
+        'artist_note',
         'order',
         'status',
         'cover',
@@ -85,6 +86,11 @@ class Chapter extends Model
     public function chapterViews()
     {
         return $this->hasMany(ChapterView::class);
+    }
+
+    public function chapterLikes()
+    {
+        return $this->hasMany(ChapterLike::class);
     }
 
     public function comments()

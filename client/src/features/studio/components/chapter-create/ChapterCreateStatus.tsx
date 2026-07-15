@@ -3,15 +3,9 @@ import { CalendarIcon } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
+import { cn } from '@/lib/utils'
 
 interface Props {
     title: string
@@ -20,6 +14,7 @@ interface Props {
     onTitleChange: (e: React.ChangeEvent<HTMLInputElement>) => void
     onStatusChange: (value: string) => void
     onScheduledAtChange: (value: string) => void
+    onOpenScheduled: () => void
 }
 
 export default function ChapterCreateStatus({
@@ -29,34 +24,55 @@ export default function ChapterCreateStatus({
     onTitleChange,
     onStatusChange,
     onScheduledAtChange,
+    onOpenScheduled,
 }: Props) {
+    const statuses = [
+        { value: 'draft', label: 'Draft' },
+        { value: 'published', label: 'Publish' },
+        { value: 'scheduled', label: 'Scheduled' },
+    ]
+
     return (
         <div className="flex flex-col gap-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-2">
                     <Label htmlFor="title">
-                        Title <span className="text-destructive">*</span>
+                        Episode title <span className="text-destructive">*</span>
                     </Label>
                     <Input
                         id="title"
                         name="title"
                         value={title}
                         onChange={onTitleChange}
-                        placeholder="Chapter title"
+                        placeholder="Episode title"
                     />
                 </div>
                 <div className="flex flex-col gap-2">
                     <Label htmlFor="status">Status</Label>
-                    <Select value={status} onValueChange={onStatusChange}>
-                        <SelectTrigger id="status">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="scheduled">Scheduled</SelectItem>
-                            <SelectItem value="published">Published</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <div className="flex flex-wrap gap-2">
+                        {statuses.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => onStatusChange(option.value)}
+                                className={cn(
+                                    'rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+                                    status === option.value
+                                        ? 'border-foreground bg-foreground text-background'
+                                        : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                                )}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                        <button
+                            type="button"
+                            onClick={onOpenScheduled}
+                            className="rounded-full border border-border bg-muted/30 px-3 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground"
+                        >
+                            Check scheduled episodes
+                        </button>
+                    </div>
                 </div>
             </div>
 

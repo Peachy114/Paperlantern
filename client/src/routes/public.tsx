@@ -32,6 +32,14 @@ export const publicRoutes = (
             }
         />
         <Route
+            path="/commissions"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.ExploreCommissions />
+                </Suspense>
+            }
+        />
+        <Route
             path="/works/:slug"
             element={
                 <Suspense fallback={<Loading />}>

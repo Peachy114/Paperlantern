@@ -14,8 +14,14 @@ class ProfileBorder extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'description',
         'image_path',
         'is_default',
+        'is_public',
+        'is_free',
+        'credit_cost',
+        'subscription_free',
+        'published_at',
         'sort_order',
     ];
 
@@ -23,6 +29,11 @@ class ProfileBorder extends Model
     {
         return [
             'is_default' => 'boolean',
+            'is_public' => 'boolean',
+            'is_free' => 'boolean',
+            'credit_cost' => 'integer',
+            'subscription_free' => 'boolean',
+            'published_at' => 'datetime',
             'sort_order' => 'integer',
         ];
     }

@@ -24,12 +24,24 @@ export const commentsApi = {
             image_url?: string | null
             is_spoiler?: boolean
         }
-    ) => api.post<PublicComment>(`/comments/${targetType}/${targetId}`, payload),
+    ) =>
+        api.post<PublicComment>(
+            `/comments/${targetType}/${targetId}`,
+            payload,
+            payload instanceof FormData
+                ? { headers: { 'Content-Type': 'multipart/form-data' } }
+                : undefined
+        ),
     pin: (commentId: string, isPinned: boolean) =>
         api.patch<PublicComment>(`/comments/${commentId}/pin`, { is_pinned: isPinned }),
     like: (commentId: string) =>
         api.post<{ liked: boolean; likes_count: number }>(`/comments/${commentId}/like`),
     remove: (commentId: string) => api.delete<{ message: string }>(`/comments/${commentId}`),
+    report: (commentId: string, payload: { reason: string; details?: string }) =>
+        api.post<{ message: string; support_number: string; ticket_id: string }>(
+            `/comments/${commentId}/report`,
+            payload
+        ),
     awards: () => api.get<{ data: SuperLikeAward[] }>('/public/super-like-awards'),
     superLike: (targetType: CommentTargetType, targetId: string, awardId?: string | null) =>
         api.post<{

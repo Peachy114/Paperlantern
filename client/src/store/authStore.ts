@@ -10,6 +10,7 @@ export interface User {
     is_banned: boolean
     is_suspended?: boolean
     dark_mode?: boolean
+    account_menu_style?: 'circular' | 'detailed'
     avatar?: string | null
     profile_cover?: string | null
     bio?: string | null

@@ -101,6 +101,7 @@ class AuthController extends Controller
             'twitter_url'   => ['nullable', 'url', 'max:255'],
             'instagram_url' => ['nullable', 'url', 'max:255'],
             'tiktok_url'    => ['nullable', 'url', 'max:255'],
+            'account_menu_style' => ['sometimes', 'string', 'in:circular,detailed'],
         ]);
 
         if ($request->hasFile('avatar')) {

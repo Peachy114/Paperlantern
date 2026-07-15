@@ -1,9 +1,10 @@
 // useCreateWork.ts
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { studioApi } from '@/api/studio'
+import { labelingApi } from '@/api/labeling'
 import { containsBadWord } from '@/lib/badWords'
 import * as Yup from 'yup'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { arrayMove } from '@dnd-kit/sortable'
 import { uploadChapterImagesInBatches } from '../utils/chapterImageUpload'
@@ -32,6 +33,16 @@ export const WORK_LANGUAGES = [
     { value: 'id', label: 'Indonesian' },
     { value: 'th', label: 'Thai' },
 ] as const
+
+type RatingKey = 'violence' | 'sexual_content' | 'nudity' | 'profanity' | 'substances'
+
+const RATING_KEYS: RatingKey[] = [
+    'violence',
+    'sexual_content',
+    'nudity',
+    'profanity',
+    'substances',
+]
 
 const noBadWords = (field: string) =>
     Yup.string().test(
@@ -82,6 +93,7 @@ export function useCreateWork() {
     const [searchParams] = useSearchParams()
     const type = (searchParams.get('type') ?? 'webtoon') as 'webtoon' | 'wattpad'
     const navigate = useNavigate()
+    const [availableGenres, setAvailableGenres] = useState<string[]>(GENRES)
 
     // ── Work state ────────────────────────────────────────────────
     const [form, setForm] = useState({
@@ -99,6 +111,15 @@ export function useCreateWork() {
     const [banner, setBanner] = useState<File | null>(null)
     const [coverPreview, setCoverPreview] = useState<string | null>(null)
     const [bannerPreview, setBannerPreview] = useState<string | null>(null)
+    const [contentRating, setContentRating] = useState<Record<RatingKey, string>>({
+        violence: '',
+        sexual_content: '',
+        nudity: '',
+        profanity: '',
+        substances: '',
+    })
+    const [sensitivityFlags, setSensitivityFlags] = useState<string[]>([])
+    const [ratingAgreement, setRatingAgreement] = useState(false)
 
     // ── Chapter state ─────────────────────────────────────────────
     const [chapterForm, setChapterForm] = useState({
@@ -119,6 +140,16 @@ export function useCreateWork() {
     const [error, setError] = useState<string | null>(null)
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
     const [chapterFieldErrors, setChapterFieldErrors] = useState<Record<string, string>>({})
+
+    useEffect(() => {
+        labelingApi
+            .publicIndex()
+            .then((res) => {
+                const genres = (res.data.genres ?? []).map((genre) => genre.name)
+                if (genres.length > 0) setAvailableGenres(genres)
+            })
+            .catch(() => setAvailableGenres(GENRES))
+    }, [])
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -160,6 +191,52 @@ export function useCreateWork() {
                 delete n['genres']
                 return n
             })
+    }
+
+    const handleGenreRequest = async (name: string) => {
+        const trimmed = name.trim()
+        if (!trimmed) {
+            toast.error('Please enter the genre you want to request.')
+            return false
+        }
+
+        try {
+            await labelingApi.requestLabel({ type: 'genre', name: trimmed })
+            toast.success('Genre request sent to admin.')
+            return true
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message ?? 'Could not send genre request.')
+            return false
+        }
+    }
+
+    const handleContentRatingChange = (field: RatingKey, value: string) => {
+        setContentRating((prev) => ({ ...prev, [field]: value }))
+        const errorKey = `content_rating_assessment.${field}`
+        if (fieldErrors[errorKey]) {
+            setFieldErrors((prev) => {
+                const n = { ...prev }
+                delete n[errorKey]
+                return n
+            })
+        }
+    }
+
+    const handleSensitivityToggle = (flag: string) => {
+        setSensitivityFlags((prev) =>
+            prev.includes(flag) ? prev.filter((item) => item !== flag) : [...prev, flag]
+        )
+    }
+
+    const handleRatingAgreementChange = (checked: boolean) => {
+        setRatingAgreement(checked)
+        if (fieldErrors.content_rating_agreement) {
+            setFieldErrors((prev) => {
+                const n = { ...prev }
+                delete n.content_rating_agreement
+                return n
+            })
+        }
     }
 
     const handleFileChange = (
@@ -262,6 +339,21 @@ export function useCreateWork() {
             workValid = false
         }
 
+        const ratingErrors: Record<string, string> = {}
+        RATING_KEYS.forEach((key) => {
+            if (contentRating[key] === '') {
+                ratingErrors[`content_rating_assessment.${key}`] = 'Please select one option.'
+            }
+        })
+        if (!ratingAgreement) {
+            ratingErrors.content_rating_agreement =
+                'Please confirm that this assessment is accurate.'
+        }
+        if (Object.keys(ratingErrors).length > 0) {
+            setFieldErrors((prev) => ({ ...prev, ...ratingErrors }))
+            workValid = false
+        }
+
         if (requiresChapter) {
             try {
                 await makeChapterSchema(type, chapterImages, chapterCover).validate(
@@ -296,6 +388,13 @@ export function useCreateWork() {
                     workFormData.append(key, value as string)
                 }
             })
+            RATING_KEYS.forEach((key) => {
+                workFormData.append(`content_rating_assessment[${key}]`, contentRating[key])
+            })
+            sensitivityFlags.forEach((flag) => {
+                workFormData.append('content_rating_assessment[sensitivities][]', flag)
+            })
+            workFormData.append('content_rating_agreement', '1')
             if (cover) workFormData.append('cover', cover)
             if (banner) workFormData.append('banner', banner)
 
@@ -324,7 +423,7 @@ export function useCreateWork() {
                 }
             }
             toast.success(`${type === 'webtoon' ? 'Webtoon' : 'Novel'} created!`)
-            navigate(`/studio/works/${workSlug}/chapters`)
+            navigate(`/studio/works/${workSlug}/chapters/create`)
         } catch (err: any) {
             if (err.response?.status === 422 && err.response?.data?.errors) {
                 const raw: Record<string, string[]> = err.response.data.errors
@@ -346,11 +445,15 @@ export function useCreateWork() {
 
     return {
         type,
+        availableGenres,
         form,
         cover,
         banner,
         coverPreview,
         bannerPreview,
+        contentRating,
+        sensitivityFlags,
+        ratingAgreement,
         chapterForm,
         chapterCover,
         chapterCoverPreview,
@@ -365,6 +468,10 @@ export function useCreateWork() {
         navigate,
         handleChange,
         handleGenreToggle,
+        handleGenreRequest,
+        handleContentRatingChange,
+        handleSensitivityToggle,
+        handleRatingAgreementChange,
         handleFileChange,
         handleChapterChange,
         handleChapterLockTypeChange,

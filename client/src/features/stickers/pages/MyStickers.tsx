@@ -1,6 +1,6 @@
 import { useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { toast } from 'sonner'
-import { Images, Layers, Plus, Receipt, Trash2, Users, type LucideIcon } from 'lucide-react'
+import { Images, Layers, Plus, Receipt, Trash2, Users, X, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
     Dialog,
@@ -9,7 +9,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,12 +19,18 @@ import type { ArtistSticker } from '@/types/artistProfile'
 import { storageUrl } from '@/utils/storage'
 
 type StickerFilter = 'all' | 'created' | 'subscribed' | 'bought'
+type StickerUpload = { file: File; name: string; previewUrl: string }
 
 export default function MyStickers() {
     const { data, isLoading, createSticker, deleteSticker } = useMyStickers()
     const [open, setOpen] = useState(false)
-    const [name, setName] = useState('')
-    const [image, setImage] = useState<File | null>(null)
+    const [isBundle, setIsBundle] = useState(false)
+    const [bundleName, setBundleName] = useState('')
+    const [isFree, setIsFree] = useState(false)
+    const [creditCost, setCreditCost] = useState(1)
+    const [publishPublic, setPublishPublic] = useState(false)
+    const [subscriptionFree, setSubscriptionFree] = useState(false)
+    const [uploads, setUploads] = useState<StickerUpload[]>([])
     const [fileKey, setFileKey] = useState(0)
 
     const stickersByFilter = useMemo(() => {
@@ -44,29 +49,48 @@ export default function MyStickers() {
     const submit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
-        if (!name.trim()) {
-            toast.error('Sticker name is required.')
+        if (uploads.length === 0) {
+            toast.error('Choose at least one sticker image.')
             return
         }
 
-        if (!image) {
-            toast.error('Choose a sticker image.')
+        if (isBundle && !bundleName.trim()) {
+            toast.error('Bundle name is required when creating a bundle.')
+            return
+        }
+
+        if (!isFree && creditCost < 1) {
+            toast.error(isBundle ? 'Bundle credit cost is required.' : 'Credit cost is required.')
             return
         }
 
         const payload = new FormData()
-        payload.append('name', name.trim())
-        payload.append('image', image)
+        payload.append('name', uploads[0]?.name.trim() || stickerNameFromFile(uploads[0].file))
+        payload.append('bundle_name', isBundle ? bundleName.trim() : '')
+        payload.append('is_free', isFree ? '1' : '0')
+        payload.append('credit_cost', String(isFree ? 0 : Math.max(1, creditCost)))
+        payload.append('publish_public', publishPublic ? '1' : '0')
+        payload.append('subscription_free', subscriptionFree ? '1' : '0')
+        uploads.forEach((upload) => {
+            payload.append('images[]', upload.file)
+            payload.append('sticker_names[]', upload.name.trim())
+        })
 
         try {
             await createSticker.mutateAsync(payload)
-            setName('')
-            setImage(null)
+            setIsBundle(false)
+            setBundleName('')
+            setIsFree(false)
+            setCreditCost(1)
+            setPublishPublic(false)
+            setSubscriptionFree(false)
+            uploads.forEach((upload) => URL.revokeObjectURL(upload.previewUrl))
+            setUploads([])
             setFileKey((current) => current + 1)
             setOpen(false)
-            toast.success('Sticker added.')
+            toast.success(uploads.length === 1 ? 'Sticker added.' : 'Sticker bundle added.')
         } catch {
-            toast.error('Could not add sticker.')
+            toast.error(publishPublic ? 'Could not add and publish sticker. Check your credits.' : 'Could not add sticker.')
         }
     }
 
@@ -77,6 +101,14 @@ export default function MyStickers() {
         } catch {
             toast.error('Could not delete sticker.')
         }
+    }
+
+    const removeUpload = (index: number) => {
+        setUploads((current) => {
+            current[index] && URL.revokeObjectURL(current[index].previewUrl)
+            return current.filter((_, itemIndex) => itemIndex !== index)
+        })
+        setFileKey((current) => current + 1)
     }
 
     const busy = createSticker.isPending || deleteSticker.isPending
@@ -92,44 +124,169 @@ export default function MyStickers() {
                 </div>
 
                 <Dialog open={open} onOpenChange={setOpen}>
-                    <DialogTrigger asChild>
-                        <Button>
-                            <Plus className="h-4 w-4" />
-                            Add Sticker
-                        </Button>
-                    </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Add Sticker</DialogTitle>
                             <DialogDescription>
-                                Upload a PNG, WebP, or animated GIF for your sticker library.
+                                Upload solo stickers or create a bundle. Names are optional and default to the file name.
                             </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={submit} className="grid gap-4">
+                            <label className="flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={isBundle}
+                                    onChange={(event) => setIsBundle(event.target.checked)}
+                                />
+                                Create as bundle
+                            </label>
                             <div className="grid gap-1">
-                                <Label htmlFor="sticker-name">Name</Label>
+                                <Label htmlFor="sticker-bundle">
+                                    Bundle name{isBundle ? '' : ', optional'}
+                                </Label>
                                 <Input
-                                    id="sticker-name"
-                                    value={name}
-                                    onChange={(event) => setName(event.target.value)}
+                                    id="sticker-bundle"
+                                    value={bundleName}
+                                    disabled={!isBundle}
+                                    onChange={(event) => setBundleName(event.target.value)}
+                                    placeholder={isBundle ? 'Bundle name' : 'Solo stickers do not need a bundle'}
                                 />
                             </div>
                             <div className="grid gap-1">
-                                <Label htmlFor="sticker-upload">Sticker</Label>
+                                <Label htmlFor="sticker-visibility">Visibility</Label>
+                                <select
+                                    id="sticker-visibility"
+                                    value={publishPublic ? 'public' : 'private'}
+                                    onChange={(event) => {
+                                        const isPublic = event.target.value === 'public'
+                                        setPublishPublic(isPublic)
+                                        if (!isPublic) {
+                                            setSubscriptionFree(false)
+                                        }
+                                    }}
+                                    className="h-10 rounded-md border bg-background px-3 text-sm"
+                                >
+                                    <option value="private">Private</option>
+                                    <option value="public">Public</option>
+                                </select>
+                                {publishPublic && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Public publishing is free with an active subscription, otherwise it costs 20 credits.
+                                    </p>
+                                )}
+                            </div>
+                            {publishPublic && (
+                                <>
+                                    <label className="flex items-center gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            checked={isFree}
+                                            onChange={(event) => {
+                                                setIsFree(event.target.checked)
+                                                if (event.target.checked) setCreditCost(0)
+                                                else setCreditCost((current) => Math.max(1, current || 1))
+                                            }}
+                                        />
+                                        Free sticker
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            checked={subscriptionFree}
+                                            onChange={(event) => setSubscriptionFree(event.target.checked)}
+                                        />
+                                        Free for active subscriptions
+                                    </label>
+                                    <div className="grid gap-1">
+                                        <Label htmlFor="sticker-credit-cost">
+                                            {isBundle ? 'Bundle credit cost' : 'Credit cost per sticker'}
+                                        </Label>
+                                        <Input
+                                            id="sticker-credit-cost"
+                                            type="number"
+                                            min={0}
+                                            max={1000}
+                                            value={creditCost}
+                                            disabled={isFree}
+                                            onChange={(event) => setCreditCost(Number(event.target.value) || 0)}
+                                        />
+                                    </div>
+                                </>
+                            )}
+                            <div className="grid gap-1">
+                                <Label htmlFor="sticker-upload">Sticker images</Label>
                                 <Input
                                     key={fileKey}
                                     id="sticker-upload"
                                     type="file"
                                     accept="image/png,image/webp,image/gif"
+                                    multiple
                                     onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                                        setImage(event.target.files?.[0] ?? null)
+                                        setUploads((current) => {
+                                            current.forEach((upload) => URL.revokeObjectURL(upload.previewUrl))
+                                            return Array.from(event.target.files ?? []).map((file) => ({
+                                                file,
+                                                name: stickerNameFromFile(file),
+                                                previewUrl: URL.createObjectURL(file),
+                                            }))
+                                        })
                                     }
                                 />
+                                {uploads.length > 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                        {uploads.length} file{uploads.length === 1 ? '' : 's'} selected
+                                    </p>
+                                )}
                             </div>
+                            {uploads.length > 0 && (
+                                <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg border p-3">
+                                    {uploads.map((upload, index) => (
+                                        <div
+                                            key={`${upload.file.name}-${index}`}
+                                            className="grid grid-cols-[64px_1fr_auto] items-end gap-3 rounded-md bg-muted/30 p-2"
+                                        >
+                                            <div className="h-16 w-16 overflow-hidden rounded-md border bg-[linear-gradient(45deg,var(--muted)_25%,transparent_25%),linear-gradient(-45deg,var(--muted)_25%,transparent_25%),linear-gradient(45deg,transparent_75%,var(--muted)_75%),linear-gradient(-45deg,transparent_75%,var(--muted)_75%)] bg-[length:12px_12px] bg-[position:0_0,0_6px,6px_-6px,-6px_0] p-1">
+                                                <img
+                                                    src={upload.previewUrl}
+                                                    alt=""
+                                                    className="h-full w-full object-contain"
+                                                />
+                                            </div>
+                                            <div className="grid gap-1">
+                                                <Label htmlFor={`sticker-upload-name-${index}`}>
+                                                    Sticker {index + 1} name, optional
+                                                </Label>
+                                                <Input
+                                                    id={`sticker-upload-name-${index}`}
+                                                    value={upload.name}
+                                                    onChange={(event) =>
+                                                        setUploads((current) =>
+                                                            current.map((item, itemIndex) =>
+                                                                itemIndex === index
+                                                                    ? { ...item, name: event.target.value }
+                                                                    : item
+                                                            )
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                onClick={() => removeUpload(index)}
+                                                aria-label={`Remove sticker ${index + 1}`}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             <DialogFooter>
                                 <Button type="submit" disabled={busy}>
                                     <Plus className="h-4 w-4" />
-                                    Add
+                                    {publishPublic ? 'Add and Publish' : 'Add'}
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -168,6 +325,10 @@ export default function MyStickers() {
             </Tabs>
         </main>
     )
+}
+
+function stickerNameFromFile(file: File) {
+    return file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim()
 }
 
 function StickerStat({
@@ -243,6 +404,16 @@ function StickerShelf({
                             <p className="truncate text-[11px] text-muted-foreground">
                                 {sticker.owner?.username ? `@${sticker.owner.username}` : 'Created'}
                             </p>
+                            <div className="mt-2 flex flex-wrap gap-1">
+                                {sticker.bundle_name && (
+                                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                                        {sticker.bundle_name}
+                                    </span>
+                                )}
+                                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-700 dark:text-amber-300">
+                                    {sticker.is_free ? 'Free' : `${sticker.credit_cost ?? sticker.purchase_cost ?? 1} credits`}
+                                </span>
+                            </div>
                         </div>
                     </div>
                 )

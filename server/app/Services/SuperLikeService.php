@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Art;
 use App\Models\Chapter;
 use App\Models\Comment;
+use App\Models\FeedPost;
 use App\Models\SuperLike;
 use App\Models\SuperLikeAward;
 use App\Models\User;
@@ -57,6 +58,7 @@ class SuperLikeService
                 'super_like',
                 $target,
                 $chapter,
+                $target instanceof Comment ? 0.50 : CommissionService::STORYTELLER_RATE,
             );
 
             SuperLike::create([
@@ -98,7 +100,7 @@ class SuperLikeService
         return $query->orderBy('credit_cost')->orderBy('sort_order')->firstOrFail();
     }
 
-    private function incrementTarget(Work|Chapter|Art|Comment $target, float $receiverCut): void
+    private function incrementTarget(Work|Chapter|Art|Comment|FeedPost $target, float $receiverCut): void
     {
         $target->increment('super_likes_count');
         $target->increment('super_like_credits', $receiverCut);

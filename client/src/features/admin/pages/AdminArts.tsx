@@ -3,7 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowDown, ArrowLeft, ArrowUp, ImageOff, PlusCircle, Sparkles, Trash2 } from 'lucide-react'
-import { adminArtsApi } from '@/api/adminArts'
+import {
+    adminArtsApi,
+    type ArtWatermark,
+    type ArtWatermarkSettings,
+    type WatermarkPosition,
+    type WatermarkTarget,
+} from '@/api/adminArts'
 import { adminApi } from '@/api/admin'
 import { storageUrl } from '@/utils/storage'
 import type { Art } from '@/types/art'
@@ -29,6 +35,21 @@ type FormState = {
     images: File[]
 }
 
+type WatermarkDraft = {
+    name: string
+    image: File | null
+    previewUrl?: string | null
+    target: WatermarkTarget
+    position: WatermarkPosition
+    offset_x: number
+    offset_y: number
+    width_percent: number
+    opacity: number
+    rotation: number
+    is_active: boolean
+    sort_order: number
+}
+
 type AdminArtistOption = {
     id: string
     name: string
@@ -45,6 +66,35 @@ const EMPTY_FORM: FormState = {
     labels: '',
     images: [],
 }
+
+const EMPTY_WATERMARK: WatermarkDraft = {
+    name: '',
+    image: null,
+    previewUrl: null,
+    target: 'arts',
+    position: 'bottom-right',
+    offset_x: 24,
+    offset_y: 24,
+    width_percent: 18,
+    opacity: 58,
+    rotation: 0,
+    is_active: true,
+    sort_order: 0,
+}
+
+const WATERMARK_TARGETS: WatermarkTarget[] = ['arts', 'messages', 'final_delivery']
+
+const WATERMARK_POSITIONS: WatermarkPosition[] = [
+    'top-left',
+    'top',
+    'top-right',
+    'left',
+    'center',
+    'right',
+    'bottom-left',
+    'bottom',
+    'bottom-right',
+]
 
 export default function AdminArts() {
     const queryClient = useQueryClient()
@@ -286,6 +336,8 @@ export default function AdminArts() {
                 </form>
             </section>
 
+            <ArtWatermarkSection />
+
             <section className="mb-6 rounded-lg border bg-background p-4">
                 <div className="mb-3">
                     <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
@@ -415,7 +467,12 @@ export default function AdminArts() {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="admin-art-labels">Labels</Label>
+                                <div className="flex items-center justify-between gap-3">
+                                    <Label htmlFor="admin-art-labels">Labels</Label>
+                                    <span className="text-xs text-muted-foreground">
+                                        {parseLabels(form.labels).length}/12 labels
+                                    </span>
+                                </div>
                                 <Input
                                     id="admin-art-labels"
                                     value={form.labels}
@@ -426,7 +483,10 @@ export default function AdminArts() {
                                             labels: event.target.value,
                                         }))
                                     }
-                                />
+                                    />
+                                <p className="text-xs text-muted-foreground">
+                                    Add up to 12 comma-separated labels.
+                                </p>
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="admin-art-description">Description</Label>
@@ -480,6 +540,495 @@ type AwardDraft = {
     credit_cost: number
     sort_order: number
     is_active: boolean
+}
+
+function ArtWatermarkSection() {
+    const queryClient = useQueryClient()
+    const [draft, setDraft] = useState<WatermarkDraft>(EMPTY_WATERMARK)
+    const [settingsDraft, setSettingsDraft] = useState<ArtWatermarkSettings>({
+        id: 1,
+        noise_enabled: false,
+        noise_opacity: 8,
+        noise_density: 2,
+    })
+
+    const { data } = useQuery({
+        queryKey: ['admin-art-watermarks'],
+        queryFn: () => adminArtsApi.watermarks().then((res) => res.data),
+    })
+
+    const watermarks = data?.watermarks ?? []
+
+    useEffect(() => {
+        if (data?.settings) setSettingsDraft(data.settings)
+    }, [data?.settings])
+
+    const createWatermark = useMutation({
+        mutationFn: (payload: FormData) => adminArtsApi.createWatermark(payload),
+        onSuccess: () => {
+            toast.success('Watermark logo added.')
+            queryClient.invalidateQueries({ queryKey: ['admin-art-watermarks'] })
+            setDraft(EMPTY_WATERMARK)
+        },
+        onError: () => toast.error('Could not add watermark logo.'),
+    })
+
+    const updateWatermark = useMutation({
+        mutationFn: ({ id, payload }: { id: string; payload: FormData }) =>
+            adminArtsApi.updateWatermark(id, payload),
+        onSuccess: () => {
+            toast.success('Watermark updated.')
+            queryClient.invalidateQueries({ queryKey: ['admin-art-watermarks'] })
+        },
+        onError: () => toast.error('Could not update watermark.'),
+    })
+
+    const deleteWatermark = useMutation({
+        mutationFn: (id: string) => adminArtsApi.deleteWatermark(id),
+        onSuccess: () => {
+            toast.success('Watermark deleted.')
+            queryClient.invalidateQueries({ queryKey: ['admin-art-watermarks'] })
+        },
+        onError: () => toast.error('Could not delete watermark.'),
+    })
+
+    const updateSettings = useMutation({
+        mutationFn: (settings: ArtWatermarkSettings) =>
+            adminArtsApi.updateWatermarkSettings(settings),
+        onSuccess: () => {
+            toast.success('Watermark noise settings saved.')
+            queryClient.invalidateQueries({ queryKey: ['admin-art-watermarks'] })
+        },
+        onError: () => toast.error('Could not save noise settings.'),
+    })
+
+    const submitWatermark = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault()
+        if (!draft.name.trim() || !draft.image) {
+            toast.error('Watermark name and logo image are required.')
+            return
+        }
+        createWatermark.mutate(watermarkFormData(draft))
+    }
+
+    return (
+        <section className="mb-6 rounded-lg border bg-background p-4">
+            <div className="mb-3">
+                <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                    Art Watermarks
+                </p>
+                <h2 className="mt-1 text-lg font-semibold">Public Art Watermark Settings</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    These settings apply to newly uploaded art display images. Originals stay private
+                    for the download system.
+                </p>
+            </div>
+
+            <form onSubmit={submitWatermark} className="grid gap-3 rounded-lg border bg-muted/20 p-3">
+                <div className="grid gap-3 md:grid-cols-[1fr_1fr]">
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="watermark-name">Logo name</Label>
+                        <Input
+                            id="watermark-name"
+                            value={draft.name}
+                            onChange={(event) =>
+                                setDraft((current) => ({ ...current, name: event.target.value }))
+                            }
+                            placeholder="LaterNComix corner logo"
+                        />
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="watermark-image">Logo image</Label>
+                        <Input
+                            id="watermark-image"
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={(event) =>
+                                setDraft((current) => ({
+                                    ...current,
+                                    image: event.target.files?.[0] ?? null,
+                                    previewUrl: event.target.files?.[0]
+                                        ? URL.createObjectURL(event.target.files[0])
+                                        : null,
+                                }))
+                            }
+                        />
+                    </div>
+                </div>
+
+                <WatermarkControls draft={draft} onChange={setDraft} />
+                <WatermarkPreview watermarks={[draft]} settings={settingsDraft} />
+
+                <div className="flex justify-end">
+                    <Button type="submit" disabled={createWatermark.isPending}>
+                        <PlusCircle className="h-4 w-4" />
+                        Add Watermark
+                    </Button>
+                </div>
+            </form>
+
+            <div className="mt-4 grid gap-3">
+                {watermarks.map((watermark) => (
+                    <WatermarkRow
+                        key={watermark.id}
+                        watermark={watermark}
+                        busy={updateWatermark.isPending || deleteWatermark.isPending}
+                        onSave={(payload) => updateWatermark.mutate({ id: watermark.id, payload })}
+                        onDelete={() => deleteWatermark.mutate(watermark.id)}
+                    />
+                ))}
+                {watermarks.length === 0 && (
+                    <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                        No custom watermarks yet. Until you add one, uploads use the default
+                        LaterNComix logo.
+                    </p>
+                )}
+            </div>
+
+            <div className="mt-4 rounded-lg border bg-muted/20 p-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                        <h3 className="text-sm font-semibold">Noise Layer</h3>
+                        <p className="text-xs text-muted-foreground">
+                            Adds subtle pixel noise to public display copies.
+                        </p>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm">
+                        <input
+                            type="checkbox"
+                            checked={settingsDraft.noise_enabled}
+                            onChange={(event) =>
+                                setSettingsDraft((current) => ({
+                                    ...current,
+                                    noise_enabled: event.target.checked,
+                                }))
+                            }
+                        />
+                        Enabled
+                    </label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="noise-opacity">Noise opacity</Label>
+                        <Input
+                            id="noise-opacity"
+                            type="number"
+                            min={1}
+                            max={30}
+                            value={settingsDraft.noise_opacity}
+                            onChange={(event) =>
+                                setSettingsDraft((current) => ({
+                                    ...current,
+                                    noise_opacity: Number(event.target.value) || 1,
+                                }))
+                            }
+                        />
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="noise-density">Noise density</Label>
+                        <Input
+                            id="noise-density"
+                            type="number"
+                            min={1}
+                            max={15}
+                            value={settingsDraft.noise_density}
+                            onChange={(event) =>
+                                setSettingsDraft((current) => ({
+                                    ...current,
+                                    noise_density: Number(event.target.value) || 1,
+                                }))
+                            }
+                        />
+                    </div>
+                    <Button
+                        type="button"
+                        className="self-end"
+                        disabled={updateSettings.isPending}
+                        onClick={() => updateSettings.mutate(settingsDraft)}
+                    >
+                        Save Noise
+                    </Button>
+                </div>
+            </div>
+        </section>
+    )
+}
+
+function WatermarkRow({
+    watermark,
+    busy,
+    onSave,
+    onDelete,
+}: {
+    watermark: ArtWatermark
+    busy: boolean
+    onSave: (payload: FormData) => void
+    onDelete: () => void
+}) {
+    const [draft, setDraft] = useState<WatermarkDraft>(() => watermarkToDraft(watermark))
+
+    useEffect(() => {
+        setDraft(watermarkToDraft(watermark))
+    }, [watermark])
+
+    return (
+        <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="mb-3 flex items-center gap-3">
+                <div className="flex h-16 w-16 items-center justify-center rounded-md bg-zinc-950 p-2">
+                    <img
+                        src={storageUrl(watermark.image_path)!}
+                        alt={watermark.name}
+                        className="max-h-full max-w-full object-contain"
+                    />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <Input
+                        value={draft.name}
+                        onChange={(event) =>
+                            setDraft((current) => ({ ...current, name: event.target.value }))
+                        }
+                    />
+                </div>
+                <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => onSave(watermarkFormData(draft))}
+                >
+                    Save
+                </Button>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-red-500 hover:text-red-500"
+                    disabled={busy}
+                    onClick={onDelete}
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
+
+            <div className="mb-3 grid gap-1.5">
+                <Label>Replace logo image</Label>
+                <Input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={(event) =>
+                        setDraft((current) => ({
+                            ...current,
+                            image: event.target.files?.[0] ?? null,
+                            previewUrl: event.target.files?.[0]
+                                ? URL.createObjectURL(event.target.files[0])
+                                : current.previewUrl,
+                        }))
+                    }
+                />
+            </div>
+
+            <WatermarkControls draft={draft} onChange={setDraft} />
+        </div>
+    )
+}
+
+function WatermarkControls({
+    draft,
+    onChange,
+}: {
+    draft: WatermarkDraft
+    onChange: (draft: WatermarkDraft) => void
+}) {
+    const update = <K extends keyof WatermarkDraft>(key: K, value: WatermarkDraft[K]) => {
+        onChange({ ...draft, [key]: value })
+    }
+
+    return (
+        <div className="grid gap-3 md:grid-cols-6">
+            <div className="grid gap-1.5 md:col-span-2">
+                <Label>Use for</Label>
+                <select
+                    value={draft.target}
+                    onChange={(event) => update('target', event.target.value as WatermarkTarget)}
+                    className="h-9 rounded-md border bg-background px-3 text-sm"
+                >
+                    {WATERMARK_TARGETS.map((target) => (
+                        <option key={target} value={target}>
+                            {target.replace('_', ' ')}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            <div className="grid gap-1.5 md:col-span-2">
+                <Label>Position</Label>
+                <select
+                    value={draft.position}
+                    onChange={(event) => update('position', event.target.value as WatermarkPosition)}
+                    className="h-9 rounded-md border bg-background px-3 text-sm"
+                >
+                    {WATERMARK_POSITIONS.map((position) => (
+                        <option key={position} value={position}>
+                            {position}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            <NumberControl label="Offset X" value={draft.offset_x} min={0} max={1000} onChange={(value) => update('offset_x', value)} />
+            <NumberControl label="Offset Y" value={draft.offset_y} min={0} max={1000} onChange={(value) => update('offset_y', value)} />
+            <NumberControl label="Size %" value={draft.width_percent} min={3} max={80} onChange={(value) => update('width_percent', value)} />
+            <NumberControl label="Opacity %" value={draft.opacity} min={1} max={100} onChange={(value) => update('opacity', value)} />
+            <NumberControl label="Rotation" value={draft.rotation} min={-180} max={180} onChange={(value) => update('rotation', value)} />
+            <NumberControl label="Order" value={draft.sort_order} min={0} max={999} onChange={(value) => update('sort_order', value)} />
+            <label className="flex items-center gap-2 text-sm md:col-span-2">
+                <input
+                    type="checkbox"
+                    checked={draft.is_active}
+                    onChange={(event) => update('is_active', event.target.checked)}
+                />
+                Active on new uploads
+            </label>
+        </div>
+    )
+}
+
+function NumberControl({
+    label,
+    value,
+    min,
+    max,
+    onChange,
+}: {
+    label: string
+    value: number
+    min: number
+    max: number
+    onChange: (value: number) => void
+}) {
+    return (
+        <div className="grid gap-1.5">
+            <Label>{label}</Label>
+            <Input
+                type="number"
+                min={min}
+                max={max}
+                value={value}
+                onChange={(event) => onChange(Number(event.target.value) || min)}
+            />
+        </div>
+    )
+}
+
+function WatermarkPreview({
+    watermarks,
+    settings,
+}: {
+    watermarks: WatermarkDraft[]
+    settings: ArtWatermarkSettings
+}) {
+    const activeWatermarks = watermarks.filter((watermark) => watermark.previewUrl)
+
+    return (
+        <div className="rounded-lg border bg-background p-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+                <div>
+                    <h3 className="text-sm font-semibold">Preview</h3>
+                    <p className="text-xs text-muted-foreground">
+                        Sample image for checking logo size, rotation, position, and noise.
+                    </p>
+                </div>
+                {settings.noise_enabled && (
+                    <span className="rounded-md border px-2 py-1 text-xs text-muted-foreground">
+                        Noise {settings.noise_opacity}% / {settings.noise_density}%
+                    </span>
+                )}
+            </div>
+            <div
+                className="relative h-56 overflow-hidden rounded-lg bg-muted"
+                style={{
+                    backgroundImage:
+                        'linear-gradient(135deg, rgba(255,255,255,.72), rgba(245,73,39,.08)), url(https://images.unsplash.com/photo-1518005020951-eccb494ad742?auto=format&fit=crop&w=900&q=80)',
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                }}
+            >
+                {settings.noise_enabled && (
+                    <div
+                        className="pointer-events-none absolute inset-0 opacity-20"
+                        style={{
+                            backgroundImage:
+                                'radial-gradient(circle, rgba(0,0,0,.35) 1px, transparent 1px)',
+                            backgroundSize: `${Math.max(4, 18 - settings.noise_density)}px ${Math.max(4, 18 - settings.noise_density)}px`,
+                            opacity: settings.noise_opacity / 100,
+                        }}
+                    />
+                )}
+                {activeWatermarks.map((watermark, index) => (
+                    <img
+                        key={`${watermark.name}-${index}`}
+                        src={watermark.previewUrl!}
+                        alt=""
+                        className="pointer-events-none absolute object-contain"
+                        style={watermarkPreviewStyle(watermark)}
+                    />
+                ))}
+            </div>
+        </div>
+    )
+}
+
+function watermarkPreviewStyle(watermark: WatermarkDraft) {
+    const width = `${watermark.width_percent}%`
+    const offsetX = watermark.offset_x / 2
+    const offsetY = watermark.offset_y / 2
+    const base = {
+        width,
+        opacity: watermark.opacity / 100,
+        transform: `rotate(${watermark.rotation}deg)`,
+    }
+
+    if (watermark.position.includes('top')) return { ...base, top: offsetY, ...horizontalPlacement(watermark.position, offsetX) }
+    if (watermark.position.includes('bottom')) return { ...base, bottom: offsetY, ...horizontalPlacement(watermark.position, offsetX) }
+    if (watermark.position === 'left') return { ...base, left: offsetX, top: '50%', transform: `translateY(-50%) rotate(${watermark.rotation}deg)` }
+    if (watermark.position === 'right') return { ...base, right: offsetX, top: '50%', transform: `translateY(-50%) rotate(${watermark.rotation}deg)` }
+
+    return { ...base, left: '50%', top: '50%', transform: `translate(-50%, -50%) rotate(${watermark.rotation}deg)` }
+}
+
+function horizontalPlacement(position: WatermarkPosition, offsetX: number) {
+    if (position.includes('left')) return { left: offsetX }
+    if (position.includes('right')) return { right: offsetX }
+    return { left: '50%', transform: 'translateX(-50%)' }
+}
+
+function watermarkToDraft(watermark: ArtWatermark): WatermarkDraft {
+    return {
+        name: watermark.name,
+        image: null,
+        previewUrl: storageUrl(watermark.image_path),
+        target: watermark.target,
+        position: watermark.position,
+        offset_x: watermark.offset_x,
+        offset_y: watermark.offset_y,
+        width_percent: watermark.width_percent,
+        opacity: watermark.opacity,
+        rotation: watermark.rotation,
+        is_active: watermark.is_active,
+        sort_order: watermark.sort_order,
+    }
+}
+
+function watermarkFormData(draft: WatermarkDraft) {
+    const payload = new FormData()
+    payload.append('name', draft.name.trim())
+    payload.append('target', draft.target)
+    payload.append('position', draft.position)
+    payload.append('offset_x', String(draft.offset_x))
+    payload.append('offset_y', String(draft.offset_y))
+    payload.append('width_percent', String(draft.width_percent))
+    payload.append('opacity', String(draft.opacity))
+    payload.append('rotation', String(draft.rotation))
+    payload.append('is_active', draft.is_active ? '1' : '0')
+    payload.append('sort_order', String(draft.sort_order))
+    if (draft.image) payload.append('image', draft.image)
+    return payload
 }
 
 const EMPTY_AWARD: AwardDraft = {

@@ -42,6 +42,7 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
     const displayRole = (user?.role ?? 'Wanderer').replace(/^\w/, (c) => c.toUpperCase())
     const isAdmin = user?.role === 'super_admin'
     const isStoryteller = user?.role === 'storyteller'
+    const accountMenuStyle = user?.account_menu_style ?? 'circular'
     const profilePath = !isAdmin && user?.username ? `/users/${user.username}` : null
 
     return (
@@ -57,7 +58,7 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
                         align="end"
                         avoidCollisions
                         collisionPadding={16}
-                        className="w-80"
+                        className={isStoryteller && !isAdmin && accountMenuStyle === 'detailed' ? 'w-96' : 'w-80'}
                     >
                         {/* Avatar + name */}
                         <DropdownMenuLabel className="p-1.5">
@@ -78,6 +79,7 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
                                     <ProfileIconGrid
                                         isStoryteller={isStoryteller}
                                         isAdmin={isAdmin}
+                                        accountMenuStyle={accountMenuStyle}
                                         onClose={() => setOpen(false)}
                                     />
                                 </div>
@@ -138,6 +140,7 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
                                         <ProfileIconGrid
                                             isStoryteller={isStoryteller}
                                             isAdmin={isAdmin}
+                                            accountMenuStyle={accountMenuStyle}
                                             onClose={() => setOpen(false)}
                                         />
                                     </div>

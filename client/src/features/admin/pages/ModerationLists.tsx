@@ -496,10 +496,18 @@ function ReviewContentSection({
     restoreSuspension,
     approveCommentImage,
     suspendCommentImage,
+    approveCommissionMessageImage,
+    suspendCommissionMessageImage,
+    approveCommissionDeliveryFile,
+    suspendCommissionDeliveryFile,
     suspendingContent,
     restoringSuspension,
     approvingCommentImage,
     suspendingCommentImage,
+    approvingCommissionMessageImage,
+    suspendingCommissionMessageImage,
+    approvingCommissionDeliveryFile,
+    suspendingCommissionDeliveryFile,
 }: Pick<
     ReturnType<typeof useAdminModerationQueue>,
     | 'review'
@@ -507,10 +515,18 @@ function ReviewContentSection({
     | 'restoreSuspension'
     | 'approveCommentImage'
     | 'suspendCommentImage'
+    | 'approveCommissionMessageImage'
+    | 'suspendCommissionMessageImage'
+    | 'approveCommissionDeliveryFile'
+    | 'suspendCommissionDeliveryFile'
     | 'suspendingContent'
     | 'restoringSuspension'
     | 'approvingCommentImage'
     | 'suspendingCommentImage'
+    | 'approvingCommissionMessageImage'
+    | 'suspendingCommissionMessageImage'
+    | 'approvingCommissionDeliveryFile'
+    | 'suspendingCommissionDeliveryFile'
 >) {
     const navigate = useNavigate()
     const [suspendTarget, setSuspendTarget] = useState<{
@@ -523,14 +539,26 @@ function ReviewContentSection({
         id: string
         label: string
     } | null>(null)
+    const [commissionImageSuspend, setCommissionImageSuspend] = useState<{
+        id: string
+        label: string
+    } | null>(null)
+    const [deliveryFileSuspend, setDeliveryFileSuspend] = useState<{
+        id: string
+        label: string
+    } | null>(null)
     const commentImages = review.comment_images ?? []
+    const commissionMessageImages = review.commission_message_images ?? []
+    const commissionDeliveryFiles = review.commission_delivery_files ?? []
 
     const itemsCount =
         review.works.length +
         review.chapters.length +
         review.arts.length +
         review.profile_blocks.length +
-        commentImages.length
+        commentImages.length +
+        commissionMessageImages.length +
+        commissionDeliveryFiles.length
 
     const keyFor = (type: string, id: string, field?: string | null) =>
         `${type}:${id}:${field ?? ''}`
@@ -754,6 +782,92 @@ function ReviewContentSection({
                                 }
                             />
                         ))}
+                        {commissionMessageImages.map((message) => (
+                            <ReviewRow
+                                key={`commission-message-image-${message.id}`}
+                                image={message.image_path}
+                                title={message.body || 'Commission message image upload'}
+                                meta={`Commission message by @${message.sender?.username ?? 'unknown'} - ${message.order?.service?.title ?? 'Commission'}`}
+                                actions={
+                                    <>
+                                        <button
+                                            onClick={() => approveCommissionMessageImage(message.id)}
+                                            disabled={approvingCommissionMessageImage === message.id}
+                                            className="border-[2px] border-green-400 text-green-700 px-2 py-1 text-[10px] disabled:opacity-50"
+                                            style={{
+                                                fontFamily: "'Bebas Neue', sans-serif",
+                                                letterSpacing: '0.1em',
+                                            }}
+                                        >
+                                            {approvingCommissionMessageImage === message.id
+                                                ? 'APPROVING...'
+                                                : 'APPROVE'}
+                                        </button>
+                                        <button
+                                            onClick={() =>
+                                                setCommissionImageSuspend({
+                                                    id: message.id,
+                                                    label: message.body || 'commission message image',
+                                                })
+                                            }
+                                            disabled={suspendingCommissionMessageImage === message.id}
+                                            className="border-[2px] border-red-300 text-red-500 hover:bg-red-50 px-2 py-1 text-[10px] disabled:opacity-50"
+                                            style={{
+                                                fontFamily: "'Bebas Neue', sans-serif",
+                                                letterSpacing: '0.1em',
+                                            }}
+                                        >
+                                            {suspendingCommissionMessageImage === message.id
+                                                ? 'SUSPENDING...'
+                                                : 'SUSPEND IMAGE'}
+                                        </button>
+                                    </>
+                                }
+                            />
+                        ))}
+                        {commissionDeliveryFiles.map((file) => (
+                            <ReviewRow
+                                key={`commission-delivery-file-${file.id}`}
+                                image={file.mime_type?.startsWith('image/') ? file.file_path : null}
+                                title={file.original_name || 'Commission delivery file'}
+                                meta={`Final delivery by @${file.uploader?.username ?? 'unknown'} - ${file.order?.service?.title ?? 'Commission'}`}
+                                actions={
+                                    <>
+                                        <button
+                                            onClick={() => approveCommissionDeliveryFile(file.id)}
+                                            disabled={approvingCommissionDeliveryFile === file.id}
+                                            className="border-[2px] border-green-400 text-green-700 px-2 py-1 text-[10px] disabled:opacity-50"
+                                            style={{
+                                                fontFamily: "'Bebas Neue', sans-serif",
+                                                letterSpacing: '0.1em',
+                                            }}
+                                        >
+                                            {approvingCommissionDeliveryFile === file.id
+                                                ? 'APPROVING...'
+                                                : 'APPROVE'}
+                                        </button>
+                                        <button
+                                            onClick={() =>
+                                                setDeliveryFileSuspend({
+                                                    id: file.id,
+                                                    label: file.original_name || 'delivery file',
+                                                })
+                                            }
+                                            disabled={suspendingCommissionDeliveryFile === file.id}
+                                            className="border-[2px] border-red-300 text-red-500 hover:bg-red-50 px-2 py-1 text-[10px] disabled:opacity-50"
+                                            style={{
+                                                fontFamily: "'Bebas Neue', sans-serif",
+                                                letterSpacing: '0.1em',
+                                            }}
+                                        >
+                                            {suspendingCommissionDeliveryFile === file.id
+                                                ? 'SUSPENDING...'
+                                                : 'SUSPEND FILE'}
+                                        </button>
+                                    </>
+                                }
+                            />
+                        ))}
                         {review.profile_blocks.map((block) => (
                             <ReviewRow
                                 key={`profile-block-${block.id}`}
@@ -798,6 +912,24 @@ function ReviewContentSection({
                         setCommentImageSuspend(null)
                     }}
                     onCancel={() => setCommentImageSuspend(null)}
+                />
+            )}
+            {commissionImageSuspend && (
+                <ViolateForm
+                    onConfirm={(reason) => {
+                        suspendCommissionMessageImage(commissionImageSuspend.id, reason)
+                        setCommissionImageSuspend(null)
+                    }}
+                    onCancel={() => setCommissionImageSuspend(null)}
+                />
+            )}
+            {deliveryFileSuspend && (
+                <ViolateForm
+                    onConfirm={(reason) => {
+                        suspendCommissionDeliveryFile(deliveryFileSuspend.id, reason)
+                        setDeliveryFileSuspend(null)
+                    }}
+                    onCancel={() => setDeliveryFileSuspend(null)}
                 />
             )}
         </>
@@ -932,10 +1064,18 @@ function ModerationQueue() {
                             restoreSuspension={queue.restoreSuspension}
                             approveCommentImage={queue.approveCommentImage}
                             suspendCommentImage={queue.suspendCommentImage}
+                            approveCommissionMessageImage={queue.approveCommissionMessageImage}
+                            suspendCommissionMessageImage={queue.suspendCommissionMessageImage}
+                            approveCommissionDeliveryFile={queue.approveCommissionDeliveryFile}
+                            suspendCommissionDeliveryFile={queue.suspendCommissionDeliveryFile}
                             suspendingContent={queue.suspendingContent}
                             restoringSuspension={queue.restoringSuspension}
                             approvingCommentImage={queue.approvingCommentImage}
                             suspendingCommentImage={queue.suspendingCommentImage}
+                            approvingCommissionMessageImage={queue.approvingCommissionMessageImage}
+                            suspendingCommissionMessageImage={queue.suspendingCommissionMessageImage}
+                            approvingCommissionDeliveryFile={queue.approvingCommissionDeliveryFile}
+                            suspendingCommissionDeliveryFile={queue.suspendingCommissionDeliveryFile}
                         />
 
                         {/* Footer */}

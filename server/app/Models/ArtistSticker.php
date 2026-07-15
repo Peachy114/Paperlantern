@@ -13,6 +13,13 @@ class ArtistSticker extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'description',
+        'bundle_name',
+        'is_free',
+        'credit_cost',
+        'is_public',
+        'subscription_free',
+        'published_at',
         'image_path',
         'sort_order',
     ];
@@ -21,6 +28,11 @@ class ArtistSticker extends Model
     {
         return [
             'sort_order' => 'integer',
+            'is_free' => 'boolean',
+            'credit_cost' => 'integer',
+            'is_public' => 'boolean',
+            'subscription_free' => 'boolean',
+            'published_at' => 'datetime',
         ];
     }
 

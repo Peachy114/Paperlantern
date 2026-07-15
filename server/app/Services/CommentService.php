@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ArtistSticker;
 use App\Models\Comment;
 use App\Models\CommentLike;
+use App\Models\FeedPost;
 use App\Models\SuperLike;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -47,6 +48,7 @@ class CommentService
     public function create(User $user, string $type, string $id, array $data, Request $request): array
     {
         $target = $this->resolver->resolve($type, $id);
+        abort_if($target instanceof FeedPost && ! $target->comments_enabled, 403, 'Comments are disabled for this feed post.');
         $body = trim((string) ($data['body'] ?? ''));
         $stickerId = $data['artist_sticker_id'] ?? null;
         $parentId = $data['parent_id'] ?? null;
@@ -172,6 +174,18 @@ class CommentService
             || $owner?->id === $user->id;
 
         abort_unless($canPin, 403, 'You cannot pin this comment.');
+
+        if ($isPinned && ! $comment->is_pinned) {
+            $pinnedCount = Comment::query()
+                ->where('commentable_type', $comment->commentable_type)
+                ->where('commentable_id', $comment->commentable_id)
+                ->where('status', 'visible')
+                ->whereNull('parent_id')
+                ->where('is_pinned', true)
+                ->count();
+
+            abort_if($pinnedCount >= 3, 422, 'Only 3 comments can be pinned for this post.');
+        }
 
         $comment->update(['is_pinned' => $isPinned]);
 

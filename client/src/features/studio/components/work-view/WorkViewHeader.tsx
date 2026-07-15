@@ -1,6 +1,6 @@
 // features/studio/components/work-view/WorkViewHeader.tsx
 import { useState } from 'react'
-import { Menu, X, PlusCircle, DollarSign, Trash2 } from 'lucide-react'
+import { Menu, X, PlusCircle, Trash2 } from 'lucide-react'
 
 interface WorkViewHeaderProps {
     onNew: () => void
@@ -19,12 +19,6 @@ export default function WorkViewHeader({ onNew, onNavigate }: WorkViewHeaderProp
 
             {/* Desktop buttons */}
             <div className="hidden sm:flex items-center gap-2">
-                <button
-                    onClick={() => onNavigate('/studio/earnings')}
-                    className="text-sm px-3 py-1.5 border rounded-md hover:bg-accent transition-colors"
-                >
-                    Earnings
-                </button>
                 <button
                     onClick={onNew}
                     className="text-sm px-3 py-1.5 bg-foreground text-background rounded-md hover:opacity-80 transition-opacity inline-flex items-center gap-2"
@@ -62,16 +56,6 @@ export default function WorkViewHeader({ onNew, onNavigate }: WorkViewHeaderProp
                             >
                                 <PlusCircle size={15} className="text-muted-foreground" />
                                 New Work
-                            </button>
-                            <button
-                                onClick={() => {
-                                    onNavigate('/studio/earnings')
-                                    setOpen(false)
-                                }}
-                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-accent transition-colors flex items-center gap-2.5 border-t"
-                            >
-                                <DollarSign size={15} className="text-muted-foreground" />
-                                Earnings
                             </button>
                             <button
                                 onClick={() => {

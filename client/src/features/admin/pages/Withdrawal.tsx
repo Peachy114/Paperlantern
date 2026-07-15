@@ -56,7 +56,7 @@ export default function AdminWithdrawals() {
                         className="text-white/30 text-[8px] sm:text-xsmall tracking-[0.2em] rotate-90 whitespace-nowrap mb-4"
                         style={{ fontFamily: "'Bebas Neue', sans-serif" }}
                     >
-                        WITHDRAWALS
+                        PAYOUTS
                     </span>
                 </div>
 
@@ -76,13 +76,13 @@ export default function AdminWithdrawals() {
                                     letterSpacing: '0.04em',
                                 }}
                             >
-                                WITHDRAWAL REQUESTS
+                                PAYOUT REQUESTS
                             </h1>
                             <p
                                 className="text-white/30 mt-1 text-[12px] sm:text-small"
                                 style={{ fontFamily: "'Kalam', cursive" }}
                             >
-                                review and process storyteller payouts
+                                review pending withdrawals and mark payouts as paid
                             </p>
                         </div>
                         <div
@@ -145,7 +145,7 @@ export default function AdminWithdrawals() {
                             className="px-5 py-12 text-center bg-[#fffdf5] dark:bg-[#1c1a17]"
                             style={{ fontFamily: "'Kalam', cursive", color: '#888' }}
                         >
-                            No {statusFilter !== 'all' ? statusFilter : ''} withdrawal requests.
+                            No {statusFilter !== 'all' ? statusFilter : ''} payout requests.
                         </div>
                     ) : (
                         <div className="divide-y divide-blue-200/30 dark:divide-white/10">
@@ -356,9 +356,9 @@ export default function AdminWithdrawals() {
                                     letterSpacing: '0.04em',
                                 }}
                             >
-                                {modal.action === 'approved' && '✅ APPROVE WITHDRAWAL'}
-                                {modal.action === 'rejected' && '❌ REJECT WITHDRAWAL'}
-                                {modal.action === 'paid' && '💸 MARK AS PAID'}
+                                {modal.action === 'approved' && 'APPROVE PAYOUT REQUEST'}
+                                {modal.action === 'rejected' && 'REJECT PAYOUT REQUEST'}
+                                {modal.action === 'paid' && 'MARK AS PAID'}
                             </h2>
                             <p
                                 className="text-white/40 mt-1 text-small"

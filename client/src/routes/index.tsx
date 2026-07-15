@@ -10,8 +10,8 @@ export default function AppRoutes() {
     return (
         <Suspense fallback={<Loading />}>
             <Routes>
-                <Route element={<PublicLayout />}>{publicRoutes}</Route>
                 <Route element={<AuthLayout />}>{roleRoutes}</Route>
+                <Route element={<PublicLayout />}>{publicRoutes}</Route>
             </Routes>
         </Suspense>
     )

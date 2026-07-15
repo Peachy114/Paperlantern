@@ -19,13 +19,24 @@ class EarningsController extends Controller
     {
         $earning          = $this->commissionService->getEarnings($request->user());
         $latestWithdrawal = $this->commissionService->getLatestWithdrawal($request->user());
+        $withdrawablePhp = $this->commissionService->withdrawablePhp($earning);
+        $withdrawableCredits = (float) $earning->balance;
 
         return response()->json([
             'balance_credits'   => (float) $earning->balance,
             'balance_php'       => (float) $earning->php_balance,
+            'withdrawable_credits' => $withdrawableCredits,
+            'withdrawable_php' => $withdrawablePhp,
             'min_withdrawal'    => CommissionService::MIN_WITHDRAWAL_PHP,
             'min_withdrawal_credits' => CommissionService::MIN_WITHDRAWAL_CREDITS,
-            'can_withdraw'      => (float) $earning->balance >= CommissionService::MIN_WITHDRAWAL_CREDITS,
+            'can_withdraw'      => $withdrawableCredits >= CommissionService::MIN_WITHDRAWAL_CREDITS
+                && $withdrawablePhp >= CommissionService::MIN_WITHDRAWAL_PHP,
+            'has_minimum_balance' => $withdrawableCredits >= CommissionService::MIN_WITHDRAWAL_CREDITS
+                && $withdrawablePhp >= CommissionService::MIN_WITHDRAWAL_PHP,
+            'payout_day' => $this->commissionService->payoutSettings()['day'] ?? 'thursday',
+            'is_payout_day' => $this->commissionService->isPayoutDay(),
+            'next_payout_at' => $this->commissionService->nextPayoutAt()->toIso8601String(),
+            'payout_notice' => $this->commissionService->payoutNotice(),
             'latest_withdrawal' => $latestWithdrawal ? [
                 'status'        => $latestWithdrawal->status,
                 'amount_php'    => $latestWithdrawal->amount_php,

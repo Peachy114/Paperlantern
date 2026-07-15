@@ -32,6 +32,17 @@ class ArtistProfileBlock extends Model
         'font_size',
         'z_index',
         'rotation',
+        'background_color',
+        'transparent_background',
+        'overlay',
+        'show_border',
+        'border_color',
+        'border_radius',
+        'font_family',
+        'font_color',
+        'locked',
+        'image_position_x',
+        'image_position_y',
         'sort_order',
     ];
 
@@ -49,6 +60,13 @@ class ArtistProfileBlock extends Model
             'font_size' => 'integer',
             'z_index' => 'integer',
             'rotation' => 'float',
+            'transparent_background' => 'boolean',
+            'overlay' => 'boolean',
+            'show_border' => 'boolean',
+            'border_radius' => 'integer',
+            'locked' => 'boolean',
+            'image_position_x' => 'integer',
+            'image_position_y' => 'integer',
         ];
     }
 

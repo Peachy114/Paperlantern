@@ -7,24 +7,37 @@ use App\Models\ArtImage;
 use App\Models\ArtistProfileBlock;
 use App\Models\ArtistSticker;
 use App\Models\Comment;
+use App\Models\NobleRoyaltyGift;
 use App\Models\ProfileBorder;
 use App\Models\SuperLike;
 use App\Models\User;
+use App\Models\UserFollow;
+use App\Models\UserSubscription;
 use App\Models\Work;
+use App\Http\Controllers\Api\FeedController;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Repositories\WalletRepository;
 
 class ArtistProfileService
 {
-    public function __construct(private ContentSuspensionService $contentSuspensions) {}
+    private const NOBLE_PUBLISH_COST = 20;
+
+    public function __construct(
+        private ContentSuspensionService $contentSuspensions,
+        private WalletRepository $wallets,
+    ) {}
 
     public function show(string $username): array
     {
         $artist = User::where('username', $username)
             ->where('role', '!=', 'super_admin')
             ->firstOrFail();
+        $viewer = auth('sanctum')->user();
 
         $stickerLibrary = $this->stickerLibrary($artist);
 
@@ -70,6 +83,16 @@ class ArtistProfileService
                 ->get()
                 ->map(fn(Comment $comment) => $this->formatPublicComment($comment))
                 ->values(),
+            'feeds' => FeedController::publicForUser($artist, $viewer),
+            'stats' => [
+                'works_total' => Work::where('user_id', $artist->id)->count(),
+                'arts_total' => Art::where('user_id', $artist->id)->count(),
+                'followers_count' => $artist->followers()->count(),
+                'feed_posts_count' => $artist->feedPosts()->where('status', 'published')->count(),
+                'is_following' => $viewer
+                    ? UserFollow::where('follower_id', $viewer->id)->where('followee_id', $artist->id)->exists()
+                    : false,
+            ],
         ];
     }
 
@@ -118,6 +141,8 @@ class ArtistProfileService
 
     public function createBlock(User $user, array $validated, Request $request): ArtistProfileBlock
     {
+        $this->assertBoardLimitAllowsCreate($user);
+
         $this->prepareImageSource($user, $validated, $request);
 
         if (($validated['type'] ?? null) === 'image' && !$this->hasImageSource($validated)) {
@@ -181,10 +206,27 @@ class ArtistProfileService
         }
     }
 
-    public function createSticker(User $user, array $validated, Request $request): ArtistSticker
+    public function createSticker(User $user, array $validated, Request $request, ?UploadedFile $image = null): ArtistSticker
     {
-        $validated['image_path'] = $request->file('image')->store("artist-profiles/{$user->id}/stickers", 'public');
+        $publishPublic = (bool) ($validated['publish_public'] ?? false);
+        unset($validated['publish_public']);
+        $bundleName = trim((string) ($validated['bundle_name'] ?? ''));
+        $chargeKey = $bundleName !== '' ? "noble_publish_fee_paid:sticker_bundle:{$bundleName}" : null;
+        if (! $chargeKey || ! $request->attributes->get($chargeKey)) {
+            $assetName = trim((string) ($validated['name'] ?? '')) ?: ($bundleName ?: 'Sticker');
+            $this->chargePublishFeeIfNeeded($user, $publishPublic, $assetName);
+            if ($chargeKey) {
+                $request->attributes->set($chargeKey, true);
+            }
+        }
+
+        $file = $image ?? $request->file('image');
+        $validated['image_path'] = $file->store("artist-profiles/{$user->id}/stickers", 'public');
         $validated['sort_order'] = (int) $user->artistStickers()->max('sort_order') + 1;
+        if ($publishPublic && Schema::hasColumn('artist_stickers', 'is_public')) {
+            $validated['is_public'] = true;
+            $validated['published_at'] = now();
+        }
 
         return $user->artistStickers()->create($validated);
     }
@@ -235,9 +277,20 @@ class ArtistProfileService
 
     public function createBorder(User $user, array $validated, Request $request): ProfileBorder
     {
+        $publishPublic = (bool) ($validated['publish_public'] ?? false);
+        unset($validated['publish_public']);
+        if (empty($validated['name'])) {
+            $validated['name'] = pathinfo($request->file('image')->getClientOriginalName(), PATHINFO_FILENAME);
+        }
+        $this->chargePublishFeeIfNeeded($user, $publishPublic, $validated['name'] ?? 'Border');
+
         $validated['user_id'] = $user->id;
         $validated['image_path'] = $request->file('image')->store("artist-profiles/{$user->id}/borders", 'public');
         $validated['sort_order'] = (int) $user->profileBorders()->max('sort_order') + 1;
+        if ($publishPublic && Schema::hasColumn('profile_borders', 'is_public')) {
+            $validated['is_public'] = true;
+            $validated['published_at'] = now();
+        }
 
         return ProfileBorder::create($validated);
     }
@@ -362,6 +415,7 @@ class ArtistProfileService
             'twitter_url' => $artist->twitter_url,
             'instagram_url' => $artist->instagram_url,
             'tiktok_url' => $artist->tiktok_url,
+            'followers_count' => $artist->followers()->count(),
         ];
     }
 
@@ -371,7 +425,10 @@ class ArtistProfileService
 
         $canUse = $sticker->user_id === $user->id
             || $user->subscribedArtistStickers()->where('artist_stickers.id', $stickerId)->exists()
-            || $user->purchasedArtistStickers()->where('artist_stickers.id', $stickerId)->exists();
+            || $user->purchasedArtistStickers()->where('artist_stickers.id', $stickerId)->exists()
+            || $this->hasGift($user, ArtistSticker::class, $stickerId)
+            || ($this->stickerColumnExists('is_public') && $sticker->is_public && $sticker->is_free)
+            || ($this->stickerColumnExists('subscription_free') && $sticker->subscription_free && $this->hasActiveSubscription($user));
 
         abort_unless($canUse, 403);
 
@@ -382,17 +439,43 @@ class ArtistProfileService
     {
         $border = ProfileBorder::findOrFail($borderId);
 
-        abort_unless($border->is_default || $border->user_id === $user->id, 403);
+        $canUse = $border->is_default
+            || $border->user_id === $user->id
+            || $this->hasGift($user, ProfileBorder::class, $borderId)
+            || ($this->borderColumnExists('is_public') && $border->is_public && $border->is_free)
+            || ($this->borderColumnExists('subscription_free') && $border->subscription_free && $this->hasActiveSubscription($user));
+
+        abort_unless($canUse, 403);
 
         return $border;
     }
 
     private function availableBorders(User $user): array
     {
+        $giftedBorderIds = Schema::hasTable('noble_royalty_gifts')
+            ? NobleRoyaltyGift::where('recipient_id', $user->id)
+            ->where('giftable_type', ProfileBorder::class)
+            ->pluck('giftable_id')
+            : collect();
+        $hasSubscription = $this->hasActiveSubscription($user);
+
         return ProfileBorder::query()
-            ->where(fn($query) => $query
-                ->where('is_default', true)
-                ->orWhere('user_id', $user->id))
+            ->where(function ($query) use ($user, $giftedBorderIds, $hasSubscription) {
+                $query->where('is_default', true)
+                    ->orWhere('user_id', $user->id);
+
+                if ($giftedBorderIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $giftedBorderIds);
+                }
+
+                if ($this->borderColumnExists('is_public') && $this->borderColumnExists('is_free')) {
+                    $query->orWhere(fn($inner) => $inner->where('is_public', true)->where('is_free', true));
+                }
+
+                if ($hasSubscription && $this->borderColumnExists('subscription_free')) {
+                    $query->orWhere('subscription_free', true);
+                }
+            })
             ->orderByDesc('is_default')
             ->orderBy('sort_order')
             ->latest()
@@ -400,6 +483,84 @@ class ArtistProfileService
             ->map(fn(ProfileBorder $border) => $this->formatBorder($border))
             ->values()
             ->all();
+    }
+
+    private function assertBoardLimitAllowsCreate(User $user): void
+    {
+        $subscription = UserSubscription::with('plan')
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->where(fn($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()))
+            ->latest()
+            ->first();
+
+        if ($subscription?->plan?->unlimited_board) {
+            return;
+        }
+
+        $limit = $subscription?->plan?->board_limit ?? 10;
+        if ($user->artistProfileBlocks()->count() >= $limit) {
+            throw ValidationException::withMessages([
+                'board' => ["My Board is limited to {$limit} pieces. Subscribe or remove pieces to add more."],
+            ]);
+        }
+    }
+
+    private function hasActiveSubscription(User $user): bool
+    {
+        if (! Schema::hasTable('user_subscriptions')) {
+            return false;
+        }
+
+        return UserSubscription::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->where(fn($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()))
+            ->exists();
+    }
+
+    private function hasGift(User $user, string $type, string $id): bool
+    {
+        if (! Schema::hasTable('noble_royalty_gifts')) {
+            return false;
+        }
+
+        return NobleRoyaltyGift::where('recipient_id', $user->id)
+            ->where('giftable_type', $type)
+            ->where('giftable_id', $id)
+            ->exists();
+    }
+
+    private function chargePublishFeeIfNeeded(User $user, bool $publishPublic, string $assetName): void
+    {
+        if (! $publishPublic || $user->role === 'super_admin' || $this->hasActiveSubscription($user)) {
+            return;
+        }
+
+        $wallet = $this->wallets->findOrCreateByUser($user->id);
+        $debit = $this->wallets->debit($wallet, self::NOBLE_PUBLISH_COST, [
+            'source' => 'noble_publish',
+            'description' => "Published Noble Royalty - {$assetName}",
+            'meta' => [
+                'asset_name' => $assetName,
+                'created_publicly' => true,
+            ],
+        ]);
+
+        if ($debit === false) {
+            throw ValidationException::withMessages([
+                'credits' => ['You need 20 credits to create and publish this Noble Royalty asset publicly.'],
+            ]);
+        }
+    }
+
+    private function stickerColumnExists(string $column): bool
+    {
+        return Schema::hasColumn('artist_stickers', $column);
+    }
+
+    private function borderColumnExists(string $column): bool
+    {
+        return Schema::hasColumn('profile_borders', $column);
     }
 
     private function normalizeTabsConfig(mixed $value): array
@@ -546,7 +707,7 @@ class ArtistProfileService
 
     private function normalizeCanvasItems(mixed $items, array $defaults, string $kind): array
     {
-        $allowedTypes = ['board', 'arts', 'works', 'stickers', 'comments'];
+        $allowedTypes = ['board', 'arts', 'works', 'stickers', 'comments', 'feeds'];
         $allowedDisplays = [
             'grid',
             'standard',
@@ -589,11 +750,73 @@ class ArtistProfileService
                     ? (bool) $item['pagination']
                     : true,
                 'locked' => (bool) ($item['locked'] ?? false),
+                'sort' => $this->normalizeCanvasSort(
+                    (string) ($item['type'] ?? 'board'),
+                    $item['sort'] ?? null,
+                ),
+                'filter' => mb_substr(trim((string) ($item['filter'] ?? '')), 0, 80),
+                'filters' => $this->normalizeCanvasFilters(
+                    (string) ($item['type'] ?? 'board'),
+                    $item['filters'] ?? null,
+                    $item['filter'] ?? null,
+                ),
                 'x' => $this->clampNumber($item['x'] ?? 0, 0, 95),
                 'y' => $this->clampNumber($item['y'] ?? 0, 0, 2400),
                 'w' => $this->clampNumber($item['w'] ?? 30, $kind === 'tab' ? 10 : 5, 100),
                 'h' => $this->clampNumber($item['h'] ?? ($kind === 'tab' ? 36 : 420), $kind === 'tab' ? 28 : 80, 1400),
             ])
+            ->all();
+    }
+
+    private function normalizeCanvasSort(string $type, mixed $sort): string
+    {
+        $sort = (string) ($sort ?? '');
+        $allowed = match ($type) {
+            'arts' => ['latest', 'oldest', 'title_az', 'title_za', 'views', 'likes', 'comments', 'super_likes'],
+            'works' => ['latest', 'oldest', 'title_az', 'title_za', 'type', 'views', 'likes', 'chapters'],
+            'stickers' => ['custom', 'latest', 'oldest', 'name_az', 'name_za', 'popular'],
+            default => ['latest', 'oldest'],
+        };
+
+        if (in_array($sort, $allowed, true)) {
+            return $sort;
+        }
+
+        return $type === 'stickers' ? 'custom' : 'latest';
+    }
+
+    private function normalizeCanvasFilters(string $type, mixed $filters, mixed $legacyFilter = null): array
+    {
+        if (!is_array($filters)) {
+            $legacy = trim((string) ($legacyFilter ?? ''));
+            if ($legacy === '') {
+                return [];
+            }
+
+            $filters = match ($type) {
+                'arts' => ["label:" . mb_strtolower($legacy)],
+                'works' => [in_array(mb_strtolower($legacy), ['webtoon', 'novel'], true)
+                    ? "type:" . mb_strtolower($legacy)
+                    : "status:" . mb_strtolower($legacy)],
+                'stickers' => ["sticker:" . mb_strtolower($legacy)],
+                default => [],
+            };
+        }
+
+        $allowedPrefixes = match ($type) {
+            'arts' => ['label:', 'download:'],
+            'works' => ['type:', 'status:'],
+            'stickers' => ['sticker:', 'owner:'],
+            default => [],
+        };
+
+        return collect($filters)
+            ->map(fn($filter) => mb_strtolower(trim((string) $filter)))
+            ->filter(fn($filter) => $filter !== ''
+                && collect($allowedPrefixes)->contains(fn($prefix) => str_starts_with($filter, $prefix)))
+            ->unique()
+            ->take(40)
+            ->values()
             ->all();
     }
 
@@ -767,6 +990,14 @@ class ArtistProfileService
             'id' => $sticker->id,
             'user_id' => $sticker->user_id,
             'name' => $sticker->name,
+            'description' => $sticker->description,
+            'bundle_name' => $sticker->bundle_name,
+            'is_free' => (bool) $sticker->is_free,
+            'credit_cost' => $sticker->is_free ? 0 : max(1, (int) ($sticker->credit_cost ?? 1)),
+            'purchase_cost' => $sticker->is_free ? 0 : max(1, (int) ($sticker->credit_cost ?? 1)),
+            'is_public' => (bool) $sticker->is_public,
+            'subscription_free' => (bool) $sticker->subscription_free,
+            'published_at' => $sticker->published_at,
             'image_path' => $sticker->image_path,
             'sort_order' => $sticker->sort_order,
             'subscriptions_count' => (int) ($sticker->subscriptions_count ?? 0),
@@ -795,8 +1026,14 @@ class ArtistProfileService
             'id' => $border->id,
             'user_id' => $border->user_id,
             'name' => $border->name,
+            'description' => $border->description,
             'image_path' => $border->image_path,
             'is_default' => (bool) $border->is_default,
+            'is_public' => (bool) $border->is_public,
+            'is_free' => (bool) $border->is_free,
+            'credit_cost' => (int) ($border->is_free ? 0 : max(1, $border->credit_cost ?? 1)),
+            'subscription_free' => (bool) $border->subscription_free,
+            'published_at' => $border->published_at,
             'sort_order' => $border->sort_order,
             'created_at' => $border->created_at,
             'updated_at' => $border->updated_at,

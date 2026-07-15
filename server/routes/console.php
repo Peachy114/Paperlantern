@@ -22,3 +22,6 @@ Schedule::call(function () {
 
 Schedule::command('chapters:publish-scheduled')->everyMinute();
 Schedule::command('tickets:delete-old')->daily();
+Schedule::command('payouts:simulate')
+    ->dailyAt('09:00')
+    ->when(fn () => app(\App\Services\CommissionService::class)->isPayoutDay());

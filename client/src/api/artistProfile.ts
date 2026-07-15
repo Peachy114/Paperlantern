@@ -2,6 +2,7 @@ import api from './axios'
 
 export const artistProfileApi = {
     show: (username: string) => api.get(`/public/artists/${username}`),
+    toggleFollow: (username: string) => api.post(`/public/artists/${username}/follow`),
     updateHeader: (data: FormData) =>
         api.post('/artist-profile/header', data, {
             headers: { 'Content-Type': 'multipart/form-data' },
@@ -27,4 +28,5 @@ export const artistProfileApi = {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
     deleteBorder: (id: string) => api.delete(`/artist-profile/borders/${id}`),
+    stickerLibrary: () => api.get('/stickers/library'),
 }

@@ -49,6 +49,7 @@ class ChapterController extends Controller
         $validated = $request->validate([
             'title'            => ['required', 'string', 'max:100'],
             'content'          => ['nullable', 'string'],
+            'artist_note'      => ['nullable', 'string', 'max:2000'],
             'order'            => ['sometimes', 'integer'],
             'status'           => ['sometimes', 'in:draft,scheduled,published'],
             'cover'            => ['nullable', 'image', 'max:2048'],
@@ -98,6 +99,7 @@ class ChapterController extends Controller
         $validated = $request->validate([
             'title'                => ['sometimes', 'string', 'max:50'],
             'content'              => ['nullable', 'string'],
+            'artist_note'          => ['nullable', 'string', 'max:2000'],
             'order'                => ['sometimes', 'integer'],
             'status'               => ['sometimes', 'in:draft,scheduled,published'],
             'cover'                => ['nullable', 'image', 'max:2048'],

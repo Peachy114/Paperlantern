@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Art;
+use App\Models\CommissionService;
 use App\Models\FeatureBoost;
 use App\Models\User;
 use App\Models\Work;
@@ -18,6 +19,7 @@ class FeatureBoostService
         'webtoon' => 40,
         'novel' => 40,
         'artist_profile' => 60,
+        'commission' => 50,
     ];
 
     public function __construct(private WalletRepository $walletRepo) {}
@@ -142,6 +144,15 @@ class FeatureBoostService
                 : 'top of Webtoon Explore';
 
             return ['work', $work->id, $priceKey, $work->title, $placement];
+        }
+
+        if ($targetType === 'commission_service') {
+            $service = CommissionService::where('user_id', $user->id)
+                ->where('id', $targetId)
+                ->where('is_published', true)
+                ->firstOrFail();
+
+            return ['commission_service', $service->id, 'commission', $service->title, 'top of Commission Explore'];
         }
 
         abort(422, 'Invalid boost target.');

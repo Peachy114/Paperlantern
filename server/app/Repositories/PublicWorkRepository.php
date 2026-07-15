@@ -27,7 +27,7 @@ class PublicWorkRepository
         return $this->visibleWorks()
             ->has('chapters')
             ->withCount(['chapterViews as weekly_views' => function ($q) {
-                $q->where('chapter_views.created_at', '>=', now()->startOfWeek());
+                $q->where('chapter_views.created_at', '>=', now()->subDays(7));
             }])
             ->orderByDesc('weekly_views')
             ->limit(10)
@@ -38,10 +38,72 @@ class PublicWorkRepository
     {
         return $this->visibleWorks()
             ->has('chapters')
-            ->where('created_at', '>=', now()->subDays(7))
+            ->where('created_at', '>=', now()->subMonths(3))
             ->orderByDesc('created_at')
-            ->limit(10)
+            ->limit(24)
             ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at']);
+    }
+
+    public function getDailyWorks(string $type = 'all', int $limit = 12): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->visibleWorks()
+            ->has('chapters')
+            ->when($type !== 'all', fn($query) => $query->where('type', $type))
+            ->where('created_at', '>=', now()->subDay())
+            ->orderByDesc('views')
+            ->limit($limit)
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status']);
+    }
+
+    public function getTodayReleaseChapters(string $type = 'all', int $limit = 12): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->visibleChapters()
+            ->where('created_at', '>=', now()->subDay())
+            ->whereHas('work', fn($q) => $this->applyVisibleWorkConstraints($q)
+                ->when($type !== 'all', fn($query) => $query->where('type', $type)))
+            ->with(['activeContentSuspensions', 'work:id,slug,title,cover,type,user_id', 'work.activeContentSuspensions'])
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get(['id', 'work_id', 'title', 'slug', 'cover', 'order', 'views', 'likes', 'comments_count', 'super_likes_count', 'created_at', 'status']);
+    }
+
+    public function getTodayTopChapters(string $type = 'all', string $metric = 'views', int $limit = 10): \Illuminate\Database\Eloquent\Collection
+    {
+        $metric = $metric === 'likes' ? 'likes' : 'views';
+        $countRelation = $metric === 'likes' ? 'chapterLikes' : 'chapterViews';
+        $countAlias = $metric === 'likes' ? 'period_likes' : 'period_views';
+
+        return $this->visibleChapters()
+            ->where('created_at', '>=', now()->subDay())
+            ->whereHas('work', fn($q) => $this->applyVisibleWorkConstraints($q)
+                ->when($type !== 'all', fn($query) => $query->where('type', $type)))
+            ->withCount([$countRelation . ' as ' . $countAlias => fn($q) => $q->where('created_at', '>=', now()->subDay())])
+            ->with(['activeContentSuspensions', 'work:id,slug,title,cover,type,user_id', 'work.activeContentSuspensions'])
+            ->orderByDesc($countAlias)
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get(['id', 'work_id', 'title', 'slug', 'cover', 'order', 'views', 'likes', 'comments_count', 'super_likes_count', 'created_at', 'status']);
+    }
+
+    public function getPopularWorks(string $type = 'all', int $limit = 12): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->visibleWorks()
+            ->has('chapters')
+            ->when($type !== 'all', fn($query) => $query->where('type', $type))
+            ->orderByDesc('views')
+            ->orderByDesc('work_likes_count')
+            ->limit($limit)
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'views', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status']);
+    }
+
+    public function getTopLikedWorks(string $type = 'all', int $limit = 10): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->visibleWorks()
+            ->has('chapters')
+            ->when($type !== 'all', fn($query) => $query->where('type', $type))
+            ->orderByRaw('(work_likes_count + likes + super_likes_count) DESC')
+            ->limit($limit)
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'views', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status']);
     }
 
     public function getLatestChapters(): \Illuminate\Database\Eloquent\Collection

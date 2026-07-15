@@ -48,7 +48,23 @@ export const adminRoutes = (
             }
         />
         <Route
+            path="/admin/commission-applications"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.AdminCommissionApplications />
+                </Suspense>
+            }
+        />
+        <Route
             path="/admin/withdrawals"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.AdminWithdrawals />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/admin/payout-requests"
             element={
                 <Suspense fallback={<Loading />}>
                     <Pages.AdminWithdrawals />
@@ -74,5 +90,9 @@ export const adminRoutes = (
         />
         <Route path="/admin/announcements" element={<Pages.AdminAnnouncements />} />
         <Route path="/admin/earnings" element={<Pages.AdminEarnings />} />
+        <Route path="/admin/top-up-settings" element={<Pages.AdminTopUpSettings />} />
+        <Route path="/admin/labeling" element={<Pages.AdminLabeling />} />
+        <Route path="/admin/customize" element={<Pages.AdminPageCustomizer />} />
+        <Route path="/admin/noble-royalty" element={<Pages.AdminNobleRoyalty />} />
     </>
 )

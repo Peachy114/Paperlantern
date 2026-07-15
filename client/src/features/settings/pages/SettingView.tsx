@@ -1,7 +1,10 @@
 import SettingHeader from '../components/SettingHeader'
 import SettingTable from '../components/SettingTable'
 
-const rows = [{ label: 'Profile', to: '/settings/profile' }]
+const rows = [
+    { label: 'Profile', to: '/settings/profile' },
+    { label: 'Payment Settings', to: '/settings/payments' },
+]
 export default function SettingView() {
     return (
         <div className="max-w-2xl mx-auto px-4 py-8 flex flex-col gap-4">
