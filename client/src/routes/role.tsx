@@ -29,6 +29,30 @@ export const roleRoutes = (
             }
         />
         <Route
+            path="/expenses"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.Transaction />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/earnings"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.Earnings />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/withdrawals"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.Withdrawals />
+                </Suspense>
+            }
+        />
+        <Route
             path="/favorites"
             element={
                 <Suspense fallback={<Loading />}>
@@ -61,10 +85,42 @@ export const roleRoutes = (
             }
         />
         <Route
+            path="/noble-royalty"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.NobleRoyalty />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/subscriptions"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.Subscriptions />
+                </Suspense>
+            }
+        />
+        <Route
             path="/credits"
             element={
                 <Suspense fallback={<Loading />}>
                     <Pages.Wallet />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/notifications"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.Notifications />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/feeds"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.Feeds />
                 </Suspense>
             }
         />
@@ -76,12 +132,36 @@ export const roleRoutes = (
                 </Suspense>
             }
         />
+        <Route
+            path="/commission"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.MyCommission />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/messages"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.Messages />
+                </Suspense>
+            }
+        />
 
         <Route
             path="/settings/profile"
             element={
                 <Suspense fallback={<Loading />}>
                     <Pages.ProfileSettings />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/settings/payments"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.PaymentSettings />
                 </Suspense>
             }
         />

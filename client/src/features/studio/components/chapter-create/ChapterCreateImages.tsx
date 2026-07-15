@@ -63,7 +63,7 @@ export default function ChapterCreateImages({ coverPreview, onCroppedFile, error
         )
         canvas.toBlob((blob) => {
             if (!blob) return
-            onCroppedFile(new File([blob], 'chapter-cover.jpg', { type: 'image/jpeg' }))
+            onCroppedFile(new File([blob], 'episode-thumbnail.jpg', { type: 'image/jpeg' }))
             setSrc(null)
         }, 'image/jpeg')
     }
@@ -71,7 +71,7 @@ export default function ChapterCreateImages({ coverPreview, onCroppedFile, error
     return (
         <>
             <div className="flex flex-col gap-2">
-                <Label className="text-sm font-medium">Chapter cover</Label>
+                <Label className="text-sm font-medium">Thumbnail</Label>
                 <label
                     className={cn(
                         'relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed cursor-pointer transition-colors overflow-hidden',
@@ -84,13 +84,13 @@ export default function ChapterCreateImages({ coverPreview, onCroppedFile, error
                     {coverPreview ? (
                         <img
                             src={coverPreview}
-                            alt="Cover"
+                            alt="Thumbnail"
                             className="absolute inset-0 w-full h-full object-contain"
                         />
                     ) : (
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                             <ImageIcon className="h-6 w-6 opacity-40" />
-                            <span className="text-xs">Click to upload cover</span>
+                            <span className="text-xs">Click to upload thumbnail</span>
                         </div>
                     )}
                     <input
@@ -107,7 +107,7 @@ export default function ChapterCreateImages({ coverPreview, onCroppedFile, error
                 <DialogContent className="max-w-2xl" aria-describedby={undefined}>
                     <DialogHeader>
                         <DialogTitle className="text-sm font-medium">
-                            Crop chapter cover
+                            Crop thumbnail
                         </DialogTitle>
                     </DialogHeader>
                     <div className="overflow-auto max-h-[60vh] h-full flex items-center justify-center">

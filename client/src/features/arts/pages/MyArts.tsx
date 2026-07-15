@@ -12,9 +12,11 @@ import {
     BarChart3,
     ChevronLeft,
     ChevronRight,
+    Eye,
     Heart,
     ImageOff,
     Images,
+    Info,
     type LucideIcon,
     MessageCircle,
     MoreHorizontal,
@@ -28,9 +30,10 @@ import {
 import News from '@/features/announcements/components/News'
 import { useMyArts } from '@/features/arts/hooks/useMyArts'
 import BoostModal from '@/features/boosts/components/BoostModal'
+import CommentSection from '@/features/comments/components/CommentSection'
 import { publicApi } from '@/api/public'
 import { storageUrl } from '@/utils/storage'
-import type { Art, ArtStatus } from '@/types/art'
+import type { Art, ArtDownloadPolicy, ArtStatus } from '@/types/art'
 import { Button } from '@/components/ui/button'
 import {
     AlertDialog,
@@ -82,6 +85,9 @@ type FormState = {
     labels: string[]
     labelInput: string
     status: ArtStatus
+    downloadPolicy: ArtDownloadPolicy
+    downloadCredits: number
+    applyWatermark: boolean
     images: ImageDraft[]
 }
 
@@ -97,6 +103,9 @@ const EMPTY_FORM: FormState = {
     labels: [],
     labelInput: '',
     status: 'published',
+    downloadPolicy: 'disabled',
+    downloadCredits: 1,
+    applyWatermark: true,
     images: [],
 }
 
@@ -127,6 +136,7 @@ export default function MyArts() {
     const [form, setForm] = useState<FormState>(EMPTY_FORM)
     const [confirm, setConfirm] = useState<ConfirmState>(null)
     const [boostArt, setBoostArt] = useState<Art | null>(null)
+    const [viewArt, setViewArt] = useState<Art | null>(null)
     const [period, setPeriod] = useState<(typeof periods)[number]>('Weekly')
 
     const artistCreditShare = Math.floor(stats.super_like_credits * 0.8)
@@ -156,6 +166,9 @@ export default function MyArts() {
             labels: art.labels ?? [],
             labelInput: '',
             status: art.status,
+            downloadPolicy: art.download_policy ?? 'disabled',
+            downloadCredits: art.download_credits || 1,
+            applyWatermark: art.apply_watermark ?? true,
             images: [],
         })
         setFormOpen(true)
@@ -188,6 +201,11 @@ export default function MyArts() {
         payload.append('title', form.title.trim())
         payload.append('description', form.description.trim())
         payload.append('status', form.status)
+        payload.append('download_policy', form.downloadPolicy)
+        payload.append('apply_watermark', form.applyWatermark ? '1' : '0')
+        if (form.downloadPolicy === 'paid') {
+            payload.append('download_credits', String(Math.max(1, form.downloadCredits)))
+        }
         form.labels.forEach((label) => payload.append('labels[]', label))
         form.images.forEach((image) => {
             payload.append('images[]', image.file)
@@ -315,6 +333,7 @@ export default function MyArts() {
                                     <ArtPostRow
                                         key={art.id}
                                         art={art}
+                                        onView={setViewArt}
                                         onEdit={openEdit}
                                         onBoost={setBoostArt}
                                         onTrash={(selected) =>
@@ -435,7 +454,12 @@ export default function MyArts() {
                             </div>
 
                             <div className="grid gap-2">
-                                <Label htmlFor="art-labels">Labels</Label>
+                                <div className="flex items-center justify-between gap-3">
+                                    <Label htmlFor="art-labels">Labels</Label>
+                                    <span className="text-xs text-muted-foreground">
+                                        {form.labels.length}/12 labels
+                                    </span>
+                                </div>
                                 <LabelBadgeInput
                                     labels={form.labels}
                                     input={form.labelInput}
@@ -480,6 +504,87 @@ export default function MyArts() {
                                     <option value="draft">Draft</option>
                                     <option value="archived">Archived</option>
                                 </select>
+                            </div>
+
+                            <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="art-download-policy">Original download</Label>
+                                    <select
+                                        id="art-download-policy"
+                                        value={form.downloadPolicy}
+                                        onChange={(event) =>
+                                            setForm((current) => ({
+                                                ...current,
+                                                downloadPolicy: event.target.value as ArtDownloadPolicy,
+                                            }))
+                                        }
+                                        className="h-9 rounded-md border bg-background px-3 text-sm"
+                                    >
+                                        <option value="disabled">No download button</option>
+                                        <option value="free">Free original download</option>
+                                        <option value="paid">Buy with credits</option>
+                                    </select>
+                                </div>
+
+                                {form.downloadPolicy === 'paid' && (
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="art-download-credits">Credit cost</Label>
+                                        <Input
+                                            id="art-download-credits"
+                                            type="number"
+                                            min={1}
+                                            max={999}
+                                            value={form.downloadCredits}
+                                            onChange={(event) =>
+                                                setForm((current) => ({
+                                                    ...current,
+                                                    downloadCredits: Number(event.target.value) || 1,
+                                                }))
+                                            }
+                                        />
+                                    </div>
+                                )}
+
+                                <label
+                                    htmlFor="art-apply-watermark"
+                                    className="flex items-start gap-3 rounded-md border bg-background p-3 text-sm"
+                                >
+                                    <input
+                                        id="art-apply-watermark"
+                                        type="checkbox"
+                                        checked={form.applyWatermark}
+                                        onChange={(event) =>
+                                            setForm((current) => ({
+                                                ...current,
+                                                applyWatermark: event.target.checked,
+                                            }))
+                                        }
+                                        className="mt-1"
+                                    />
+                                    <span className="grid gap-1">
+                                        <span className="flex items-center gap-1.5 font-medium">
+                                            Apply watermark to public preview
+                                            <Info
+                                                className="h-3.5 w-3.5 text-muted-foreground"
+                                                aria-label="Watermark help"
+                                            >
+                                                <title>
+                                                    Watermark protects the public preview. Original
+                                                    downloads still use the clean original file.
+                                                </title>
+                                            </Info>
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                            Turn this off only when you want the public art image to
+                                            show without the site watermark.
+                                        </span>
+                                    </span>
+                                </label>
+
+                                <p className="text-xs text-muted-foreground">
+                                    Downloads use the private original file only when this setting
+                                    allows it.
+                                </p>
                             </div>
 
                             <div className="grid gap-2">
@@ -589,6 +694,14 @@ export default function MyArts() {
                     onBoosted={() => queryClient.invalidateQueries({ queryKey: ['studio-arts'] })}
                 />
             )}
+
+            <ArtViewDialog
+                art={viewArt}
+                open={Boolean(viewArt)}
+                onOpenChange={(open) => {
+                    if (!open) setViewArt(null)
+                }}
+            />
         </div>
     )
 }
@@ -623,11 +736,13 @@ function StudioPanel({
 
 function ArtPostRow({
     art,
+    onView,
     onEdit,
     onBoost,
     onTrash,
 }: {
     art: Art
+    onView: (art: Art) => void
     onEdit: (art: Art) => void
     onBoost: (art: Art) => void
     onTrash: (art: Art) => void
@@ -658,6 +773,7 @@ function ArtPostRow({
                         </div>
                         <ArtActions
                             art={art}
+                            onView={onView}
                             onEdit={onEdit}
                             onBoost={onBoost}
                             onTrash={onTrash}
@@ -780,6 +896,100 @@ function ExistingImagesPreview({ art }: { art: Art }) {
     )
 }
 
+function ArtViewDialog({
+    art,
+    open,
+    onOpenChange,
+}: {
+    art: Art | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}) {
+    if (!art) return null
+
+    const images = getArtImages(art)
+    const labels = art.labels ?? []
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="h-[92dvh] w-[min(96vw,1180px)] max-w-none overflow-hidden p-0">
+                <DialogHeader className="sr-only">
+                    <DialogTitle>{art.title}</DialogTitle>
+                    <DialogDescription>Art post preview</DialogDescription>
+                </DialogHeader>
+                <div className="grid h-full min-h-0 lg:grid-cols-[minmax(0,1fr)_380px]">
+                    <div className="min-h-0 overflow-y-auto bg-zinc-950 p-4">
+                        {images.length === 0 ? (
+                            <div className="flex h-full items-center justify-center text-white/60">
+                                <ImageOff className="h-8 w-8" />
+                            </div>
+                        ) : (
+                            <div className="grid gap-4">
+                                {images.map((image, index) => (
+                                    <figure key={`${image.image_path}-${index}`} className="rounded-lg bg-black/30 p-2">
+                                        <img
+                                            src={storageUrl(image.image_path)!}
+                                            alt={`${art.title} image ${index + 1}`}
+                                            draggable={false}
+                                            onContextMenu={(event) => event.preventDefault()}
+                                            className="mx-auto max-h-[78dvh] w-auto max-w-full select-none object-contain"
+                                        />
+                                        {image.description && (
+                                            <figcaption className="mt-2 text-sm text-white/70">
+                                                {image.description}
+                                            </figcaption>
+                                        )}
+                                    </figure>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <aside className="min-h-0 overflow-y-auto border-l bg-background p-5">
+                        <h2 className="text-xl font-semibold">{art.title}</h2>
+                        <p className={`mt-1 text-xs capitalize ${STATUS_COLOR[art.status]}`}>
+                            {art.status}
+                        </p>
+                        {art.description ? (
+                            <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                                {art.description}
+                            </p>
+                        ) : (
+                            <p className="mt-4 text-sm text-muted-foreground">No description added.</p>
+                        )}
+                        {labels.length > 0 && (
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                {labels.map((label) => (
+                                    <span key={label} className="rounded-md border px-2 py-1 text-xs text-muted-foreground">
+                                        {label}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                        <div className="mt-5 grid grid-cols-2 gap-2 text-sm">
+                            <Metric label="Views" value={art.views} />
+                            <Metric label="Likes" value={art.likes} />
+                            <Metric label="Comments" value={art.comments_count} />
+                            <Metric label="Super Likes" value={art.super_likes_count} />
+                        </div>
+                        <div className="mt-6">
+                            <CommentSection targetType="art" targetId={art.id} title="Art comments" compact />
+                        </div>
+                    </aside>
+                </div>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+    return (
+        <div className="rounded-lg border bg-muted/20 p-3">
+            <div className="text-lg font-semibold">{value.toLocaleString()}</div>
+            <div className="text-xs text-muted-foreground">{label}</div>
+        </div>
+    )
+}
+
 function EmptyState({
     icon: Icon,
     title,
@@ -867,6 +1077,9 @@ function LabelBadgeInput({
                     />
                 </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+                Add up to 12 labels. Press Enter or comma after each label.
+            </p>
 
             {filteredSuggestions.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -890,11 +1103,13 @@ function LabelBadgeInput({
 
 function ArtActions({
     art,
+    onView,
     onEdit,
     onBoost,
     onTrash,
 }: {
     art: Art
+    onView: (art: Art) => void
     onEdit: (art: Art) => void
     onBoost: (art: Art) => void
     onTrash: (art: Art) => void
@@ -907,6 +1122,10 @@ function ArtActions({
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onView(art)}>
+                    <Eye size={14} className="mr-2" />
+                    View
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onEdit(art)}>
                     <Pencil size={14} className="mr-2" />
                     Edit

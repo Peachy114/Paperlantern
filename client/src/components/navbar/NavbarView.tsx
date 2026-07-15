@@ -13,6 +13,7 @@ interface NavbarViewProps {
     isChapterPage: boolean
     isComicsActive: boolean
     isNovelsActive: boolean
+    isCommissionsActive: boolean
     navbarHidden: boolean
     profileOpen: boolean
     profileButtonRef: React.RefObject<HTMLButtonElement | null>
@@ -26,6 +27,7 @@ export default function NavbarView({
     isChapterPage,
     isComicsActive,
     isNovelsActive,
+    isCommissionsActive,
     navbarHidden,
     profileOpen,
     profileButtonRef,
@@ -35,6 +37,7 @@ export default function NavbarView({
     const navLinks = [
         { label: 'COMIX', to: '/comix', active: isComicsActive },
         { label: 'ARTS', to: '/explore/arts', active: isNovelsActive },
+        { label: 'COMMISSION', to: '/commissions', active: isCommissionsActive },
     ]
 
     return (

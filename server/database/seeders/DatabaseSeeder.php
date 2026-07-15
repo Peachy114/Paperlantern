@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             SuperAdminSeeder::class,
             CreditPackageSeeder::class,
             SuperLikeAwardSeeder::class,
+            LabelingSeeder::class,
             // WorkSeeder::class,
         ]);
 

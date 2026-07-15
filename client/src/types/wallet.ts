@@ -3,14 +3,18 @@ export interface CreditPackage {
     name: string
     credits: number
     price: number
+    promo_label?: string | null
+    promo_start_at?: string | null
+    promo_end_at?: string | null
     is_active: boolean
+    is_visible?: boolean
     sort_order: number
 }
 
 export interface WalletTransaction {
     id: string
     type: 'credit' | 'debit'
-    source: 'purchase' | 'chapter_unlock' | 'refund' | 'bonus'
+    source: string
     amount: number
     balance_before: number
     balance_after: number

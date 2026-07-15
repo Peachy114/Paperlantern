@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import EarningHistoryListTable from './EarningHistoryListTable'
-import type { EarningTransaction } from '@/features/studio/hooks/useEarnings'
+import type { EarningTransaction } from '@/api/wallet'
 
 interface Props {
     history: EarningTransaction[]

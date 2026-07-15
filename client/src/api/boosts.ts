@@ -1,13 +1,14 @@
 import api from './axios'
 
-export type BoostKind = 'artist_profile' | 'art' | 'webtoon' | 'novel'
-export type BoostTargetType = 'artist_profile' | 'art' | 'work'
+export type BoostKind = 'artist_profile' | 'art' | 'webtoon' | 'novel' | 'commission'
+export type BoostTargetType = 'artist_profile' | 'art' | 'work' | 'commission_service'
 
 export interface BoostPrices {
     art: number
     webtoon: number
     novel: number
     artist_profile: number
+    commission: number
 }
 
 export interface BoostPayload {

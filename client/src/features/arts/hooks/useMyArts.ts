@@ -49,9 +49,25 @@ export function useMyArts() {
         onSuccess: invalidateArts,
     })
 
+    const applyCommission = useMutation({
+        mutationFn: (payload: { application_reason: string }) =>
+            studioApi.applyCommission(payload).then((res) => res.data),
+        onSuccess: invalidateArts,
+    })
+
+    const updateCommissionProfile = useMutation({
+        mutationFn: (payload: {
+            commissions_enabled?: boolean
+            commission_status?: 'open' | 'waitlist' | 'closed'
+            terms?: string
+        }) => studioApi.updateCommissionProfile(payload).then((res) => res.data),
+        onSuccess: invalidateArts,
+    })
+
     return {
         arts: data.arts,
         stats: data.stats,
+        commissionProfile: data.commission_profile,
         trashedArts: trashedArts.data ?? [],
         trashLoading: trashedArts.isLoading,
         createArt,
@@ -59,5 +75,7 @@ export function useMyArts() {
         trashArt,
         restoreArt,
         forceDeleteArt,
+        applyCommission,
+        updateCommissionProfile,
     }
 }

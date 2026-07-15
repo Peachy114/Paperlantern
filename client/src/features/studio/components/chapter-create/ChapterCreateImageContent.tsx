@@ -14,6 +14,7 @@ import { CSS } from '@dnd-kit/utilities'
 
 interface Props {
     imagePreviews: string[]
+    imageNames?: string[]
     onImagesChange: (e: React.ChangeEvent<HTMLInputElement>) => void
     onRemoveImage: (index: number) => void
     onReorderImages: (from: number, to: number) => void
@@ -22,10 +23,12 @@ interface Props {
 function SortableImage({
     src,
     index,
+    fileName,
     onRemove,
 }: {
     src: string
     index: number
+    fileName?: string
     onRemove: () => void
 }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -52,6 +55,11 @@ function SortableImage({
             <div className="absolute top-1.5 left-1.5 h-5 min-w-5 px-1 rounded text-[10px] font-semibold bg-black/60 text-white flex items-center justify-center">
                 {index + 1}
             </div>
+            {fileName && (
+                <div className="absolute bottom-1.5 left-1.5 right-14 truncate rounded bg-black/60 px-2 py-0.5 text-[10px] text-white">
+                    {fileName}
+                </div>
+            )}
             <button
                 type="button"
                 {...listeners}
@@ -82,6 +90,7 @@ function SortableImage({
 
 export default function ChapterCreateImageContent({
     imagePreviews,
+    imageNames = [],
     onImagesChange,
     onRemoveImage,
     onReorderImages,
@@ -102,7 +111,7 @@ export default function ChapterCreateImageContent({
     return (
         <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Pages</Label>
+                <Label className="text-sm font-medium">Upload pages</Label>
                 {imagePreviews.length > 0 && (
                     <span className="text-xs text-muted-foreground">
                         {imagePreviews.length} page{imagePreviews.length !== 1 ? 's' : ''} · hold to
@@ -112,7 +121,7 @@ export default function ChapterCreateImageContent({
             </div>
             <label className="flex items-center justify-center gap-2 h-10 rounded-lg border border-dashed border-border bg-muted/20 cursor-pointer hover:border-muted-foreground/50 hover:bg-muted/30 transition-colors text-sm text-muted-foreground hover:text-foreground">
                 <Plus className="h-4 w-4" />
-                {imagePreviews.length > 0 ? 'Replace pages' : 'Add pages'}
+                Upload pages
                 <input
                     type="file"
                     accept="image/*"
@@ -134,12 +143,47 @@ export default function ChapterCreateImageContent({
                                     key={src}
                                     src={src}
                                     index={i}
+                                    fileName={imageNames[i]}
                                     onRemove={() => onRemoveImage(i)}
                                 />
                             ))}
                         </div>
                     </SortableContext>
                 </DndContext>
+            )}
+            {imagePreviews.length > 0 && (
+                <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
+                    <div className="rounded-lg border border-border bg-muted/20 p-3">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            PC preview
+                        </p>
+                        <div className="mx-auto max-w-xl overflow-hidden rounded-md bg-background">
+                            {imagePreviews.map((src, index) => (
+                                <img
+                                    key={`pc-${src}`}
+                                    src={src}
+                                    alt={`Desktop page ${index + 1}`}
+                                    className="block w-full"
+                                />
+                            ))}
+                        </div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-muted/20 p-3">
+                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Mobile preview
+                        </p>
+                        <div className="mx-auto max-w-[210px] overflow-hidden rounded-[1.5rem] border-4 border-foreground bg-background">
+                            {imagePreviews.map((src, index) => (
+                                <img
+                                    key={`mobile-${src}`}
+                                    src={src}
+                                    alt={`Mobile page ${index + 1}`}
+                                    className="block w-full"
+                                />
+                            ))}
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     )

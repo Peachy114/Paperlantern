@@ -1,24 +1,30 @@
-import { Coins, BookOpen, DollarSign, TrendingUp } from 'lucide-react'
+import { Coins, BookOpen, DollarSign, TrendingUp, type LucideIcon } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 
 interface TransactionSummaryProps {
-    totalSpent: string
-    creditsBalance: number
-    chaptersUnlocked: number
+    items?: Array<{
+        icon: LucideIcon
+        label: string
+        value: string
+    }>
+    totalSpent?: string
+    creditsBalance?: number
+    chaptersUnlocked?: number
     isStoryteller?: boolean
     totalWithdrawn?: string // Storyteller only: total paid out
     loading?: boolean
 }
 
 export function TransactionSummary({
-    totalSpent,
-    creditsBalance,
-    chaptersUnlocked,
+    items,
+    totalSpent = '0',
+    creditsBalance = 0,
+    chaptersUnlocked = 0,
     isStoryteller = false,
     totalWithdrawn = '₱0.00',
     loading = false,
 }: TransactionSummaryProps) {
-    const stats = isStoryteller
+    const stats = items ?? (isStoryteller
         ? [
               { icon: TrendingUp, label: 'Total earned', value: totalSpent },
               { icon: BookOpen, label: 'Chapters sold', value: `${chaptersUnlocked}` },
@@ -28,7 +34,7 @@ export function TransactionSummary({
               { icon: Coins, label: 'Credit balance', value: `${creditsBalance}` },
               { icon: BookOpen, label: 'Chapters unlocked', value: `${chaptersUnlocked}` },
               { icon: DollarSign, label: 'Total spent', value: totalSpent },
-          ]
+          ])
 
     return (
         <div className="grid grid-cols-3 gap-2">

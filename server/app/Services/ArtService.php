@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Art;
+use App\Http\Controllers\Api\Studio\CommissionController;
 use App\Models\User;
 use App\Repositories\ArtRepository;
 use Illuminate\Http\Request;
@@ -12,7 +13,10 @@ use Illuminate\Support\Facades\Storage;
 
 class ArtService
 {
-    public function __construct(private ArtRepository $repo) {}
+    public function __construct(
+        private ArtRepository $repo,
+        private ArtWatermarkService $watermarks,
+    ) {}
 
     public function getDashboard(User $user): array
     {
@@ -27,6 +31,7 @@ class ArtService
                 'super_likes' => $arts->sum('super_likes_count'),
                 'super_like_credits' => $arts->sum('super_like_credits'),
             ],
+            'commission_profile' => CommissionController::formatProfile($user->commissionArtistProfile),
             'arts' => $arts,
         ];
     }
@@ -36,23 +41,36 @@ class ArtService
         $files = $this->uploadedArtFiles($request);
         $imageDescriptions = $validated['image_descriptions'] ?? [];
         $validated['labels'] = $this->normalizeLabels($validated['labels'] ?? []);
+        $validated['download_policy'] = $validated['download_policy'] ?? 'disabled';
+        $validated['download_credits'] = $this->normalizeDownloadCredits(
+            $validated['download_policy'],
+            $validated['download_credits'] ?? 0,
+        );
+        $validated['apply_watermark'] = array_key_exists('apply_watermark', $validated)
+            ? (bool) $validated['apply_watermark']
+            : true;
 
         return DB::transaction(function () use ($user, $validated, $files, $imageDescriptions) {
             $validated['slug'] = Art::generateSlug($validated['title'], $user->id);
-            $validated['image_path'] = $this->storeArtFile($files[0], $user);
+            $firstUpload = $this->storeArtFile($files[0], $user, (bool) $validated['apply_watermark']);
+            $validated['image_path'] = $firstUpload['display'];
+            $validated['original_image_path'] = $firstUpload['original'];
             unset($validated['image'], $validated['images'], $validated['image_descriptions']);
 
             $art = $this->repo->create($user, $validated);
 
             $art->images()->create([
                 'image_path' => $art->image_path,
+                'original_image_path' => $firstUpload['original'],
                 'description' => $imageDescriptions[0] ?? null,
                 'sort_order' => 0,
             ]);
 
             foreach (array_slice($files, 1) as $index => $file) {
+                $upload = $this->storeArtFile($file, $user, (bool) $validated['apply_watermark']);
                 $art->images()->create([
-                    'image_path' => $this->storeArtFile($file, $user),
+                    'image_path' => $upload['display'],
+                    'original_image_path' => $upload['original'],
                     'description' => $imageDescriptions[$index + 1] ?? null,
                     'sort_order' => $index + 1,
                 ]);
@@ -67,6 +85,16 @@ class ArtService
         if (array_key_exists('labels', $validated)) {
             $validated['labels'] = $this->normalizeLabels($validated['labels'] ?? []);
         }
+        if (array_key_exists('download_policy', $validated) || array_key_exists('download_credits', $validated)) {
+            $validated['download_policy'] = $validated['download_policy'] ?? $art->download_policy ?? 'disabled';
+            $validated['download_credits'] = $this->normalizeDownloadCredits(
+                $validated['download_policy'],
+                $validated['download_credits'] ?? $art->download_credits ?? 0,
+            );
+        }
+        if (array_key_exists('apply_watermark', $validated)) {
+            $validated['apply_watermark'] = (bool) $validated['apply_watermark'];
+        }
 
         return DB::transaction(function () use ($art, $validated, $request) {
             if (isset($validated['title'])) {
@@ -74,27 +102,37 @@ class ArtService
             }
 
             $files = $this->uploadedArtFiles($request);
+            $applyWatermark = array_key_exists('apply_watermark', $validated)
+                ? (bool) $validated['apply_watermark']
+                : (bool) $art->apply_watermark;
 
             if ($files !== []) {
                 $imageDescriptions = $validated['image_descriptions'] ?? [];
                 $this->deleteArtFiles($art);
                 $art->images()->delete();
 
-                $validated['image_path'] = $this->storeArtFile($files[0], $art->user);
+                $firstUpload = $this->storeArtFile($files[0], $art->user, $applyWatermark);
+                $validated['image_path'] = $firstUpload['display'];
+                $validated['original_image_path'] = $firstUpload['original'];
 
                 $art->images()->create([
                     'image_path' => $validated['image_path'],
+                    'original_image_path' => $firstUpload['original'],
                     'description' => $imageDescriptions[0] ?? null,
                     'sort_order' => 0,
                 ]);
 
                 foreach (array_slice($files, 1) as $index => $file) {
+                    $upload = $this->storeArtFile($file, $art->user, $applyWatermark);
                     $art->images()->create([
-                        'image_path' => $this->storeArtFile($file, $art->user),
+                        'image_path' => $upload['display'],
+                        'original_image_path' => $upload['original'],
                         'description' => $imageDescriptions[$index + 1] ?? null,
                         'sort_order' => $index + 1,
                     ]);
                 }
+            } elseif (array_key_exists('apply_watermark', $validated)) {
+                $this->regenerateDisplayFiles($art, $applyWatermark);
             }
 
             unset($validated['image'], $validated['images'], $validated['image_descriptions']);
@@ -138,9 +176,23 @@ class ArtService
         return $this->repo->getTrashedByUser($user);
     }
 
-    private function storeArtFile(UploadedFile $file, User $user): string
+    private function storeArtFile(UploadedFile $file, User $user, bool $applyWatermark): array
     {
-        return $file->store("arts/{$user->id}", 'public');
+        $originalPath = $file->store("arts/originals/{$user->id}", 'local');
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg');
+        $filename = pathinfo($originalPath, PATHINFO_FILENAME) . '.' . $extension;
+        $displayPath = "arts/{$user->id}/{$filename}";
+
+        $this->watermarks->createDisplayCopy(
+            Storage::disk('local')->path($originalPath),
+            $displayPath,
+            $applyWatermark,
+        );
+
+        return [
+            'display' => $displayPath,
+            'original' => $originalPath,
+        ];
     }
 
     private function uploadedArtFiles(Request $request): array
@@ -158,9 +210,41 @@ class ArtService
 
     private function deleteArtFiles(Art $art): void
     {
-        $paths = $art->images->pluck('image_path')->push($art->image_path)->filter()->unique();
+        $publicPaths = $art->images->pluck('image_path')->push($art->image_path)->filter()->unique();
+        $originalPaths = $art->images
+            ->pluck('original_image_path')
+            ->push($art->original_image_path)
+            ->filter()
+            ->unique();
 
-        Storage::disk('public')->delete($paths->all());
+        Storage::disk('public')->delete($publicPaths->all());
+        Storage::disk('local')->delete($originalPaths->all());
+    }
+
+    private function regenerateDisplayFiles(Art $art, bool $applyWatermark): void
+    {
+        $items = $art->images->isNotEmpty()
+            ? $art->images
+            : collect([(object) [
+                'original_image_path' => $art->original_image_path,
+                'image_path' => $art->image_path,
+            ]]);
+
+        foreach ($items as $item) {
+            if (! $item->original_image_path || ! $item->image_path) {
+                continue;
+            }
+
+            if (! Storage::disk('local')->exists($item->original_image_path)) {
+                continue;
+            }
+
+            $this->watermarks->createDisplayCopy(
+                Storage::disk('local')->path($item->original_image_path),
+                $item->image_path,
+                $applyWatermark,
+            );
+        }
     }
 
     private function normalizeLabels(array $labels): array
@@ -173,5 +257,14 @@ class ArtService
             ->take(12)
             ->values()
             ->all();
+    }
+
+    private function normalizeDownloadCredits(string $policy, mixed $credits): int
+    {
+        if ($policy !== 'paid') {
+            return 0;
+        }
+
+        return max(1, min(999, (int) $credits));
     }
 }

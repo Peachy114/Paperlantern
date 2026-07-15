@@ -6,6 +6,14 @@ import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 
 import ChapterCreateHeader from './ChapterCreateHeader'
 import ChapterCreateStatus from './ChapterCreateStatus'
@@ -39,8 +47,13 @@ export default function ChapterCreate() {
 }
 
 function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
+    const [scheduledOpen, setScheduledOpen] = useState(false)
+    const [scheduledEpisodes, setScheduledEpisodes] = useState<
+        Array<{ id: string; title: string; scheduled_at?: string }>
+    >([])
     const {
         form,
+        images,
         coverPreview,
         imagePreviews,
         loading,
@@ -56,6 +69,15 @@ function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
         reorderImages,
         handleSubmit,
     } = useCreateChapter(workType)
+
+    useEffect(() => {
+        if (!workSlug) return
+        studioApi.getChapters(workSlug).then((res) => {
+            setScheduledEpisodes(
+                (res.data ?? []).filter((chapter: any) => chapter.status === 'scheduled')
+            )
+        })
+    }, [workSlug])
 
     if (loading && !form.title) return <LoadingState />
 
@@ -91,6 +113,7 @@ function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
                         onScheduledAtChange={(val) =>
                             handleChange({ target: { name: 'scheduled_at', value: val } } as any)
                         }
+                        onOpenScheduled={() => setScheduledOpen(true)}
                     />
 
                     {/* MOBILE cover */}
@@ -115,11 +138,27 @@ function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
                     {workType === 'webtoon' && (
                         <ChapterCreateImageContent
                             imagePreviews={imagePreviews}
+                            imageNames={images.map((image) => image.name)}
                             onImagesChange={handleImagesChange}
                             onRemoveImage={removeImage}
                             onReorderImages={reorderImages}
                         />
                     )}
+
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="artist_note">Artist note (optional)</Label>
+                        <Textarea
+                            id="artist_note"
+                            name="artist_note"
+                            value={form.artist_note}
+                            onChange={handleChange}
+                            placeholder="Leave a short note for readers."
+                            className="min-h-28"
+                        />
+                        {fieldErrors.artist_note && (
+                            <p className="text-xs text-destructive">{fieldErrors.artist_note}</p>
+                        )}
+                    </div>
 
                     {/* Desktop buttons */}
                     <div className="hidden lg:flex justify-end items-center gap-2">
@@ -175,6 +214,35 @@ function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
                     {loading ? 'Saving…' : 'Save chapter'}
                 </Button>
             </div>
+
+            <Dialog open={scheduledOpen} onOpenChange={setScheduledOpen}>
+                <DialogContent className="max-w-lg" aria-describedby={undefined}>
+                    <DialogHeader>
+                        <DialogTitle>Scheduled episodes</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-2">
+                        {scheduledEpisodes.length === 0 ? (
+                            <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
+                                No scheduled episodes yet.
+                            </p>
+                        ) : (
+                            scheduledEpisodes.map((episode) => (
+                                <div
+                                    key={episode.id}
+                                    className="flex items-center justify-between gap-4 rounded-lg border border-border p-3 text-sm"
+                                >
+                                    <span className="font-medium">{episode.title}</span>
+                                    <span className="text-muted-foreground">
+                                        {episode.scheduled_at
+                                            ? new Date(episode.scheduled_at).toLocaleString()
+                                            : 'No date'}
+                                    </span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </form>
     )
 }

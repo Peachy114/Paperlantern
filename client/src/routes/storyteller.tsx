@@ -78,7 +78,6 @@ export const storytellerRoutes = (
                 </Suspense>
             }
         />
-        <Route path="/studio/earnings" element={<Pages.StudioEarnings />} />
         <Route
             path="/studio/trash"
             element={

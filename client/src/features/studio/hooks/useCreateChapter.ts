@@ -51,6 +51,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
     const [form, setForm] = useState({
         title: '',
         content: '',
+        artist_note: '',
         status: 'draft' as 'draft' | 'scheduled' | 'published',
         scheduled_at: '',
         lock_type: 'free' as 'free' | 'early_access' | 'premium',
@@ -158,6 +159,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
             const formData = new FormData()
             formData.append('title', form.title)
             formData.append('content', form.content)
+            formData.append('artist_note', form.artist_note)
             formData.append('status', form.status)
             formData.append('lock_type', form.lock_type)
             formData.append(

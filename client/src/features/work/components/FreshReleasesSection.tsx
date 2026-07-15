@@ -10,8 +10,8 @@ interface Work {
     cover: string | null
     description?: string
     created_at?: string
-    status?: 'draft' | 'ongoing' | 'completed' | 'hiatus'
-    type: 'webtoon' | 'wattpad'
+    status?: 'draft' | 'ongoing' | 'completed' | 'hiatus' | 'published'
+    type: 'webtoon' | 'wattpad' | 'art'
 }
 
 export default function FreshReleasesSection({
@@ -23,6 +23,9 @@ export default function FreshReleasesSection({
 }) {
     const fresh = usePagination(freshReleases)
     if (freshReleases.length === 0) return null
+    const hrefFor = (work: Work) =>
+        work.type === 'art' ? `/explore/arts?art=${encodeURIComponent(work.slug || work.id)}` : `/works/${work.slug}`
+    const imageFor = (work: Work) => cover(work.cover, work.type === 'art' ? undefined : 'sm')
 
     return (
         <section className="mt-10 sm:mt-5 w-full max-w-[1360px] mx-auto px-5">
@@ -37,12 +40,12 @@ export default function FreshReleasesSection({
                         viewport={{ once: true }}
                         transition={{ delay: i * 0.05, duration: 0.3, ease: 'easeOut' }}
                     >
-                        <Link to={`/works/${work.slug}`} className="group block">
+                        <Link to={hrefFor(work)} className="group block">
                             {/* Portrait cover */}
                             <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-muted">
-                                {cover(work.cover, 'sm') && (
+                                {imageFor(work) && (
                                     <img
-                                        src={cover(work.cover, 'sm')!}
+                                        src={imageFor(work)!}
                                         alt={work.title}
                                         width={220}
                                         height={293}
@@ -65,7 +68,7 @@ export default function FreshReleasesSection({
 
                             {/* Type */}
                             <p className="text-xs text-muted-foreground mt-0.5">
-                                {work.type === 'webtoon' ? 'Webtoon' : 'Novel'}
+                                {work.type === 'art' ? 'Art' : work.type === 'webtoon' ? 'Webtoon' : 'Novel'}
                             </p>
                         </Link>
                     </motion.div>

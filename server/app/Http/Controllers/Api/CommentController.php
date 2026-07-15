@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Comment;
+use App\Models\Ticket;
 use App\Services\CommentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -52,6 +53,42 @@ class CommentController extends Controller
         abort_unless($comment->status === 'visible', 404);
 
         return response()->json($this->comments->remove($request->user(), $comment));
+    }
+
+    public function report(Request $request, Comment $comment): JsonResponse
+    {
+        abort_unless($comment->status === 'visible', 404);
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:120'],
+            'details' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $ticket = Ticket::create([
+            'user_id' => $request->user()->id,
+            'category' => 'other',
+            'subject' => 'Comment report',
+            'message' => '',
+            'status' => 'open',
+            'source_type' => Comment::class,
+            'source_id' => $comment->id,
+        ]);
+        $supportNumber = 'LNC-' . now()->format('Ymd') . '-' . strtoupper(substr(str_replace('-', '', $ticket->id), 0, 6));
+        $ticket->update([
+            'subject' => "Comment report {$supportNumber}",
+            'message' => implode("\n\n", array_filter([
+                "Support number: {$supportNumber}",
+                "Reported comment: {$comment->id}",
+                "Reason: {$validated['reason']}",
+                $validated['details'] ?? null,
+            ])),
+        ]);
+
+        return response()->json([
+            'message' => 'Report sent to support.',
+            'support_number' => $supportNumber,
+            'ticket_id' => $ticket->id,
+        ], 201);
     }
 
     public function pin(Request $request, string $comment): JsonResponse

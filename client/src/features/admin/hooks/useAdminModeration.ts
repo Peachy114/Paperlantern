@@ -112,12 +112,47 @@ interface ReviewCommentImage {
     user: ModerationUser
 }
 
+interface ReviewCommissionMessageImage {
+    id: string
+    body: string | null
+    image_path: string
+    image_moderation_status: string
+    created_at: string
+    sender: ModerationUser
+    order?: {
+        service?: {
+            title: string
+            slug: string
+        } | null
+    } | null
+}
+
+interface ReviewCommissionDeliveryFile {
+    id: string
+    file_path: string
+    original_name: string | null
+    mime_type: string | null
+    size_bytes: number
+    note: string | null
+    moderation_status: string
+    created_at: string
+    uploader: ModerationUser
+    order?: {
+        service?: {
+            title: string
+            slug: string
+        } | null
+    } | null
+}
+
 interface ModerationReview {
     works: ModerationWorkItem[]
     chapters: ModerationChapter[]
     arts: ReviewArt[]
     profile_blocks: ReviewProfileBlock[]
     comment_images?: ReviewCommentImage[]
+    commission_message_images?: ReviewCommissionMessageImage[]
+    commission_delivery_files?: ReviewCommissionDeliveryFile[]
     active_suspensions: ActiveSuspension[]
 }
 
@@ -294,6 +329,62 @@ export function useAdminModerationQueue() {
         },
     })
 
+    const approveCommissionMessageImage = useMutation({
+        mutationFn: (id: string) => moderationApi.approveCommissionMessageImage(id),
+        onSuccess: (_, id) => {
+            queryClient.setQueryData<ModerationQueue>(QUEUE_KEY, (prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          review: {
+                              ...prev.review,
+                              commission_message_images: (
+                                  prev.review.commission_message_images ?? []
+                              ).filter((message) => message.id !== id),
+                          },
+                      }
+                    : prev
+            )
+        },
+    })
+
+    const suspendCommissionMessageImage = useMutation({
+        mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+            moderationApi.suspendCommissionMessageImage(id, reason),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: QUEUE_KEY })
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+        },
+    })
+
+    const approveCommissionDeliveryFile = useMutation({
+        mutationFn: (id: string) => moderationApi.approveCommissionDeliveryFile(id),
+        onSuccess: (_, id) => {
+            queryClient.setQueryData<ModerationQueue>(QUEUE_KEY, (prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          review: {
+                              ...prev.review,
+                              commission_delivery_files: (
+                                  prev.review.commission_delivery_files ?? []
+                              ).filter((file) => file.id !== id),
+                          },
+                      }
+                    : prev
+            )
+        },
+    })
+
+    const suspendCommissionDeliveryFile = useMutation({
+        mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+            moderationApi.suspendCommissionDeliveryFile(id, reason),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: QUEUE_KEY })
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+        },
+    })
+
     return {
         chapters: data.chapters,
         works: data.works,
@@ -315,6 +406,12 @@ export function useAdminModerationQueue() {
         approveCommentImage: (id: string) => approveCommentImage.mutate(id),
         suspendCommentImage: (id: string, reason: string) =>
             suspendCommentImage.mutate({ id, reason }),
+        approveCommissionMessageImage: (id: string) => approveCommissionMessageImage.mutate(id),
+        suspendCommissionMessageImage: (id: string, reason: string) =>
+            suspendCommissionMessageImage.mutate({ id, reason }),
+        approveCommissionDeliveryFile: (id: string) => approveCommissionDeliveryFile.mutate(id),
+        suspendCommissionDeliveryFile: (id: string, reason: string) =>
+            suspendCommissionDeliveryFile.mutate({ id, reason }),
 
         approvingChapter: approveChapter.isPending ? approveChapter.variables : null,
         violatingChapter: violateChapter.isPending ? violateChapter.variables?.slug : null,
@@ -329,6 +426,18 @@ export function useAdminModerationQueue() {
         approvingCommentImage: approveCommentImage.isPending ? approveCommentImage.variables : null,
         suspendingCommentImage: suspendCommentImage.isPending
             ? suspendCommentImage.variables?.id
+            : null,
+        approvingCommissionMessageImage: approveCommissionMessageImage.isPending
+            ? approveCommissionMessageImage.variables
+            : null,
+        suspendingCommissionMessageImage: suspendCommissionMessageImage.isPending
+            ? suspendCommissionMessageImage.variables?.id
+            : null,
+        approvingCommissionDeliveryFile: approveCommissionDeliveryFile.isPending
+            ? approveCommissionDeliveryFile.variables
+            : null,
+        suspendingCommissionDeliveryFile: suspendCommissionDeliveryFile.isPending
+            ? suspendCommissionDeliveryFile.variables?.id
             : null,
     }
 }

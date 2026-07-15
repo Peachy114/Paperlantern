@@ -5,7 +5,7 @@ import {
     BadgeCheck,
     Bold,
     EyeOff,
-    Film,
+    Flag,
     Gift,
     Glasses,
     Heart,
@@ -36,10 +36,10 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
+    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -70,13 +70,13 @@ export default function CommentSection({
     const [sort, setSort] = useState<CommentSort>('all')
     const [body, setBody] = useState('')
     const [reactionEmoji, setReactionEmoji] = useState<string | null>(null)
-    const [gifUrl, setGifUrl] = useState('')
-    const [imageUrl, setImageUrl] = useState('')
     const [emojiOpen, setEmojiOpen] = useState(false)
-    const [mediaOpen, setMediaOpen] = useState(false)
     const [stickerOpen, setStickerOpen] = useState(false)
     const [selectedSticker, setSelectedSticker] = useState<ArtistSticker | null>(null)
     const [replyingTo, setReplyingTo] = useState<PublicComment | null>(null)
+    const [reportTarget, setReportTarget] = useState<PublicComment | null>(null)
+    const [reportReason, setReportReason] = useState('')
+    const [reportDetails, setReportDetails] = useState('')
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const textareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -111,8 +111,6 @@ export default function CommentSection({
             if (selectedSticker?.id) payload.append('artist_sticker_id', selectedSticker.id)
             if (replyingTo?.id) payload.append('parent_id', replyingTo.id)
             if (reactionEmoji) payload.append('reaction_emoji', reactionEmoji)
-            if (gifUrl.trim()) payload.append('gif_url', gifUrl.trim())
-            if (imageUrl.trim()) payload.append('image_url', imageUrl.trim())
             if (imageFile) payload.append('image', imageFile)
 
             return commentsApi.create(targetType, targetId, payload).then((res) => res.data)
@@ -120,8 +118,6 @@ export default function CommentSection({
         onSuccess: () => {
             setBody('')
             setReactionEmoji(null)
-            setGifUrl('')
-            setImageUrl('')
             setSelectedSticker(null)
             setReplyingTo(null)
             setImageFile(null)
@@ -163,13 +159,30 @@ export default function CommentSection({
         },
     })
 
+    const reportMutation = useMutation({
+        mutationFn: () =>
+            commentsApi
+                .report(reportTarget!.id, {
+                    reason: reportReason.trim(),
+                    details: reportDetails.trim() || undefined,
+                })
+                .then((res) => res.data),
+        onSuccess: (result) => {
+            toast.success(`Report sent. Support #${result.support_number}`)
+            setReportTarget(null)
+            setReportReason('')
+            setReportDetails('')
+        },
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message ?? 'Could not send report.')
+        },
+    })
+
     const comments = data?.data ?? []
     const hasDraft =
         Boolean(body.trim()) ||
         Boolean(selectedSticker) ||
         Boolean(reactionEmoji) ||
-        Boolean(gifUrl.trim()) ||
-        Boolean(imageUrl.trim()) ||
         Boolean(imageFile)
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -351,27 +364,6 @@ export default function CommentSection({
                         </div>
                     )}
 
-                    {mediaOpen && (
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                            <label className="grid gap-1 text-xs text-muted-foreground">
-                                GIF URL
-                                <Input
-                                    value={gifUrl}
-                                    onChange={(event) => setGifUrl(event.target.value)}
-                                    placeholder="https://..."
-                                />
-                            </label>
-                            <label className="grid gap-1 text-xs text-muted-foreground">
-                                Image URL
-                                <Input
-                                    value={imageUrl}
-                                    onChange={(event) => setImageUrl(event.target.value)}
-                                    placeholder="https://..."
-                                />
-                            </label>
-                        </div>
-                    )}
-
                     {imagePreview && (
                         <div className="relative mt-3 inline-block overflow-hidden rounded-lg bg-muted">
                             <img
@@ -417,15 +409,6 @@ export default function CommentSection({
                                 title="Stickers"
                             >
                                 <Sticker className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                type="button"
-                                size="icon-sm"
-                                variant="ghost"
-                                onClick={() => setMediaOpen((open) => !open)}
-                                title="GIF or image"
-                            >
-                                <Film className="h-4 w-4" />
                             </Button>
                             <input
                                 ref={imageInputRef}
@@ -495,6 +478,15 @@ export default function CommentSection({
                                 }
                                 removeMutation.mutate(commentId)
                             }}
+                            onReport={(nextComment) => {
+                                if (!token) {
+                                    openLogin()
+                                    return
+                                }
+                                setReportTarget(nextComment)
+                                setReportReason('')
+                                setReportDetails('')
+                            }}
                             likingCommentId={likeMutation.isPending ? likeMutation.variables ?? null : null}
                             removingCommentId={removeMutation.isPending ? removeMutation.variables ?? null : null}
                             currentUserId={user?.id ?? null}
@@ -513,6 +505,54 @@ export default function CommentSection({
                     setStickerOpen(false)
                 }}
             />
+
+            <Dialog open={Boolean(reportTarget)} onOpenChange={(open) => !open && setReportTarget(null)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Report Comment</DialogTitle>
+                        <DialogDescription>
+                            This creates a support ticket for admin review.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-3 py-2">
+                        <label className="grid gap-1 text-sm">
+                            <span>Reason</span>
+                            <Textarea
+                                value={reportReason}
+                                onChange={(event) => setReportReason(event.target.value)}
+                                rows={2}
+                                placeholder="Spam, harassment, spoiler, unsafe content..."
+                            />
+                        </label>
+                        <label className="grid gap-1 text-sm">
+                            <span>Details</span>
+                            <Textarea
+                                value={reportDetails}
+                                onChange={(event) => setReportDetails(event.target.value)}
+                                rows={3}
+                                placeholder="Optional extra details for support"
+                            />
+                        </label>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setReportTarget(null)}
+                            disabled={reportMutation.isPending}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={!reportReason.trim() || reportMutation.isPending}
+                            onClick={() => reportMutation.mutate()}
+                        >
+                            {reportMutation.isPending ? 'Sending...' : 'Send Report'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </section>
     )
 }
@@ -525,6 +565,7 @@ function CommentItem({
     onReply,
     onLike,
     onRemove,
+    onReport,
     likingCommentId,
     removingCommentId,
     currentUserId,
@@ -538,6 +579,7 @@ function CommentItem({
     onReply: (comment: PublicComment) => void
     onLike: (commentId: string) => void
     onRemove: (commentId: string) => void
+    onReport: (comment: PublicComment) => void
     likingCommentId: string | null
     removingCommentId: string | null
     currentUserId: string | null
@@ -685,6 +727,16 @@ function CommentItem({
                             Remove
                         </Button>
                     )}
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 rounded-full px-2 text-xs text-muted-foreground"
+                        onClick={() => onReport(comment)}
+                    >
+                        <Flag className="h-3.5 w-3.5" />
+                        Report
+                    </Button>
                 </div>
 
                 {replies.length > 0 && (
@@ -699,6 +751,7 @@ function CommentItem({
                                 onReply={onReply}
                                 onLike={onLike}
                                 onRemove={onRemove}
+                                onReport={onReport}
                                 likingCommentId={likingCommentId}
                                 removingCommentId={removingCommentId}
                                 currentUserId={currentUserId}
@@ -1047,6 +1100,7 @@ function StickerGrid({
         <div className="grid max-h-[620px] auto-rows-[190px] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {stickers.map((sticker) => {
                 const canUse = sticker.can_use ?? sticker.library_status !== undefined
+                const cost = sticker.purchase_cost ?? sticker.credit_cost ?? 1
 
                 return (
                     <div key={sticker.id} className="flex h-full flex-col p-2">
@@ -1093,7 +1147,7 @@ function StickerGrid({
                                     disabled={busy}
                                     onClick={() => onBuy?.(sticker)}
                                 >
-                                    1cr
+                                    {cost <= 0 || sticker.is_free ? 'Free' : `${cost}cr`}
                                 </Button>
                             </div>
                         )}

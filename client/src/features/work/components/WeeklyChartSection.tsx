@@ -9,7 +9,7 @@ interface Work {
     slug: string
     title: string
     cover: string | null
-    type: 'webtoon' | 'wattpad'
+    type: 'webtoon' | 'wattpad' | 'art'
     likes?: number
     description?: string | null
     genres?: string[]
@@ -29,7 +29,9 @@ export default function WeeklyChartSection({
 
     const total = weeklyChart.length
     const work = weeklyChart[index]
-    const bg = cover(work.cover, 'sm')
+    const image = cover(work.cover, work.type === 'art' ? undefined : 'sm')
+    const bg = image
+    const workHref = work.type === 'art' ? `/explore/arts?art=${encodeURIComponent(work.slug || work.id)}` : `/works/${work.slug}`
 
     const goPrev = () => setIndex((i) => (i - 1 + total) % total)
     const goNext = () => setIndex((i) => (i + 1) % total)
@@ -79,12 +81,12 @@ export default function WeeklyChartSection({
                     >
                         {/* Poster */}
                         <Link
-                            to={`/works/${work.slug}`}
+                            to={workHref}
                             className="shrink-0 w-[110px] sm:w-[130px] aspect-[3/4] rounded-md overflow-hidden shadow-lg bg-muted"
                         >
-                            {cover(work.cover, 'sm') && (
+                            {image && (
                                 <img
-                                    src={cover(work.cover, 'sm')!}
+                                    src={image}
                                     alt={work.title}
                                     width={130}
                                     height={174}
@@ -97,7 +99,7 @@ export default function WeeklyChartSection({
 
                         {/* Info */}
                         <div className="min-w-0 flex-1">
-                            <Link to={`/works/${work.slug}`}>
+                            <Link to={workHref}>
                                 <h2 className="text-xl sm:text-3xl font-extrabold text-white leading-tight line-clamp-1 hover:underline">
                                     {work.title}
                                 </h2>

@@ -14,7 +14,7 @@ class WalletTransaction extends Model
         'wallet_id',
         'user_id',
         'type',           // 'credit' | 'debit'
-        'source',         // 'purchase' | 'chapter_unlock' | 'refund'
+        'source',         // 'purchase' | 'chapter_unlock' | 'refund' | 'bonus' | 'art_download'
         'amount',
         'balance_before',
         'balance_after',

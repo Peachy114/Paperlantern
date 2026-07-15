@@ -21,6 +21,7 @@ class Work extends Model
         'type',
         'slug',
         'genres',
+        'content_rating_assessment',
         'language',
         'cover',
         'banner',
@@ -42,6 +43,7 @@ class Work extends Model
     {
         return [
             'genres'          => 'array',
+            'content_rating_assessment' => 'array',
             'next_chapter_at' => 'date',
             'views'           => 'integer',
             'likes'           => 'integer',

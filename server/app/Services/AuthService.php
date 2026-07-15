@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\SubscriptionPlan;
 use App\Models\User;
+use App\Models\UserSubscription;
 use App\Repositories\AuthRepository;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -66,7 +68,63 @@ class AuthService
     public function becomeCreator(User $user): array
     {
         $updated = $this->repo->becomeCreator($user);
-        return ['user' => $this->formatUser($updated)];
+        $subscriptionNotice = $this->syncSubscriptionForCreatorRole($updated);
+
+        return array_filter([
+            'user' => $this->formatUser($updated),
+            'subscription_notice' => $subscriptionNotice,
+        ]);
+    }
+
+    private function syncSubscriptionForCreatorRole(User $user): ?string
+    {
+        $subscription = UserSubscription::with('plan')
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->latest()
+            ->first();
+
+        if (! $subscription?->plan || $subscription->plan->audience !== 'wanderer') {
+            return null;
+        }
+
+        $artistPlan = SubscriptionPlan::where('audience', 'storyteller')
+            ->where('tier_key', $subscription->plan->tier_key)
+            ->where('is_active', true)
+            ->orderBy('monthly_credit_cost')
+            ->first();
+
+        if (! $artistPlan) {
+            $meta = $subscription->meta ?? [];
+            $meta['role_change_subscription_notice'] = 'No matching artist subscription is available yet.';
+            $subscription->update(['meta' => $meta]);
+
+            return 'Your current subscription stays active, but no matching Artist plan is available yet.';
+        }
+
+        $meta = $subscription->meta ?? [];
+        $meta['previous_subscription_plan_id'] = $subscription->subscription_plan_id;
+        $meta['role_changed_at'] = now()->toDateTimeString();
+
+        if ((int) $artistPlan->monthly_credit_cost === (int) $subscription->plan->monthly_credit_cost) {
+            $subscription->update([
+                'subscription_plan_id' => $artistPlan->id,
+                'meta' => array_merge($meta, [
+                    'role_change_subscription_notice' => 'Subscription moved to the matching Artist plan.',
+                ]),
+            ]);
+
+            return 'Your subscription was moved to the matching Artist plan.';
+        }
+
+        $subscription->update([
+            'meta' => array_merge($meta, [
+                'pending_subscription_plan_id' => $artistPlan->id,
+                'role_change_subscription_notice' => 'Artist subscription has a different price. Choose this plan at renewal or cancel your current subscription first.',
+            ]),
+        ]);
+
+        return 'Your current subscription stays active. The matching Artist plan has a different price, so it is queued until renewal or cancellation.';
     }
 
     public function formatUser(User $user): array
@@ -80,6 +138,9 @@ class AuthService
             'is_banned' => $user->is_banned,
             'is_suspended' => (bool) ($user->is_suspended ?? false),
             'dark_mode' => (bool) $user->dark_mode,
+            'account_menu_style' => in_array($user->account_menu_style, ['circular', 'detailed'], true)
+                ? $user->account_menu_style
+                : 'circular',
             'avatar'    => $user->avatar ? url(Storage::url($user->avatar)) : null,
             'profile_cover' => $user->profile_cover ? url(Storage::url($user->profile_cover)) : null,
             'bio'       => $user->bio,

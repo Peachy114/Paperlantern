@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class EarningTransaction extends Model
@@ -47,5 +48,10 @@ class EarningTransaction extends Model
     public function chapter(): BelongsTo
     {
         return $this->belongsTo(Chapter::class);
+    }
+
+    public function earnable(): MorphTo
+    {
+        return $this->morphTo();
     }
 }

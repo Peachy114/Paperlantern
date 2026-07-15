@@ -68,6 +68,7 @@ function PackageRow({ pkg, index, total, purchasing, onPurchase }: PackageRowPro
     const tier = getTier(index, total)
     const isLoading = purchasing === pkg.id
     const isDisabled = purchasing !== null
+    const promoEnds = formatPromoDate(pkg.promo_end_at)
 
     return (
         <div className="relative flex items-center gap-4 px-5 py-4 rounded-xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 transition-all hover:border-zinc-300 dark:hover:border-zinc-600 hover:shadow-sm group">
@@ -92,9 +93,15 @@ function PackageRow({ pkg, index, total, purchasing, onPurchase }: PackageRowPro
                     >
                         {tier.label}
                     </Badge>
+                    {pkg.promo_label && (
+                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 uppercase">
+                            {pkg.promo_label}
+                        </Badge>
+                    )}
                 </div>
                 <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">
                     ₱{(Number(pkg.price) / pkg.credits).toFixed(2)} per credit
+                    {promoEnds ? ` · Ends ${promoEnds}` : ''}
                 </p>
             </div>
 
@@ -115,6 +122,16 @@ function PackageRow({ pkg, index, total, purchasing, onPurchase }: PackageRowPro
             </Button>
         </div>
     )
+}
+
+function formatPromoDate(value?: string | null) {
+    if (!value) return ''
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+    return new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        day: 'numeric',
+    }).format(date)
 }
 
 // ─── Root props ──────────────────────────────────────────────────────────────

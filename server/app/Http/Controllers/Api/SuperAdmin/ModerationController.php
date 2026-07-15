@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Chapter;
 use App\Models\Comment;
+use App\Models\CommissionDeliveryFile;
+use App\Models\CommissionMessage;
 use App\Models\ContentSuspension;
 use App\Models\StickyNote;
 use App\Models\User;
@@ -92,6 +94,72 @@ class ModerationController extends Controller
         return response()->json([
             ...$result,
             'comment' => $comment->fresh(['user:id,name,username,strike_count,is_suspended']),
+        ]);
+    }
+
+    public function approveCommissionMessageImage(Request $request, CommissionMessage $message): JsonResponse
+    {
+        abort_unless($message->image_path, 422, 'This commission message does not have an uploaded image.');
+
+        $message->update(['image_moderation_status' => 'approved']);
+
+        return response()->json([
+            'message' => 'Commission message image approved.',
+            'commission_message' => $message->fresh(['sender:id,name,username,strike_count,is_suspended']),
+        ]);
+    }
+
+    public function suspendCommissionMessageImage(Request $request, CommissionMessage $message): JsonResponse
+    {
+        abort_unless($message->image_path, 422, 'This commission message does not have an uploaded image.');
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $result = $this->contentSuspensions->suspend(
+            $message,
+            $request->user(),
+            $validated['reason'],
+            'image_path'
+        );
+
+        $message->update(['image_moderation_status' => 'suspended']);
+
+        return response()->json([
+            ...$result,
+            'commission_message' => $message->fresh(['sender:id,name,username,strike_count,is_suspended']),
+        ]);
+    }
+
+    public function approveCommissionDeliveryFile(Request $request, CommissionDeliveryFile $file): JsonResponse
+    {
+        $file->update(['moderation_status' => 'approved']);
+
+        return response()->json([
+            'message' => 'Commission delivery file approved.',
+            'delivery_file' => $file->fresh(['uploader:id,name,username,strike_count,is_suspended']),
+        ]);
+    }
+
+    public function suspendCommissionDeliveryFile(Request $request, CommissionDeliveryFile $file): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $result = $this->contentSuspensions->suspend(
+            $file,
+            $request->user(),
+            $validated['reason'],
+            'file_path'
+        );
+
+        $file->update(['moderation_status' => 'suspended']);
+
+        return response()->json([
+            ...$result,
+            'delivery_file' => $file->fresh(['uploader:id,name,username,strike_count,is_suspended']),
         ]);
     }
 

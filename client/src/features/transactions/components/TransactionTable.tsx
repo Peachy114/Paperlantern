@@ -1,7 +1,9 @@
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ChevronDown } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import {
     Table,
     TableBody,
@@ -17,6 +19,7 @@ interface TransactionTableProps {
     creditsLabel?: string
     hideAmount?: boolean
     loading?: boolean
+    pageSize?: number
 }
 
 const STATUS_MAP = {
@@ -30,7 +33,18 @@ export function TransactionTable({
     creditsLabel = 'Credits',
     hideAmount = false,
     loading = false,
+    pageSize,
 }: TransactionTableProps) {
+    const showBalance = rows.some((row) => row.balance)
+    const [page, setPage] = useState(1)
+    const totalPages = pageSize ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1
+    const visibleRows = useMemo(() => {
+        if (!pageSize) return rows
+        const safePage = Math.min(page, totalPages)
+        const start = (safePage - 1) * pageSize
+        return rows.slice(start, start + pageSize)
+    }, [page, pageSize, rows, totalPages])
+
     if (loading) {
         return (
             <div className="mt-4 space-y-2">
@@ -53,7 +67,7 @@ export function TransactionTable({
         <>
             {/* ── Mobile: collapsible cards ── */}
             <div className="mt-4 space-y-2 sm:hidden">
-                {rows.map((row) => {
+                {visibleRows.map((row) => {
                     const { label, variant } = STATUS_MAP[row.status]
                     return (
                         <Collapsible key={row.id}>
@@ -101,6 +115,16 @@ export function TransactionTable({
                                             {row.credits}
                                         </span>
                                     </div>
+                                    {showBalance && (
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground text-xs uppercase tracking-wide">
+                                                Balance
+                                            </span>
+                                            <span className="tabular-nums font-medium">
+                                                {row.balance ?? '-'}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </CollapsibleContent>
                         </Collapsible>
@@ -117,11 +141,12 @@ export function TransactionTable({
                             <TableHead>Description</TableHead>
                             {!hideAmount && <TableHead className="text-right">Amount</TableHead>}
                             <TableHead className="text-right">{creditsLabel}</TableHead>
+                            {showBalance && <TableHead className="text-right">Balance</TableHead>}
                             <TableHead className="text-right">Status</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {rows.map((row) => {
+                        {visibleRows.map((row) => {
                             const { label, variant } = STATUS_MAP[row.status]
                             return (
                                 <TableRow key={row.id} className="text-sm">
@@ -139,6 +164,11 @@ export function TransactionTable({
                                     <TableCell className="text-right tabular-nums font-medium">
                                         {row.credits}
                                     </TableCell>
+                                    {showBalance && (
+                                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                                            {row.balance ?? '-'}
+                                        </TableCell>
+                                    )}
                                     <TableCell className="text-right">
                                         <Badge variant={variant} className="text-[10px]">
                                             {label}
@@ -150,6 +180,31 @@ export function TransactionTable({
                     </TableBody>
                 </Table>
             </div>
+            {pageSize && totalPages > 1 && (
+                <div className="mt-3 flex items-center justify-between rounded-lg border bg-background px-3 py-2">
+                    <p className="text-xs text-muted-foreground">
+                        Page {Math.min(page, totalPages)} of {totalPages}
+                    </p>
+                    <div className="flex gap-1">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage((current) => Math.max(1, current - 1))}
+                            disabled={page <= 1}
+                        >
+                            Previous
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                            disabled={page >= totalPages}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
+            )}
         </>
     )
 }

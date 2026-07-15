@@ -7,6 +7,7 @@ const PROTECTED = ['/become-creator', '/studio']
 const NAV_LINKS = [
     { label: 'Comix', to: '/comix' },
     { label: 'Arts', to: '/explore/arts' },
+    { label: 'Commission', to: '/commissions' },
     { label: 'Become a Creator', to: '/become-creator' },
     { label: 'Studio', to: '/studio' },
     { label: 'About', to: '/about' },

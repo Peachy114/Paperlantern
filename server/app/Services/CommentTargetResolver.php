@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Art;
 use App\Models\Chapter;
 use App\Models\Comment;
+use App\Models\FeedPost;
 use App\Models\Work;
 use Illuminate\Database\Eloquent\Model;
 
@@ -26,6 +27,7 @@ class CommentTargetResolver
                 ->findOrFail($id),
             'art' => Art::where('status', 'published')->findOrFail($id),
             'comment' => Comment::where('status', 'visible')->findOrFail($id),
+            'feed' => FeedPost::where('status', 'published')->findOrFail($id),
             default => abort(404, 'Unsupported comment target.'),
         };
 
@@ -48,6 +50,7 @@ class CommentTargetResolver
             $target instanceof Chapter => 'chapter',
             $target instanceof Art => 'art',
             $target instanceof Comment => 'comment',
+            $target instanceof FeedPost => 'feed',
             default => 'unknown',
         };
     }
@@ -64,6 +67,10 @@ class CommentTargetResolver
         }
 
         if ($target instanceof Comment) {
+            return $target->user;
+        }
+
+        if ($target instanceof FeedPost) {
             return $target->user;
         }
 

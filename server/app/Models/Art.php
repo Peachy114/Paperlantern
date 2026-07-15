@@ -22,8 +22,13 @@ class Art extends Model
         'description',
         'labels',
         'image_path',
+        'original_image_path',
         'status',
         'moderation_status',
+        'download_policy',
+        'download_credits',
+        'downloads_count',
+        'apply_watermark',
         'views',
         'likes',
         'comments_count',
@@ -32,9 +37,16 @@ class Art extends Model
         'public_sort_order',
     ];
 
+    protected $hidden = [
+        'original_image_path',
+    ];
+
     protected function casts(): array
     {
         return [
+            'download_credits' => 'integer',
+            'downloads_count' => 'integer',
+            'apply_watermark' => 'boolean',
             'views' => 'integer',
             'likes' => 'integer',
             'comments_count' => 'integer',
@@ -63,6 +75,16 @@ class Art extends Model
     public function likedByUsers()
     {
         return $this->hasMany(ArtLike::class);
+    }
+
+    public function downloads()
+    {
+        return $this->hasMany(ArtDownload::class);
+    }
+
+    public function viewRecords()
+    {
+        return $this->hasMany(ArtView::class);
     }
 
     public static function generateSlug(string $title, string $userId, ?string $excludeId = null): string

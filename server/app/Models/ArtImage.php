@@ -14,8 +14,13 @@ class ArtImage extends Model
     protected $fillable = [
         'art_id',
         'image_path',
+        'original_image_path',
         'description',
         'sort_order',
+    ];
+
+    protected $hidden = [
+        'original_image_path',
     ];
 
     protected function casts(): array

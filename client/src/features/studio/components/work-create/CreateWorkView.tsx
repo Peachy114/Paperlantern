@@ -1,4 +1,4 @@
-import { useCreateWork, GENRES, WORK_LANGUAGES } from '@/features/studio/hooks/useCreateWork'
+import { useCreateWork, WORK_LANGUAGES } from '@/features/studio/hooks/useCreateWork'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
@@ -13,6 +13,7 @@ import CreateWorkFirstChapter from './CreateWorkFirstChapter'
 import CreateWorkFirstChapterCover from './CreateWorkFirstChapterCover'
 import CreateWorkFirstStoryContent from './CreateWorkFirstStoryContent'
 import CreateWorkImages from './CreateWorkImages'
+import ContentRatingAssessment from './ContentRatingAssessment'
 
 const DAYS = [
     { value: 'mon', label: 'Mon' },
@@ -24,14 +25,16 @@ const DAYS = [
     { value: 'sun', label: 'Sun' },
 ] as const
 
-const RECURRING = ['daily', 'weekly', 'biweekly', 'monthly'] as const
-
 export default function CreateWorkView() {
     const {
         type,
+        availableGenres,
         form,
         coverPreview,
         bannerPreview,
+        contentRating,
+        sensitivityFlags,
+        ratingAgreement,
         chapterForm,
         chapterCoverPreview,
         chapterImages,
@@ -45,6 +48,10 @@ export default function CreateWorkView() {
         navigate,
         handleChange,
         handleGenreToggle,
+        handleGenreRequest,
+        handleContentRatingChange,
+        handleSensitivityToggle,
+        handleRatingAgreementChange,
         handleFileChange,
         handleChapterChange,
         handleChapterCoverChange,
@@ -55,33 +62,45 @@ export default function CreateWorkView() {
 
     const fe = (field: string) => !!fieldErrors[field]
 
-    // Schedule mode: 'days' if a day is selected, 'recurring' if recurring, '' if none
-    const scheduleMode = DAYS.some((d) => d.value === form.schedule)
-        ? 'days'
-        : RECURRING.includes(form.schedule as (typeof RECURRING)[number])
-          ? 'recurring'
-          : ''
-
-    const selectValue =
-        scheduleMode === 'days' ? 'days' : scheduleMode === 'recurring' ? form.schedule : '__none__'
-
-    const selectedDays = scheduleMode === 'days' ? [form.schedule] : []
+    const [scheduleMode, schedulePayload = ''] = form.schedule.split(':')
+    const normalizedScheduleMode = ['daily', 'weekly', 'biweekly', 'monthly'].includes(scheduleMode)
+        ? scheduleMode
+        : ''
+    const selectValue = normalizedScheduleMode || '__none__'
+    const selectedDays =
+        normalizedScheduleMode === 'weekly' || normalizedScheduleMode === 'biweekly'
+            ? schedulePayload.split(',').filter(Boolean)
+            : []
+    const monthlyDay = normalizedScheduleMode === 'monthly' ? schedulePayload : '1'
 
     const handleDayToggle = (day: string) => {
-        const newVal = form.schedule === day ? '' : day
-        handleChange({ target: { name: 'schedule', value: newVal } } as any)
-    }
+        if (normalizedScheduleMode === 'weekly') {
+            handleChange({ target: { name: 'schedule', value: `weekly:${day}` } } as any)
+            return
+        }
 
-    const handleRecurringChange = (val: string) => {
-        handleChange({ target: { name: 'schedule', value: val } } as any)
+        if (normalizedScheduleMode === 'biweekly') {
+            const next = selectedDays.includes(day)
+                ? selectedDays.filter((selected) => selected !== day)
+                : selectedDays.length >= 2
+                  ? [selectedDays[1], day]
+                  : [...selectedDays, day]
+            handleChange({ target: { name: 'schedule', value: `biweekly:${next.join(',')}` } } as any)
+        }
     }
 
     const handleScheduleModeChange = (mode: string) => {
-        if (mode === 'days') {
-            handleChange({ target: { name: 'schedule', value: 'mon' } } as any)
-        } else {
-            handleChange({ target: { name: 'schedule', value: '' } } as any)
+        const defaults: Record<string, string> = {
+            daily: 'daily',
+            weekly: 'weekly:mon',
+            biweekly: 'biweekly:mon,thu',
+            monthly: 'monthly:1',
         }
+        handleChange({ target: { name: 'schedule', value: defaults[mode] ?? '' } } as any)
+    }
+
+    const handleMonthlyDayChange = (day: string) => {
+        handleChange({ target: { name: 'schedule', value: `monthly:${day}` } } as any)
     }
 
     // CROP IMAGE.
@@ -99,17 +118,23 @@ export default function CreateWorkView() {
     // INFORMATION
     const scheduleLabel = (() => {
         if (!form.schedule) return null
-        if (scheduleMode === 'days') {
-            const day = DAYS.find((d) => d.value === form.schedule)
-            return `Your readers will know you post every ${day?.label ?? form.schedule}.`
+        if (normalizedScheduleMode === 'daily') {
+            return 'Your readers will know you post every day.'
         }
-        const labels: Record<string, string> = {
-            daily: 'Your readers will know you post every day.',
-            weekly: 'Your readers will know you post once a week.',
-            biweekly: 'Your readers will know you post every two weeks.',
-            monthly: 'Your readers will know you post once a month.',
+        if (normalizedScheduleMode === 'weekly') {
+            const day = DAYS.find((d) => d.value === selectedDays[0])
+            return `Your readers will know you post every ${day?.label ?? 'week'}.`
         }
-        return labels[form.schedule] ?? null
+        if (normalizedScheduleMode === 'biweekly') {
+            const labels = selectedDays
+                .map((value) => DAYS.find((d) => d.value === value)?.label ?? value)
+                .join(' and ')
+            return `Your readers will know you post twice a week: ${labels}.`
+        }
+        if (normalizedScheduleMode === 'monthly') {
+            return `Your readers will know you post on day ${monthlyDay} of each month.`
+        }
+        return null
     })()
 
     return (
@@ -161,20 +186,21 @@ export default function CreateWorkView() {
                             </p>
                         )}
                         <CreateWorkSchedule
-                            status={form.status}
                             schedule={form.schedule}
                             scheduleTime={form.schedule_time}
-                            scheduleMode={scheduleMode}
+                            scheduleMode={normalizedScheduleMode}
                             selectValue={selectValue}
                             selectedDays={selectedDays}
+                            monthlyDay={monthlyDay}
                             days={DAYS}
-                            recurring={RECURRING}
-                            onStatusChange={handleChange}
+                            recurring={[]}
+                            onScheduleClear={() =>
+                                handleChange({ target: { name: 'schedule', value: '' } } as any)
+                            }
                             onScheduleModeChange={handleScheduleModeChange}
-                            onRecurringChange={handleRecurringChange}
                             onDayToggle={handleDayToggle}
+                            onMonthlyDayChange={handleMonthlyDayChange}
                             onScheduleTimeChange={handleChange}
-                            statusError={fe('status')}
                             scheduleTimeError={fe('schedule_time')}
                             fieldErrors={fieldErrors}
                         />
@@ -218,11 +244,22 @@ export default function CreateWorkView() {
 
                         {/* Genres */}
                         <CreateWorkGenres
-                            genres={GENRES}
+                            genres={availableGenres}
                             selectedGenres={form.genres}
                             onGenreToggle={handleGenreToggle}
+                            onGenreRequest={handleGenreRequest}
                             error={fe('genres')}
                             fieldErrors={fieldErrors}
+                        />
+
+                        <ContentRatingAssessment
+                            values={contentRating}
+                            sensitivityFlags={sensitivityFlags}
+                            agreement={ratingAgreement}
+                            errors={fieldErrors}
+                            onRatingChange={handleContentRatingChange}
+                            onSensitivityToggle={handleSensitivityToggle}
+                            onAgreementChange={handleRatingAgreementChange}
                         />
 
                         <Separator />
@@ -284,7 +321,7 @@ export default function CreateWorkView() {
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={loading}>
-                                {loading ? 'Creating…' : 'Create work'}
+                                {loading ? 'Submitting…' : 'Submit series'}
                             </Button>
                         </div>
                     </div>

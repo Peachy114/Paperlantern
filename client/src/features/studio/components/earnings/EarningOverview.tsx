@@ -18,7 +18,7 @@ export default function EarningOverview({
 }: Props) {
     const stats = [
         {
-            label: 'PHP Balance',
+            label: 'Withdrawable PHP',
             value: `PHP ${balancePhp.toFixed(2)}`,
             note: 'cash out anytime',
         },

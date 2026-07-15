@@ -8,6 +8,7 @@ import {
     type DragEvent,
     type FormEvent,
     type PointerEvent,
+    type ReactNode,
 } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -26,6 +27,7 @@ import {
     Lock,
     MessageCircle,
     Minus,
+    MoreHorizontal,
     Move,
     Palette,
     Plus,
@@ -134,6 +136,17 @@ type BlockPatch = Partial<
         | 'rotation'
         | 'text_content'
         | 'z_index'
+        | 'background_color'
+        | 'transparent_background'
+        | 'overlay'
+        | 'show_border'
+        | 'border_color'
+        | 'border_radius'
+        | 'font_family'
+        | 'font_color'
+        | 'locked'
+        | 'image_position_x'
+        | 'image_position_y'
     >
 >
 
@@ -178,10 +191,17 @@ type CanvasDragState = {
 }
 
 type CanvasItemPatch = Partial<
-    Pick<ProfileCanvasItem, 'display' | 'pagination' | 'page' | 'locked'>
+    Pick<
+        ProfileCanvasItem,
+        'display' | 'pagination' | 'page' | 'locked' | 'sort' | 'filter' | 'filters'
+    >
 >
 
 type ProfileCanvasDisplay = NonNullable<ProfileCanvasItem['display']>
+type ProfileFilterOption = {
+    value: string
+    label: string
+}
 type ProfileHeaderLocks = NonNullable<ProfileTabsConfig['header_locks']>
 type ProfileHeaderLockKey = keyof ProfileHeaderLocks
 type HeaderDragKind =
@@ -215,13 +235,14 @@ const PROFILE_GRADIENT_DIRECTIONS = [
     'to bottom right',
     'to bottom left',
 ] as const
-const PROFILE_TAB_IDS: ProfileTabId[] = ['board', 'arts', 'works', 'stickers', 'comments']
+const PROFILE_TAB_IDS: ProfileTabId[] = ['board', 'arts', 'works', 'stickers', 'comments', 'feeds']
 const PROFILE_TAB_LABELS: Record<ProfileTabId, string> = {
     board: 'My Board',
     arts: 'My Arts',
     works: 'My Works',
     stickers: 'My Stickers',
     comments: 'My Comments',
+    feeds: 'My Feeds',
 }
 const PROFILE_CANVAS_DROP_MIME = 'application/x-latern-profile-canvas-item'
 
@@ -237,15 +258,8 @@ const EMPTY_BLOCK: NewBlockForm = {
 export default function ArtistProfile() {
     const { username = '' } = useParams()
     const { user, setUser } = useAuthStore()
-    const {
-        profile,
-        updateHeader,
-        createBlock,
-        updateBlock,
-        deleteBlock,
-        createBorder,
-        deleteBorder,
-    } = useArtistProfile(username)
+    const { profile, updateHeader, createBlock, updateBlock, deleteBlock, toggleFollow } =
+        useArtistProfile(username)
 
     const isOwner = user?.username === profile.artist.username
     const isStorytellerProfile = profile.artist.role === 'storyteller'
@@ -322,6 +336,9 @@ export default function ArtistProfile() {
         themeDraft.navLayout,
         desktopManageMode
     )
+    const artsSectionConfig = getPrimarySectionItem(themeDraft.tabsConfig, 'arts')
+    const worksSectionConfig = getPrimarySectionItem(themeDraft.tabsConfig, 'works')
+    const stickersSectionConfig = getPrimarySectionItem(themeDraft.tabsConfig, 'stickers')
 
     const saveHeader = async (
         fields: Record<string, string | number | boolean | File | null>,
@@ -386,15 +403,45 @@ export default function ArtistProfile() {
 
         if (Object.keys(errors).length > 0) {
             toast.error('Please fix the fields marked in red.')
-            return
+            return false
         }
 
         try {
             await updateHeader.mutateAsync(profileThemeToFormData(themeDraft, headerDraft))
             toast.success('Profile updated.')
+            return true
         } catch {
             toast.error('Could not update profile.')
+            return false
         }
+    }
+
+    const resetProfileDraft = () => {
+        setThemeDraft(createProfileThemeDraft(profile.artist))
+        setHeaderDraft({
+            artistTitle: profile.artist.artist_title ?? '',
+            showPublicLinks: profile.artist.show_public_links,
+        })
+        setProfileEditErrors({})
+    }
+
+    const cancelProfileEdit = () => {
+        resetProfileDraft()
+        setEditMode(false)
+        setManageProfileMode(false)
+    }
+
+    const saveProfileAndClose = async () => {
+        const saved = await saveProfileTheme()
+        if (saved) {
+            setEditMode(false)
+            setManageProfileMode(false)
+        }
+    }
+
+    const saveContentEdit = async () => {
+        const saved = await saveProfileTheme()
+        if (saved) setEditMode(false)
     }
 
     const persistBlock = async (block: ArtistProfileBlock, patch: BlockPatch | FormData) => {
@@ -420,6 +467,7 @@ export default function ArtistProfile() {
         edge?: DragState['edge']
     ) => {
         if (!editMode) return
+        if (block.locked) return
         event.preventDefault()
         event.stopPropagation()
         setSelectedBlockId(block.id)
@@ -806,6 +854,12 @@ export default function ArtistProfile() {
         payload.append('padding_y', '0')
         payload.append('rotation', '0')
         payload.append('z_index', String(nextZIndex(blocks)))
+        payload.append('transparent_background', '1')
+        payload.append('overlay', '1')
+        payload.append('show_border', '0')
+        payload.append('border_radius', '0')
+        payload.append('image_position_x', '50')
+        payload.append('image_position_y', '50')
 
         try {
             const block = await createBlock.mutateAsync(payload)
@@ -883,6 +937,12 @@ export default function ArtistProfile() {
         payload.append('padding_y', '0')
         payload.append('rotation', '0')
         payload.append('z_index', String(nextZIndex(blocks)))
+        payload.append('transparent_background', newBlock.isSticker ? '1' : '0')
+        payload.append('overlay', newBlock.isSticker ? '1' : '0')
+        payload.append('show_border', newBlock.isSticker ? '0' : '1')
+        payload.append('border_radius', '0')
+        payload.append('image_position_x', '50')
+        payload.append('image_position_y', '50')
         if (newBlock.isSticker) {
             payload.append('source_sticker_id', newBlock.stickerId)
         } else {
@@ -904,9 +964,7 @@ export default function ArtistProfile() {
         updateHeader.isPending ||
         createBlock.isPending ||
         updateBlock.isPending ||
-        deleteBlock.isPending ||
-        createBorder.isPending ||
-        deleteBorder.isPending
+        deleteBlock.isPending
     const profileBackground = getProfileBackground(themeDraft)
     const backgroundImage = profile.artist.profile_background_image
         ? storageUrl(profile.artist.profile_background_image)
@@ -961,13 +1019,15 @@ export default function ArtistProfile() {
                         headerDraft={headerDraft}
                         errors={profileEditErrors}
                         borders={profile.borders}
+                        profile={profile}
                         busy={busy}
                         desktopMode={isDesktopProfileEditor}
                         activeTab={activeTab}
                         onChange={patchThemeDraft}
                         onHeaderChange={patchHeaderDraft}
                         onActiveTabChange={setActiveProfileTab}
-                        onSave={saveProfileTheme}
+                        onSave={saveProfileAndClose}
+                        onCancel={cancelProfileEdit}
                         onUploadCover={(file) => saveHeaderFile('cover', file)}
                         onUploadAvatar={(file) => saveHeaderFile('avatar', file)}
                         onUploadBackground={(file) => saveHeaderFile('background_image', file)}
@@ -975,20 +1035,6 @@ export default function ArtistProfile() {
                         onRemoveCanvasItem={removeCanvasItemFromDraft}
                         onUpdateCanvasItem={updateCanvasItemInDraft}
                         onResetTabs={resetProfileTabsDraft}
-                        onCreateBorder={async (payload) => {
-                            try {
-                                await createBorder.mutateAsync(payload)
-                                toast.success('Profile border added.')
-                            } catch {
-                                toast.error('Could not add profile border.')
-                            }
-                        }}
-                        onDeleteBorder={(id) =>
-                            deleteBorder.mutate(id, {
-                                onSuccess: () => toast.success('Profile border deleted.'),
-                                onError: () => toast.error('Could not delete profile border.'),
-                            })
-                        }
                     />
                 )}
 
@@ -1006,6 +1052,8 @@ export default function ArtistProfile() {
                         theme={themeDraft}
                         onThemeChange={patchThemeDraft}
                         onSavePosition={saveHeader}
+                        onToggleFollow={() => toggleFollow.mutate()}
+                        followBusy={toggleFollow.isPending}
                     />
 
                     <main
@@ -1027,6 +1075,7 @@ export default function ArtistProfile() {
                                     </Button>
                                 </div>
                             )}
+                            {/* <ProfileDashboardWidgets profile={profile} /> */}
                             {useCanvasLayout ? (
                                 <ProfileLayoutCanvas
                                     refEl={canvasRef}
@@ -1047,6 +1096,7 @@ export default function ArtistProfile() {
                                     onSelectBlock={setSelectedBlockId}
                                     onActiveTabChange={setActiveProfileTab}
                                     onToggleContentEdit={() => setEditMode((current) => !current)}
+                                    onCancelContentEdit={cancelProfileEdit}
                                     onBeginNavDrag={beginNavDrag}
                                     onBeginBlockDrag={beginBlockDrag}
                                     onBeginCanvasDrag={beginCanvasDrag}
@@ -1059,7 +1109,7 @@ export default function ArtistProfile() {
                                             false
                                         )
                                     }
-                                    onSaveProfile={saveProfileTheme}
+                                    onSaveProfile={saveContentEdit}
                                     onDropCanvasItem={handleCanvasDrop}
                                     onOpenArt={setSelectedArt}
                                 />
@@ -1088,6 +1138,9 @@ export default function ArtistProfile() {
                                             canEdit={isOwner && isDesktopProfileEditor}
                                             editMode={editMode}
                                             onToggleEdit={() => setEditMode((current) => !current)}
+                                            onSave={saveContentEdit}
+                                            onCancel={cancelProfileEdit}
+                                            busy={busy}
                                         />
                                         {boardEditorPanel}
 
@@ -1104,8 +1157,12 @@ export default function ArtistProfile() {
                                         {showArtsWithBoard && (
                                             <ProfileSection title="My Arts">
                                                 <ArtsMasonry
-                                                    arts={profile.arts}
+                                                    arts={filterSortArts(
+                                                        profile.arts,
+                                                        artsSectionConfig
+                                                    )}
                                                     tileWidth={themeDraft.artsTileWidth}
+                                                    display={artsSectionConfig.display}
                                                     onOpen={setSelectedArt}
                                                 />
                                             </ProfileSection>
@@ -1114,7 +1171,10 @@ export default function ArtistProfile() {
                                         {showStickersWithBoard && (
                                             <ProfileSection title="My Stickers">
                                                 <ProfileStickers
-                                                    stickers={profile.stickers}
+                                                    stickers={filterSortStickers(
+                                                        profile.stickers,
+                                                        stickersSectionConfig
+                                                    )}
                                                     stickerSize={themeDraft.stickerSize}
                                                 />
                                             </ProfileSection>
@@ -1130,10 +1190,17 @@ export default function ArtistProfile() {
                                                 onToggleEdit={() =>
                                                     setEditMode((current) => !current)
                                                 }
+                                                onSave={saveContentEdit}
+                                                onCancel={cancelProfileEdit}
+                                                busy={busy}
                                             />
                                             <ArtsMasonry
-                                                arts={profile.arts}
+                                                arts={filterSortArts(
+                                                    profile.arts,
+                                                    artsSectionConfig
+                                                )}
                                                 tileWidth={themeDraft.artsTileWidth}
+                                                display={artsSectionConfig.display}
                                                 onOpen={setSelectedArt}
                                             />
                                         </TabsContent>
@@ -1148,8 +1215,17 @@ export default function ArtistProfile() {
                                                 onToggleEdit={() =>
                                                     setEditMode((current) => !current)
                                                 }
+                                                onSave={saveContentEdit}
+                                                onCancel={cancelProfileEdit}
+                                                busy={busy}
                                             />
-                                            <WorksGrid works={profile.works} />
+                                            <WorksGrid
+                                                works={filterSortWorks(
+                                                    profile.works,
+                                                    worksSectionConfig
+                                                )}
+                                                display={worksSectionConfig.display}
+                                            />
                                         </TabsContent>
                                     )}
 
@@ -1159,9 +1235,15 @@ export default function ArtistProfile() {
                                             canEdit={isOwner && isDesktopProfileEditor}
                                             editMode={editMode}
                                             onToggleEdit={() => setEditMode((current) => !current)}
+                                            onSave={saveContentEdit}
+                                            onCancel={cancelProfileEdit}
+                                            busy={busy}
                                         />
                                         <ProfileStickers
-                                            stickers={profile.stickers}
+                                            stickers={filterSortStickers(
+                                                profile.stickers,
+                                                stickersSectionConfig
+                                            )}
                                             stickerSize={themeDraft.stickerSize}
                                         />
                                     </TabsContent>
@@ -1172,8 +1254,29 @@ export default function ArtistProfile() {
                                             canEdit={isOwner && isDesktopProfileEditor}
                                             editMode={editMode}
                                             onToggleEdit={() => setEditMode((current) => !current)}
+                                            onSave={saveContentEdit}
+                                            onCancel={cancelProfileEdit}
+                                            busy={busy}
                                         />
                                         <ProfileComments comments={profile.comments ?? []} />
+                                    </TabsContent>
+
+                                    <TabsContent value="feeds">
+                                        <ProfilePageHeading
+                                            title="My Feeds"
+                                            canEdit={false}
+                                            editMode={false}
+                                            onToggleEdit={() => undefined}
+                                        />
+                                        <ProfileFeeds
+                                            feeds={profile.feeds ?? []}
+                                            display={
+                                                getPrimarySectionItem(
+                                                    themeDraft.tabsConfig,
+                                                    'feeds'
+                                                ).display
+                                            }
+                                        />
                                     </TabsContent>
                                 </Tabs>
                             )}
@@ -1303,23 +1406,39 @@ function ProfilePageHeading({
     canEdit,
     editMode,
     onToggleEdit,
+    onSave,
+    onCancel,
+    busy = false,
 }: {
     title: string
     canEdit: boolean
     editMode: boolean
     onToggleEdit: () => void
+    onSave?: () => void
+    onCancel?: () => void
+    busy?: boolean
 }) {
     return (
         <div className="mb-4 flex items-center justify-between gap-4">
             <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                 {title}
             </h2>
-            {canEdit && (
+            {canEdit && editMode ? (
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={onCancel ?? onToggleEdit} disabled={busy}>
+                        Cancel
+                    </Button>
+                    <Button onClick={onSave ?? onToggleEdit} disabled={busy}>
+                        <Save className="h-4 w-4" />
+                        Save
+                    </Button>
+                </div>
+            ) : canEdit ? (
                 <Button variant={editMode ? 'default' : 'outline'} onClick={onToggleEdit}>
                     <Edit3 className="h-4 w-4" />
-                    {editMode ? 'Done' : 'Edit Mode'}
+                    Edit Mode
                 </Button>
-            )}
+            ) : null}
         </div>
     )
 }
@@ -1327,14 +1446,15 @@ function ProfilePageHeading({
 function ProfileWidgetEditControls({
     item,
     theme,
+    profile,
     visible,
     busy,
     onUpdateCanvasItem,
     onThemeChange,
-    onSave,
 }: {
     item: ProfileCanvasItem
     theme: ProfileThemeDraft
+    profile: ArtistProfileResponse
     visible: boolean
     busy: boolean
     onUpdateCanvasItem: (
@@ -1343,7 +1463,6 @@ function ProfileWidgetEditControls({
         patch: CanvasItemPatch
     ) => void
     onThemeChange: (patch: Partial<ProfileThemeDraft>) => void
-    onSave: () => void
 }) {
     if (!visible || item.type === 'board') return null
 
@@ -1381,34 +1500,53 @@ function ProfileWidgetEditControls({
                         />
                         Pagination
                     </label>
+                    <ProfileSortFilterControls
+                        item={item}
+                        options={getProfileFilterOptions(profile, item.type)}
+                        onUpdateCanvasItem={onUpdateCanvasItem}
+                    />
                 </>
             )}
 
             {item.type === 'works' && (
-                <SelectField
-                    label="Works display"
-                    value={item.display ?? 'image_title'}
-                    options={['image', 'image_title', 'split_card', 'table']}
-                    formatOption={formatCanvasDisplay}
-                    onChange={(display) =>
-                        onUpdateCanvasItem(item.id, item.kind, {
-                            display: display as ProfileCanvasItem['display'],
-                        })
-                    }
-                />
+                <>
+                    <SelectField
+                        label="Works display"
+                        value={item.display ?? 'image_title'}
+                        options={['image', 'image_title', 'split_card', 'table']}
+                        formatOption={formatCanvasDisplay}
+                        onChange={(display) =>
+                            onUpdateCanvasItem(item.id, item.kind, {
+                                display: display as ProfileCanvasItem['display'],
+                            })
+                        }
+                    />
+                    <ProfileSortFilterControls
+                        item={item}
+                        options={getProfileFilterOptions(profile, item.type)}
+                        onUpdateCanvasItem={onUpdateCanvasItem}
+                    />
+                </>
             )}
 
             {item.type === 'stickers' && (
-                <div className="min-w-56">
-                    <RangeField
-                        label="Sticker size"
-                        value={theme.stickerSize}
-                        min={72}
-                        max={180}
-                        suffix="px"
-                        onChange={(stickerSize) => onThemeChange({ stickerSize })}
+                <>
+                    <div className="min-w-56">
+                        <RangeField
+                            label="Sticker size"
+                            value={theme.stickerSize}
+                            min={72}
+                            max={180}
+                            suffix="px"
+                            onChange={(stickerSize) => onThemeChange({ stickerSize })}
+                        />
+                    </div>
+                    <ProfileSortFilterControls
+                        item={item}
+                        options={getProfileFilterOptions(profile, item.type)}
+                        onUpdateCanvasItem={onUpdateCanvasItem}
                     />
-                </div>
+                </>
             )}
 
             {item.type === 'comments' && (
@@ -1425,11 +1563,88 @@ function ProfileWidgetEditControls({
                 />
             )}
 
-            <Button type="button" size="sm" onClick={onSave} disabled={busy}>
-                <Save className="h-4 w-4" />
-                Save
-            </Button>
+            {item.type === 'feeds' && (
+                <SelectField
+                    label="Feeds display"
+                    value={item.display ?? 'cards'}
+                    options={['cards', 'compact']}
+                    formatOption={formatCanvasDisplay}
+                    onChange={(display) =>
+                        onUpdateCanvasItem(item.id, item.kind, {
+                            display: display as ProfileCanvasItem['display'],
+                        })
+                    }
+                />
+            )}
+
+            {busy && <span className="text-xs text-muted-foreground">Saving...</span>}
         </div>
+    )
+}
+
+function ProfileSortFilterControls({
+    item,
+    options,
+    onUpdateCanvasItem,
+}: {
+    item: ProfileCanvasItem
+    options: ProfileFilterOption[]
+    onUpdateCanvasItem: (
+        itemId: string,
+        kind: ProfileCanvasItem['kind'],
+        patch: CanvasItemPatch
+    ) => void
+}) {
+    const selected = getCanvasFilters(item)
+    const toggleFilter = (value: string) => {
+        const next = selected.includes(value)
+            ? selected.filter((item) => item !== value)
+            : [...selected, value]
+        onUpdateCanvasItem(item.id, item.kind, { filters: next, filter: '' })
+    }
+
+    return (
+        <>
+            <SelectField
+                label="Sort by"
+                value={item.sort ?? defaultProfileSort(item.type)}
+                options={profileSortOptions(item.type)}
+                formatOption={formatProfileSort}
+                onChange={(sort) => onUpdateCanvasItem(item.id, item.kind, { sort })}
+            />
+            <div className="grid min-w-56 gap-1 text-sm">
+                <span>{profileFilterLabel(item.type)}</span>
+                <div className="flex flex-wrap gap-1.5">
+                    <button
+                        type="button"
+                        onClick={() =>
+                            onUpdateCanvasItem(item.id, item.kind, { filters: [], filter: '' })
+                        }
+                        className={`rounded-md border px-2 py-1 text-xs ${
+                            selected.length === 0
+                                ? 'bg-foreground text-background'
+                                : 'bg-background text-muted-foreground'
+                        }`}
+                    >
+                        None
+                    </button>
+                    {options.map((option) => (
+                        <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => toggleFilter(option.value)}
+                            className={`rounded-md border px-2 py-1 text-xs ${
+                                selected.includes(option.value)
+                                    ? 'bg-foreground text-background'
+                                    : 'bg-background text-muted-foreground hover:text-foreground'
+                            }`}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </>
     )
 }
 
@@ -1463,6 +1678,7 @@ function ProfileLayoutCanvas({
     onSelectBlock,
     onActiveTabChange,
     onToggleContentEdit,
+    onCancelContentEdit,
     onBeginNavDrag,
     onBeginBlockDrag,
     onBeginCanvasDrag,
@@ -1492,6 +1708,7 @@ function ProfileLayoutCanvas({
     onSelectBlock: (id: string) => void
     onActiveTabChange: (tab: ProfileTabId) => void
     onToggleContentEdit: () => void
+    onCancelContentEdit: () => void
     onBeginNavDrag: (event: PointerEvent<HTMLElement>, kind?: NavDragState['kind']) => void
     onBeginBlockDrag: (
         event: PointerEvent<HTMLElement>,
@@ -1553,7 +1770,7 @@ function ProfileLayoutCanvas({
         if (item.type === 'arts') {
             return (
                 <ArtsMasonry
-                    arts={profile.arts}
+                    arts={filterSortArts(profile.arts, item)}
                     tileWidth={theme.artsTileWidth}
                     display={item.display}
                     limit={item.pagination === false ? undefined : getWidgetImageLimit(item)}
@@ -1563,11 +1780,20 @@ function ProfileLayoutCanvas({
         }
 
         if (item.type === 'works') {
-            return <WorksGrid works={profile.works} display={item.display} />
+            return <WorksGrid works={filterSortWorks(profile.works, item)} display={item.display} />
         }
 
         if (item.type === 'stickers') {
-            return <ProfileStickers stickers={profile.stickers} stickerSize={theme.stickerSize} />
+            return (
+                <ProfileStickers
+                    stickers={filterSortStickers(profile.stickers, item)}
+                    stickerSize={theme.stickerSize}
+                />
+            )
+        }
+
+        if (item.type === 'feeds') {
+            return <ProfileFeeds feeds={profile.feeds ?? []} display={item.display} />
         }
 
         return (
@@ -1581,7 +1807,7 @@ function ProfileLayoutCanvas({
     return (
         <div
             ref={refEl}
-            className={`relative ${
+            className={`relative flow-root ${
                 editMode
                     ? 'rounded-lg border bg-background/80 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)]'
                     : ''
@@ -1659,19 +1885,34 @@ function ProfileLayoutCanvas({
                     className={`absolute flex flex-col overflow-visible bg-transparent p-0 ${
                         editMode ? 'ring-2 ring-sky-400' : ''
                     }`}
-                    style={{
-                        left: `${item.x}%`,
-                        top: item.y,
-                        width: `${item.w}%`,
-                        height: sectionHeight(item),
-                        zIndex: editMode ? 40 : undefined,
-                    }}
+                    style={
+                        item.type === 'feeds'
+                            ? {
+                                  position: 'relative',
+                                  left: `${item.x}%`,
+                                  marginTop: item.y,
+                                  width: `${item.w}%`,
+                                  height: 'auto',
+                                  minHeight: item.h,
+                                  zIndex: editMode ? 40 : undefined,
+                              }
+                            : {
+                                  left: `${item.x}%`,
+                                  top: item.y,
+                                  width: `${item.w}%`,
+                                  height: sectionHeight(item),
+                                  zIndex: editMode ? 40 : undefined,
+                              }
+                    }
                 >
                     <ProfilePageHeading
                         title={PROFILE_TAB_LABELS[item.type]}
                         canEdit={canEditContent}
                         editMode={contentEditMode}
                         onToggleEdit={onToggleContentEdit}
+                        onSave={onSaveProfile}
+                        onCancel={onCancelContentEdit}
+                        busy={busy}
                     />
                     <ProfileWidgetEditControls
                         item={item}
@@ -1679,12 +1920,14 @@ function ProfileLayoutCanvas({
                         visible={canEditContent && contentEditMode}
                         busy={busy}
                         onUpdateCanvasItem={onUpdateCanvasItem}
+                        profile={profile}
                         onThemeChange={onThemeChange}
-                        onSave={onSaveProfile}
                     />
                     <div
                         className={`min-h-0 flex-1 ${
-                            item.type === 'board' ? '' : 'overflow-hidden'
+                            item.type === 'board' || item.type === 'feeds'
+                                ? 'overflow-visible'
+                                : 'overflow-hidden'
                         } ${editMode && !contentEditMode ? 'pointer-events-none' : ''}`}
                         style={{
                             minHeight: item.type === 'board' ? 'calc(100% - 56px)' : undefined,
@@ -1809,10 +2052,16 @@ function ProfileCanvasTabPreview({
 
 function CenterGuide() {
     return (
-        <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-px -translate-x-1/2 bg-red-500/80"
-        />
+        <>
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-px -translate-x-1/2 bg-red-500/80"
+            />
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute left-0 right-0 top-1/2 z-10 h-px -translate-y-1/2 bg-red-500/80"
+            />
+        </>
     )
 }
 
@@ -1958,11 +2207,14 @@ function CanvasHandles({
 
 function ArtistHeader({
     profile,
+    isOwner,
     editMode,
     draft,
     theme,
     onThemeChange,
     onSavePosition,
+    onToggleFollow,
+    followBusy,
 }: {
     profile: ArtistProfileResponse
     isOwner: boolean
@@ -1971,6 +2223,8 @@ function ArtistHeader({
     theme: ProfileThemeDraft
     onThemeChange: (patch: Partial<ProfileThemeDraft>) => void
     onSavePosition: (fields: Record<string, string | number | boolean | File | null>) => void
+    onToggleFollow: () => void
+    followBusy: boolean
 }) {
     const { artist } = profile
     const cover = artist.profile_cover ? storageUrl(artist.profile_cover) : null
@@ -2041,12 +2295,11 @@ function ArtistHeader({
         .map((link) => ({
             label: link.title,
             value: link.url,
-            image: link.imagePreview ?? (link.image_path ? storageUrl(link.image_path) : null),
         }))
     const socialLinks = [
-        { label: 'Twitter', value: artist.twitter_url, image: null },
-        { label: 'Instagram', value: artist.instagram_url, image: null },
-        { label: 'TikTok', value: artist.tiktok_url, image: null },
+        { label: 'Twitter', value: artist.twitter_url },
+        { label: 'Instagram', value: artist.instagram_url },
+        { label: 'TikTok', value: artist.tiktok_url },
     ].filter((link) => link.value)
     const links = [...customLinks, ...socialLinks]
 
@@ -2207,7 +2460,7 @@ function ArtistHeader({
     }
 
     return (
-        <header className="relative z-[60] border-b">
+        <header className="relative z-20 border-b">
             {editMode && <CenterGuide />}
             <div className="relative bg-muted/30">
                 {theme.showCover ? (
@@ -2432,6 +2685,26 @@ function ArtistHeader({
                     )}
                 </h1>
                 <p className="text-sm text-muted-foreground">@{artist.username}</p>
+                {!isOwner && (
+                    <div className="mt-3 flex justify-center">
+                        <Button
+                            size="sm"
+                            variant={profile.stats?.is_following ? 'outline' : 'default'}
+                            disabled={followBusy}
+                            onClick={onToggleFollow}
+                        >
+                            {profile.stats?.is_following ? 'Unfollow' : 'Follow'}
+                        </Button>
+                    </div>
+                )}
+                <p className="mt-2 text-xs text-muted-foreground">
+                    {(
+                        profile.stats?.followers_count ??
+                        artist.followers_count ??
+                        0
+                    ).toLocaleString()}{' '}
+                    followers
+                </p>
                 {draft.artistTitle && <p className="mt-1 text-sm">{draft.artistTitle}</p>}
                 {links.length > 0 && (
                     <div className="mt-3 flex flex-wrap justify-center gap-2">
@@ -2443,15 +2716,7 @@ function ArtistHeader({
                                 rel="noreferrer"
                                 className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground"
                             >
-                                {link.image ? (
-                                    <img
-                                        src={link.image}
-                                        alt=""
-                                        className="h-4 w-4 rounded-sm object-cover"
-                                    />
-                                ) : (
-                                    <LinkIcon className="h-3 w-3" />
-                                )}
+                                <LinkIcon className="h-3 w-3" />
                                 {link.label}
                             </a>
                         ))}
@@ -2467,11 +2732,302 @@ function ArtistHeader({
     )
 }
 
+function ProfileDashboardWidgets({ profile }: { profile: ArtistProfileResponse }) {
+    const stats = profile.stats
+    const items = [
+        { label: 'Works', value: stats?.works_total ?? profile.works.length },
+        { label: 'Arts', value: stats?.arts_total ?? profile.arts.length },
+        { label: 'Followers', value: stats?.followers_count ?? 0 },
+        { label: 'Feeds', value: stats?.feed_posts_count ?? profile.feeds?.length ?? 0 },
+    ]
+
+    return (
+        <section className="mb-5 grid gap-3 sm:grid-cols-4">
+            {items.map((item) => (
+                <div key={item.label} className="rounded-lg border border-border bg-card p-4">
+                    <p className="text-2xl font-bold">{item.value.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">{item.label}</p>
+                </div>
+            ))}
+        </section>
+    )
+}
+
+function ProfileFeeds({
+    feeds,
+    display = 'cards',
+}: {
+    feeds: NonNullable<ArtistProfileResponse['feeds']>
+    display?: ProfileCanvasItem['display']
+}) {
+    const MAX_PROFILE_FEEDS = 30
+    const FEEDS_PER_LOAD = 5
+    const availableFeeds = feeds.slice(0, MAX_PROFILE_FEEDS)
+    const [visibleCount, setVisibleCount] = useState(
+        Math.min(FEEDS_PER_LOAD, availableFeeds.length)
+    )
+
+    useEffect(() => {
+        setVisibleCount((current) =>
+            Math.min(
+                Math.max(Math.min(current, availableFeeds.length), FEEDS_PER_LOAD),
+                availableFeeds.length
+            )
+        )
+    }, [availableFeeds.length])
+
+    if (availableFeeds.length === 0) {
+        return (
+            <div className="rounded-xl border border-dashed border-border bg-card/60 px-6 py-16 text-center">
+                <MessageCircle className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                <h3 className="font-semibold">No feed posts yet</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Published feed posts will appear here.
+                </p>
+            </div>
+        )
+    }
+
+    const compact = display === 'compact'
+    const visibleFeeds = availableFeeds.slice(0, visibleCount)
+    const hasMore = visibleCount < availableFeeds.length
+    const remaining = availableFeeds.length - visibleCount
+
+    return (
+        <div className="w-full">
+            <div className={compact ? 'space-y-3' : 'mx-auto grid max-w-4xl gap-5'}>
+                {visibleFeeds.map((post) => (
+                    <ProfileFeedCard key={post.id} post={post} compact={compact} />
+                ))}
+            </div>
+
+            {hasMore && (
+                <div className="mt-6 flex justify-center">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() =>
+                            setVisibleCount((current) =>
+                                Math.min(current + FEEDS_PER_LOAD, availableFeeds.length)
+                            )
+                        }
+                    >
+                        <Plus className="h-4 w-4" />
+                        Load more
+                        <span className="text-muted-foreground">
+                            ({Math.min(FEEDS_PER_LOAD, remaining)} more)
+                        </span>
+                    </Button>
+                </div>
+            )}
+
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+                Showing {visibleFeeds.length} of {availableFeeds.length} posts
+            </p>
+        </div>
+    )
+}
+
+function ProfileFeedCard({
+    post,
+    compact = false,
+}: {
+    post: NonNullable<ArtistProfileResponse['feeds']>[number]
+    compact?: boolean
+}) {
+    const avatar = post.user?.avatar ? storageUrl(post.user.avatar) : null
+    const displayName = post.user?.name ?? post.user?.username ?? 'Artist'
+    const avatarLetter = displayName[0]?.toUpperCase() ?? 'A'
+
+    return (
+        <article
+            className={`overflow-hidden rounded-xl border border-border bg-card shadow-sm ${
+                compact ? 'p-4' : ''
+            }`}
+        >
+            <div className={compact ? '' : 'p-4 sm:p-5'}>
+                <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted font-semibold">
+                            {avatar ? (
+                                <img
+                                    src={avatar}
+                                    alt={displayName}
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                avatarLetter
+                            )}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="flex items-center gap-1 truncate text-sm font-semibold">
+                                {displayName}
+                                {post.user?.artist_verified && (
+                                    <BadgeCheck className="h-4 w-4 shrink-0 text-sky-500" />
+                                )}
+                            </p>
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <span>@{post.user?.username ?? 'artist'}</span>
+                                <span>•</span>
+                                <time dateTime={String(post.created_at)}>
+                                    {formatFeedDate(post.created_at)}
+                                </time>
+                                {post.audience === 'followers' && (
+                                    <>
+                                        <span>•</span>
+                                        <Lock className="h-3 w-3" aria-label="Followers only" />
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    <MoreHorizontal className="h-5 w-5 shrink-0 text-muted-foreground" />
+                </div>
+
+                {post.body && (
+                    <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6">
+                        {post.body}
+                    </p>
+                )}
+
+                {post.sticker && (
+                    <img
+                        src={storageUrl(post.sticker.image_path)!}
+                        alt={post.sticker.name}
+                        className="mt-4 h-28 w-28 object-contain"
+                    />
+                )}
+
+                {post.attachment && (
+                    <Link
+                        to={post.attachment.href}
+                        className="mt-4 flex items-center gap-3 overflow-hidden rounded-lg border border-border bg-muted/30 p-3 transition-colors hover:bg-muted/60"
+                    >
+                        <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
+                            {post.attachment.image_path ? (
+                                <img
+                                    src={storageUrl(post.attachment.image_path)!}
+                                    alt={post.attachment.title}
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <ImageOff className="m-auto h-full w-6 text-muted-foreground" />
+                            )}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">
+                                {post.attachment.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {post.attachment.subtitle}
+                            </p>
+                        </div>
+                    </Link>
+                )}
+            </div>
+
+            {post.images.length > 0 && !compact && <ProfileFeedImages post={post} />}
+
+            {post.images.length > 0 && compact && (
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                    {post.images.slice(0, 4).map((image) => (
+                        <img
+                            key={image.id}
+                            src={storageUrl(image.image_path)!}
+                            alt="Feed attachment"
+                            className="h-24 w-24 shrink-0 rounded-md object-cover"
+                        />
+                    ))}
+                </div>
+            )}
+
+            <div
+                className={`flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border text-sm text-muted-foreground ${
+                    compact ? 'mt-4 pt-3' : 'px-4 py-3 sm:px-5'
+                }`}
+            >
+                <span className="inline-flex items-center gap-1.5">
+                    <Heart className="h-4 w-4" />
+                    {post.likes_count.toLocaleString()}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                    <MessageCircle className="h-4 w-4" />
+                    {post.comments_count.toLocaleString()}
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                    <Gift className="h-4 w-4" />
+                    {post.super_likes_count.toLocaleString()}
+                </span>
+            </div>
+        </article>
+    )
+}
+
+function ProfileFeedImages({
+    post,
+}: {
+    post: NonNullable<ArtistProfileResponse['feeds']>[number]
+}) {
+    const images = post.images.slice(0, 4)
+    const extra = Math.max(0, post.images.length - images.length)
+
+    return (
+        <div
+            className={`grid gap-0.5 bg-border ${
+                images.length === 1
+                    ? 'grid-cols-1'
+                    : images.length === 2
+                      ? 'grid-cols-2'
+                      : 'grid-cols-2'
+            }`}
+        >
+            {images.map((image, index) => (
+                <div
+                    key={image.id}
+                    className={`relative overflow-hidden bg-muted ${
+                        images.length === 1
+                            ? 'aspect-video max-h-[560px]'
+                            : images.length === 3 && index === 0
+                              ? 'row-span-2 min-h-80'
+                              : 'aspect-square'
+                    }`}
+                >
+                    <img
+                        src={storageUrl(image.image_path)!}
+                        alt={`Feed image ${index + 1}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                    />
+                    {extra > 0 && index === images.length - 1 && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-2xl font-bold text-white">
+                            +{extra}
+                        </div>
+                    )}
+                </div>
+            ))}
+        </div>
+    )
+}
+
+function formatFeedDate(value: string | Date) {
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+
+    return new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined,
+        hour: 'numeric',
+        minute: '2-digit',
+    }).format(date)
+}
+
 function ManageProfileSidebar({
     draft,
     headerDraft,
     errors,
     borders,
+    profile,
     busy,
     desktopMode,
     activeTab,
@@ -2479,6 +3035,7 @@ function ManageProfileSidebar({
     onHeaderChange,
     onActiveTabChange,
     onSave,
+    onCancel,
     onUploadCover,
     onUploadAvatar,
     onUploadBackground,
@@ -2486,13 +3043,12 @@ function ManageProfileSidebar({
     onRemoveCanvasItem,
     onUpdateCanvasItem,
     onResetTabs,
-    onCreateBorder,
-    onDeleteBorder,
 }: {
     draft: ProfileThemeDraft
     headerDraft: HeaderDraft
     errors: ProfileEditErrors
     borders: ProfileBorder[]
+    profile: ArtistProfileResponse
     busy: boolean
     desktopMode: boolean
     activeTab: ProfileTabId
@@ -2500,6 +3056,7 @@ function ManageProfileSidebar({
     onHeaderChange: (patch: Partial<HeaderDraft>) => void
     onActiveTabChange: (tab: ProfileTabId) => void
     onSave: () => void
+    onCancel: () => void
     onUploadCover: (file: File | null) => void
     onUploadAvatar: (file: File | null) => void
     onUploadBackground: (file: File | null) => void
@@ -2516,15 +3073,10 @@ function ManageProfileSidebar({
         patch: CanvasItemPatch
     ) => void
     onResetTabs: () => void
-    onCreateBorder: (payload: FormData) => Promise<void>
-    onDeleteBorder: (id: string) => void
 }) {
     const coverRef = useRef<HTMLInputElement | null>(null)
     const avatarRef = useRef<HTMLInputElement | null>(null)
     const backgroundRef = useRef<HTMLInputElement | null>(null)
-    const borderRef = useRef<HTMLInputElement | null>(null)
-    const [borderName, setBorderName] = useState('')
-    const [borderFile, setBorderFile] = useState<File | null>(null)
 
     const updateTabsConfig = (patch: Partial<ProfileTabsConfig>) => {
         onChange({ tabsConfig: { ...draft.tabsConfig, ...patch } })
@@ -2588,28 +3140,8 @@ function ManageProfileSidebar({
         })
     }
 
-    const handleCreateBorder = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
-        if (!borderName.trim()) {
-            toast.error('Border name is required.')
-            return
-        }
-        if (!borderFile) {
-            toast.error('Border image is required.')
-            return
-        }
-
-        const payload = new FormData()
-        payload.append('name', borderName.trim())
-        payload.append('image', borderFile)
-        await onCreateBorder(payload)
-        setBorderName('')
-        setBorderFile(null)
-        if (borderRef.current) borderRef.current.value = ''
-    }
-
     return (
-        <aside className="fixed inset-y-0 left-0 z-50 w-full overflow-y-auto border-r bg-background shadow-xl md:w-[380px] md:p-4">
+        <aside className="fixed inset-y-0 left-0 z-[12000] w-full overflow-y-auto border-r bg-background shadow-xl md:w-[380px] md:p-4">
             <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b bg-background p-4 md:-mx-4 md:mb-4 md:-mt-4">
                 <div>
                     <h2 className="text-sm font-semibold">Profile Edit</h2>
@@ -2619,15 +3151,21 @@ function ManageProfileSidebar({
                             : 'Mobile editing is limited to profile and banner images.'}
                     </p>
                 </div>
-                <Button
-                    className="hidden md:inline-flex"
-                    size="sm"
-                    onClick={onSave}
-                    disabled={busy}
-                >
-                    <Save className="h-4 w-4" />
-                    Save
-                </Button>
+                <div className="hidden items-center gap-2 md:flex">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onCancel}
+                        disabled={busy}
+                    >
+                        Cancel
+                    </Button>
+                    <Button type="button" size="sm" onClick={onSave} disabled={busy}>
+                        <Save className="h-4 w-4" />
+                        Save
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 px-4 pb-4 md:hidden">
@@ -2642,10 +3180,12 @@ function ManageProfileSidebar({
             </div>
 
             <div className="hidden gap-5 md:grid">
-                <div className="grid gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        Profile
-                    </p>
+                <Button type="button" variant="outline" onClick={onResetTabs}>
+                    <Layers className="h-4 w-4" />
+                    Default Settings
+                </Button>
+
+                <ProfileEditSection title="Profile">
                     <div className="grid gap-1">
                         <Label htmlFor="profile-title">Title</Label>
                         {errors.artistTitle && <FieldMessage>{errors.artistTitle}</FieldMessage>}
@@ -2724,12 +3264,9 @@ function ManageProfileSidebar({
                         Left-drag the profile image to move the parent. Right-drag the image to
                         reposition its content. Drag near the center to snap.
                     </p>
-                </div>
+                </ProfileEditSection>
 
-                <div className="grid gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        Public Links
-                    </p>
+                <ProfileEditSection title="Public Links">
                     {errors.links && <FieldMessage>{errors.links}</FieldMessage>}
                     <div className="grid gap-3">
                         {draft.links.map((link, index) => (
@@ -2785,27 +3322,6 @@ function ManageProfileSidebar({
                                         }
                                     />
                                 </div>
-                                <Input
-                                    type="file"
-                                    accept="image/png,image/jpeg,image/webp,image/gif"
-                                    onChange={(event) => {
-                                        const file = event.target.files?.[0] ?? null
-                                        updateLink(index, {
-                                            imageFile: file,
-                                            imagePreview: file ? URL.createObjectURL(file) : null,
-                                        })
-                                    }}
-                                />
-                                {(link.imagePreview || link.image_path) && (
-                                    <img
-                                        src={
-                                            link.imagePreview ??
-                                            (link.image_path ? storageUrl(link.image_path)! : '')
-                                        }
-                                        alt=""
-                                        className="h-10 w-10 rounded object-cover"
-                                    />
-                                )}
                             </div>
                         ))}
                     </div>
@@ -2813,12 +3329,9 @@ function ManageProfileSidebar({
                         <Plus className="h-4 w-4" />
                         Add Link
                     </Button>
-                </div>
+                </ProfileEditSection>
 
-                <div className="grid gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        Border
-                    </p>
+                <ProfileEditSection title="Border">
                     <div className="grid grid-cols-3 gap-2">
                         <button
                             type="button"
@@ -2848,39 +3361,13 @@ function ManageProfileSidebar({
                                 <span className="mt-1 block truncate text-[10px]">
                                     {border.name}
                                 </span>
-                                {!border.is_default && (
-                                    <span
-                                        className="absolute right-1 top-1 rounded bg-background p-0.5 opacity-0 shadow-sm ring-1 ring-border transition group-hover:opacity-100"
-                                        onClick={(event) => {
-                                            event.preventDefault()
-                                            event.stopPropagation()
-                                            onDeleteBorder(border.id)
-                                        }}
-                                    >
-                                        <Trash2 className="h-3 w-3 text-red-500" />
-                                    </span>
-                                )}
                             </button>
                         ))}
                     </div>
-                    <form onSubmit={handleCreateBorder} className="grid gap-2">
-                        <Label htmlFor="profile-border-name">Custom border name</Label>
-                        <Input
-                            id="profile-border-name"
-                            value={borderName}
-                            onChange={(event) => setBorderName(event.target.value)}
-                        />
-                        <Input
-                            ref={borderRef}
-                            type="file"
-                            accept="image/png,image/webp,image/gif"
-                            onChange={(event) => setBorderFile(event.target.files?.[0] ?? null)}
-                        />
-                        <Button type="submit" variant="outline" disabled={busy}>
-                            <Plus className="h-4 w-4" />
-                            Add Border
-                        </Button>
-                    </form>
+                    <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                        Profile borders come from Noble Royalty. Create or sell border designs in
+                        the admin Noble Royalty section.
+                    </p>
                     <div className="grid grid-cols-2 gap-2">
                         <RangeField
                             label="Border"
@@ -2968,12 +3455,9 @@ function ManageProfileSidebar({
                         error={errors.avatarBorderColor}
                         onChange={(avatarBorderColor) => onChange({ avatarBorderColor })}
                     />
-                </div>
+                </ProfileEditSection>
 
-                <div className="grid gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        Background
-                    </p>
+                <ProfileEditSection title="Background">
                     <ColorField
                         label="Color"
                         value={draft.backgroundColor}
@@ -3041,12 +3525,9 @@ function ManageProfileSidebar({
                         <Upload className="h-4 w-4" />
                         Upload Background
                     </Button>
-                </div>
+                </ProfileEditSection>
 
-                <div className="grid gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        Tabs
-                    </p>
+                <ProfileEditSection title="Tabs">
                     <div className="grid grid-cols-2 gap-2">
                         {PROFILE_TAB_IDS.map((tab) => (
                             <label key={tab} className="flex items-center gap-2 text-sm">
@@ -3111,10 +3592,6 @@ function ManageProfileSidebar({
                         Together keeps tab buttons grouped. Separate lets individual tab buttons
                         move on the canvas. Content widgets are added to the active preview page.
                     </p>
-                    <Button type="button" variant="outline" onClick={onResetTabs}>
-                        <Layers className="h-4 w-4" />
-                        Default Settings
-                    </Button>
                     <div className="grid gap-3 rounded-lg border p-3">
                         {(canvasButtons.length > 0 || canvasSections.length > 0) && (
                             <div>
@@ -3210,18 +3687,84 @@ function ManageProfileSidebar({
                                                                 />
                                                                 Pagination
                                                             </label>
+                                                            <ProfileSortFilterControls
+                                                                item={item}
+                                                                options={getProfileFilterOptions(
+                                                                    profile,
+                                                                    item.type
+                                                                )}
+                                                                onUpdateCanvasItem={
+                                                                    onUpdateCanvasItem
+                                                                }
+                                                            />
                                                         </>
                                                     )}
                                                     {item.type === 'works' && (
+                                                        <>
+                                                            <SelectField
+                                                                label="Display"
+                                                                value={
+                                                                    item.display ?? 'image_title'
+                                                                }
+                                                                options={[
+                                                                    'image',
+                                                                    'image_title',
+                                                                    'split_card',
+                                                                    'table',
+                                                                ]}
+                                                                formatOption={formatCanvasDisplay}
+                                                                onChange={(display) =>
+                                                                    onUpdateCanvasItem(
+                                                                        item.id,
+                                                                        item.kind,
+                                                                        {
+                                                                            display:
+                                                                                display as ProfileCanvasItem['display'],
+                                                                        }
+                                                                    )
+                                                                }
+                                                            />
+                                                            <ProfileSortFilterControls
+                                                                item={item}
+                                                                options={getProfileFilterOptions(
+                                                                    profile,
+                                                                    item.type
+                                                                )}
+                                                                onUpdateCanvasItem={
+                                                                    onUpdateCanvasItem
+                                                                }
+                                                            />
+                                                        </>
+                                                    )}
+                                                    {item.type === 'stickers' && (
+                                                        <>
+                                                            <RangeField
+                                                                label="Sticker size"
+                                                                value={draft.stickerSize}
+                                                                min={72}
+                                                                max={180}
+                                                                suffix="px"
+                                                                onChange={(stickerSize) =>
+                                                                    onChange({ stickerSize })
+                                                                }
+                                                            />
+                                                            <ProfileSortFilterControls
+                                                                item={item}
+                                                                options={getProfileFilterOptions(
+                                                                    profile,
+                                                                    item.type
+                                                                )}
+                                                                onUpdateCanvasItem={
+                                                                    onUpdateCanvasItem
+                                                                }
+                                                            />
+                                                        </>
+                                                    )}
+                                                    {item.type === 'comments' && (
                                                         <SelectField
                                                             label="Display"
-                                                            value={item.display ?? 'image_title'}
-                                                            options={[
-                                                                'image',
-                                                                'image_title',
-                                                                'split_card',
-                                                                'table',
-                                                            ]}
+                                                            value={item.display ?? 'table'}
+                                                            options={['table', 'cards']}
                                                             formatOption={formatCanvasDisplay}
                                                             onChange={(display) =>
                                                                 onUpdateCanvasItem(
@@ -3235,23 +3778,11 @@ function ManageProfileSidebar({
                                                             }
                                                         />
                                                     )}
-                                                    {item.type === 'stickers' && (
-                                                        <RangeField
-                                                            label="Sticker size"
-                                                            value={draft.stickerSize}
-                                                            min={72}
-                                                            max={180}
-                                                            suffix="px"
-                                                            onChange={(stickerSize) =>
-                                                                onChange({ stickerSize })
-                                                            }
-                                                        />
-                                                    )}
-                                                    {item.type === 'comments' && (
+                                                    {item.type === 'feeds' && (
                                                         <SelectField
                                                             label="Display"
-                                                            value={item.display ?? 'table'}
-                                                            options={['table', 'cards']}
+                                                            value={item.display ?? 'cards'}
+                                                            options={['cards', 'compact']}
                                                             formatOption={formatCanvasDisplay}
                                                             onChange={(display) =>
                                                                 onUpdateCanvasItem(
@@ -3324,12 +3855,9 @@ function ManageProfileSidebar({
                             </div>
                         </div>
                     </div>
-                </div>
+                </ProfileEditSection>
 
-                <div className="grid gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                        Sections
-                    </p>
+                <ProfileEditSection title="Sections">
                     <RangeField
                         label="Board height"
                         value={draft.boardMinHeight}
@@ -3354,9 +3882,30 @@ function ManageProfileSidebar({
                         suffix="px"
                         onChange={(stickerSize) => onChange({ stickerSize })}
                     />
-                </div>
+                </ProfileEditSection>
             </div>
         </aside>
+    )
+}
+
+function ProfileEditSection({
+    title,
+    children,
+    defaultOpen = true,
+}: {
+    title: string
+    children: ReactNode
+    defaultOpen?: boolean
+}) {
+    return (
+        <details className="group rounded-lg border bg-background/70 p-3" open={defaultOpen}>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                <span>{title}</span>
+                <span className="text-base leading-none group-open:hidden">+</span>
+                <span className="hidden text-base leading-none group-open:inline">-</span>
+            </summary>
+            <div className="mt-3 grid gap-3">{children}</div>
+        </details>
     )
 }
 
@@ -3644,6 +4193,26 @@ function SelectedBlockPanel({
                         defaultValue={block.text_content ?? ''}
                         onBlur={(event) => patch({ text_content: event.target.value })}
                     />
+                    <SelectField
+                        label="Font theme"
+                        value={block.font_family || ''}
+                        options={[
+                            '',
+                            'Inter, sans-serif',
+                            'Georgia, serif',
+                            'Kalam, cursive',
+                            'Bebas Neue, sans-serif',
+                            'Comic Sans MS, cursive',
+                        ]}
+                        formatOption={(option) => (option ? option.split(',')[0] : 'Default')}
+                        onChange={(font_family) => patch({ font_family })}
+                    />
+                    <ColorField
+                        label="Text color"
+                        value={block.font_color ?? ''}
+                        fallback="#111111"
+                        onChange={(font_color) => patch({ font_color })}
+                    />
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
@@ -3716,8 +4285,134 @@ function SelectedBlockPanel({
                             patch({ fit_mode: value as ArtistProfileBlock['fit_mode'] })
                         }
                     />
+                    <RangeField
+                        label="Image position X"
+                        value={block.image_position_x ?? 50}
+                        min={0}
+                        max={100}
+                        suffix="%"
+                        onChange={(image_position_x) => patch({ image_position_x })}
+                    />
+                    <RangeField
+                        label="Image position Y"
+                        value={block.image_position_y ?? 50}
+                        min={0}
+                        max={100}
+                        suffix="%"
+                        onChange={(image_position_y) => patch({ image_position_y })}
+                    />
                 </div>
             )}
+
+            <div className="mt-4 grid gap-3 border-t pt-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Box Style
+                </p>
+                <label className="flex items-center gap-2 text-sm">
+                    <input
+                        type="checkbox"
+                        checked={block.transparent_background ?? false}
+                        onChange={(event) =>
+                            patch({ transparent_background: event.target.checked })
+                        }
+                    />
+                    Transparent background
+                </label>
+                <ColorField
+                    label="Background color"
+                    value={block.background_color ?? ''}
+                    fallback="#ffffff"
+                    onChange={(background_color) => patch({ background_color })}
+                />
+                <label className="flex items-center gap-2 text-sm">
+                    <input
+                        type="checkbox"
+                        checked={block.show_border ?? false}
+                        onChange={(event) => patch({ show_border: event.target.checked })}
+                    />
+                    Show border
+                </label>
+                <ColorField
+                    label="Border color"
+                    value={block.border_color ?? ''}
+                    fallback="#d4d4d8"
+                    onChange={(border_color) => patch({ border_color })}
+                />
+                <RangeField
+                    label="Border radius"
+                    value={block.border_radius ?? 0}
+                    min={0}
+                    max={200}
+                    suffix="px"
+                    onChange={(border_radius) => patch({ border_radius })}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                    <RangeField
+                        label="Padding X"
+                        value={block.padding_x ?? 0}
+                        min={0}
+                        max={40}
+                        suffix="%"
+                        onChange={(padding_x) => patch({ padding_x })}
+                    />
+                    <RangeField
+                        label="Padding Y"
+                        value={block.padding_y ?? 0}
+                        min={0}
+                        max={40}
+                        suffix="%"
+                        onChange={(padding_y) => patch({ padding_y })}
+                    />
+                </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 border-t pt-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Layout
+                </p>
+                <label className="flex items-center gap-2 text-sm">
+                    <input
+                        type="checkbox"
+                        checked={block.overlay ?? false}
+                        onChange={(event) => patch({ overlay: event.target.checked })}
+                    />
+                    Overlay
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                    <input
+                        type="checkbox"
+                        checked={block.locked ?? false}
+                        onChange={(event) => patch({ locked: event.target.checked })}
+                    />
+                    Lock position
+                </label>
+                <RangeField
+                    label="Rotation"
+                    value={block.rotation ?? 0}
+                    min={-360}
+                    max={360}
+                    suffix="deg"
+                    onChange={(rotation) => patch({ rotation })}
+                />
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => patch({ z_index: clamp((block.z_index ?? 1) - 1, 1, 999) })}
+                    >
+                        Send Back
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => patch({ z_index: clamp((block.z_index ?? 1) + 1, 1, 999) })}
+                    >
+                        Bring Front
+                    </Button>
+                </div>
+            </div>
         </div>
     )
 }
@@ -3809,21 +4504,22 @@ function BoardBlock({
 }) {
     const imageSrc = blockImageSrc(block)
     const objectFit = block.fit_mode === 'stretch' ? 'fill' : block.fit_mode
+    const showBorder = block.show_border ?? (!block.is_sticker && !block.transparent_background)
+    const transparent = block.transparent_background ?? block.is_sticker
+    const backgroundColor = transparent
+        ? 'transparent'
+        : block.background_color || 'var(--background)'
+    const borderColor = block.border_color || 'var(--border)'
+    const borderRadius = block.border_radius ?? 0
 
     return (
         <div
-            className={`absolute ${
-                block.is_sticker
-                    ? 'overflow-visible bg-transparent'
-                    : 'overflow-hidden bg-background'
-            } ${
+            className={`absolute ${block.overlay ? 'mix-blend-normal' : ''} ${
                 editMode
                     ? selected
                         ? 'ring-2 ring-foreground ring-offset-2 ring-offset-background'
                         : 'ring-1 ring-foreground/20'
-                    : block.is_sticker
-                      ? ''
-                      : 'border'
+                    : ''
             }`}
             style={{
                 left: `${block.x}%`,
@@ -3834,6 +4530,10 @@ function BoardBlock({
                 zIndex: editMode ? (selected ? 1200 : 800 + block.z_index) : block.z_index,
                 transform: `rotate(${block.rotation ?? 0}deg)`,
                 touchAction: 'none',
+                overflow: block.is_sticker || block.overlay ? 'visible' : 'hidden',
+                backgroundColor,
+                border: showBorder ? `1px solid ${borderColor}` : '1px solid transparent',
+                borderRadius,
             }}
             onPointerDown={(event) => {
                 if (!editMode) return
@@ -3850,18 +4550,30 @@ function BoardBlock({
                     alt=""
                     draggable={false}
                     className="h-full w-full select-none"
-                    style={{ objectFit }}
+                    style={{
+                        objectFit,
+                        objectPosition: `${block.image_position_x ?? 50}% ${block.image_position_y ?? 50}%`,
+                        borderRadius: Math.max(
+                            0,
+                            borderRadius - Math.max(block.padding_x, block.padding_y)
+                        ),
+                    }}
                 />
             ) : (
                 <div
                     className="h-full w-full overflow-hidden whitespace-pre-wrap break-words"
-                    style={{ fontSize: block.font_size, lineHeight: 1.15 }}
+                    style={{
+                        fontSize: block.font_size,
+                        lineHeight: 1.15,
+                        fontFamily: block.font_family || undefined,
+                        color: block.font_color || undefined,
+                    }}
                 >
                     {block.text_content}
                 </div>
             )}
 
-            {editMode && (
+            {editMode && !block.locked && (
                 <>
                     <div
                         data-board-control
@@ -3893,8 +4605,178 @@ function BoardBlock({
                     />
                 </>
             )}
+            {editMode && block.locked && (
+                <div
+                    data-board-control
+                    className="absolute left-2 top-2 z-[9999] rounded bg-background p-1 text-foreground shadow-md ring-1 ring-amber-400"
+                    title="Position locked"
+                >
+                    <Lock className="h-3 w-3" />
+                </div>
+            )}
         </div>
     )
+}
+
+function filterSortArts(arts: Art[], item: ProfileCanvasItem) {
+    const filters = getCanvasFilters(item)
+    const labelFilters = filters.filter((filter) => filter.startsWith('label:')).map(tokenValue)
+    const downloadFilters = filters
+        .filter((filter) => filter.startsWith('download:'))
+        .map(tokenValue)
+    const filtered = arts.filter((art) => {
+        const matchesLabels =
+            labelFilters.length === 0 ||
+            labelFilters.some((label) =>
+                (art.labels ?? []).some((artLabel) => artLabel.toLowerCase() === label)
+            )
+        const matchesDownload =
+            downloadFilters.length === 0 ||
+            downloadFilters.includes(art.download_policy ?? 'disabled')
+
+        return matchesLabels && matchesDownload
+    })
+
+    return [...filtered].sort((a, b) => {
+        switch (item.sort ?? defaultProfileSort('arts')) {
+            case 'oldest':
+                return dateValue(a.created_at) - dateValue(b.created_at)
+            case 'title_az':
+                return a.title.localeCompare(b.title)
+            case 'title_za':
+                return b.title.localeCompare(a.title)
+            case 'views':
+                return b.views - a.views
+            case 'likes':
+                return b.likes - a.likes
+            case 'comments':
+                return b.comments_count - a.comments_count
+            case 'super_likes':
+                return b.super_likes_count - a.super_likes_count
+            default:
+                return dateValue(b.created_at) - dateValue(a.created_at)
+        }
+    })
+}
+
+function filterSortWorks(works: ArtistProfileResponse['works'], item: ProfileCanvasItem) {
+    const filters = getCanvasFilters(item)
+    const typeFilters = filters.filter((filter) => filter.startsWith('type:')).map(tokenValue)
+    const statusFilters = filters.filter((filter) => filter.startsWith('status:')).map(tokenValue)
+    const filtered = works.filter((work) => {
+        const normalizedType = work.type === 'wattpad' ? 'novel' : work.type
+        const matchesType = typeFilters.length === 0 || typeFilters.includes(normalizedType)
+        const matchesStatus =
+            statusFilters.length === 0 || statusFilters.includes(work.status.toLowerCase())
+
+        return matchesType && matchesStatus
+    })
+
+    return [...filtered].sort((a, b) => {
+        switch (item.sort ?? defaultProfileSort('works')) {
+            case 'oldest':
+                return dateValue(a.created_at) - dateValue(b.created_at)
+            case 'title_az':
+                return a.title.localeCompare(b.title)
+            case 'title_za':
+                return b.title.localeCompare(a.title)
+            case 'type':
+                return a.type.localeCompare(b.type) || a.title.localeCompare(b.title)
+            case 'views':
+                return b.views - a.views
+            case 'likes':
+                return b.likes - a.likes
+            case 'chapters':
+                return b.chapters_count - a.chapters_count
+            default:
+                return dateValue(b.created_at) - dateValue(a.created_at)
+        }
+    })
+}
+
+function filterSortStickers(stickers: ArtistSticker[], item: ProfileCanvasItem) {
+    const filters = getCanvasFilters(item)
+    const commerceFilters = filters
+        .filter((filter) => filter.startsWith('sticker:'))
+        .map(tokenValue)
+    const ownerFilters = filters.filter((filter) => filter.startsWith('owner:')).map(tokenValue)
+    const filtered = stickers.filter((sticker) => {
+        const matchesCommerce =
+            commerceFilters.length === 0 ||
+            commerceFilters.some((filter) => {
+                if (filter === 'subscribed') {
+                    return sticker.subscribed || sticker.library_status === 'subscribed'
+                }
+                if (filter === 'bought') {
+                    return sticker.bought || sticker.library_status === 'bought'
+                }
+                if (filter === 'free') {
+                    return !sticker.purchase_cost || sticker.purchase_cost <= 0
+                }
+                return false
+            })
+        const matchesOwner =
+            ownerFilters.length === 0 ||
+            ownerFilters.some((filter) =>
+                filter === 'own'
+                    ? sticker.owned || sticker.library_status === 'created'
+                    : !sticker.owned && sticker.library_status !== 'created'
+            )
+
+        return matchesCommerce && matchesOwner
+    })
+
+    return [...filtered].sort((a, b) => {
+        switch (item.sort ?? defaultProfileSort('stickers')) {
+            case 'latest':
+                return dateValue(b.created_at) - dateValue(a.created_at)
+            case 'oldest':
+                return dateValue(a.created_at) - dateValue(b.created_at)
+            case 'name_az':
+                return a.name.localeCompare(b.name)
+            case 'name_za':
+                return b.name.localeCompare(a.name)
+            case 'popular':
+                return (
+                    (b.purchases_count ?? 0) +
+                    (b.subscriptions_count ?? 0) -
+                    ((a.purchases_count ?? 0) + (a.subscriptions_count ?? 0))
+                )
+            default:
+                return a.sort_order - b.sort_order
+        }
+    })
+}
+
+function dateValue(value: string) {
+    return new Date(value).getTime()
+}
+
+function tokenValue(value: string) {
+    return value.split(':').slice(1).join(':').toLowerCase()
+}
+
+function getCanvasFilters(item: ProfileCanvasItem) {
+    if (Array.isArray(item.filters)) {
+        return item.filters.map((filter) => filter.trim().toLowerCase()).filter(Boolean)
+    }
+
+    return normalizeLegacyProfileFilter(item)
+}
+
+function normalizeLegacyProfileFilter(item: ProfileCanvasItem) {
+    const value = (item.filter ?? '').trim().toLowerCase()
+    if (!value) return []
+
+    if (item.type === 'arts') return [`label:${value}`]
+    if (item.type === 'works') {
+        if (value === 'novel') return ['type:novel']
+        if (value === 'webtoon') return ['type:webtoon']
+        return [`status:${value}`]
+    }
+    if (item.type === 'stickers') return [`sticker:${value}`]
+
+    return []
 }
 
 function ArtsMasonry({
@@ -4435,6 +5317,9 @@ function ProfileComments({
                                 </td>
                                 <td className="px-3 py-2 text-muted-foreground">
                                     {comment.body || comment.sticker?.name || 'Sticker'}
+                                    {comment.awards && comment.awards.length > 0 && (
+                                        <AwardChips awards={comment.awards} />
+                                    )}
                                 </td>
                                 <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
                                     {formatDate(comment.created_at)}
@@ -4477,6 +5362,10 @@ function ProfileComments({
                             </div>
                         )}
 
+                        {comment.awards && comment.awards.length > 0 && (
+                            <AwardChips awards={comment.awards} />
+                        )}
+
                         <p className="mt-3 text-xs text-muted-foreground">
                             {formatDate(comment.created_at)}
                         </p>
@@ -4491,6 +5380,26 @@ function ProfileComments({
                     <div key={comment.id}>{card}</div>
                 )
             })}
+        </div>
+    )
+}
+
+function AwardChips({
+    awards,
+}: {
+    awards: NonNullable<NonNullable<ArtistProfileResponse['comments']>[number]['awards']>
+}) {
+    return (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+            {awards.map((award) => (
+                <span
+                    key={award.id ?? award.name}
+                    className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300"
+                >
+                    <Gift className="h-3 w-3" />
+                    {award.name} x{award.count}
+                </span>
+            ))}
         </div>
     )
 }
@@ -4729,7 +5638,7 @@ function computeBlockPatch(
         const rect = {
             ...blockRect(block),
             x: snapCanvasX(clamp(block.x + dx, 0, 100 - block.w), block.w),
-            y: snapMin(block.y + dy, 0),
+            y: snapBoardY(block.y + dy, block.h, blocks),
         }
 
         if (!collides(block.id, rect, blocks)) return { x: rect.x, y: rect.y }
@@ -4818,10 +5727,14 @@ function snapMin(value: number, min: number) {
 
 function collides(blockId: string, rect: BlockRect, blocks: ArtistProfileBlock[]) {
     const active = blocks.find((block) => block.id === blockId)
-    if (active?.is_sticker) return false
+    if (active?.is_sticker || active?.overlay) return false
 
     return blocks.some(
-        (block) => block.id !== blockId && !block.is_sticker && overlaps(rect, blockRect(block))
+        (block) =>
+            block.id !== blockId &&
+            !block.is_sticker &&
+            !block.overlay &&
+            overlaps(rect, blockRect(block))
     )
 }
 
@@ -4962,19 +5875,16 @@ function profileThemeToFormData(draft: ProfileThemeDraft, header: HeaderDraft) {
         profile_tabs_config: JSON.stringify(draft.tabsConfig),
         profile_links: JSON.stringify(
             draft.links.map(({ imageFile, imagePreview, ...link }) => ({
-                ...link,
+                id: link.id,
                 title: link.title.trim(),
                 url: link.url.trim(),
+                is_public: link.is_public,
             }))
         ),
     }
 
     Object.entries(fields).forEach(([key, value]) => {
         payload.append(key, typeof value === 'boolean' ? (value ? '1' : '0') : String(value ?? ''))
-    })
-
-    draft.links.forEach((link, index) => {
-        if (link.imageFile) payload.append(`profile_link_images[${index}]`, link.imageFile)
     })
 
     return payload
@@ -5026,8 +5936,7 @@ function validateProfileEdit(header: HeaderDraft, draft: ProfileThemeDraft): Pro
     }
 
     draft.links.forEach((link, index) => {
-        const hasAnyValue =
-            link.title.trim() || link.url.trim() || link.imageFile || link.image_path
+        const hasAnyValue = link.title.trim() || link.url.trim()
         if (!hasAnyValue) return
 
         if (!link.title.trim()) {
@@ -5078,8 +5987,9 @@ function defaultProfileTabsConfig(): ProfileTabsConfig {
         works: { x: 30, y: 0, w: 28, h: 36 },
         stickers: { x: 60, y: 0, w: 32, h: 36 },
         comments: { x: 30, y: 52, w: 30, h: 36 },
+        feeds: { x: 62, y: 52, w: 28, h: 36 },
     }
-    const defaultTabs: ProfileTabId[] = ['arts', 'works', 'stickers']
+    const defaultTabs: ProfileTabId[] = ['arts', 'works', 'stickers', 'feeds']
 
     return {
         visibility: {
@@ -5088,6 +5998,7 @@ function defaultProfileTabsConfig(): ProfileTabsConfig {
             works: true,
             stickers: true,
             comments: false,
+            feeds: true,
         },
         section_mode: 'separate_pages',
         positions,
@@ -5098,6 +6009,8 @@ function defaultProfileTabsConfig(): ProfileTabsConfig {
             page: tab,
             display: defaultCanvasDisplay(tab),
             pagination: true,
+            sort: defaultProfileSort(tab),
+            filters: [],
             ...positions[tab],
         })),
         sections: defaultTabs.map((tab) => ({
@@ -5107,6 +6020,8 @@ function defaultProfileTabsConfig(): ProfileTabsConfig {
             page: tab,
             display: defaultCanvasDisplay(tab),
             pagination: true,
+            sort: defaultProfileSort(tab),
+            filters: [],
             x: 5,
             y: 120,
             w: 90,
@@ -5160,14 +6075,9 @@ function normalizeProfileTabsConfig(
             y: Number(value.border_offset?.y ?? 0),
         },
 
-        border_scale: Math.max(0.05, Number(value.border_scale ?? 1.35)),
-
-        border_width: Math.max(0.05, Number(value.border_width ?? value.border_scale ?? 1.35)),
-
-        border_height: Math.max(0.05, Number(value.border_height ?? value.border_scale ?? 1.35)),
-
-        border_layer: value.border_layer === 'back' ? 'back' : 'front',
         border_scale: clamp(value.border_scale ?? 1.35, 0.5, 10),
+        border_width: clamp(value.border_width ?? value.border_scale ?? 1.35, 0.05, 10),
+        border_height: clamp(value.border_height ?? value.border_scale ?? 1.35, 0.05, 10),
         border_layer: value.border_layer === 'back' ? 'back' : 'front',
         nav_locked: value.nav_locked ?? false,
         header_locks: {
@@ -5197,6 +6107,11 @@ function normalizeCanvasItems(
             display: item.display ?? defaultCanvasDisplay(item.type),
             pagination: item.pagination ?? true,
             locked: item.locked ?? false,
+            sort: item.sort ?? defaultProfileSort(item.type),
+            filter: item.filter ?? '',
+            filters: Array.isArray(item.filters)
+                ? item.filters.map((filter) => String(filter).trim().toLowerCase()).filter(Boolean)
+                : normalizeLegacyProfileFilter(item),
             x: clamp(item.x, 0, 95),
             y: clamp(item.y, 0, 2400),
             w: clamp(item.w, kind === 'tab' ? 10 : 5, 100),
@@ -5308,7 +6223,157 @@ function defaultCanvasDisplay(type: ProfileTabId): ProfileCanvasDisplay {
     if (type === 'arts') return 'masonry'
     if (type === 'works') return 'image_title'
     if (type === 'comments') return 'table'
+    if (type === 'feeds') return 'cards'
     return 'grid'
+}
+
+function getPrimarySectionItem(config: ProfileTabsConfig, type: ProfileTabId): ProfileCanvasItem {
+    const visibleTabs = PROFILE_TAB_IDS
+    const existing = getCanvasItems(config, visibleTabs, 'section').find(
+        (item) => item.type === type
+    )
+
+    return (
+        existing ?? {
+            id: `section-${type}`,
+            type,
+            kind: 'section',
+            page: type,
+            display: defaultCanvasDisplay(type),
+            pagination: true,
+            sort: defaultProfileSort(type),
+            filter: '',
+            filters: [],
+            x: 5,
+            y: 120,
+            w: 90,
+            h: 420,
+        }
+    )
+}
+
+function defaultProfileSort(type: ProfileTabId) {
+    if (type === 'works') return 'latest'
+    if (type === 'stickers') return 'custom'
+    return 'latest'
+}
+
+function profileSortOptions(type: ProfileTabId) {
+    if (type === 'arts') {
+        return [
+            'latest',
+            'oldest',
+            'title_az',
+            'title_za',
+            'views',
+            'likes',
+            'comments',
+            'super_likes',
+        ]
+    }
+
+    if (type === 'works') {
+        return ['latest', 'oldest', 'title_az', 'title_za', 'type', 'views', 'likes', 'chapters']
+    }
+
+    if (type === 'stickers') {
+        return ['custom', 'latest', 'oldest', 'name_az', 'name_za', 'popular']
+    }
+
+    return ['latest', 'oldest']
+}
+
+function formatProfileSort(value: string) {
+    const labels: Record<string, string> = {
+        custom: 'Custom Order',
+        latest: 'Latest',
+        oldest: 'Oldest',
+        title_az: 'Title A-Z',
+        title_za: 'Title Z-A',
+        name_az: 'Name A-Z',
+        name_za: 'Name Z-A',
+        type: 'Type',
+        views: 'Most Views',
+        likes: 'Most Likes',
+        comments: 'Most Comments',
+        super_likes: 'Most Super Likes',
+        chapters: 'Most Chapters',
+        popular: 'Most Bought/Subscribed',
+    }
+
+    return labels[value] ?? value
+}
+
+function profileFilterLabel(type: ProfileTabId) {
+    if (type === 'arts') return 'Filters'
+    if (type === 'works') return 'Filters'
+    if (type === 'stickers') return 'Filters'
+    return 'Filters'
+}
+
+function getProfileFilterOptions(
+    profile: ArtistProfileResponse,
+    type: ProfileTabId
+): ProfileFilterOption[] {
+    if (type === 'arts') {
+        const labelOptions = Array.from(
+            new Set(
+                profile.arts
+                    .flatMap((art) => art.labels ?? [])
+                    .map((label) => label.trim().toLowerCase())
+                    .filter(Boolean)
+            )
+        )
+            .sort((a, b) => a.localeCompare(b))
+            .map((label) => ({ value: `label:${label}`, label: `Label: ${label}` }))
+
+        return [
+            ...labelOptions,
+            { value: 'download:free', label: 'Free download' },
+            { value: 'download:paid', label: 'Credit download' },
+            { value: 'download:disabled', label: 'No downloads' },
+        ]
+    }
+
+    if (type === 'works') {
+        const hasWebtoon = profile.works.some((work) => work.type === 'webtoon')
+        const hasNovel = profile.works.some((work) => work.type === 'wattpad')
+        const statusOptions = Array.from(
+            new Set(profile.works.map((work) => work.status.trim().toLowerCase()).filter(Boolean))
+        )
+            .sort((a, b) => {
+                if (a === 'completed') return -1
+                if (b === 'completed') return 1
+                return a.localeCompare(b)
+            })
+            .map((status) => ({ value: `status:${status}`, label: formatStatusFilter(status) }))
+
+        return [
+            ...(hasWebtoon ? [{ value: 'type:webtoon', label: 'Webtoon' }] : []),
+            ...(hasNovel ? [{ value: 'type:novel', label: 'Novel' }] : []),
+            ...statusOptions,
+        ]
+    }
+
+    if (type === 'stickers') {
+        return [
+            { value: 'sticker:subscribed', label: 'Subscriptions' },
+            { value: 'sticker:bought', label: 'Credit buy' },
+            { value: 'sticker:free', label: 'Free' },
+            { value: 'owner:own', label: 'Own stickers' },
+            { value: 'owner:other', label: 'Other artists' },
+        ]
+    }
+
+    return []
+}
+
+function formatStatusFilter(value: string) {
+    return value
+        .split(/[_-]/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ')
 }
 
 function formatCanvasDisplay(value: string) {
@@ -5350,6 +6415,16 @@ function snapCenterOffset(value: number) {
 
 function snapCanvasY(value: number) {
     return Math.round(value / 20) * 20
+}
+
+function snapBoardY(value: number, height: number, blocks: ArtistProfileBlock[]) {
+    const boardRows = Math.max(
+        BOARD_MIN_HEIGHT / BOARD_UNIT_PX,
+        getBoardRows(blocks) + GRID_STEP * 8
+    )
+    const centered = (boardRows - height) / 2
+    if (Math.abs(value - centered) <= GRID_STEP * 2) return centered
+    return snapMin(value, 0)
 }
 
 function getRenderableProfileTabs(tabs: ProfileTabId[], config: ProfileTabsConfig) {

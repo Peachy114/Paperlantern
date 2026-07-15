@@ -87,6 +87,17 @@ class ArtistProfileController extends Controller
             'font_size' => ['sometimes', 'integer', 'min:10', 'max:96'],
             'z_index' => ['sometimes', 'integer', 'min:1', 'max:999'],
             'rotation' => ['sometimes', 'numeric', 'min:-360', 'max:360'],
+            'background_color' => ['nullable', 'string', 'max:20'],
+            'transparent_background' => ['sometimes', 'boolean'],
+            'overlay' => ['sometimes', 'boolean'],
+            'show_border' => ['sometimes', 'boolean'],
+            'border_color' => ['nullable', 'string', 'max:20'],
+            'border_radius' => ['sometimes', 'integer', 'min:0', 'max:200'],
+            'font_family' => ['nullable', 'string', 'max:120'],
+            'font_color' => ['nullable', 'string', 'max:20'],
+            'locked' => ['sometimes', 'boolean'],
+            'image_position_x' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'image_position_y' => ['sometimes', 'integer', 'min:0', 'max:100'],
         ]);
 
         return response()->json($this->service->createBlock($request->user(), $validated, $request), 201);
@@ -114,6 +125,17 @@ class ArtistProfileController extends Controller
             'font_size' => ['sometimes', 'integer', 'min:10', 'max:96'],
             'z_index' => ['sometimes', 'integer', 'min:1', 'max:999'],
             'rotation' => ['sometimes', 'numeric', 'min:-360', 'max:360'],
+            'background_color' => ['nullable', 'string', 'max:20'],
+            'transparent_background' => ['sometimes', 'boolean'],
+            'overlay' => ['sometimes', 'boolean'],
+            'show_border' => ['sometimes', 'boolean'],
+            'border_color' => ['nullable', 'string', 'max:20'],
+            'border_radius' => ['sometimes', 'integer', 'min:0', 'max:200'],
+            'font_family' => ['nullable', 'string', 'max:120'],
+            'font_color' => ['nullable', 'string', 'max:20'],
+            'locked' => ['sometimes', 'boolean'],
+            'image_position_x' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'image_position_y' => ['sometimes', 'integer', 'min:0', 'max:100'],
         ]);
 
         return response()->json($this->service->updateBlock($request->user(), $block, $validated, $request));
@@ -142,18 +164,55 @@ class ArtistProfileController extends Controller
     public function storeSticker(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:80'],
-            'image' => ['required', 'file', 'mimes:png,webp,gif', 'max:10240'],
+            'name' => ['nullable', 'string', 'max:80'],
+            'sticker_names' => ['nullable', 'array', 'max:50'],
+            'sticker_names.*' => ['nullable', 'string', 'max:80'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'bundle_name' => ['nullable', 'string', 'max:120'],
+            'is_free' => ['sometimes', 'boolean'],
+            'credit_cost' => ['nullable', 'integer', 'min:0', 'max:1000'],
+            'subscription_free' => ['sometimes', 'boolean'],
+            'publish_public' => ['sometimes', 'boolean'],
+            'image' => ['required_without:images', 'file', 'mimes:png,webp,gif', 'max:10240'],
+            'images' => ['required_without:image', 'array', 'min:1', 'max:50'],
+            'images.*' => ['file', 'mimes:png,webp,gif', 'max:10240'],
         ]);
+        $isFree = $request->boolean('is_free');
+        $validated['is_free'] = $isFree;
+        $validated['credit_cost'] = $isFree ? 0 : max(1, (int) ($validated['credit_cost'] ?? 1));
+        $stickerNames = $validated['sticker_names'] ?? [];
+        unset($validated['image'], $validated['images'], $validated['sticker_names']);
 
-        return response()->json($this->service->createSticker($request->user(), $validated, $request), 201);
+        $files = $request->hasFile('images')
+            ? $request->file('images')
+            : [$request->file('image')];
+
+        $stickers = collect($files)
+            ->filter()
+            ->values()
+            ->map(function ($file, int $index) use ($request, $validated, $stickerNames) {
+                $payload = $validated;
+                $payload['name'] = trim((string) ($stickerNames[$index] ?? $validated['name'] ?? ''))
+                    ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                $payload['description'] = $validated['description'] ?? null;
+
+                return $this->service->createSticker($request->user(), $payload, $request, $file);
+            });
+
+        return response()->json(
+            $stickers->count() === 1
+                ? $stickers->first()
+                : ['data' => $stickers, 'message' => "{$stickers->count()} stickers added."],
+            201
+        );
     }
 
     public function storeBorder(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:80'],
+            'name' => ['nullable', 'string', 'max:80'],
             'image' => ['required', 'file', 'mimes:png,webp,gif', 'max:10240'],
+            'publish_public' => ['sometimes', 'boolean'],
         ]);
 
         return response()->json($this->service->createBorder($request->user(), $validated, $request), 201);

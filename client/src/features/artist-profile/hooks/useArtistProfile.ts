@@ -69,6 +69,11 @@ export function useArtistProfile(username: string) {
         onSuccess: invalidate,
     })
 
+    const toggleFollow = useMutation({
+        mutationFn: () => artistProfileApi.toggleFollow(username).then((res) => res.data),
+        onSuccess: invalidate,
+    })
+
     return {
         profile: data,
         updateHeader,
@@ -80,5 +85,6 @@ export function useArtistProfile(username: string) {
         createBorder,
         deleteBorder,
         reorderBlocks,
+        toggleFollow,
     }
 }

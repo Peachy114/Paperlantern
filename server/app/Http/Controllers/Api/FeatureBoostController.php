@@ -19,7 +19,7 @@ class FeatureBoostController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'target_type' => ['required', 'in:artist_profile,art,work'],
+            'target_type' => ['required', 'in:artist_profile,art,work,commission_service'],
             'target_id' => ['nullable', 'string'],
             'days' => ['required', 'integer', 'min:1', 'max:30'],
         ]);
