@@ -52,16 +52,24 @@ export default function AnnouncementWidget({
 
     return (
         <section className="mx-auto mt-8 w-full max-w-[1360px] px-5">
-            <Carousel setApi={setApi} opts={{ loop: slides.length > 1, align: 'center' }} className="w-full">
+            <Carousel
+                setApi={setApi}
+                opts={{ loop: slides.length > 1, align: 'center' }}
+                className="w-full"
+            >
                 <CarouselContent className="ml-0">
                     {slides.map((announcement, index) => {
-                        const image = storageUrl(announcement.image ?? null, 'sm') ?? storageUrl(announcement.image ?? null)
+                        const image =
+                            storageUrl(announcement.image ?? null, 'sm') ??
+                            storageUrl(announcement.image ?? null)
 
                         return (
                             <CarouselItem key={announcement.id} className="basis-full pl-0">
                                 <button
                                     type="button"
-                                    onClick={() => setModalSlide({ kind: 'news', data: announcement })}
+                                    onClick={() =>
+                                        setModalSlide({ kind: 'news', data: announcement })
+                                    }
                                     className="group relative block h-44 w-full overflow-hidden rounded-lg bg-muted text-left outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-56"
                                 >
                                     {image ? (
@@ -80,7 +88,9 @@ export default function AnnouncementWidget({
                                         <div className="mb-2 flex flex-wrap items-center gap-2">
                                             {announcement.tag && (
                                                 <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide backdrop-blur">
-                                                    {tagLabels[announcement.tag] ?? announcement.tag}
+                                                    {tagLabels[announcement.tag] ??
+                                                        announcement.tag}{' '}
+                                                    "hero for announcement"
                                                 </span>
                                             )}
                                             {announcement.is_pinned && (

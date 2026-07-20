@@ -24,6 +24,30 @@ export const publicRoutes = (
             }
         />
         <Route
+            path="/daily"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.DiscoveryPage />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/rankings"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.DiscoveryPage />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/genre"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.DiscoveryPage />
+                </Suspense>
+            }
+        />
+        <Route
             path="/explore/arts"
             element={
                 <Suspense fallback={<Loading />}>

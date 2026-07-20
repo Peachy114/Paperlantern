@@ -8,9 +8,10 @@ type ThemedLogoProps = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
 const isDarkMode = () => document.documentElement.classList.contains('dark')
 
 export default function ThemedLogo({
-    darkSrc = '/logo_white_nav.png',
-    lightSrc = '/logo_black_nav.png',
+    darkSrc = '/new_logo.png',
+    lightSrc = '/new_logo.png',
     alt = 'logo',
+    borderRadius = 10,
     ...props
 }: ThemedLogoProps) {
     const [dark, setDark] = useState(isDarkMode)
@@ -26,5 +27,12 @@ export default function ThemedLogo({
         return () => observer.disconnect()
     }, [])
 
-    return <img src={dark ? darkSrc : lightSrc} alt={alt} {...props} />
+    return (
+        <img
+            src={dark ? darkSrc : lightSrc}
+            alt={alt}
+            style={{ borderRadius: `${borderRadius}px` }}
+            {...props}
+        />
+    )
 }

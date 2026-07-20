@@ -4,6 +4,7 @@ import { persist } from 'zustand/middleware'
 export interface User {
     id: string
     name: string
+    nickname?: string | null
     username: string
     email: string
     role: 'super_admin' | 'storyteller' | 'wanderer'
@@ -42,6 +43,7 @@ export interface User {
     profile_links?: unknown
     profile_border_id?: string | null
     twitter_url?: string | null
+    discord_url?: string | null
     instagram_url?: string | null
     tiktok_url?: string | null
 }

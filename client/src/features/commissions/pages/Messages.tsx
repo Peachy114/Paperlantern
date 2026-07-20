@@ -8,6 +8,7 @@ import { studioApi } from '@/api/studio'
 import { useAuthStore } from '@/store/authStore'
 import { storageUrl } from '@/utils/storage'
 import type { RoyaltyDesignAsset } from '@/types/artistProfile'
+import { RoyaltyMessageBubble, royaltyMessageBackgroundStyle } from '@/components/royalty/RoyaltyDesignRenderer'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -67,6 +68,8 @@ interface OrderInfo {
     refunded_credits: number
     request_message: string | null
     reference_notes: string | null
+    request_answers?: { question_id?: string; question?: string; answer?: string }[]
+    client_details?: Record<string, string>
     flow_snapshot: CommissionStep[]
     paid_steps: number[]
     stage_attempts_used: Record<string, number>
@@ -449,6 +452,18 @@ export default function Messages() {
                                             </Button>
                                             {actionMenuOpen && (
                                                 <div className="absolute right-0 z-20 mt-1 w-32 rounded-lg border bg-popover p-1 shadow-lg">
+                                                    {isArtist && ['requested', 'quoted'].includes(order.status) && (
+                                                        <button
+                                                            type="button"
+                                                            className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                                                            onClick={() => {
+                                                                setQuoteOpen(true)
+                                                                setActionMenuOpen(false)
+                                                            }}
+                                                        >
+                                                            Quote
+                                                        </button>
+                                                    )}
                                                     <button
                                                         type="button"
                                                         className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
@@ -478,11 +493,7 @@ export default function Messages() {
 
                             <div
                                 className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4"
-                                style={selectedBackground ? {
-                                    backgroundImage: `url(${storageUrl(selectedBackground.image_path)})`,
-                                    backgroundSize: 'cover',
-                                    backgroundPosition: 'center',
-                                } : undefined}
+                                style={royaltyMessageBackgroundStyle(selectedBackground)}
                             >
                                 {order && (
                                     <CommissionRequestBlock
@@ -491,7 +502,7 @@ export default function Messages() {
                                         busy={quoteOrder.isPending || acceptQuote.isPending || artistUpdate.isPending}
                                         onViewDetails={() => setInfoOpen(true)}
                                         onQuote={() => setQuoteOpen(true)}
-                                        onAccept={() => (isArtist ? artistUpdate.mutate('in_progress') : acceptQuote.mutate())}
+                                        onAccept={() => acceptQuote.mutate()}
                                         onReject={() => (isArtist ? artistUpdate.mutate('cancelled') : customerUpdate.mutate('cancel'))}
                                     />
                                 )}
@@ -555,23 +566,20 @@ export default function Messages() {
                                     const mine = message.sender?.id === user?.id
                                     return (
                                         <div key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                                            <div
-                                                className={`w-fit max-w-[76%] rounded-xl px-3 py-2 text-left text-sm ${mine ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}
-                                                style={selectedDesign ? {
-                                                    backgroundImage: `url(${storageUrl(selectedDesign.image_path)})`,
-                                                    backgroundSize: '100% 100%',
-                                                    backgroundRepeat: 'no-repeat',
-                                                } : undefined}
-                                            >
-                                                <div className="mb-1 text-[11px] opacity-75">{message.sender?.name ?? 'User'}</div>
-                                                {message.body && <p className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.body}</p>}
+                                            <div className={`flex max-w-[76%] flex-col gap-2 ${mine ? 'items-end' : 'items-start'}`}>
+                                                <RoyaltyMessageBubble mine={mine} design={selectedDesign}>
+                                                    <div className="mb-1 text-[11px] opacity-75">{message.sender?.name ?? 'User'}</div>
+                                                    {message.body && <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.body}</p>}
+                                                    {mine && preferences.message_read_receipts_enabled && (
+                                                        <div className="mt-1 text-right text-[10px] opacity-70">
+                                                            {message.read_by_recipient ? 'Read' : 'Sent'}
+                                                        </div>
+                                                    )}
+                                                </RoyaltyMessageBubble>
                                                 {message.image_path && (
-                                                    <img src={storageUrl(message.image_path)!} alt="" className="mt-2 max-h-64 rounded-lg object-contain" />
-                                                )}
-                                                {mine && preferences.message_read_receipts_enabled && (
-                                                    <div className="mt-1 text-right text-[10px] opacity-70">
-                                                        {message.read_by_recipient ? 'Read' : 'Sent'}
-                                                    </div>
+                                                    <button type="button" className="block max-w-full overflow-hidden rounded-lg bg-muted" onClick={() => setImagePreview({ src: storageUrl(message.image_path)!, title: 'Message image' })}>
+                                                        <img src={storageUrl(message.image_path)!} alt="" className="max-h-64 max-w-full object-contain" />
+                                                    </button>
                                                 )}
                                             </div>
                                         </div>
@@ -639,6 +647,29 @@ export default function Messages() {
                                 <div>
                                     <div className="font-medium">References</div>
                                     <p className="mt-1 whitespace-pre-line text-muted-foreground">{order.reference_notes}</p>
+                                </div>
+                            )}
+                            {(order.request_answers?.length ?? 0) > 0 && (
+                                <div>
+                                    <div className="font-medium">Request form answers</div>
+                                    <div className="mt-2 space-y-2">
+                                        {order.request_answers!.map((answer, index) => (
+                                            <div key={`${answer.question_id ?? index}`} className="rounded-lg border p-3">
+                                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{answer.question}</p>
+                                                <p className="mt-1 whitespace-pre-line">{answer.answer || '-'}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            {order.client_details && Object.values(order.client_details).some(Boolean) && (
+                                <div>
+                                    <div className="font-medium">Wanderer details</div>
+                                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                        {Object.entries(order.client_details).filter(([, value]) => Boolean(value)).map(([field, value]) => (
+                                            <InfoRow key={field} label={clientDetailLabel(field)} value={value} />
+                                        ))}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -784,12 +815,18 @@ function CommissionRequestBlock({ order, isArtist, busy, onViewDetails, onQuote,
     return (
         <CenteredBlock>
             <div className="font-semibold">Commission request</div>
-            <div className="mt-1 text-sm text-muted-foreground">{order.quote_credits} credits</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+                {order.status === 'quoted' ? `Quote: ${order.quote_credits} credits` : 'Awaiting artist quote'}
+            </div>
             <div className="mt-3 grid gap-2">
                 <Button size="sm" variant="outline" onClick={onViewDetails}>View Details</Button>
                 {isArtist && <Button size="sm" disabled={busy} onClick={onQuote}>Quote</Button>}
-                <Button size="sm" disabled={busy || (isArtist ? order.status !== 'requested' : order.status !== 'quoted')} onClick={onAccept}>Accept</Button>
-                <Button size="sm" variant="destructive" disabled={busy} onClick={onReject}>Reject</Button>
+                {!isArtist && order.status === 'quoted' && (
+                    <Button size="sm" disabled={busy} onClick={onAccept}>Accept Quote</Button>
+                )}
+                <Button size="sm" variant="destructive" disabled={busy} onClick={onReject}>
+                    {isArtist ? 'Cancel' : 'Reject'}
+                </Button>
             </div>
         </CenteredBlock>
     )
@@ -1067,4 +1104,14 @@ function InfoRow({ label, value }: { label: string; value: string }) {
             <span className="font-medium capitalize">{value}</span>
         </div>
     )
+}
+
+function clientDetailLabel(field: string) {
+    return ({
+        name: 'Name',
+        email: 'Email',
+        discord: 'Discord',
+        twitter: 'Twitter / X',
+        instagram: 'Instagram',
+    } as Record<string, string>)[field] ?? field
 }

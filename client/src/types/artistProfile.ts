@@ -91,6 +91,7 @@ export interface ProfileCanvasItem {
         | 'split_card'
         | 'table'
         | 'cards'
+        | 'compact'
     pagination?: boolean
     locked?: boolean
     sort?: string
@@ -125,6 +126,15 @@ export interface ProfileTabsConfig {
         cover_frame: boolean
         avatar_frame: boolean
         avatar_border: boolean
+    }
+    global_styles?: {
+        font_family: string
+        text_color: string
+        muted_text_color: string
+        accent_color: string
+        base_font_size: number
+        widget_font_size: number
+        button_font_size: number
     }
 }
 
@@ -176,7 +186,62 @@ export interface RoyaltyDesignAsset {
     type: RoyaltyDesignType
     name: string
     description?: string | null
-    image_path: string
+    image_path: string | null
+    style_settings?: {
+        design_source?: 'simple' | 'image' | 'gif'
+        simple_theme?: 'classic' | 'comic' | 'glass' | 'pixel' | 'svg' | 'image_card'
+        simple_tail?: 'straight' | 'curve' | 'none'
+        simple_accent?: string
+        simple_received_bg?: string
+        simple_sent_bg?: string
+        simple_border_width?: number
+        simple_border_color?: string
+        simple_radius?: number
+        simple_bg_mode?: 'color' | 'image'
+        simple_bg_image?: string
+        simple_bg_fit?: 'cover' | 'contain' | 'stretch'
+        simple_background?: string
+        font_url?: string
+        text_transform?: 'none' | 'uppercase' | 'lowercase'
+        design_mode?: 'slice' | 'custom'
+        sample_text?: string
+        font_family?: string
+        font_size?: number
+        font_weight?: 'normal' | 'medium' | 'bold'
+        font_style?: 'normal' | 'italic'
+        text_align?: 'left' | 'center' | 'right'
+        content_align_y?: 'start' | 'center' | 'end'
+        content_layer?: number
+        name_layer?: number
+        text_layer?: number
+        text_name_combined_layer?: boolean
+        preview_width?: number
+        preview_height?: number
+        fit_mode?: 'cover' | 'stretch' | 'stay'
+        position_x?: number
+        position_y?: number
+        move_x?: number
+        move_y?: number
+        slice_top?: number
+        slice_right?: number
+        slice_bottom?: number
+        slice_left?: number
+        clip_to_parent?: boolean
+        trim_transparent_padding?: boolean
+        custom_parts?: {
+            top_left?: boolean | RoyaltyDesignPiece
+            top?: boolean | RoyaltyDesignPiece
+            top_right?: boolean | RoyaltyDesignPiece
+            left?: boolean | RoyaltyDesignPiece
+            center?: boolean | RoyaltyDesignPiece
+            right?: boolean | RoyaltyDesignPiece
+            bottom_left?: boolean | RoyaltyDesignPiece
+            bottom?: boolean | RoyaltyDesignPiece
+            bottom_right?: boolean | RoyaltyDesignPiece
+        }
+        custom_extra_pieces?: RoyaltyDesignPiece[]
+        image_layers?: RoyaltyDesignImageLayer[]
+    } | null
     is_active: boolean
     is_public?: boolean
     subscription_free?: boolean
@@ -188,6 +253,48 @@ export interface RoyaltyDesignAsset {
     sort_order: number
     created_at: string
     updated_at: string
+}
+
+export interface RoyaltyDesignPiece {
+    id?: string
+    label?: string
+    enabled?: boolean
+    source_x?: number
+    source_y?: number
+    source_w?: number
+    source_h?: number
+    x?: number
+    y?: number
+    w?: number
+    h?: number
+    move_x?: number
+    move_y?: number
+    fit_mode?: 'cover' | 'stretch' | 'stay'
+    position_x?: number
+    position_y?: number
+    background_color?: string
+    border_radius?: number
+    opacity?: number
+    rotation?: number
+    z_index?: number
+}
+
+export interface RoyaltyDesignImageLayer {
+    id?: string
+    name?: string
+    preview_url?: string
+    x?: number
+    y?: number
+    w?: number
+    h?: number
+    fit_mode?: 'cover' | 'stretch' | 'stay'
+    position_x?: number
+    position_y?: number
+    move_x?: number
+    move_y?: number
+    rotation?: number
+    opacity?: number
+    z_index?: number
 }
 
 export interface ArtistProfileBlock {
@@ -210,7 +317,7 @@ export interface ArtistProfileBlock {
     h: number
     padding_x: number
     padding_y: number
-    fit_mode: 'contain' | 'cover' | 'stretch'
+    fit_mode: 'cover' | 'stretch' | 'stay'
     font_size: number
     z_index: number
     rotation: number
@@ -303,6 +410,7 @@ export interface ArtistProfileResponse {
         works_total: number
         arts_total: number
         followers_count: number
+        total_likes: number
         feed_posts_count: number
         is_following: boolean
     }

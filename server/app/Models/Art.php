@@ -35,6 +35,7 @@ class Art extends Model
         'super_likes_count',
         'super_like_credits',
         'public_sort_order',
+        'is_featured',
     ];
 
     protected $hidden = [
@@ -53,6 +54,7 @@ class Art extends Model
             'super_likes_count' => 'integer',
             'super_like_credits' => 'decimal:2',
             'public_sort_order' => 'integer',
+            'is_featured' => 'boolean',
             'labels' => 'array',
         ];
     }
@@ -80,6 +82,11 @@ class Art extends Model
     public function downloads()
     {
         return $this->hasMany(ArtDownload::class);
+    }
+
+    public function downloadFiles()
+    {
+        return $this->hasMany(ArtDownloadFile::class)->orderBy('sort_order');
     }
 
     public function viewRecords()

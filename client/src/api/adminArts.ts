@@ -66,6 +66,10 @@ export const adminArtsApi = {
         api.post('/admin/royalty-designs', data, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
+    updateRoyaltyDesign: (id: string, data: FormData) =>
+        api.post(`/admin/royalty-designs/${id}`, data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
     deleteRoyaltyDesign: (id: string) => api.delete(`/admin/royalty-designs/${id}`),
     watermarks: () =>
         api.get<{ watermarks: ArtWatermark[]; settings: ArtWatermarkSettings }>(

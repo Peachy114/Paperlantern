@@ -262,22 +262,35 @@ class ArtController extends Controller
             'type' => ['required', Rule::in(RoyaltyDesignAsset::TYPES)],
             'name' => ['required', 'string', 'max:80'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'image' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
+            'image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
             'is_active' => ['sometimes', 'boolean'],
             'publish_public' => ['sometimes', 'boolean'],
             'subscription_free' => ['sometimes', 'boolean'],
+            'style_settings' => ['nullable', 'json'],
         ]);
         $publishPublic = $request->boolean('publish_public', true);
+        $styleSettings = isset($validated['style_settings'])
+            ? json_decode($validated['style_settings'], true)
+            : null;
+        $source = is_array($styleSettings) ? ($styleSettings['design_source'] ?? 'image') : 'image';
+        $simpleMessage = $validated['type'] === 'message_design' && $source === 'simple';
+
+        if (! $simpleMessage && ! $request->hasFile('image')) {
+            return response()->json(['message' => 'Image or GIF is required for this design type.'], 422);
+        }
 
         $asset = RoyaltyDesignAsset::create([
             'user_id' => $request->user()->id,
             'type' => $validated['type'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
-            'image_path' => $request->file('image')->store("royalty-designs/{$validated['type']}", 'public'),
+            'image_path' => $request->hasFile('image')
+                ? $request->file('image')->store("royalty-designs/{$validated['type']}", 'public')
+                : '',
             'is_active' => $request->boolean('is_active', true),
             'is_public' => $publishPublic,
             'subscription_free' => $request->boolean('subscription_free'),
+            'style_settings' => is_array($styleSettings) ? $styleSettings : null,
             'published_at' => $publishPublic ? now() : null,
             'sort_order' => ((int) RoyaltyDesignAsset::where('type', $validated['type'])->max('sort_order')) + 1,
         ]);
@@ -287,10 +300,56 @@ class ArtController extends Controller
 
     public function destroyRoyaltyDesign(RoyaltyDesignAsset $asset): JsonResponse
     {
-        \Storage::disk('public')->delete($asset->image_path);
+        if ($asset->image_path) {
+            \Storage::disk('public')->delete($asset->image_path);
+        }
         $asset->delete();
 
         return response()->json(['message' => 'Design asset deleted.']);
+    }
+
+    public function updateRoyaltyDesign(Request $request, RoyaltyDesignAsset $asset): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
+            'is_active' => ['sometimes', 'boolean'],
+            'publish_public' => ['sometimes', 'boolean'],
+            'subscription_free' => ['sometimes', 'boolean'],
+            'style_settings' => ['nullable', 'json'],
+        ]);
+
+        $styleSettings = isset($validated['style_settings'])
+            ? json_decode($validated['style_settings'], true)
+            : null;
+        $source = is_array($styleSettings) ? ($styleSettings['design_source'] ?? 'image') : 'image';
+        $simpleMessage = $asset->type === 'message_design' && $source === 'simple';
+
+        if ($request->hasFile('image')) {
+            if ($asset->image_path) {
+                \Storage::disk('public')->delete($asset->image_path);
+            }
+            $asset->image_path = $request->file('image')->store("royalty-designs/{$asset->type}", 'public');
+        }
+
+        if (! $simpleMessage && ! $asset->image_path) {
+            return response()->json(['message' => 'Image or GIF is required for this design type.'], 422);
+        }
+
+        $publishPublic = $request->boolean('publish_public', $asset->is_public);
+        $asset->fill([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'is_active' => $request->boolean('is_active', $asset->is_active),
+            'is_public' => $publishPublic,
+            'subscription_free' => $request->boolean('subscription_free', $asset->subscription_free),
+            'style_settings' => is_array($styleSettings) ? $styleSettings : null,
+            'published_at' => $publishPublic ? ($asset->published_at ?? now()) : null,
+        ]);
+        $asset->save();
+
+        return response()->json($asset);
     }
 
     public function watermarks(): JsonResponse

@@ -47,6 +47,11 @@ class FeedPost extends Model
         return $this->hasMany(FeedPostImage::class)->orderBy('sort_order');
     }
 
+    public function attachments()
+    {
+        return $this->hasMany(FeedPostAttachment::class)->orderBy('sort_order');
+    }
+
     public function attachedWork()
     {
         return $this->belongsTo(Work::class, 'attached_work_id');

@@ -12,6 +12,7 @@ interface NavbarViewProps {
     token: string | null
     isChapterPage: boolean
     isComicsActive: boolean
+    isDailyActive: boolean
     isNovelsActive: boolean
     isCommissionsActive: boolean
     navbarHidden: boolean
@@ -25,6 +26,7 @@ export default function NavbarView({
     user,
     token,
     isChapterPage,
+    isDailyActive,
     isComicsActive,
     isNovelsActive,
     isCommissionsActive,
@@ -35,6 +37,7 @@ export default function NavbarView({
     setProfileOpen,
 }: NavbarViewProps) {
     const navLinks = [
+        // { label: 'DAILY', to: '/daily', active: isDailyActive }, Close
         { label: 'COMIX', to: '/comix', active: isComicsActive },
         { label: 'ARTS', to: '/explore/arts', active: isNovelsActive },
         { label: 'COMMISSION', to: '/commissions', active: isCommissionsActive },
@@ -56,12 +59,7 @@ export default function NavbarView({
                 {/* LOGO — left column */}
                 <div className="flex items-center gap-4 justify-self-start">
                     <Link to="/" className="shrink-0">
-                        <ThemedLogo
-                            width={100}
-                            height={100}
-                            fetchPriority="high"
-                            decoding="async"
-                        />
+                        <ThemedLogo width={60} height={60} fetchPriority="high" decoding="async" />
                     </Link>
                 </div>
 

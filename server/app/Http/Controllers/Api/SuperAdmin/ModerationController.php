@@ -8,6 +8,7 @@ use App\Models\Comment;
 use App\Models\CommissionDeliveryFile;
 use App\Models\CommissionMessage;
 use App\Models\ContentSuspension;
+use App\Models\FeedPostImage;
 use App\Models\StickyNote;
 use App\Models\User;
 use App\Models\Work;
@@ -94,6 +95,37 @@ class ModerationController extends Controller
         return response()->json([
             ...$result,
             'comment' => $comment->fresh(['user:id,name,username,strike_count,is_suspended']),
+        ]);
+    }
+
+    public function approveFeedPostImage(Request $request, FeedPostImage $image): JsonResponse
+    {
+        $image->update(['moderation_status' => 'approved']);
+
+        return response()->json([
+            'message' => 'Feed image approved.',
+            'feed_image' => $image->fresh(['feedPost.user:id,name,username,strike_count,is_suspended']),
+        ]);
+    }
+
+    public function suspendFeedPostImage(Request $request, FeedPostImage $image): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $result = $this->contentSuspensions->suspend(
+            $image,
+            $request->user(),
+            $validated['reason'],
+            'image_path'
+        );
+
+        $image->update(['moderation_status' => 'suspended']);
+
+        return response()->json([
+            ...$result,
+            'feed_image' => $image->fresh(['feedPost.user:id,name,username,strike_count,is_suspended']),
         ]);
     }
 

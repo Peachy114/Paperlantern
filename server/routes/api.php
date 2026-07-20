@@ -182,6 +182,8 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::post('/noble-royalty/subscriptions/{plan}/subscribe', [NobleRoyaltyController::class, 'subscribe']);
     Route::get('/feeds', [FeedController::class, 'index']);
     Route::post('/feeds', [FeedController::class, 'store']);
+    Route::put('/feeds/{post}', [FeedController::class, 'update']);
+    Route::delete('/feeds/{post}', [FeedController::class, 'destroy']);
     Route::post('/feeds/{post}/like', [FeedController::class, 'toggleLike']);
     Route::post('/feeds/{post}/report', [FeedController::class, 'report']);
     Route::get('/boosts/prices',              [FeatureBoostController::class, 'prices']);
@@ -254,6 +256,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::delete('/stickers/{sticker}', [AdminArtController::class, 'destroySticker']);
         Route::get('/royalty-designs/{type}', [AdminArtController::class, 'royaltyDesigns']);
         Route::post('/royalty-designs', [AdminArtController::class, 'storeRoyaltyDesign']);
+        Route::post('/royalty-designs/{asset}', [AdminArtController::class, 'updateRoyaltyDesign']);
         Route::delete('/royalty-designs/{asset}', [AdminArtController::class, 'destroyRoyaltyDesign']);
         Route::get('/noble-royalty/subscription-plans', [NobleRoyaltyController::class, 'adminPlans']);
         Route::post('/noble-royalty/subscription-plans', [NobleRoyaltyController::class, 'storePlan']);
@@ -294,6 +297,8 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
             Route::put('/suspensions/{suspension}/restore',          [ModerationController::class, 'restoreSuspension']);
             Route::put('/comments/{comment}/image/approve',          [ModerationController::class, 'approveCommentImage']);
             Route::put('/comments/{comment}/image/suspend',          [ModerationController::class, 'suspendCommentImage']);
+            Route::put('/feed-images/{image}/approve',               [ModerationController::class, 'approveFeedPostImage']);
+            Route::put('/feed-images/{image}/suspend',               [ModerationController::class, 'suspendFeedPostImage']);
             Route::put('/commission-messages/{message}/image/approve', [ModerationController::class, 'approveCommissionMessageImage']);
             Route::put('/commission-messages/{message}/image/suspend', [ModerationController::class, 'suspendCommissionMessageImage']);
             Route::put('/commission-delivery-files/{file}/approve', [ModerationController::class, 'approveCommissionDeliveryFile']);

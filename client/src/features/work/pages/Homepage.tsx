@@ -8,6 +8,9 @@ import {
     CustomPageWidgetContent,
     PageWidgetFrame,
 } from '@/features/page-builder/PageWidgetFrame'
+import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
+import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
+import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
 import type { WorkItem } from '@/features/work/hooks/useHome'
 
 const WeeklyChartSection = lazy(() => import('../components/WeeklyChartSection'))
@@ -59,12 +62,34 @@ export default function Homepage() {
                                         if (filter === 'art') return work.type === 'art'
                                         return work.type === 'webtoon'
                                     })
-                            const limit = widget.settings.limit ?? 12
+                            const limit = widget.settings.limit ?? 10
 
                             if (widget.type === 'hero') {
                                 return (
                                     <PageWidgetFrame key={widget.id} widget={widget}>
                                         <HeroSection audience="public" />
+                                    </PageWidgetFrame>
+                                )
+                            }
+
+                            if (widget.type === 'featured_hero') {
+                                return (
+                                    <PageWidgetFrame key={widget.id} widget={widget}>
+                                        <FeaturedHeroWidget
+                                            widget={widget}
+                                            works={[...hero, ...weeklyChart, ...freshReleases, ...popularWorks, ...topLikedWorks]}
+                                        />
+                                    </PageWidgetFrame>
+                                )
+                            }
+
+                            if (widget.type === 'group_hero') {
+                                return (
+                                    <PageWidgetFrame key={widget.id} widget={widget}>
+                                        <GroupHeroWidget
+                                            widget={widget}
+                                            works={[...hero, ...weeklyChart, ...freshReleases, ...popularWorks, ...topLikedWorks]}
+                                        />
                                     </PageWidgetFrame>
                                 )
                             }
@@ -81,6 +106,14 @@ export default function Homepage() {
                                 return (
                                     <PageWidgetFrame key={widget.id} widget={widget}>
                                         <AnnouncementWidget audience="public" />
+                                    </PageWidgetFrame>
+                                )
+                            }
+
+                            if (widget.type === 'content_tabs') {
+                                return (
+                                    <PageWidgetFrame key={widget.id} widget={widget}>
+                                        <ContentTabsWidget widget={widget} />
                                     </PageWidgetFrame>
                                 )
                             }

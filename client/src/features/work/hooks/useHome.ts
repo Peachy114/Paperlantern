@@ -23,6 +23,7 @@ export interface WorkItem {
     weekly_views?: number
     created_at?: string
     status?: 'draft' | 'ongoing' | 'completed' | 'hiatus' | 'published'
+    is_featured?: boolean
 }
 
 export interface ChapterItem {

@@ -79,6 +79,10 @@ type ImageDraft = {
     description: string
 }
 
+type DownloadFileDraft = {
+    file: File
+}
+
 type FormState = {
     title: string
     description: string
@@ -89,6 +93,7 @@ type FormState = {
     downloadCredits: number
     applyWatermark: boolean
     images: ImageDraft[]
+    downloadFiles: DownloadFileDraft[]
 }
 
 type ConfirmState =
@@ -107,6 +112,7 @@ const EMPTY_FORM: FormState = {
     downloadCredits: 1,
     applyWatermark: true,
     images: [],
+    downloadFiles: [],
 }
 
 const STATUS_COLOR: Record<ArtStatus, string> = {
@@ -170,6 +176,7 @@ export default function MyArts() {
             downloadCredits: art.download_credits || 1,
             applyWatermark: art.apply_watermark ?? true,
             images: [],
+            downloadFiles: [],
         })
         setFormOpen(true)
     }
@@ -195,6 +202,14 @@ export default function MyArts() {
         }))
     }
 
+    const handleDownloadFiles = (event: ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files ?? []).slice(0, 10)
+        setForm((current) => ({
+            ...current,
+            downloadFiles: files.map((file) => ({ file })),
+        }))
+    }
+
     const buildPayload = () => {
         const payload = new FormData()
 
@@ -210,6 +225,9 @@ export default function MyArts() {
         form.images.forEach((image) => {
             payload.append('images[]', image.file)
             payload.append('image_descriptions[]', image.description)
+        })
+        form.downloadFiles.forEach((downloadFile) => {
+            payload.append('download_files[]', downloadFile.file)
         })
 
         return payload
@@ -633,6 +651,40 @@ export default function MyArts() {
                                     New uploads replace the current image set when editing.
                                 </p>
                             </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="art-download-files">Download files</Label>
+                                {editing && form.downloadFiles.length === 0 && (
+                                    <ExistingDownloadFiles art={editing} />
+                                )}
+                                {form.downloadFiles.length > 0 && (
+                                    <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-sm">
+                                        {form.downloadFiles.map(({ file }, index) => (
+                                            <div
+                                                key={`${file.name}-${index}`}
+                                                className="flex items-center justify-between gap-3 rounded-md bg-background px-3 py-2"
+                                            >
+                                                <span className="truncate">{file.name}</span>
+                                                <span className="shrink-0 text-xs text-muted-foreground">
+                                                    {formatBytes(file.size)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                <Input
+                                    id="art-download-files"
+                                    type="file"
+                                    multiple
+                                    accept="image/png,image/jpeg,image/webp,image/gif,.zip,application/zip"
+                                    onChange={handleDownloadFiles}
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Optional. Add zip files or clean images to include with the
+                                    original download bundle. New files replace the current download
+                                    file set when editing.
+                                </p>
+                            </div>
                         </div>
 
                         <DialogFooter>
@@ -890,6 +942,34 @@ function ExistingImagesPreview({ art }: { art: Art }) {
                             {image.description}
                         </p>
                     )}
+                </div>
+            ))}
+        </div>
+    )
+}
+
+function ExistingDownloadFiles({ art }: { art: Art }) {
+    const files = art.download_files ?? []
+
+    if (files.length === 0) {
+        return (
+            <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
+                No extra download files attached. Buyers will receive the clean original image.
+            </p>
+        )
+    }
+
+    return (
+        <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-sm">
+            {files.map((file) => (
+                <div
+                    key={file.id}
+                    className="flex items-center justify-between gap-3 rounded-md bg-background px-3 py-2"
+                >
+                    <span className="truncate">{file.original_name || 'Download file'}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatBytes(file.size_bytes)}
+                    </span>
                 </div>
             ))}
         </div>
@@ -1284,6 +1364,15 @@ function getArtImages(art: Art) {
             updated_at: art.updated_at,
         },
     ]
+}
+
+function formatBytes(bytes: number) {
+    if (!bytes) return '0 B'
+    const units = ['B', 'KB', 'MB', 'GB']
+    const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+    const value = bytes / 1024 ** exponent
+
+    return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`
 }
 
 function getFirstImagePath(art: Art) {

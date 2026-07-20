@@ -19,7 +19,7 @@ class PublicWorkRepository
             ->has('chapters')
             ->orderByDesc('views')
             ->limit(5)
-            ->get(['id', 'slug', 'title', 'cover', 'banner', 'type', 'genres', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'description', 'status']);
+            ->get(['id', 'slug', 'title', 'cover', 'banner', 'type', 'genres', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'description', 'status', 'is_featured']);
     }
 
     public function getWeeklyChart(): \Illuminate\Database\Eloquent\Collection
@@ -31,7 +31,7 @@ class PublicWorkRepository
             }])
             ->orderByDesc('weekly_views')
             ->limit(10)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'is_featured']);
     }
 
     public function getFreshReleases(): \Illuminate\Database\Eloquent\Collection
@@ -41,7 +41,7 @@ class PublicWorkRepository
             ->where('created_at', '>=', now()->subMonths(3))
             ->orderByDesc('created_at')
             ->limit(24)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'is_featured']);
     }
 
     public function getDailyWorks(string $type = 'all', int $limit = 12): \Illuminate\Database\Eloquent\Collection
@@ -52,7 +52,7 @@ class PublicWorkRepository
             ->where('created_at', '>=', now()->subDay())
             ->orderByDesc('views')
             ->limit($limit)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status', 'is_featured']);
     }
 
     public function getTodayReleaseChapters(string $type = 'all', int $limit = 12): \Illuminate\Database\Eloquent\Collection
@@ -93,7 +93,7 @@ class PublicWorkRepository
             ->orderByDesc('views')
             ->orderByDesc('work_likes_count')
             ->limit($limit)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'views', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'views', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status', 'is_featured']);
     }
 
     public function getTopLikedWorks(string $type = 'all', int $limit = 10): \Illuminate\Database\Eloquent\Collection
@@ -103,7 +103,7 @@ class PublicWorkRepository
             ->when($type !== 'all', fn($query) => $query->where('type', $type))
             ->orderByRaw('(work_likes_count + likes + super_likes_count) DESC')
             ->limit($limit)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'views', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'views', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status', 'is_featured']);
     }
 
     public function getLatestChapters(): \Illuminate\Database\Eloquent\Collection

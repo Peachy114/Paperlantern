@@ -1,4 +1,4 @@
-export type PageKey = 'home' | 'arts' | 'commissions'
+export type PageKey = 'home' | 'comix' | 'arts' | 'commissions' | 'daily' | 'rankings' | 'genre'
 
 export type PageBoardItemType = 'sticker' | 'image' | 'text'
 
@@ -35,6 +35,32 @@ export interface PageWidgetSettings {
     metric?: 'views' | 'likes'
     limit?: number
     allow_overlap?: boolean
+    hero_design?: 'default' | 'reference_1' | 'reference_2' | 'reference_3'
+    hero_show_name?: boolean
+    hero_show_artist?: boolean
+    hero_show_views?: boolean
+    hero_show_likes?: boolean
+    hero_show_favorite?: boolean
+    hero_label_style?: 'badges' | 'plain'
+    hero_source_arts?: boolean
+    hero_source_announcements?: boolean
+    hero_source_works?: boolean
+    hero_source_commissions?: boolean
+    hero_featured_only?: boolean
+    group_hero_design?: 'default' | 'popular_arts' | 'spotlight_stack'
+    group_source_arts?: boolean
+    group_source_comix?: boolean
+    group_source_novels?: boolean
+    group_source_commissions?: boolean
+    group_sort?: 'popular' | 'latest' | 'likes' | 'views' | 'featured'
+    group_filter_labels?: string
+    group_view_all_enabled?: boolean
+    group_view_all_sort?: 'popular' | 'latest' | 'likes' | 'views' | 'featured'
+    tabs_show_main?: boolean
+    tabs_show_comix?: boolean
+    tabs_show_novels?: boolean
+    tabs_show_arts?: boolean
+    tabs_show_commissions?: boolean
     selected_board_item_id?: string
     board_items?: PageBoardItem[]
 }

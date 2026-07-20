@@ -9,6 +9,7 @@ export interface Art {
     labels: string[] | null
     image_path: string
     images: ArtImage[]
+    download_files?: ArtDownloadFile[]
     status: ArtStatus
     moderation_status: 'pending' | 'approved' | 'rejected'
     download_policy: ArtDownloadPolicy
@@ -24,6 +25,7 @@ export interface Art {
     super_like_credits: number
     public_sort_order?: number | null
     boosted_until?: string | null
+    is_featured?: boolean
     user?: {
         id: string
         name: string
@@ -42,6 +44,17 @@ export interface ArtImage {
     art_id: string
     image_path: string
     description: string | null
+    sort_order: number
+    created_at: string
+    updated_at: string
+}
+
+export interface ArtDownloadFile {
+    id: string
+    art_id: string
+    original_name: string | null
+    mime_type: string | null
+    size_bytes: number
     sort_order: number
     created_at: string
     updated_at: string

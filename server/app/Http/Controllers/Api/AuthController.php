@@ -19,10 +19,15 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name'     => ['required', 'string', 'max:255'],
+            'nickname' => ['nullable', 'string', 'max:80'],
             'username' => ['required', 'string', 'max:50', 'unique:users,username'],
             'email'    => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
             'role'     => ['required', 'in:wanderer,storyteller'],
+            'twitter_url'   => ['nullable', 'url', 'max:255'],
+            'discord_url'   => ['nullable', 'string', 'max:255'],
+            'instagram_url' => ['nullable', 'url', 'max:255'],
+            'tiktok_url'    => ['nullable', 'url', 'max:255'],
         ]);
 
         return response()->json($this->service->register($validated), 201);
@@ -94,11 +99,13 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'name'          => ['sometimes', 'string', 'max:255'],
+            'nickname'      => ['nullable', 'string', 'max:80'],
             'username'      => ['sometimes', 'string', 'max:50', 'unique:users,username,' . $user->id],
             'email'         => ['sometimes', 'email', 'unique:users,email,' . $user->id],
             'bio'           => ['nullable', 'string', 'max:500'],
             'avatar'        => ['nullable', 'image', 'max:10240'],
             'twitter_url'   => ['nullable', 'url', 'max:255'],
+            'discord_url'   => ['nullable', 'string', 'max:255'],
             'instagram_url' => ['nullable', 'url', 'max:255'],
             'tiktok_url'    => ['nullable', 'url', 'max:255'],
             'account_menu_style' => ['sometimes', 'string', 'in:circular,detailed'],

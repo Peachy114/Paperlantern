@@ -218,6 +218,8 @@ class CommissionAccountController extends Controller
             'status' => $order->status,
             'request_message' => $order->request_message,
             'reference_notes' => $order->reference_notes,
+            'request_answers' => $order->request_answers ?? [],
+            'client_details' => $order->client_details ?? [],
             'quote_credits' => (int) $order->quote_credits,
             'quote_note' => $order->quote_note,
             'credits_checked' => (int) $order->credits_checked,

@@ -1,6 +1,6 @@
 import type { ArtistSticker } from '@/types/artistProfile'
 
-export type CommentTargetType = 'work' | 'chapter' | 'art' | 'comment'
+export type CommentTargetType = 'work' | 'chapter' | 'art' | 'comment' | 'feed'
 export type CommentSort = 'all' | 'latest' | 'popular'
 
 export interface SuperLikeAward {

@@ -9,6 +9,7 @@ export const Pages = {
     ComicShow: lazy(() => import('@/features/work/pages/WorkOverview')),
     ComicChapter: lazy(() => import('@/features/work/pages/WorkShow')),
     Comix: lazy(() => import('@/features/work/pages/Comix')),
+    DiscoveryPage: lazy(() => import('@/features/work/pages/DiscoveryPage')),
     ExploreArts: lazy(() => import('@/features/arts/pages/ExploreArts')),
     ExploreCommissions: lazy(() => import('@/features/commissions/pages/ExploreCommissions')),
     ArtistProfile: lazy(() => import('@/features/artist-profile/pages/ArtistProfile')),

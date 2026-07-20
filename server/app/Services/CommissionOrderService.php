@@ -302,6 +302,12 @@ class CommissionOrderService
             $amount = max(0, (int) $order->quote_credits - (int) $order->escrow_credits);
             if ($amount > 0) {
                 $wallet = $this->wallets->findOrCreateByUser($customer->id);
+                abort_if(
+                    (int) $wallet->fresh()->balance < $amount,
+                    402,
+                    "You need {$amount} credits to pay the final delivery."
+                );
+
                 $transaction = $this->wallets->debit($wallet, $amount, [
                     'source' => 'commission_escrow',
                     'description' => 'Commission final payment',

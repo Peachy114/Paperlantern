@@ -85,7 +85,9 @@ export default function CreateWorkView() {
                 : selectedDays.length >= 2
                   ? [selectedDays[1], day]
                   : [...selectedDays, day]
-            handleChange({ target: { name: 'schedule', value: `biweekly:${next.join(',')}` } } as any)
+            handleChange({
+                target: { name: 'schedule', value: `biweekly:${next.join(',')}` },
+            } as any)
         }
     }
 

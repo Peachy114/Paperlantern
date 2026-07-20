@@ -2,10 +2,12 @@ import {
     Fragment,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type ChangeEvent,
     type CSSProperties,
     type DragEvent,
+    type ReactNode,
     type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { Link } from 'react-router-dom'
@@ -32,59 +34,68 @@ import {
     fontFamilyFromUrl,
     widgetStyle,
 } from '@/features/page-builder/PageWidgetFrame'
+import {
+    createBoardItem,
+    createWidget,
+    GRID_OPTIONS,
+    PAGES,
+    WIDGET_TYPES,
+} from '@/features/admin/page-customizer/pageCustomizerRegistry'
+import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
+import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
+import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
 import AnnouncementWidget from '@/features/announcements/components/AnnouncementWidget'
 import HeroSection from '@/features/work/components/HeroSection'
 import WeeklyChartSection from '@/features/work/components/WeeklyChartSection'
 import FreshReleasesSection from '@/features/work/components/FreshReleasesSection'
 import LatestChaptersSection from '@/features/work/components/LatestChaptersSection'
 
-const PAGES: { key: PageKey; label: string }[] = [
-    { key: 'home', label: 'Homepage' },
-    { key: 'arts', label: 'Arts' },
-    { key: 'commissions', label: 'Commission' },
-]
+//// Helper Types and Functions ----
+type DragPayload = { source: 'palette'; type: string } | { source: 'canvas'; id: string }
 
-const WIDGET_TYPES: Record<PageKey, { value: string; label: string }[]> = {
-    home: [
-        { value: 'hero', label: 'Hero' },
-        { value: 'announcement_hero', label: 'Announcement Hero' },
-        { value: 'announcement_banner', label: 'Announcement Banner' },
-        { value: 'weekly', label: 'Weekly' },
-        { value: 'today_releases', label: "Today's Releases" },
-        { value: 'today_top', label: "Today's Top 10" },
-        { value: 'fresh', label: 'Fresh Release' },
-        { value: 'latest', label: 'Latest Chapters' },
-        { value: 'popular', label: 'Popular' },
-        { value: 'top_liker', label: 'Top Liker' },
-        { value: 'text', label: 'Text' },
-        { value: 'image', label: 'Image' },
-        { value: 'sticker', label: 'Sticker' },
-        { value: 'board', label: 'Board' },
-        { value: 'spacer', label: 'Empty Space' },
-    ],
-    arts: [
-        { value: 'featured_artists', label: 'Featured Artists' },
-        { value: 'labels', label: 'Labels' },
-        { value: 'arts_grid', label: 'Arts Grid' },
-        { value: 'text', label: 'Text' },
-        { value: 'image', label: 'Image' },
-        { value: 'sticker', label: 'Sticker' },
-        { value: 'board', label: 'Board' },
-        { value: 'spacer', label: 'Empty Space' },
-    ],
-    commissions: [
-        { value: 'commission_grid', label: 'Commission Grid' },
-        { value: 'boosted_commissions', label: 'Boosted Commissions' },
-        { value: 'featured_artists', label: 'Featured Artists' },
-        { value: 'text', label: 'Text' },
-        { value: 'image', label: 'Image' },
-        { value: 'sticker', label: 'Sticker' },
-        { value: 'board', label: 'Board' },
-        { value: 'spacer', label: 'Empty Space' },
-    ],
+function parseDragPayload(raw: string): DragPayload | null {
+    try {
+        const value = JSON.parse(raw) as Partial<DragPayload>
+
+        if (value.source === 'palette' && typeof value.type === 'string') {
+            return { source: 'palette', type: value.type }
+        }
+
+        if (value.source === 'canvas' && typeof value.id === 'string') {
+            return { source: 'canvas', id: value.id }
+        }
+
+        return null
+    } catch {
+        return null
+    }
 }
 
-const GRID_OPTIONS = ['standard', 'masonry', 'bento', 'magazine', 'gallery', 'carousel']
+function createRafPointerMove(handler: (event: PointerEvent) => void) {
+    let frameId: number | null = null
+    let latestEvent: PointerEvent | null = null
+
+    const move = (event: PointerEvent) => {
+        latestEvent = event
+        if (frameId !== null) return
+
+        frameId = window.requestAnimationFrame(() => {
+            frameId = null
+            if (!latestEvent) return
+            handler(latestEvent)
+        })
+    }
+
+    const cancel = () => {
+        if (frameId !== null) {
+            window.cancelAnimationFrame(frameId)
+        }
+        frameId = null
+        latestEvent = null
+    }
+
+    return { move, cancel }
+}
 
 function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max)
@@ -126,6 +137,11 @@ function isEditableOverlay(widget: PageWidget) {
     )
 }
 
+// ============================================================================
+// SECTION 2: PREVIEW API DATA TYPES ----
+// Update these interfaces when your API adds new preview response fields.
+// ============================================================================
+//// Home Preview Data ----
 interface HomePreviewData {
     weeklyChart: WorkItem[]
     todayReleases: WorkItem[]
@@ -138,6 +154,7 @@ interface HomePreviewData {
     topLikedWorks: WorkItem[]
 }
 
+//// Arts Preview Data ----
 interface ArtsPreviewData {
     featured_artists: {
         id: string
@@ -150,16 +167,22 @@ interface ArtsPreviewData {
     arts: { data: Art[] }
 }
 
+//// Commissions Preview Data ----
 interface CommissionPreviewData {
     commissions: { data: CommissionService[] }
 }
 
+// ============================================================================
+// SECTION 3: MAIN PAGE BUILDER STATE, QUERIES, SAVE, RESET, AND LAYOUT ----
+// ============================================================================
 export default function PageCustomizer() {
     const [page, setPage] = useState<PageKey>('home')
     const [widgets, setWidgets] = useState<PageWidget[]>([])
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const [hoverIndex, setHoverIndex] = useState<number | null>(null)
     const queryClient = useQueryClient()
+    const canvasRef = useRef<HTMLDivElement>(null)
+    const widgetRefs = useRef<Map<string, HTMLElement>>(new Map())
 
     const layout = useQuery({
         queryKey: ['admin-page-layout', page],
@@ -168,7 +191,7 @@ export default function PageCustomizer() {
 
     const homePreview = useQuery<HomePreviewData>({
         queryKey: ['page-builder-home-preview'],
-        enabled: page === 'home',
+        enabled: ['home', 'comix', 'daily', 'rankings', 'genre'].includes(page),
         queryFn: () => api.get('/public/home').then((res) => res.data),
         staleTime: 60_000,
     })
@@ -195,33 +218,37 @@ export default function PageCustomizer() {
     const invalidatePagePreview = () => {
         queryClient.invalidateQueries({ queryKey: ['admin-page-layout', page] })
 
-        if (page === 'home') {
+        if (['home', 'comix', 'daily', 'rankings', 'genre'].includes(page)) {
             queryClient.invalidateQueries({ queryKey: ['home'] })
-            queryClient.invalidateQueries({ queryKey: ['page-builder-home-preview'] })
+            queryClient.invalidateQueries({
+                queryKey: ['page-builder-home-preview'],
+            })
         }
 
         if (page === 'arts') {
             queryClient.invalidateQueries({ queryKey: ['public-arts'] })
-            queryClient.invalidateQueries({ queryKey: ['page-builder-arts-preview'] })
+            queryClient.invalidateQueries({
+                queryKey: ['page-builder-arts-preview'],
+            })
         }
 
         if (page === 'commissions') {
             queryClient.invalidateQueries({ queryKey: ['public-commissions'] })
-            queryClient.invalidateQueries({ queryKey: ['page-builder-commissions-preview'] })
+            queryClient.invalidateQueries({
+                queryKey: ['page-builder-commissions-preview'],
+            })
         }
     }
 
     const widgetsForSave = () => {
-        const canvas = document.querySelector<HTMLElement>('[data-page-canvas="true"]')
+        const canvas = canvasRef.current
         const canvasRect = canvas?.getBoundingClientRect()
         if (!canvasRect || canvasRect.width <= 0 || canvasRect.height <= 0) return widgets
 
         return widgets.map((widget) => {
             if (!isEditableOverlay(widget)) return widget
 
-            const frame = document.querySelector<HTMLElement>(
-                `[data-page-widget-id="${widget.id}"]`
-            )
+            const frame = widgetRefs.current.get(widget.id)
             if (!frame) return widget
             const frameRect = frame.getBoundingClientRect()
 
@@ -315,10 +342,8 @@ export default function PageCustomizer() {
     }
 
     const updateOverlayPlacement = (id: string, enabled: boolean) => {
-        const frame = Array.from(
-            document.querySelectorAll<HTMLElement>('[data-page-widget-id]')
-        ).find((element) => element.dataset.pageWidgetId === id)
-        const canvas = frame?.closest<HTMLElement>('[data-page-canvas="true"]')
+        const frame = widgetRefs.current.get(id)
+        const canvas = canvasRef.current
         const frameRect = frame?.getBoundingClientRect()
         const canvasRect = canvas?.getBoundingClientRect()
 
@@ -359,11 +384,8 @@ export default function PageCustomizer() {
         const raw = event.dataTransfer.getData('application/x-latern-widget')
         if (!raw) return
 
-        const payload = JSON.parse(raw) as {
-            source: 'palette' | 'canvas'
-            type?: string
-            id?: string
-        }
+        const payload = parseDragPayload(raw)
+        if (!payload) return
         if (payload.source === 'palette' && payload.type) {
             insertWidget(payload.type, index)
             return
@@ -457,6 +479,7 @@ export default function PageCustomizer() {
 
                     <div className="max-h-[calc(100dvh-12rem)] overflow-auto bg-zinc-100 dark:bg-zinc-950">
                         <div
+                            ref={canvasRef}
                             data-page-canvas="true"
                             className="relative min-h-[calc(100dvh-12rem)] min-w-[60vw] bg-gradient-to-br from-white via-slate-100 to-slate-200 dark:from-black dark:via-zinc-900 dark:to-black"
                             style={{
@@ -496,8 +519,14 @@ export default function PageCustomizer() {
                                                 commissionData={commissionsPreview.data}
                                                 onSelect={() => setSelectedId(widget.id)}
                                                 onRemove={() => removeWidget(widget.id)}
-                                                onChange={(updater) => updateWidget(widget.id, updater)}
+                                                onChange={(updater) =>
+                                                    updateWidget(widget.id, updater)
+                                                }
                                                 onOverlayStyleChange={updateOverlayWidgetStyle}
+                                                registerFrame={(id, element) => {
+                                                    if (element) widgetRefs.current.set(id, element)
+                                                    else widgetRefs.current.delete(id)
+                                                }}
                                                 onDragOver={(event) => {
                                                     event.preventDefault()
                                                     const rect =
@@ -540,6 +569,9 @@ export default function PageCustomizer() {
     )
 }
 
+// ============================================================================
+// SECTION 4: CANVAS DROP ZONES AND WIDGET FRAME CONTROLS ----
+// ============================================================================
 function DropZone({
     index,
     active,
@@ -587,6 +619,7 @@ function CanvasWidget({
     onRemove,
     onChange,
     onOverlayStyleChange,
+    registerFrame,
     onDragOver,
     onDrop,
 }: {
@@ -600,6 +633,7 @@ function CanvasWidget({
     onRemove: () => void
     onChange: (updater: (widget: PageWidget) => PageWidget) => void
     onOverlayStyleChange: (id: string, style: Partial<PageWidget['style']>) => void
+    registerFrame: (id: string, element: HTMLElement | null) => void
     onDragOver?: (event: DragEvent<HTMLElement>) => void
     onDrop?: (event: DragEvent<HTMLElement>) => void
 }) {
@@ -629,7 +663,7 @@ function CanvasWidget({
         const previousUserSelect = document.body.style.userSelect
         document.body.style.userSelect = 'none'
 
-        const move = (moveEvent: PointerEvent) => {
+        const { move, cancel: cancelMove } = createRafPointerMove((moveEvent) => {
             if (base && rail && initialRailX !== null && initialCanvasY !== null) {
                 const nextX = Math.round(initialRailX + moveEvent.clientX - startX - base.x)
                 const nextY = Math.round(initialCanvasY + moveEvent.clientY - startY - base.y)
@@ -648,9 +682,10 @@ function CanvasWidget({
                 offset_y: Math.round(initialY + moveEvent.clientY - startY),
                 offset_y_percent: undefined,
             })
-        }
+        })
 
         const end = () => {
+            cancelMove()
             document.body.style.userSelect = previousUserSelect
             window.removeEventListener('pointermove', move)
             window.removeEventListener('pointerup', end)
@@ -681,7 +716,7 @@ function CanvasWidget({
         const previousUserSelect = document.body.style.userSelect
         document.body.style.userSelect = 'none'
 
-        const move = (moveEvent: PointerEvent) => {
+        const { move, cancel: cancelMove } = createRafPointerMove((moveEvent) => {
             const deltaX = moveEvent.clientX - startX
             const deltaY = moveEvent.clientY - startY
             if (widget.type === 'sticker') {
@@ -701,9 +736,10 @@ function CanvasWidget({
                     clamp(initialHeight + deltaY, widget.type === 'board' ? 160 : 24, 1600)
                 ),
             })
-        }
+        })
 
         const end = () => {
+            cancelMove()
             document.body.style.userSelect = previousUserSelect
             window.removeEventListener('pointermove', move)
             window.removeEventListener('pointerup', end)
@@ -732,16 +768,17 @@ function CanvasWidget({
         const previousUserSelect = document.body.style.userSelect
         document.body.style.userSelect = 'none'
 
-        const move = (moveEvent: PointerEvent) => {
+        const { move, cancel: cancelMove } = createRafPointerMove((moveEvent) => {
             const angle =
                 (Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX) * 180) /
                 Math.PI
             onOverlayStyleChange(widget.id, {
                 rotate: Math.round(angle + 45),
             })
-        }
+        })
 
         const end = () => {
+            cancelMove()
             document.body.style.userSelect = previousUserSelect
             window.removeEventListener('pointermove', move)
             window.removeEventListener('pointerup', end)
@@ -755,6 +792,7 @@ function CanvasWidget({
 
     return (
         <section
+            ref={(element) => registerFrame(widget.id, element)}
             data-page-widget-frame="true"
             data-page-widget-id={widget.id}
             data-page-overlay={editableOverlay ? 'true' : undefined}
@@ -844,6 +882,10 @@ function CanvasWidget({
     )
 }
 
+// ============================================================================
+// SECTION 5: WIDGET RENDER ROUTER ----
+// This decides which page-specific renderer receives the widget.
+// ============================================================================
 function WidgetContent({
     page,
     widget,
@@ -863,6 +905,10 @@ function WidgetContent({
         return null
     }
 
+    if (widget.type === 'content_tabs') {
+        return <ContentTabsWidget widget={widget} />
+    }
+
     if (widget.type === 'board') {
         return <EditableBoardWidget widget={widget} onChange={onChange} />
     }
@@ -871,7 +917,7 @@ function WidgetContent({
         return <CustomContentWidget widget={widget} />
     }
 
-    if (page === 'home') {
+    if (['home', 'comix', 'daily', 'rankings', 'genre'].includes(page)) {
         return <HomeWidget widget={widget} data={homeData} />
     }
 
@@ -885,7 +931,7 @@ function WidgetContent({
 function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewData }) {
     const cover = (path: string | null, variant?: 'sm') => (path ? storageUrl(path, variant) : null)
     const filter = widget.settings.filter ?? 'all'
-    const limit = widget.settings.limit ?? 12
+    const limit = widget.settings.limit ?? 10
     const byType = (works: WorkItem[] = []) =>
         filter === 'all'
             ? works
@@ -899,6 +945,36 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
         return (
             <BuilderPreviewLabel label="Hero">
                 <HeroSection audience="public" />
+            </BuilderPreviewLabel>
+        )
+    }
+    if (widget.type === 'featured_hero') {
+        return (
+            <BuilderPreviewLabel label="Featured Hero">
+                <FeaturedHeroWidget
+                    widget={widget}
+                    works={[
+                        ...(data?.weeklyChart ?? []),
+                        ...(data?.freshReleases ?? []),
+                        ...(data?.popularWorks ?? []),
+                        ...(data?.topLikedWorks ?? []),
+                    ]}
+                />
+            </BuilderPreviewLabel>
+        )
+    }
+    if (widget.type === 'group_hero') {
+        return (
+            <BuilderPreviewLabel label="Group Hero">
+                <GroupHeroWidget
+                    widget={widget}
+                    works={[
+                        ...(data?.weeklyChart ?? []),
+                        ...(data?.freshReleases ?? []),
+                        ...(data?.popularWorks ?? []),
+                        ...(data?.topLikedWorks ?? []),
+                    ]}
+                />
             </BuilderPreviewLabel>
         )
     }
@@ -1137,6 +1213,7 @@ function ArtsWidget({ widget, data }: { widget: PageWidget; data?: ArtsPreviewDa
                 }))}
                 grid={widget.settings.grid ?? 'masonry'}
                 columns={widget.settings.columns}
+                limit={widget.settings.limit ?? 10}
                 infoLayout={widget.settings.info_layout ?? 'image_only'}
             />
         )
@@ -1164,6 +1241,7 @@ function CommissionWidget({ widget, data }: { widget: PageWidget; data?: Commiss
                 }))}
                 grid={widget.settings.grid ?? 'masonry'}
                 columns={widget.settings.columns}
+                limit={widget.settings.limit ?? 10}
                 infoLayout={widget.settings.info_layout ?? 'image_only'}
             />
         )
@@ -1172,23 +1250,36 @@ function CommissionWidget({ widget, data }: { widget: PageWidget; data?: Commiss
     return <EmptyWidget />
 }
 
+// ============================================================================
+// SECTION 9: SHARED PREVIEW COMPONENTS ----
+// ============================================================================
 function ImageGrid({
     title,
     items,
     grid,
     columns,
+    limit = 10,
     infoLayout = 'image_only',
 }: {
     title: string
-    items: { id: string; title: string; description?: string; image: string | null }[]
+    items: {
+        id: string
+        title: string
+        description?: string
+        image: string | null
+    }[]
     grid: string
     columns?: number
+    limit?: number
     infoLayout?: string
 }) {
     if (items.length === 0) return <EmptyWidget />
 
-    const content = items.slice(0, 24).map((item) => (
-        <article key={item.id} className={grid === 'masonry' ? 'mb-4 break-inside-avoid' : 'h-full'}>
+    const content = items.slice(0, limit).map((item) => (
+        <article
+            key={item.id}
+            className={grid === 'masonry' ? 'mb-4 break-inside-avoid' : 'h-full'}
+        >
             <PreviewInfoCard
                 image={item.image ? storageUrl(item.image)! : null}
                 title={item.title}
@@ -1255,7 +1346,9 @@ function PreviewInfoCard({
             )}
         </div>
     )
-    const titleNode = <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-snug">{title}</h3>
+    const titleNode = (
+        <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-snug">{title}</h3>
+    )
     const descriptionNode = description ? (
         <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{description}</p>
     ) : null
@@ -1298,6 +1391,9 @@ function CustomContentWidget({ widget }: { widget: PageWidget }) {
     return <CustomPageWidgetContent widget={widget} />
 }
 
+// ============================================================================
+// SECTION 10: EDITABLE BOARD WIDGET AND BOARD ITEMS ----
+// ============================================================================
 function EditableBoardWidget({
     widget,
     onChange,
@@ -1343,7 +1439,7 @@ function EditableBoardWidget({
         const previousUserSelect = document.body.style.userSelect
         document.body.style.userSelect = 'none'
 
-        const move = (moveEvent: PointerEvent) => {
+        const { move, cancel: cancelMove } = createRafPointerMove((moveEvent) => {
             const dxPercent = ((moveEvent.clientX - startX) / boardRect.width) * 100
             const dy = moveEvent.clientY - startY
             const rawX = clamp(initialX + dxPercent, 0, 100 - item.w)
@@ -1358,9 +1454,10 @@ function EditableBoardWidget({
                 x: Number(nextX.toFixed(3)),
                 y: Math.round(nextY),
             }))
-        }
+        })
 
         const end = () => {
+            cancelMove()
             setSnapGuide({ x: false, y: false })
             document.body.style.userSelect = previousUserSelect
             window.removeEventListener('pointermove', move)
@@ -1388,7 +1485,7 @@ function EditableBoardWidget({
         const previousUserSelect = document.body.style.userSelect
         document.body.style.userSelect = 'none'
 
-        const move = (moveEvent: PointerEvent) => {
+        const { move, cancel: cancelMove } = createRafPointerMove((moveEvent) => {
             const dwPercent = ((moveEvent.clientX - startX) / boardRect.width) * 100
             const dh = moveEvent.clientY - startY
             updateItem(item.id, (current) => ({
@@ -1396,9 +1493,10 @@ function EditableBoardWidget({
                 w: Number(clamp(initialW + dwPercent, 4, 100 - current.x).toFixed(3)),
                 h: Math.round(clamp(initialH + dh, 24, height - current.y)),
             }))
-        }
+        })
 
         const end = () => {
+            cancelMove()
             document.body.style.userSelect = previousUserSelect
             window.removeEventListener('pointermove', move)
             window.removeEventListener('pointerup', end)
@@ -1420,7 +1518,7 @@ function EditableBoardWidget({
                     height: `${height}px`,
                     background: widget.style.transparent
                         ? 'transparent'
-                        : cssColor(widget.style.background) ?? 'transparent',
+                        : (cssColor(widget.style.background) ?? 'transparent'),
                     border: widget.style.border
                         ? `1px solid ${cssColor(widget.style.border_color) ?? 'var(--border, #d4d4d8)'}`
                         : '1px dashed rgba(14, 165, 233, 0.45)',
@@ -1466,7 +1564,7 @@ function EditableBoardWidget({
                                 height: `${item.h}px`,
                                 background: itemStyle.transparent
                                     ? 'transparent'
-                                    : cssColor(itemStyle.background) ?? 'transparent',
+                                    : (cssColor(itemStyle.background) ?? 'transparent'),
                                 border: itemStyle.border
                                     ? `1px solid ${cssColor(itemStyle.border_color) ?? 'var(--border, #d4d4d8)'}`
                                     : undefined,
@@ -1486,7 +1584,8 @@ function EditableBoardWidget({
                                     style={{
                                         color: cssColor(itemStyle.text_color),
                                         fontFamily:
-                                            itemStyle.font_family || fontFamilyFromUrl(item.font_url),
+                                            itemStyle.font_family ||
+                                            fontFamilyFromUrl(item.font_url),
                                         fontSize: `${itemStyle.font_size ?? 16}px`,
                                         textAlign: itemStyle.text_align ?? 'start',
                                     }}
@@ -1529,23 +1628,24 @@ function EmptyWidget() {
     return null
 }
 
-function BuilderPreviewLabel({
-    label,
-    children,
-}: {
-    label: string
-    children: React.ReactNode
-}) {
+function BuilderPreviewLabel({ label, children }: { label: string; children: ReactNode }) {
     return (
-        <div className="relative min-h-24">
-            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded bg-background/90 px-2 py-1 text-xs font-medium text-muted-foreground shadow ring-1 ring-border">
-                {label}
-            </div>
-            {children}
+        <div className="relative">
+            <div className="pointer-events-none absolute left-2 top-2 z-50">{label}</div>
+
+            <div className="relative pointer-events-auto">{children}</div>
         </div>
     )
 }
 
+// ============================================================================
+// SECTION 11: ALL WIDGET SETTINGS / RIGHT-SIDE INSPECTOR ----
+// SETTINGS ARE GROUPED BELOW AS:
+//   A. Content settings
+//   B. Box style settings
+//   C. Layout settings
+// Add widget-specific controls inside the matching widget.type condition.
+// ============================================================================
 function Inspector({
     page,
     widget,
@@ -1654,7 +1754,10 @@ function Inspector({
         pageLayoutApi
             .uploadAsset(payload)
             .then((res) => {
-                updateBoardItem(itemId, (item) => ({ ...item, asset_path: res.data.path }))
+                updateBoardItem(itemId, (item) => ({
+                    ...item,
+                    asset_path: res.data.path,
+                }))
                 toast.success('Board image uploaded.')
             })
             .catch(() => toast.error('Could not upload board image.'))
@@ -1696,6 +1799,213 @@ function Inspector({
                     />
                     Enabled
                 </label>
+
+                {widget.type === 'featured_hero' && (
+                    <div className="space-y-4 rounded-lg border bg-muted/20 p-3">
+                        <SelectField
+                            label="Hero design"
+                            value={widget.settings.hero_design ?? 'default'}
+                            options={['default', 'reference_1', 'reference_2', 'reference_3']}
+                            onChange={(value) => setSetting('hero_design', value)}
+                        />
+                        <div className="grid gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                Show information
+                            </p>
+                            {[
+                                ['hero_show_name', 'Name'],
+                                ['hero_show_artist', 'Artist Name'],
+                                ['hero_show_views', 'Views'],
+                                ['hero_show_likes', 'Likes'],
+                                ['hero_show_favorite', 'Favorite'],
+                            ].map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={Boolean(
+                                            widget.settings[key as keyof typeof widget.settings] ??
+                                            key !== 'hero_show_favorite'
+                                        )}
+                                        onChange={(event) => setSetting(key, event.target.checked)}
+                                    />
+                                    {label}
+                                </label>
+                            ))}
+                            <SelectField
+                                label="Labels type"
+                                value={widget.settings.hero_label_style ?? 'badges'}
+                                options={['badges', 'plain']}
+                                onChange={(value) => setSetting('hero_label_style', value)}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                Data source
+                            </p>
+                            {[
+                                ['hero_source_arts', 'Arts'],
+                                ['hero_source_announcements', 'Announcement'],
+                                ['hero_source_works', 'Works'],
+                                ['hero_source_commissions', 'Commission'],
+                            ].map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={Boolean(
+                                            widget.settings[key as keyof typeof widget.settings] ??
+                                            true
+                                        )}
+                                        onChange={(event) => setSetting(key, event.target.checked)}
+                                    />
+                                    {label}
+                                </label>
+                            ))}
+                            <label className="flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={Boolean(widget.settings.hero_featured_only)}
+                                    onChange={(event) =>
+                                        setSetting('hero_featured_only', event.target.checked)
+                                    }
+                                />
+                                Use featured / boosted first
+                            </label>
+                        </div>
+                        <NumberField
+                            label="Limit"
+                            value={widget.settings.limit ?? 10}
+                            min={1}
+                            max={30}
+                            onChange={(value) => setSetting('limit', value)}
+                        />
+                    </div>
+                )}
+
+                {widget.type === 'group_hero' && (
+                    <div className="space-y-4 rounded-lg border bg-muted/20 p-3">
+                        <SelectField
+                            label="Group design"
+                            value={widget.settings.group_hero_design ?? 'default'}
+                            options={['default', 'popular_arts', 'spotlight_stack']}
+                            onChange={(value) => setSetting('group_hero_design', value)}
+                        />
+
+                        <div>
+                            <Label>Text box</Label>
+                            <Input
+                                value={widget.settings.text ?? ''}
+                                onChange={(event) => setSetting('text', event.target.value)}
+                                placeholder="Artwork for this week"
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                Data source
+                            </p>
+                            {[
+                                ['group_source_arts', 'Arts'],
+                                ['group_source_comix', 'Comix'],
+                                ['group_source_novels', 'Novels'],
+                                ['group_source_commissions', 'Commission'],
+                            ].map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={Boolean(
+                                            widget.settings[key as keyof typeof widget.settings] ??
+                                            key === 'group_source_arts'
+                                        )}
+                                        onChange={(event) => setSetting(key, event.target.checked)}
+                                    />
+                                    {label}
+                                </label>
+                            ))}
+                        </div>
+
+                        <SelectField
+                            label="Sort"
+                            value={widget.settings.group_sort ?? 'popular'}
+                            options={['popular', 'latest', 'likes', 'views', 'featured']}
+                            onChange={(value) => setSetting('group_sort', value)}
+                        />
+
+                        <div>
+                            <Label>Filters</Label>
+                            <Input
+                                value={widget.settings.group_filter_labels ?? ''}
+                                onChange={(event) =>
+                                    setSetting('group_filter_labels', event.target.value)
+                                }
+                                placeholder="romance, action, illustration"
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Separate labels, genres, or commission categories with commas.
+                            </p>
+                        </div>
+
+                        <label className="flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={widget.settings.group_view_all_enabled !== false}
+                                onChange={(event) =>
+                                    setSetting('group_view_all_enabled', event.target.checked)
+                                }
+                            />
+                            Show View all
+                        </label>
+
+                        <SelectField
+                            label="View all sort"
+                            value={widget.settings.group_view_all_sort ?? widget.settings.group_sort ?? 'popular'}
+                            options={['popular', 'latest', 'likes', 'views', 'featured']}
+                            onChange={(value) => setSetting('group_view_all_sort', value)}
+                        />
+
+                        <NumberField
+                            label="Limit"
+                            value={widget.settings.limit ?? 10}
+                            min={7}
+                            max={30}
+                            onChange={(value) => setSetting('limit', value)}
+                        />
+
+                        <p className="text-xs text-muted-foreground">
+                            Popular arts uses one large image, six small images, and one text area.
+                            Spotlight Stack is the extra group design.
+                        </p>
+                    </div>
+                )}
+
+                {widget.type === 'content_tabs' && (
+                    <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            Tabs to show
+                        </p>
+                        {[
+                            ['tabs_show_main', 'Main (Mix)'],
+                            ['tabs_show_comix', 'Comix'],
+                            ['tabs_show_novels', 'Novels'],
+                            ['tabs_show_arts', 'Arts'],
+                            ['tabs_show_commissions', 'Commission'],
+                        ].map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={Boolean(
+                                        widget.settings[key as keyof typeof widget.settings]
+                                    )}
+                                    onChange={(event) => setSetting(key, event.target.checked)}
+                                />
+                                {label}
+                            </label>
+                        ))}
+                        <p className="text-xs text-muted-foreground">
+                            Use this on Daily, Rankings, and Genre when you want the page to switch
+                            between mixed content, comics, novels, arts, or commissions.
+                        </p>
+                    </div>
+                )}
 
                 {widget.type === 'text' && (
                     <>
@@ -1784,12 +2094,11 @@ function Inspector({
                                     Loading stickers...
                                 </p>
                             )}
-                            {!stickersLoading &&
-                                stickerLibrary.length === 0 && (
-                                    <p className="col-span-3 py-4 text-center text-xs text-muted-foreground">
-                                        No stickers in your library yet.
-                                    </p>
-                                )}
+                            {!stickersLoading && stickerLibrary.length === 0 && (
+                                <p className="col-span-3 py-4 text-center text-xs text-muted-foreground">
+                                    No stickers in your library yet.
+                                </p>
+                            )}
                         </div>
                     </div>
                 )}
@@ -1884,10 +2193,13 @@ function Inspector({
                                             <textarea
                                                 value={selectedBoardItem.text ?? ''}
                                                 onChange={(event) =>
-                                                    updateBoardItem(selectedBoardItem.id, (item) => ({
-                                                        ...item,
-                                                        text: event.target.value,
-                                                    }))
+                                                    updateBoardItem(
+                                                        selectedBoardItem.id,
+                                                        (item) => ({
+                                                            ...item,
+                                                            text: event.target.value,
+                                                        })
+                                                    )
                                                 }
                                                 className="mt-1 min-h-24 w-full rounded-md border bg-background p-3 text-sm"
                                             />
@@ -1897,13 +2209,16 @@ function Inspector({
                                             <Input
                                                 value={selectedBoardItem.style?.font_family ?? ''}
                                                 onChange={(event) =>
-                                                    updateBoardItem(selectedBoardItem.id, (item) => ({
-                                                        ...item,
-                                                        style: {
-                                                            ...item.style,
-                                                            font_family: event.target.value,
-                                                        },
-                                                    }))
+                                                    updateBoardItem(
+                                                        selectedBoardItem.id,
+                                                        (item) => ({
+                                                            ...item,
+                                                            style: {
+                                                                ...item.style,
+                                                                font_family: event.target.value,
+                                                            },
+                                                        })
+                                                    )
                                                 }
                                             />
                                         </div>
@@ -1912,17 +2227,22 @@ function Inspector({
                                             <Input
                                                 value={selectedBoardItem.font_url ?? ''}
                                                 onChange={(event) =>
-                                                    updateBoardItem(selectedBoardItem.id, (item) => ({
-                                                        ...item,
-                                                        font_url: event.target.value,
-                                                        style: {
-                                                            ...item.style,
-                                                            font_family:
-                                                                item.style?.font_family ||
-                                                                fontFamilyFromUrl(event.target.value) ||
-                                                                item.style?.font_family,
-                                                        },
-                                                    }))
+                                                    updateBoardItem(
+                                                        selectedBoardItem.id,
+                                                        (item) => ({
+                                                            ...item,
+                                                            font_url: event.target.value,
+                                                            style: {
+                                                                ...item.style,
+                                                                font_family:
+                                                                    item.style?.font_family ||
+                                                                    fontFamilyFromUrl(
+                                                                        event.target.value
+                                                                    ) ||
+                                                                    item.style?.font_family,
+                                                            },
+                                                        })
+                                                    )
                                                 }
                                             />
                                         </div>
@@ -1988,7 +2308,9 @@ function Inspector({
                                     <label className="flex items-center gap-2 text-sm">
                                         <input
                                             type="checkbox"
-                                            checked={Boolean(selectedBoardItem.style?.transparent ?? true)}
+                                            checked={Boolean(
+                                                selectedBoardItem.style?.transparent ?? true
+                                            )}
                                             onChange={(event) =>
                                                 updateBoardItem(selectedBoardItem.id, (item) => ({
                                                     ...item,
@@ -2124,7 +2446,11 @@ function Inspector({
                                         onChange={(value) =>
                                             updateBoardItem(selectedBoardItem.id, (item) => ({
                                                 ...item,
-                                                y: clamp(value, 0, (widget.style.content_height ?? 420) - item.h),
+                                                y: clamp(
+                                                    value,
+                                                    0,
+                                                    (widget.style.content_height ?? 420) - item.h
+                                                ),
                                             }))
                                         }
                                     />
@@ -2148,7 +2474,11 @@ function Inspector({
                                         onChange={(value) =>
                                             updateBoardItem(selectedBoardItem.id, (item) => ({
                                                 ...item,
-                                                h: clamp(value, 24, (widget.style.content_height ?? 420) - item.y),
+                                                h: clamp(
+                                                    value,
+                                                    24,
+                                                    (widget.style.content_height ?? 420) - item.y
+                                                ),
                                             }))
                                         }
                                     />
@@ -2203,7 +2533,10 @@ function Inspector({
                                                     ...item,
                                                     style: {
                                                         ...item.style,
-                                                        text_align: value as 'start' | 'center' | 'end',
+                                                        text_align: value as
+                                                            | 'start'
+                                                            | 'center'
+                                                            | 'end',
                                                     },
                                                 }))
                                             }
@@ -2213,13 +2546,16 @@ function Inspector({
                                             <Input
                                                 value={selectedBoardItem.style?.text_color ?? ''}
                                                 onChange={(event) =>
-                                                    updateBoardItem(selectedBoardItem.id, (item) => ({
-                                                        ...item,
-                                                        style: {
-                                                            ...item.style,
-                                                            text_color: event.target.value,
-                                                        },
-                                                    }))
+                                                    updateBoardItem(
+                                                        selectedBoardItem.id,
+                                                        (item) => ({
+                                                            ...item,
+                                                            style: {
+                                                                ...item.style,
+                                                                text_color: event.target.value,
+                                                            },
+                                                        })
+                                                    )
                                                 }
                                             />
                                         </div>
@@ -2274,6 +2610,13 @@ function Inspector({
                             ]}
                             onChange={(value) => setSetting('info_layout', value)}
                         />
+                        <NumberField
+                            label="Limit"
+                            value={widget.settings.limit ?? 10}
+                            min={1}
+                            max={30}
+                            onChange={(value) => setSetting('limit', value)}
+                        />
                     </>
                 )}
 
@@ -2314,7 +2657,7 @@ function Inspector({
                         />
                         <NumberField
                             label="Limit"
-                            value={widget.settings.limit ?? 12}
+                            value={widget.settings.limit ?? 10}
                             min={1}
                             max={30}
                             onChange={(value) => setSetting('limit', value)}
@@ -2505,7 +2848,9 @@ function Inspector({
                                 <label className="flex items-center gap-2 text-sm">
                                     <input
                                         type="checkbox"
-                                        checked={Boolean(selectedBoardItem.style?.transparent ?? true)}
+                                        checked={Boolean(
+                                            selectedBoardItem.style?.transparent ?? true
+                                        )}
                                         onChange={(event) =>
                                             updateBoardItem(selectedBoardItem.id, (item) => ({
                                                 ...item,
@@ -2636,7 +2981,11 @@ function Inspector({
                                     onChange={(value) =>
                                         updateBoardItem(selectedBoardItem.id, (item) => ({
                                             ...item,
-                                            h: clamp(value, 24, (widget.style.content_height ?? 420) - item.y),
+                                            h: clamp(
+                                                value,
+                                                24,
+                                                (widget.style.content_height ?? 420) - item.y
+                                            ),
                                         }))
                                     }
                                 />
@@ -2685,7 +3034,13 @@ function Inspector({
                                             onChange={(value) =>
                                                 updateBoardItem(selectedBoardItem.id, (item) => ({
                                                     ...item,
-                                                    style: { ...item.style, text_align: value as 'start' | 'center' | 'end' },
+                                                    style: {
+                                                        ...item.style,
+                                                        text_align: value as
+                                                            | 'start'
+                                                            | 'center'
+                                                            | 'end',
+                                                    },
                                                 }))
                                             }
                                         />
@@ -2694,13 +3049,16 @@ function Inspector({
                                             <Input
                                                 value={selectedBoardItem.style?.text_color ?? ''}
                                                 onChange={(event) =>
-                                                    updateBoardItem(selectedBoardItem.id, (item) => ({
-                                                        ...item,
-                                                        style: {
-                                                            ...item.style,
-                                                            text_color: event.target.value,
-                                                        },
-                                                    }))
+                                                    updateBoardItem(
+                                                        selectedBoardItem.id,
+                                                        (item) => ({
+                                                            ...item,
+                                                            style: {
+                                                                ...item.style,
+                                                                text_color: event.target.value,
+                                                            },
+                                                        })
+                                                    )
                                                 }
                                             />
                                         </div>
@@ -2788,11 +3146,34 @@ function Inspector({
     )
 }
 
-function SettingsSection({ title, children }: { title: string; children: React.ReactNode }) {
+// ============================================================================
+// SECTION 12: REUSABLE INSPECTOR INPUT COMPONENTS ----
+// ============================================================================
+function SettingsSection({
+    title,
+    children,
+    defaultOpen = true,
+}: {
+    title: string
+    children: ReactNode
+    defaultOpen?: boolean
+}) {
+    const [open, setOpen] = useState(defaultOpen)
+
     return (
-        <section className="space-y-3 rounded-lg border p-3">
-            <h3 className="text-sm font-semibold">{title}</h3>
-            {children}
+        <section className="rounded-lg border">
+            <button
+                type="button"
+                onClick={() => setOpen((current) => !current)}
+                className="flex w-full items-center justify-between px-3 py-2 text-left"
+                aria-expanded={open}
+            >
+                <h3 className="text-sm font-semibold">{title}</h3>
+                <span className="grid h-6 w-6 place-items-center rounded-md border text-base leading-none">
+                    {open ? '-' : '+'}
+                </span>
+            </button>
+            {open && <div className="space-y-3 border-t p-3">{children}</div>}
         </section>
     )
 }
@@ -2851,73 +3232,4 @@ function NumberField({
             />
         </div>
     )
-}
-
-function createBoardItem(type: PageBoardItem['type'], index: number): PageBoardItem {
-    return {
-        id: crypto.randomUUID(),
-        type,
-        x: 5 + (index % 4) * 8,
-        y: 40 + index * 12,
-        w: type === 'text' ? 36 : 18,
-        h: type === 'text' ? 120 : 160,
-        text: type === 'text' ? 'Board text' : '',
-        style: {
-            transparent: true,
-            border: false,
-            radius: 0,
-            padding_block: 0,
-            padding_inline: 0,
-            font_size: type === 'text' ? 16 : undefined,
-            text_align: type === 'text' ? 'start' : undefined,
-            z_index: index + 1,
-            rotate: 0,
-        },
-    }
-}
-
-function createWidget(type: string, title: string, index: number): PageWidget {
-    return {
-        id: crypto.randomUUID(),
-        type,
-        title,
-        enabled: true,
-        settings: {
-            grid: 'masonry',
-            filter: 'all',
-            layout: 'horizontal',
-            align: 'auto',
-            display: 'block',
-            columns: undefined,
-            info_layout: ['arts_grid', 'commission_grid', 'boosted_commissions'].includes(type)
-                ? 'image_only'
-                : 'image_title_description',
-            placement: type === 'sticker' ? 'tight' : undefined,
-            metric: 'views',
-            limit: type === 'weekly' || type === 'top_liker' || type === 'today_top' ? 10 : 12,
-            allow_overlap: false,
-            board_items: type === 'board' ? [] : undefined,
-        },
-        style: {
-            transparent: true,
-            border: false,
-            radius: 0,
-            padding: 0,
-            padding_block: 0,
-            padding_inline: 0,
-            margin: 0,
-            margin_block: 0,
-            margin_inline: 0,
-            offset_x: 0,
-            offset_y: 0,
-            z_index: index + 1,
-            rotate: 0,
-            sticker_size: type === 'sticker' ? 180 : undefined,
-            content_width:
-                type === 'text' ? 720 : type === 'spacer' ? 720 : type === 'board' ? 960 : undefined,
-            content_height: type === 'spacer' ? 120 : type === 'board' ? 420 : undefined,
-            font_size: type === 'text' ? 14 : undefined,
-            text_align: type === 'text' ? 'start' : undefined,
-        },
-    }
 }

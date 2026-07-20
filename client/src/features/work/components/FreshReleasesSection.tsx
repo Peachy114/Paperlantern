@@ -24,12 +24,14 @@ export default function FreshReleasesSection({
     const fresh = usePagination(freshReleases)
     if (freshReleases.length === 0) return null
     const hrefFor = (work: Work) =>
-        work.type === 'art' ? `/explore/arts?art=${encodeURIComponent(work.slug || work.id)}` : `/works/${work.slug}`
+        work.type === 'art'
+            ? `/explore/arts?art=${encodeURIComponent(work.slug || work.id)}`
+            : `/works/${work.slug}`
     const imageFor = (work: Work) => cover(work.cover, work.type === 'art' ? undefined : 'sm')
 
     return (
         <section className="mt-10 sm:mt-5 w-full max-w-[1360px] mx-auto px-5">
-            <h2 className="text-2xl font-bold py-5">FRESH RELEASE</h2>
+            <h2 className="text-2xl font-bold py-5">FRESH RELEASE "Fresh sections"</h2>
 
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
                 {fresh.paginated.map((work, i) => (
@@ -68,7 +70,11 @@ export default function FreshReleasesSection({
 
                             {/* Type */}
                             <p className="text-xs text-muted-foreground mt-0.5">
-                                {work.type === 'art' ? 'Art' : work.type === 'webtoon' ? 'Webtoon' : 'Novel'}
+                                {work.type === 'art'
+                                    ? 'Art'
+                                    : work.type === 'webtoon'
+                                      ? 'Webtoon'
+                                      : 'Novel'}
                             </p>
                         </Link>
                     </motion.div>

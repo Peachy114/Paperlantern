@@ -18,10 +18,12 @@ class Announcement extends Model
         'audience',
         'image',
         'is_pinned',
+        'is_featured',
     ];
 
     protected $casts = [
         'is_pinned' => 'boolean',
+        'is_featured' => 'boolean',
     ];
 
     public function creator(): BelongsTo

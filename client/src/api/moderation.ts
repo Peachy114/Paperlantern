@@ -27,6 +27,10 @@ export const moderationApi = {
         api.put(`/admin/moderation/comments/${commentId}/image/approve`),
     suspendCommentImage: (commentId: string, reason: string) =>
         api.put(`/admin/moderation/comments/${commentId}/image/suspend`, { reason }),
+    approveFeedImage: (imageId: string) =>
+        api.put(`/admin/moderation/feed-images/${imageId}/approve`),
+    suspendFeedImage: (imageId: string, reason: string) =>
+        api.put(`/admin/moderation/feed-images/${imageId}/suspend`, { reason }),
     approveCommissionMessageImage: (messageId: string) =>
         api.put(`/admin/moderation/commission-messages/${messageId}/image/approve`),
     suspendCommissionMessageImage: (messageId: string, reason: string) =>

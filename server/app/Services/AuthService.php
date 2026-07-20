@@ -132,6 +132,7 @@ class AuthService
         return [
             'id'        => $user->id,
             'name'      => $user->name,
+            'nickname'  => $user->nickname,
             'username'  => $user->username,
             'email'     => $user->email,
             'role'      => $user->role,
@@ -177,6 +178,7 @@ class AuthService
             'profile_links' => $user->profile_links,
             'profile_border_id' => $user->profile_border_id,
             'twitter_url'   => $user->twitter_url,
+            'discord_url'   => $user->discord_url,
             'instagram_url' => $user->instagram_url,
             'tiktok_url'    => $user->tiktok_url,
         ];

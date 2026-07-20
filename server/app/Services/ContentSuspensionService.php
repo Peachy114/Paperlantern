@@ -10,6 +10,7 @@ use App\Models\Comment;
 use App\Models\CommissionDeliveryFile;
 use App\Models\CommissionMessage;
 use App\Models\ContentSuspension;
+use App\Models\FeedPostImage;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\Violation;
@@ -54,6 +55,12 @@ class ContentSuspensionService
                 ->latest()
                 ->limit(40)
                 ->get(['id', 'user_id', 'commentable_type', 'commentable_id', 'body', 'image_path', 'image_moderation_status', 'created_at']),
+            'feed_images' => FeedPostImage::query()
+                ->where('moderation_status', 'pending')
+                ->with(['feedPost:id,user_id,body,status,created_at', 'feedPost.user:id,name,username,strike_count,is_suspended'])
+                ->latest()
+                ->limit(40)
+                ->get(['id', 'feed_post_id', 'image_path', 'moderation_status', 'created_at']),
             'commission_message_images' => CommissionMessage::query()
                 ->whereNotNull('image_path')
                 ->where('image_moderation_status', 'pending')
@@ -286,6 +293,7 @@ class ContentSuspensionService
             'art_image' => ArtImage::findOrFail($id),
             'profile_block' => ArtistProfileBlock::findOrFail($id),
             'comment' => Comment::findOrFail($id),
+            'feed_image' => FeedPostImage::findOrFail($id),
             'commission_message' => CommissionMessage::findOrFail($id),
             'commission_delivery_file' => CommissionDeliveryFile::findOrFail($id),
             default => throw ValidationException::withMessages([
@@ -303,6 +311,7 @@ class ContentSuspensionService
             'art_image' => [null],
             'profile_block' => [null],
             'comment' => [null, 'image_path'],
+            'feed_image' => [null, 'image_path'],
             'commission_message' => [null, 'image_path'],
             'commission_delivery_file' => [null, 'file_path'],
         ];
@@ -331,6 +340,11 @@ class ContentSuspensionService
             return $target->sender;
         }
 
+        if ($target instanceof FeedPostImage) {
+            $target->loadMissing('feedPost.user');
+            return $target->feedPost->user;
+        }
+
         if ($target instanceof CommissionDeliveryFile) {
             $target->loadMissing('uploader');
             return $target->uploader;
@@ -351,6 +365,7 @@ class ContentSuspensionService
             $target instanceof ArtImage => "Art image - {$target->art?->title}",
             $target instanceof ArtistProfileBlock => "Profile board block",
             $target instanceof Comment => "Comment{$fieldLabel}",
+            $target instanceof FeedPostImage => 'Feed image',
             $target instanceof CommissionMessage => "Commission message{$fieldLabel}",
             $target instanceof CommissionDeliveryFile => "Commission delivery file{$fieldLabel}",
             default => 'Content',

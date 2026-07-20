@@ -31,7 +31,10 @@ export default function WeeklyChartSection({
     const work = weeklyChart[index]
     const image = cover(work.cover, work.type === 'art' ? undefined : 'sm')
     const bg = image
-    const workHref = work.type === 'art' ? `/explore/arts?art=${encodeURIComponent(work.slug || work.id)}` : `/works/${work.slug}`
+    const workHref =
+        work.type === 'art'
+            ? `/explore/arts?art=${encodeURIComponent(work.slug || work.id)}`
+            : `/works/${work.slug}`
 
     const goPrev = () => setIndex((i) => (i - 1 + total) % total)
     const goNext = () => setIndex((i) => (i + 1) % total)
@@ -120,7 +123,7 @@ export default function WeeklyChartSection({
 
                             {work.description && (
                                 <p className="text-sm text-white/70 mt-3 line-clamp-2 max-w-[600px]">
-                                    {work.description}
+                                    {work.description} "hero for weekly"
                                 </p>
                             )}
 

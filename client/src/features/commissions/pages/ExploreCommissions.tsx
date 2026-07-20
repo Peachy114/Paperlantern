@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent, type ComponentType, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type ComponentType, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useQuery } from '@tanstack/react-query'
@@ -9,6 +9,7 @@ import {
     Coins,
     ImagePlus,
     ImageOff,
+    Maximize2,
     Search,
     ShieldCheck,
     Star,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react'
 import { publicApi } from '@/api/public'
 import { storageUrl } from '@/utils/storage'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore, type User } from '@/store/authStore'
 import { useModalStore } from '@/store/modalStore'
 import { toast } from 'sonner'
 import type {
@@ -38,6 +39,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { CustomPageWidget, PageWidgetFrame } from '@/features/page-builder/PageWidgetFrame'
+import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
 
 const statusLabel: Record<CommissionService['status'], string> = {
     open: 'Open',
@@ -76,7 +78,7 @@ export default function ExploreCommissions() {
 
     const params = useMemo(() => {
         const next = new URLSearchParams()
-        for (const key of ['q', 'category']) {
+        for (const key of ['q', 'category', 'sort']) {
             const value = searchParams.get(key)
             if (value) next.set(key, value)
         }
@@ -156,6 +158,14 @@ export default function ExploreCommissions() {
             )}
 
             {visibleWidgets.map((widget) => {
+                if (widget.type === 'content_tabs') {
+                    return (
+                        <PageWidgetFrame key={widget.id} widget={widget}>
+                            <ContentTabsWidget widget={widget} />
+                        </PageWidgetFrame>
+                    )
+                }
+
                 if (widget.type === 'commission_grid' || widget.type === 'boosted_commissions') {
                     const items = widget.type === 'boosted_commissions'
                         ? commissions.filter((commission) => commission.boosted_until)
@@ -376,18 +386,17 @@ function CommissionDialog({
 }) {
     const navigate = useNavigate()
     const { token } = useAuthStore()
+    const user = useAuthStore((state) => state.user)
     const { openLogin } = useModalStore()
     const [requestOpen, setRequestOpen] = useState(false)
     const [requestMessage, setRequestMessage] = useState('')
     const [referenceNotes, setReferenceNotes] = useState('')
     const [referenceImage, setReferenceImage] = useState<File | null>(null)
     const [agree, setAgree] = useState(false)
+    const [requestAnswers, setRequestAnswers] = useState<Record<string, string>>({})
+    const [clientDetails, setClientDetails] = useState<Record<string, string>>({})
     const [requestErrors, setRequestErrors] = useState<Record<string, string>>({})
-    const [creditNotice, setCreditNotice] = useState<{
-        message: string
-        balance: number
-        required: number
-    } | null>(null)
+    const [termsOpen, setTermsOpen] = useState(false)
     const requestMutation = useMutation({
         mutationFn: () => {
             const identifier = commission?.slug
@@ -400,6 +409,22 @@ function CommissionDialog({
             if (trimmedMessage.length < 10) {
                 setRequestErrors({ request_message: 'Please describe your commission request in at least 10 characters.' })
                 throw new Error('Please complete the required fields.')
+            }
+            const nextErrors: Record<string, string> = {}
+            for (const question of commission.request_questions ?? []) {
+                const key = question.id || question.title
+                if (question.required && !requestAnswers[key]?.trim()) {
+                    nextErrors[`question_${key}`] = `Please answer: ${question.title || 'Required question'}`
+                }
+            }
+            for (const [field, config] of Object.entries(commission.client_fields ?? {})) {
+                if (config.collect && config.required && !clientDetails[field]?.trim()) {
+                    nextErrors[`client_${field}`] = `Please provide your ${clientFieldLabel(field).toLowerCase()}.`
+                }
+            }
+            if (Object.keys(nextErrors).length > 0) {
+                setRequestErrors(nextErrors)
+                throw new Error(Object.values(nextErrors)[0])
             }
             if (!agree) {
                 setRequestErrors({ agree_to_flow: 'Please confirm the commission flow and terms.' })
@@ -415,6 +440,17 @@ function CommissionDialog({
             if (trimmedNotes) payload.append('reference_notes', trimmedNotes)
             payload.append('agree_to_flow', agree ? '1' : '0')
             if (referenceImage) payload.append('reference_image', referenceImage)
+            ;(commission.request_questions ?? []).forEach((question, index) => {
+                const key = question.id || question.title
+                payload.append(`request_answers[${index}][question_id]`, question.id)
+                payload.append(`request_answers[${index}][question]`, question.title)
+                payload.append(`request_answers[${index}][answer]`, requestAnswers[key]?.trim() ?? '')
+            })
+            Object.entries(commission.client_fields ?? {}).forEach(([field, config]) => {
+                if (config.collect && clientDetails[field]?.trim()) {
+                    payload.append(`client_details[${field}]`, clientDetails[field].trim())
+                }
+            })
             return publicApi.requestCommission(identifier, payload)
         },
         onSuccess: (response) => {
@@ -426,8 +462,9 @@ function CommissionDialog({
             setReferenceNotes('')
             setReferenceImage(null)
             setAgree(false)
+            setRequestAnswers({})
+            setClientDetails({})
             setRequestErrors({})
-            setCreditNotice(null)
             navigate(orderId ? `/messages?order=${orderId}` : '/messages')
         },
         onError: (error: any) => {
@@ -438,24 +475,22 @@ function CommissionDialog({
                 return
             }
 
-            if (error?.response?.status === 402 && error?.response?.data?.requires_top_up) {
-                const balance = Number(error.response.data.balance ?? 0)
-                const required = Number(error.response.data.required_credits ?? commission?.base_price_credits ?? 0)
-                const message = error.response.data.message ?? 'Add credits first, then come back to request this commission.'
-
-                setCreditNotice({ message, balance, required })
-                toast.error(`You need ${Math.max(0, required - balance).toLocaleString()} more credits.`)
-                return
-            }
-
             toast.error(error?.response?.data?.message ?? error?.message ?? 'Could not request commission.')
         },
     })
 
+    useEffect(() => {
+        if (!requestOpen || !commission || !user) return
+
+        setClientDetails((current) => ({
+            ...profileClientDetails(user),
+            ...current,
+        }))
+    }, [requestOpen, commission?.id, user?.id])
+
     if (!commission) return null
 
     const image = commission.image_path
-    const upfront = getUpfrontCredits(commission.flow, commission.base_price_credits)
     const attachReferenceImage = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null
         if (!file) {
@@ -479,7 +514,6 @@ function CommissionDialog({
             delete next.reference_image
             return next
         })
-        setCreditNotice(null)
         setReferenceImage(file)
     }
 
@@ -584,6 +618,21 @@ function CommissionDialog({
 
                             <Separator className="my-5" />
 
+                            {(commission.info_questions?.length ?? 0) > 0 && (
+                                <>
+                                    <SectionTitle>Before You Request</SectionTitle>
+                                    <div className="space-y-2">
+                                        {commission.info_questions.map((item) => (
+                                            <div key={item.id || item.question} className="rounded-lg border bg-background p-3">
+                                                <p className="text-sm font-semibold">{item.question}</p>
+                                                <p className="mt-1 whitespace-pre-line text-sm leading-6 text-muted-foreground">{item.answer}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <Separator className="my-5" />
+                                </>
+                            )}
+
                             <SectionTitle>Terms</SectionTitle>
                             <div className="space-y-3">
                                 {commission.quote_rules && (
@@ -652,43 +701,16 @@ function CommissionDialog({
                 <DialogHeader>
                     <DialogTitle>Request commission</DialogTitle>
                     <DialogDescription>
-                        You must have {commission.base_price_credits} credits available before requesting.
-                        {upfront > 0 ? ` ${upfront} credits will be held in escrow now.` : ''}
+                        Your request opens a message thread first. The artist can ask questions and send a quote before you pay.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
-                    {creditNotice && (
-                        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
-                            <p className="font-semibold text-amber-800 dark:text-amber-200">
-                                Not enough credits
-                            </p>
-                            <p className="mt-1 text-amber-800/90 dark:text-amber-100/90">
-                                {creditNotice.message}
-                            </p>
-                            <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                                <div className="rounded-md bg-background/70 px-3 py-2">
-                                    <span className="text-muted-foreground">Your credits</span>
-                                    <p className="font-semibold">{creditNotice.balance.toLocaleString()}</p>
-                                </div>
-                                <div className="rounded-md bg-background/70 px-3 py-2">
-                                    <span className="text-muted-foreground">Required credits</span>
-                                    <p className="font-semibold">{creditNotice.required.toLocaleString()}</p>
-                                </div>
-                            </div>
-                            <div className="mt-3 flex justify-end">
-                                <Button asChild size="sm">
-                                    <Link to="/credits">Top up credits</Link>
-                                </Button>
-                            </div>
-                        </div>
-                    )}
                     <div>
                         <LabelText>Message to artist</LabelText>
                         <textarea
                             value={requestMessage}
                             onChange={(event) => {
                                 setRequestMessage(event.target.value)
-                                setCreditNotice(null)
                                 setRequestErrors((current) => {
                                     const next = { ...current }
                                     delete next.request_message
@@ -702,13 +724,64 @@ function CommissionDialog({
                             <p className="mt-1 text-xs text-destructive">{requestErrors.request_message}</p>
                         )}
                     </div>
+                    {(commission.request_questions?.length ?? 0) > 0 && (
+                        <div className="space-y-3 rounded-lg border p-3">
+                            <p className="text-sm font-semibold">Artist questions</p>
+                            {commission.request_questions.map((question) => {
+                                const key = question.id || question.title
+                                return (
+                                    <RequestQuestionInput
+                                        key={key}
+                                        question={question}
+                                        value={requestAnswers[key] ?? ''}
+                                        error={requestErrors[`question_${key}`]}
+                                        onChange={(value) => {
+                                            setRequestAnswers((current) => ({ ...current, [key]: value }))
+                                            setRequestErrors((current) => {
+                                                const next = { ...current }
+                                                delete next[`question_${key}`]
+                                                return next
+                                            })
+                                        }}
+                                    />
+                                )
+                            })}
+                        </div>
+                    )}
+                    {hasCollectedClientFields(commission.client_fields) && (
+                        <div className="space-y-3 rounded-lg border p-3">
+                            <p className="text-sm font-semibold">Wanderer details</p>
+                            <p className="text-xs text-muted-foreground">The artist can see only the fields requested here.</p>
+                            {Object.entries(commission.client_fields).filter(([, config]) => config.collect).map(([field, config]) => (
+                                <div key={field}>
+                                    <LabelText>{clientFieldLabel(field)}{config.required ? ' *' : ''}</LabelText>
+                                    <Input
+                                        type={field === 'email' ? 'email' : 'text'}
+                                        value={clientDetails[field] ?? ''}
+                                        onChange={(event) => {
+                                            setClientDetails((current) => ({ ...current, [field]: event.target.value }))
+                                            setRequestErrors((current) => {
+                                                const next = { ...current }
+                                                delete next[`client_${field}`]
+                                                return next
+                                            })
+                                        }}
+                                        placeholder={clientFieldPlaceholder(field)}
+                                        className="mt-1"
+                                    />
+                                    {requestErrors[`client_${field}`] && (
+                                        <p className="mt-1 text-xs text-destructive">{requestErrors[`client_${field}`]}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <div>
                         <LabelText>Reference notes</LabelText>
                         <textarea
                             value={referenceNotes}
                             onChange={(event) => {
                                 setReferenceNotes(event.target.value)
-                                setCreditNotice(null)
                                 setRequestErrors((current) => {
                                     const next = { ...current }
                                     delete next.reference_notes
@@ -757,40 +830,52 @@ function CommissionDialog({
                         <p className="mb-2 text-sm font-semibold">Flow preview</p>
                         <FlowPreview flow={commission.flow} />
                     </div>
-                    <label className="flex items-start gap-2 text-sm">
+                    <RequestTermsPreview
+                        commission={commission}
+                        onExpand={() => setTermsOpen(true)}
+                    />
+                    <label className={`flex items-center gap-3 rounded-lg border px-3 py-3 text-sm transition ${agree ? 'border-foreground bg-muted/30' : 'bg-background'}`}>
                         <input
                             type="checkbox"
                             checked={agree}
                             onChange={(event) => {
                                 setAgree(event.target.checked)
-                                setCreditNotice(null)
                                 setRequestErrors((current) => {
                                     const next = { ...current }
                                     delete next.agree_to_flow
                                     return next
                                 })
                             }}
-                            className="mt-1 h-4 w-4"
+                            className="h-5 w-5 rounded"
                         />
-                        <span>
-                            I understand the artist flow, admin terms, and that credits may be held in escrow.
+                        <span className="font-medium">
+                            I accept {commission.artist?.name ?? 'the artist'}'s Terms of Service
                         </span>
                     </label>
                     {requestErrors.agree_to_flow && (
                         <p className="text-xs text-destructive">{requestErrors.agree_to_flow}</p>
                     )}
                 </div>
-                <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" onClick={() => setRequestOpen(false)}>
-                        Cancel
-                    </Button>
+                <div className="flex gap-2">
                     <Button
                         type="button"
+                        className="h-11 flex-1 rounded-full"
                         disabled={requestMutation.isPending || requestMessage.trim().length < 10 || !agree}
                         onClick={() => requestMutation.mutate()}
                     >
-                        {requestMutation.isPending ? 'Sending...' : 'Send request'}
+                        {requestMutation.isPending ? 'Sending...' : agree ? 'Send request' : 'Accept terms to start request'}
                     </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+        <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+            <DialogContent className="flex max-h-[88dvh] flex-col overflow-hidden sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>{commission.artist?.name ?? 'Artist'} Terms of Service</DialogTitle>
+                    <DialogDescription>Review the artist, service, and platform terms before sending a request.</DialogDescription>
+                </DialogHeader>
+                <div className="min-h-0 overflow-y-auto pr-2">
+                    <CommissionTermsContent commission={commission} />
                 </div>
             </DialogContent>
         </Dialog>
@@ -800,6 +885,143 @@ function CommissionDialog({
 
 function LabelText({ children }: { children: ReactNode }) {
     return <div className="text-sm font-medium">{children}</div>
+}
+
+function RequestQuestionInput({
+    question,
+    value,
+    error,
+    onChange,
+}: {
+    question: CommissionService['request_questions'][number]
+    value: string
+    error?: string
+    onChange: (value: string) => void
+}) {
+    return (
+        <div>
+            <LabelText>{question.title}{question.required ? ' *' : ''}</LabelText>
+            {question.description && (
+                <p className="mt-1 text-xs text-muted-foreground">{question.description}</p>
+            )}
+            {question.id === 'license-use' ? (
+                <div className="mt-2 space-y-2">
+                    {(question.options ?? []).map((option) => (
+                        <button
+                            key={option}
+                            type="button"
+                            onClick={() => onChange(option)}
+                            className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                                value === option ? 'border-foreground bg-muted/60' : 'bg-background hover:bg-muted/40'
+                            }`}
+                        >
+                            <span className="block font-medium">{licenseOptionTitle(option)}</span>
+                            <span className="mt-0.5 block text-xs text-muted-foreground">
+                                {licenseOptionDescription(option)}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            ) : question.type === 'multiple_choice' || question.type === 'single_choice' ? (
+                <select
+                    value={value}
+                    onChange={(event) => onChange(event.target.value)}
+                    className="mt-2 h-10 w-full rounded-md border bg-background px-3 text-sm"
+                >
+                    <option value="">Choose one</option>
+                    {(question.options ?? []).map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                    ))}
+                </select>
+            ) : question.type === 'checkbox' ? (
+                <div className="mt-2 space-y-2">
+                    {(question.options ?? []).map((option) => {
+                        const selected = value.split('\n').filter(Boolean)
+                        const checked = selected.includes(option)
+                        return (
+                            <label key={option} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={(event) => {
+                                        const next = event.target.checked
+                                            ? [...selected, option]
+                                            : selected.filter((item) => item !== option)
+                                        onChange(next.join('\n'))
+                                    }}
+                                    className="h-4 w-4"
+                                />
+                                <span>{option}</span>
+                            </label>
+                        )
+                    })}
+                </div>
+            ) : question.type === 'date' ? (
+                <Input type="date" value={value} onChange={(event) => onChange(event.target.value)} className="mt-2" />
+            ) : question.type === 'short_text' ? (
+                <Input value={value} onChange={(event) => onChange(event.target.value)} className="mt-2" />
+            ) : (
+                <textarea
+                    value={value}
+                    onChange={(event) => onChange(event.target.value)}
+                    className="mt-2 min-h-20 w-full rounded-md border bg-background p-3 text-sm"
+                />
+            )}
+            {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+        </div>
+    )
+}
+
+function licenseOptionTitle(option: string) {
+    return option.split(' - ')[0] ?? option
+}
+
+function licenseOptionDescription(option: string) {
+    const [, description] = option.split(' - ')
+    return description ?? option
+}
+
+function hasCollectedClientFields(fields: CommissionService['client_fields']) {
+    return Object.values(fields ?? {}).some((config) => config.collect)
+}
+
+function clientFieldLabel(field: string) {
+    return ({
+        name: 'Name',
+        nickname: 'Nickname',
+        email: 'Email',
+        discord: 'Discord',
+        twitter: 'Twitter / X',
+        instagram: 'Instagram',
+        facebook: 'Facebook',
+        tiktok: 'TikTok',
+    } as Record<string, string>)[field] ?? field
+}
+
+function clientFieldPlaceholder(field: string) {
+    return ({
+        name: 'Name or nickname',
+        nickname: 'Display nickname',
+        email: 'you@example.com',
+        discord: 'Discord username or link',
+        twitter: 'https://x.com/username',
+        instagram: 'https://instagram.com/username',
+        facebook: 'https://facebook.com/username',
+        tiktok: 'https://tiktok.com/@username',
+    } as Record<string, string>)[field] ?? ''
+}
+
+function profileClientDetails(user: User): Record<string, string> {
+    return {
+        name: user.name ?? '',
+        nickname: user.nickname ?? '',
+        email: user.email ?? '',
+        discord: user.discord_url ?? '',
+        twitter: user.twitter_url ?? '',
+        instagram: user.instagram_url ?? '',
+        facebook: '',
+        tiktok: user.tiktok_url ?? '',
+    }
 }
 
 function Metric({
@@ -844,10 +1066,81 @@ function FlowPreview({ flow }: { flow: CommissionFlowStep[] }) {
     )
 }
 
-function getUpfrontCredits(flow: CommissionFlowStep[], quoteCredits: number) {
-    const first = flow[0]
-    if (!first || first.type !== 'pay') return 0
-    return Math.ceil(quoteCredits * ((first.percent ?? 0) / 100))
+function RequestTermsPreview({
+    commission,
+    onExpand,
+}: {
+    commission: CommissionService
+    onExpand: () => void
+}) {
+    return (
+        <div className="overflow-hidden rounded-xl border bg-background">
+            <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+                <div>
+                    <p className="text-sm font-semibold">Terms of Service</p>
+                    <p className="text-xs text-muted-foreground">Please review before sending your request.</p>
+                </div>
+                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={onExpand}>
+                    <Maximize2 className="h-4 w-4" />
+                    <span className="sr-only">Open full terms</span>
+                </Button>
+            </div>
+            <div className="max-h-72 overflow-y-auto px-4 py-3">
+                <CommissionTermsContent commission={commission} compact />
+            </div>
+        </div>
+    )
+}
+
+function CommissionTermsContent({
+    commission,
+    compact = false,
+}: {
+    commission: CommissionService
+    compact?: boolean
+}) {
+    const hasTextTerms = Boolean(
+        commission.quote_rules ||
+        commission.required_references ||
+        commission.refund_policy ||
+        commission.terms ||
+        commission.artist_terms
+    )
+
+    return (
+        <div className={compact ? 'space-y-4' : 'space-y-5'}>
+            {commission.quote_rules && <TermSection title="Quote Rules" text={commission.quote_rules} />}
+            {commission.required_references && <TermSection title="Required References" text={commission.required_references} />}
+            {commission.refund_policy && <TermSection title="Refunds" text={commission.refund_policy} />}
+            {commission.terms && <TermSection title="Service Terms" text={commission.terms} />}
+            {commission.artist_terms && <TermSection title="Artist Terms" text={commission.artist_terms} />}
+            {!hasTextTerms && (
+                <p className="text-sm text-muted-foreground">The artist has not added extra service terms yet.</p>
+            )}
+            <div>
+                <h4 className="text-sm font-bold uppercase tracking-wide">Platform Terms</h4>
+                <ul className="mt-2 space-y-2 text-sm leading-6 text-muted-foreground">
+                    {commission.platform_terms.map((term) => (
+                        <li key={term} className="flex gap-2">
+                            <span>•</span>
+                            <span>{term}</span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        </div>
+    )
+}
+
+function TermSection({ title, text }: { title: string; text: string }) {
+    return (
+        <section>
+            <h4 className="text-sm font-bold uppercase tracking-wide">{title}</h4>
+            <div className="mt-2">
+                <FormattedTermText text={text} />
+            </div>
+        </section>
+    )
 }
 
 function isValidReferenceImage(file: File) {
@@ -872,9 +1165,39 @@ function TermBlock({ title, text }: { title: string; text: string }) {
     return (
         <div className="rounded-lg border bg-background p-3">
             <p className="mb-1 text-sm font-semibold">{title}</p>
-            <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">{text}</p>
+            <FormattedTermText text={text} />
         </div>
     )
+}
+
+function FormattedTermText({ text }: { text: string }) {
+    const lines = text.split(/\r?\n/)
+
+    return (
+        <div className="space-y-1 text-sm leading-6 text-muted-foreground">
+            {lines.map((line, index) => {
+                const trimmed = line.trim()
+                if (!trimmed) return <div key={index} className="h-2" />
+                if (trimmed.startsWith('## ')) {
+                    return <h4 key={index} className="pt-1 text-base font-semibold text-foreground">{renderBoldText(trimmed.slice(3))}</h4>
+                }
+                if (trimmed.startsWith('- ')) {
+                    return <div key={index} className="flex gap-2"><span>•</span><span>{renderBoldText(trimmed.slice(2))}</span></div>
+                }
+                return <p key={index}>{renderBoldText(line)}</p>
+            })}
+        </div>
+    )
+}
+
+function renderBoldText(text: string) {
+    const parts = text.split(/(\*\*[^*]+\*\*)/g)
+    return parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={index} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
+        }
+        return <span key={index}>{part}</span>
+    })
 }
 
 function RatingsList({ ratings }: { ratings: CommissionRating[] }) {

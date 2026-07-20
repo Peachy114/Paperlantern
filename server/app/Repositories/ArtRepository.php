@@ -14,7 +14,7 @@ class ArtRepository
         return $user->arts()
             ->select('arts.*')
             ->selectSub($this->activeArtBoostSubquery(), 'boosted_until')
-            ->with('images')
+            ->with(['images', 'downloadFiles'])
             ->latest()
             ->get();
     }
@@ -23,7 +23,7 @@ class ArtRepository
     {
         return Art::onlyTrashed()
             ->where('user_id', $user->id)
-            ->with('images')
+            ->with(['images', 'downloadFiles'])
             ->orderByDesc('deleted_at')
             ->get();
     }

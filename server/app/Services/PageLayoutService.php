@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 class PageLayoutService
 {
-    public const PAGES = ['home', 'arts', 'commissions'];
+    public const PAGES = ['home', 'comix', 'arts', 'commissions', 'daily', 'rankings', 'genre'];
 
     public function get(string $pageKey): array
     {
@@ -51,23 +51,101 @@ class PageLayoutService
     public function defaultWidgets(string $pageKey): array
     {
         return match ($this->normalizePageKey($pageKey)) {
+            'comix' => [
+                $this->widget('content_tabs', 'Browse', [
+                    'enabled' => true,
+                    'tabs_show_main' => true,
+                    'tabs_show_comix' => true,
+                    'tabs_show_novels' => true,
+                    'tabs_show_arts' => false,
+                    'tabs_show_commissions' => false,
+                ]),
+                $this->widget('featured_hero', 'Featured', ['enabled' => false, 'limit' => 10]),
+                $this->widget('fresh', 'Fresh Release', ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
+                $this->widget('latest', 'Latest Chapters', ['enabled' => true, 'limit' => 10]),
+                $this->widget('popular', 'Popular', ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
+            ],
             'arts' => [
-                $this->widget('featured_artists', 'Featured Artists', ['enabled' => true]),
-                $this->widget('labels', 'Labels', ['enabled' => true]),
-                $this->widget('arts_grid', 'Arts', ['enabled' => true, 'grid' => 'masonry']),
+                $this->widget('content_tabs', 'Browse', [
+                    'enabled' => false,
+                    'tabs_show_main' => true,
+                    'tabs_show_comix' => false,
+                    'tabs_show_novels' => false,
+                    'tabs_show_arts' => true,
+                    'tabs_show_commissions' => false,
+                ]),
+                $this->widget('featured_artists', 'Featured Artists', ['enabled' => true, 'limit' => 10]),
+                $this->widget('labels', 'Labels', ['enabled' => true, 'limit' => 10]),
+                $this->widget('arts_grid', 'Arts', ['enabled' => true, 'grid' => 'masonry', 'limit' => 10]),
             ],
             'commissions' => [
-                $this->widget('commission_grid', 'Open Commissions', ['enabled' => true, 'grid' => 'masonry']),
+                $this->widget('content_tabs', 'Browse', [
+                    'enabled' => false,
+                    'tabs_show_main' => true,
+                    'tabs_show_comix' => false,
+                    'tabs_show_novels' => false,
+                    'tabs_show_arts' => false,
+                    'tabs_show_commissions' => true,
+                ]),
+                $this->widget('commission_grid', 'Open Commissions', ['enabled' => true, 'grid' => 'masonry', 'limit' => 10]),
+            ],
+            'daily' => [
+                $this->widget('content_tabs', 'Daily Tabs', [
+                    'enabled' => true,
+                    'tabs_show_main' => true,
+                    'tabs_show_comix' => true,
+                    'tabs_show_novels' => true,
+                    'tabs_show_arts' => true,
+                    'tabs_show_commissions' => false,
+                ]),
+                $this->widget('today_releases', "Today's Releases", ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
+                $this->widget('today_top', "Today's Top 10", ['enabled' => true, 'filter' => 'all', 'limit' => 10, 'metric' => 'views']),
+            ],
+            'rankings' => [
+                $this->widget('content_tabs', 'Ranking Tabs', [
+                    'enabled' => true,
+                    'tabs_show_main' => true,
+                    'tabs_show_comix' => true,
+                    'tabs_show_novels' => true,
+                    'tabs_show_arts' => true,
+                    'tabs_show_commissions' => false,
+                ]),
+                $this->widget('weekly', 'Weekly', ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
+                $this->widget('popular', 'Popular', ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
+                $this->widget('top_liker', 'Top Liker', ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
+            ],
+            'genre' => [
+                $this->widget('content_tabs', 'Genre Tabs', [
+                    'enabled' => true,
+                    'tabs_show_main' => true,
+                    'tabs_show_comix' => true,
+                    'tabs_show_novels' => true,
+                    'tabs_show_arts' => true,
+                    'tabs_show_commissions' => false,
+                ]),
+                $this->widget('labels', 'Genres and Labels', ['enabled' => true, 'limit' => 10]),
+                $this->widget('popular', 'Popular by Genre', ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
             ],
             default => [
                 $this->widget('hero', 'Hero', ['enabled' => true]),
+                $this->widget('featured_hero', 'Featured Hero', ['enabled' => false]),
+                $this->widget('group_hero', 'Popular Arts', [
+                    'enabled' => false,
+                    'limit' => 10,
+                    'text' => 'Artwork for this week',
+                    'group_hero_design' => 'popular_arts',
+                    'group_source_arts' => true,
+                    'group_sort' => 'popular',
+                    'group_view_all_enabled' => true,
+                    'group_view_all_sort' => 'popular',
+                ]),
                 $this->widget('announcement_banner', 'Announcement Banner', ['enabled' => false]),
                 $this->widget('weekly', 'Weekly', ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
-                $this->widget('today_releases', "Today's Releases", ['enabled' => true, 'filter' => 'all', 'limit' => 12]),
+                $this->widget('today_releases', "Today's Releases", ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
                 $this->widget('today_top', "Today's Top 10", ['enabled' => false, 'filter' => 'all', 'limit' => 10, 'metric' => 'views', 'layout' => 'horizontal']),
-                $this->widget('fresh', 'Fresh Release', ['enabled' => true, 'filter' => 'all', 'limit' => 12]),
-                $this->widget('latest', 'Latest Chapters', ['enabled' => true, 'limit' => 12]),
-                $this->widget('popular', 'Popular', ['enabled' => false, 'filter' => 'all', 'limit' => 12]),
+                $this->widget('fresh', 'Fresh Release', ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
+                $this->widget('latest', 'Latest Chapters', ['enabled' => true, 'limit' => 10]),
+                $this->widget('popular', 'Popular', ['enabled' => false, 'filter' => 'all', 'limit' => 10]),
                 $this->widget('top_liker', 'Top Liker', ['enabled' => false, 'filter' => 'all', 'limit' => 10, 'layout' => 'horizontal']),
             ],
         };
@@ -142,8 +220,44 @@ class PageLayoutService
             'metric' => in_array($settings['metric'] ?? '', ['views', 'likes'], true)
                 ? $settings['metric']
                 : 'views',
-            'limit' => max(1, min(30, (int) ($settings['limit'] ?? 12))),
+            'limit' => max(1, min(30, (int) ($settings['limit'] ?? 10))),
             'allow_overlap' => $allowOverlap,
+            'hero_design' => in_array($settings['hero_design'] ?? '', ['default', 'reference_1', 'reference_2', 'reference_3'], true)
+                ? $settings['hero_design']
+                : 'default',
+            'hero_show_name' => (bool) ($settings['hero_show_name'] ?? true),
+            'hero_show_artist' => (bool) ($settings['hero_show_artist'] ?? true),
+            'hero_show_views' => (bool) ($settings['hero_show_views'] ?? true),
+            'hero_show_likes' => (bool) ($settings['hero_show_likes'] ?? true),
+            'hero_show_favorite' => (bool) ($settings['hero_show_favorite'] ?? false),
+            'hero_label_style' => in_array($settings['hero_label_style'] ?? '', ['badges', 'plain'], true)
+                ? $settings['hero_label_style']
+                : 'badges',
+            'hero_source_arts' => (bool) ($settings['hero_source_arts'] ?? true),
+            'hero_source_announcements' => (bool) ($settings['hero_source_announcements'] ?? true),
+            'hero_source_works' => (bool) ($settings['hero_source_works'] ?? true),
+            'hero_source_commissions' => (bool) ($settings['hero_source_commissions'] ?? true),
+            'hero_featured_only' => (bool) ($settings['hero_featured_only'] ?? false),
+            'group_hero_design' => in_array($settings['group_hero_design'] ?? '', ['default', 'popular_arts', 'spotlight_stack'], true)
+                ? $settings['group_hero_design']
+                : 'popular_arts',
+            'group_source_arts' => (bool) ($settings['group_source_arts'] ?? true),
+            'group_source_comix' => (bool) ($settings['group_source_comix'] ?? false),
+            'group_source_novels' => (bool) ($settings['group_source_novels'] ?? false),
+            'group_source_commissions' => (bool) ($settings['group_source_commissions'] ?? false),
+            'group_sort' => in_array($settings['group_sort'] ?? '', ['popular', 'latest', 'likes', 'views', 'featured'], true)
+                ? $settings['group_sort']
+                : 'popular',
+            'group_filter_labels' => Str::limit((string) ($settings['group_filter_labels'] ?? ''), 500, ''),
+            'group_view_all_enabled' => (bool) ($settings['group_view_all_enabled'] ?? true),
+            'group_view_all_sort' => in_array($settings['group_view_all_sort'] ?? '', ['popular', 'latest', 'likes', 'views', 'featured'], true)
+                ? $settings['group_view_all_sort']
+                : 'popular',
+            'tabs_show_main' => (bool) ($settings['tabs_show_main'] ?? true),
+            'tabs_show_comix' => (bool) ($settings['tabs_show_comix'] ?? true),
+            'tabs_show_novels' => (bool) ($settings['tabs_show_novels'] ?? true),
+            'tabs_show_arts' => (bool) ($settings['tabs_show_arts'] ?? true),
+            'tabs_show_commissions' => (bool) ($settings['tabs_show_commissions'] ?? false),
             'selected_board_item_id' => Str::limit((string) ($settings['selected_board_item_id'] ?? ''), 80, ''),
             'board_items' => $this->sanitizeBoardItems(
                 is_array($settings['board_items'] ?? null) ? $settings['board_items'] : []
@@ -263,11 +377,15 @@ class PageLayoutService
 
     private function allowedType(string $type, string $pageKey): string
     {
-        $common = ['text', 'image', 'sticker', 'board', 'spacer'];
+        $common = ['text', 'image', 'sticker', 'board', 'spacer', 'content_tabs'];
         $types = match ($pageKey) {
             'arts' => ['featured_artists', 'labels', 'arts_grid'],
             'commissions' => ['commission_grid', 'boosted_commissions', 'featured_artists'],
-            default => ['hero', 'announcement_banner', 'announcement_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
+            'comix' => ['featured_hero', 'group_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
+            'daily' => ['featured_hero', 'group_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
+            'rankings' => ['featured_hero', 'group_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
+            'genre' => ['featured_hero', 'group_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker', 'labels'],
+            default => ['hero', 'featured_hero', 'group_hero', 'announcement_banner', 'announcement_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
         };
 
         return in_array($type, [...$types, ...$common], true) ? $type : 'text';

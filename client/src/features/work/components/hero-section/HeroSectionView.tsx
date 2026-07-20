@@ -177,7 +177,7 @@ export default function HeroSectionView({
                                                         fontWeight: 700,
                                                     }}
                                                 >
-                                                    {announcement.title}
+                                                    {announcement.title} "hero for announcement"
                                                 </h2>
                                                 <p className="text-[11px] sm:text-xs text-white/70 mt-1 line-clamp-1">
                                                     {announcement.content}

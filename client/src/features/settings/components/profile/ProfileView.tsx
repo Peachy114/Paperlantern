@@ -43,6 +43,20 @@ export default function ProfileView() {
                         )}
                     </div>
                     {/* ── Social Media Links ── */}
+                    <div className="space-y-1.5">
+                        <Label htmlFor="nickname">Nickname</Label>
+                        <Input
+                            id="nickname"
+                            {...profile.register('nickname')}
+                            placeholder="Display nickname"
+                        />
+                        {profile.errors.nickname && (
+                            <p className="text-sm text-destructive">
+                                {profile.errors.nickname.message}
+                            </p>
+                        )}
+                    </div>
+
                     <div className="space-y-2">
                         <Label>Account menu style</Label>
                         <div className="grid gap-2 sm:grid-cols-2">
@@ -77,10 +91,13 @@ export default function ProfileView() {
                         </div>
                     </div>
 
-                    <div className="hidden">
+                    <div className="space-y-4">
                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                            Social Media Links
+                            Public Links
                         </h3>
+                        <p className="text-sm text-muted-foreground">
+                            These can be shared publicly and reused when a commission artist asks for contact details.
+                        </p>
 
                         <div className="space-y-1.5">
                             <Label htmlFor="twitter_url">X / Twitter</Label>
@@ -92,6 +109,20 @@ export default function ProfileView() {
                             {profile.errors.twitter_url && (
                                 <p className="text-sm text-destructive">
                                     {profile.errors.twitter_url.message}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label htmlFor="discord_url">Discord</Label>
+                            <Input
+                                id="discord_url"
+                                {...profile.register('discord_url')}
+                                placeholder="Discord username or profile/invite link"
+                            />
+                            {profile.errors.discord_url && (
+                                <p className="text-sm text-destructive">
+                                    {profile.errors.discord_url.message}
                                 </p>
                             )}
                         </div>

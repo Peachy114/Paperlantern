@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use ZipArchive;
 
 class PublicArtController extends Controller
 {
@@ -52,12 +53,25 @@ class PublicArtController extends Controller
             });
         }
 
-        $arts = $query
+        $query
             ->orderByRaw('CASE WHEN boosted_until IS NULL THEN 1 ELSE 0 END ASC')
             ->orderByDesc('boosted_until')
             ->orderByRaw('CASE WHEN public_sort_order IS NULL THEN 1 ELSE 0 END ASC')
-            ->orderBy('public_sort_order')
-            ->orderByDesc('views')
+            ->orderBy('public_sort_order');
+
+        if ($request->query('sort') === 'latest') {
+            $query->latest();
+        } elseif ($request->query('sort') === 'likes') {
+            $query->orderByDesc('likes')->orderByDesc('views');
+        } elseif ($request->query('sort') === 'featured') {
+            $query->orderByDesc('is_featured')->orderByDesc('views');
+        } elseif (in_array($request->query('sort'), ['popular', 'views'], true)) {
+            $query->orderByDesc('views')->orderByDesc('likes');
+        } else {
+            $query->orderByDesc('views');
+        }
+
+        $arts = $query
             ->latest()
             ->paginate(30);
 
@@ -203,6 +217,12 @@ class PublicArtController extends Controller
             ], $art->download_policy === 'paid' ? 402 : 401);
         }
 
+        $art->loadMissing(['images', 'downloadFiles']);
+
+        if ($art->downloadFiles->isNotEmpty()) {
+            return $this->downloadBundle($art);
+        }
+
         $image = $this->downloadImage($art, (string) $request->query('image_id', ''));
         $originalPath = $image?->original_image_path ?: $art->original_image_path;
         $displayPath = $image?->image_path ?: $art->image_path;
@@ -221,6 +241,74 @@ class PublicArtController extends Controller
         $response->headers->set('Cache-Control', 'private, no-store');
 
         return $response;
+    }
+
+    private function downloadBundle(Art $art)
+    {
+        abort_unless(class_exists(ZipArchive::class), 500, 'Zip downloads are not available on this server.');
+
+        $zipDirectory = storage_path('app/tmp/art-downloads');
+        if (! is_dir($zipDirectory)) {
+            mkdir($zipDirectory, 0775, true);
+        }
+
+        $zipPath = $zipDirectory . DIRECTORY_SEPARATOR . "{$art->id}-" . Str::uuid() . '.zip';
+        $zip = new ZipArchive();
+        abort_unless($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true, 500, 'Could not prepare the download bundle.');
+
+        $usedNames = [];
+        foreach ($art->images as $index => $image) {
+            if (! $image->original_image_path || ! Storage::disk('local')->exists($image->original_image_path)) {
+                continue;
+            }
+
+            $extension = pathinfo($image->original_image_path, PATHINFO_EXTENSION) ?: 'jpg';
+            $name = $this->uniqueZipName($usedNames, 'art-images/' . Str::slug($art->title ?: 'art') . '-' . ($index + 1) . ".{$extension}");
+            $zip->addFile(Storage::disk('local')->path($image->original_image_path), $name);
+        }
+
+        foreach ($art->downloadFiles as $file) {
+            if (! $file->file_path || ! Storage::disk('local')->exists($file->file_path)) {
+                continue;
+            }
+
+            $name = $this->uniqueZipName($usedNames, 'downloads/' . ($file->original_name ?: basename($file->file_path)));
+            $zip->addFile(Storage::disk('local')->path($file->file_path), $name);
+        }
+
+        $zip->close();
+
+        if (! file_exists($zipPath) || filesize($zipPath) === 0) {
+            @unlink($zipPath);
+            return response()->json(['message' => 'Download files were not found.'], 404);
+        }
+
+        $art->increment('downloads_count');
+        $filename = Str::slug($art->title ?: 'later-n-comix-art') . '-download.zip';
+
+        return response()
+            ->download($zipPath, $filename, ['Cache-Control' => 'private, no-store'])
+            ->deleteFileAfterSend(true);
+    }
+
+    private function uniqueZipName(array &$usedNames, string $name): string
+    {
+        $name = trim(str_replace('\\', '/', $name), '/');
+        $base = pathinfo($name, PATHINFO_FILENAME);
+        $extension = pathinfo($name, PATHINFO_EXTENSION);
+        $directory = trim(pathinfo($name, PATHINFO_DIRNAME), '.');
+        $candidate = $name;
+        $counter = 2;
+
+        while (isset($usedNames[$candidate])) {
+            $suffix = $extension ? ".{$extension}" : '';
+            $candidate = ($directory ? "{$directory}/" : '') . "{$base}-{$counter}{$suffix}";
+            $counter++;
+        }
+
+        $usedNames[$candidate] = true;
+
+        return $candidate;
     }
 
     public function toggleLike(Request $request, Art $art): JsonResponse

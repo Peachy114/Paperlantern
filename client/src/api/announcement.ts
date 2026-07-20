@@ -9,6 +9,7 @@ export interface Announcement {
     audience: 'public' | 'studio'
     image: string | null
     is_pinned: boolean
+    is_featured?: boolean
     created_at: string
     updated_at: string
     creator?: {

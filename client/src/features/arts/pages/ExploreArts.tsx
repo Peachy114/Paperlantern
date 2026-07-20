@@ -46,6 +46,7 @@ import { Separator } from '@/components/ui/separator'
 import CommentSection from '@/features/comments/components/CommentSection'
 import SuperLikeButton from '@/features/comments/components/SuperLikeButton'
 import { CustomPageWidget, PageWidgetFrame } from '@/features/page-builder/PageWidgetFrame'
+import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
 import type { PageLayout, PageWidget } from '@/types/pageLayout'
 
 interface TagCount {
@@ -103,14 +104,16 @@ export default function ExploreArts() {
     const [search, setSearch] = useState(searchParams.get('q') ?? '')
     const [selectedArt, setSelectedArt] = useState<Art | null>(null)
     const activeLabel = searchParams.get('label') ?? ''
+    const activeSort = searchParams.get('sort') ?? ''
     const requestedArt = searchParams.get('art') ?? ''
 
     const params = useMemo(() => {
         const next = new URLSearchParams()
         if (searchParams.get('q')) next.set('q', searchParams.get('q')!)
         if (activeLabel) next.set('label', activeLabel)
+        if (activeSort) next.set('sort', activeSort)
         return next
-    }, [activeLabel, searchParams])
+    }, [activeLabel, activeSort, searchParams])
 
     const { data, isLoading } = useQuery<ArtsResponse>({
         queryKey: ['public-arts', params.toString()],
@@ -204,6 +207,14 @@ export default function ExploreArts() {
                     return (
                         <PageWidgetFrame key={widget.id} widget={widget}>
                             <FeaturedArtistsSection artists={artists} />
+                        </PageWidgetFrame>
+                    )
+                }
+
+                if (widget.type === 'content_tabs') {
+                    return (
+                        <PageWidgetFrame key={widget.id} widget={widget}>
+                            <ContentTabsWidget widget={widget} />
                         </PageWidgetFrame>
                     )
                 }
@@ -564,7 +575,7 @@ function ArtDetailDialog({
             ? activeImage?.id
             : undefined
         const response = await publicApi.downloadArt(art.id, activeImageId)
-        saveDownloadBlob(response.data, downloadFileName(art, activeImage))
+        saveDownloadBlob(response.data, responseFileName(response, downloadFileName(art, activeImage)))
         setDownloadUnlocked(true)
         setDownloadsCount((count) => count + 1)
         queryClient.invalidateQueries({ queryKey: ['public-arts'] })
@@ -1167,6 +1178,18 @@ function downloadFileName(art: Art, image?: ArtImage) {
     const suffix = image?.id ? `-${image.id.slice(0, 8)}` : ''
     const extension = image?.image_path?.split('.').pop()?.split('?')[0] || 'jpg'
     return `${slugify(art.title || 'later-n-comix-art')}${suffix}.${extension}`
+}
+
+function responseFileName(response: any, fallback: string) {
+    const disposition = response?.headers?.['content-disposition'] as string | undefined
+    const match = disposition?.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)
+    if (!match?.[1]) return fallback
+
+    try {
+        return decodeURIComponent(match[1].replace(/"/g, ''))
+    } catch {
+        return match[1].replace(/"/g, '') || fallback
+    }
 }
 
 function saveDownloadBlob(blob: Blob, filename: string) {
