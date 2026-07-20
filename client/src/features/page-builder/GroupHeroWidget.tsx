@@ -208,7 +208,7 @@ function PopularArtsMosaic({
 
     return (
         <section className="w-full overflow-hidden bg-gradient-to-br from-sky-50 via-background to-amber-50 px-3 py-12 sm:px-4 sm:py-16 dark:from-sky-950/20 dark:via-background dark:to-amber-950/20">
-            <div className="mx-auto w-full max-w-[1180px]">
+            <div className="mx-auto w-full max-w-[1360px]">
                 <SectionHeader
                     title={widget.title || 'Popular Arts'}
                     centered
@@ -216,30 +216,65 @@ function PopularArtsMosaic({
                 />
 
                 {/* ====================================================== */}
-                {/* // popular arts responsive layout ---- */}
+                {/* // popular arts mobile layout ---- */}
                 {/* ====================================================== */}
 
-                <div className="grid min-w-0 gap-3 lg:grid-cols-[1.05fr_1fr] lg:items-stretch">
+                <div className="lg:hidden">
+                    {/* //// featured artwork full width ---- */}
+                    <GroupItemCard
+                        item={featured}
+                        rank={1}
+                        large
+                        ribbon
+                        className="min-h-[340px] sm:min-h-[460px]"
+                    />
+
+                    {/* //// message full width ---- */}
+                    <div className="mt-3 flex min-h-[120px] w-full items-center justify-center overflow-hidden rounded-2xl bg-background px-4 py-4 text-center text-xs font-black uppercase tracking-wide text-orange-500 shadow-md sm:min-h-[145px] sm:text-sm">
+                        <span className="line-clamp-3">{text}</span>
+                    </div>
+
+                    {/* //// two artwork cards per row ---- */}
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                        {smallItems.map((item, index) => (
+                            <GroupItemCard
+                                key={item.id}
+                                item={item}
+                                rank={index + 2}
+                                ribbon
+                                className="aspect-[1.45/1]"
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                {/* ====================================================== */}
+                {/* // popular arts desktop layout ---- */}
+                {/* ====================================================== */}
+
+                <div className="hidden min-w-0 gap-3 lg:grid lg:grid-cols-[1.05fr_1fr] lg:items-stretch">
                     {/* //// featured artwork ---- */}
                     <GroupItemCard
                         item={featured}
                         rank={1}
                         large
-                        className="min-h-[340px] sm:min-h-[460px] lg:min-h-[560px]"
+                        ribbon
+                        className="min-h-[560px]"
                     />
 
-                    {/* //// automatically adapting artwork grid ---- */}
-                    <div className="grid min-w-0 auto-rows-[145px] grid-cols-2 gap-3 sm:auto-rows-[165px] lg:auto-rows-[170px] lg:grid-cols-6">
+                    {/* //// desktop artwork grid ---- */}
+                    <div className="grid min-w-0 auto-rows-[170px] grid-cols-6 gap-3">
                         {smallItems[0] && (
                             <GroupItemCard
                                 item={smallItems[0]}
                                 rank={2}
-                                className={getPopularArtCardClass(0, smallItems.length)}
+                                ribbon
+                                className={getDesktopPopularArtCardClass(0, smallItems.length)}
                             />
                         )}
 
-                        {/* //// artwork message tile ---- */}
-                        <div className="col-span-2 flex min-h-0 items-center justify-center overflow-hidden rounded-2xl bg-background px-3 py-3 text-center text-[10px] font-black uppercase tracking-wide text-orange-500 shadow-md sm:px-4 sm:text-sm lg:col-span-4">
+                        {/* //// desktop message tile ---- */}
+                        <div className="col-span-4 flex min-h-0 items-center justify-center overflow-hidden rounded-2xl bg-background px-4 py-3 text-center text-sm font-black uppercase tracking-wide text-orange-500 shadow-md">
                             <span className="line-clamp-3">{text}</span>
                         </div>
 
@@ -251,7 +286,8 @@ function PopularArtsMosaic({
                                     key={item.id}
                                     item={item}
                                     rank={actualIndex + 2}
-                                    className={getPopularArtCardClass(
+                                    ribbon
+                                    className={getDesktopPopularArtCardClass(
                                         actualIndex,
                                         smallItems.length
                                     )}
@@ -278,7 +314,7 @@ function SpotlightStack({
 
     return (
         <section className="w-full bg-background px-4 py-12 sm:py-16">
-            <div className="mx-auto w-full max-w-[1180px]">
+            <div className="mx-auto w-full max-w-[1360px]">
                 <SectionHeader title={widget.title || 'Spotlight'} viewAllHref={viewAllHref} />
 
                 <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
@@ -339,11 +375,13 @@ function GroupItemCard({
     item,
     rank,
     large = false,
+    ribbon = false,
     className = '',
 }: {
     item: GroupHeroItem
     rank: number
     large?: boolean
+    ribbon?: boolean
     className?: string
 }) {
     return (
@@ -352,17 +390,44 @@ function GroupItemCard({
             className={`group relative block h-full min-h-0 min-w-0 overflow-hidden rounded-xl bg-muted shadow-sm outline-none ring-offset-background transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${className}`}
         >
             <ItemImage item={item} />
-            <span className="absolute left-0 top-0 flex h-10 w-8 items-center justify-center bg-red-500 text-xs font-black text-white shadow">
-                {rank}
-            </span>
+            {ribbon ? (
+                <span
+                    className="
+            absolute
+            left-3
+            top-0
+            z-20
+            flex
+            h-12
+            w-9
+            items-start
+            justify-center
+            no-bg
+            pt-1.5
+            text-md
+            font-black
+            text-white
+            shadow-md
+        "
+                    style={{
+                        clipPath: 'polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%)',
+                    }}
+                >
+                    {rank}
+                </span>
+            ) : (
+                <span className="absolute left-0 top-0 flex h-10 w-8 items-center justify-center rounded-br-md no-bg text-xs font-black text-white shadow">
+                    {rank}
+                </span>
+            )}
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent p-3 text-white">
-                <h3
+                {/* <h3
                     className={`line-clamp-2 font-black leading-tight ${
                         large ? 'text-xl sm:text-2xl' : 'text-sm'
                     }`}
                 >
                     {item.title}
-                </h3>
+                </h3> */}
                 <div className="mt-2 flex items-center justify-between gap-2">
                     <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-black/75 px-1.5 text-[10px] font-black uppercase">
                         {labelForType(item.type)[0]}
@@ -465,58 +530,20 @@ function clampPopularArtsLimit(value: number) {
     return Math.min(12, Math.max(7, Math.floor(value)))
 }
 
-function getPopularArtCardClass(index: number, total: number) {
+function getDesktopPopularArtCardClass(index: number, total: number) {
     const isLast = index === total - 1
     const isSecondLast = index === total - 2
+    const remainder = (total + 2) % 3
 
-    /*
-     * Mobile uses two columns:
-     * - An odd final item spans both columns.
-     *
-     * Desktop uses a six-column grid:
-     * - Normal cards span two columns, giving three cards per row.
-     * - One leftover card spans all six columns.
-     * - Two leftover cards each span three columns.
-     */
-    /*
-     * The message tile also occupies one mobile grid cell.
-     * Therefore, the last artwork only spans both columns when:
-     *
-     * message tile + artwork cards = an odd number of cells.
-     *
-     * smallItems:
-     * 7  -> 8 cells with message  -> balanced
-     * 8  -> 9 cells with message  -> last artwork spans 2
-     * 9  -> 10 cells with message -> balanced
-     * 10 -> 11 cells with message -> last artwork spans 2
-     * 11 -> 12 cells with message -> balanced
-     */
-    /*
-     * On small screens, the message tile spans both columns.
-     * Only the artwork cards determine whether the last row is incomplete.
-     *
-     * total = number of small artwork cards after the featured artwork.
-     * When total is odd, the final artwork spans both columns.
-     *
-     * Examples:
-     * 7 total records  -> 6 small cards -> balanced
-     * 8 total records  -> 7 small cards -> last card spans full width
-     * 9 total records  -> 8 small cards -> balanced
-     * 10 total records -> 9 small cards -> last card spans full width
-     */
-    const mobileClass = total % 2 === 1 && isLast ? 'col-span-2' : ''
-
-    const desktopRemainder = (total + 2) % 3
-
-    if (desktopRemainder === 1 && isLast) {
-        return `${mobileClass} lg:col-span-6`
+    if (remainder === 1 && isLast) {
+        return 'col-span-6'
     }
 
-    if (desktopRemainder === 2 && (isSecondLast || isLast)) {
-        return `${mobileClass} lg:col-span-3`
+    if (remainder === 2 && (isSecondLast || isLast)) {
+        return 'col-span-3'
     }
 
-    return `${mobileClass} lg:col-span-2`
+    return 'col-span-2'
 }
 
 function selectedSources(widget: PageWidget): GroupSource[] {
@@ -615,20 +642,36 @@ function CardGridSkeleton() {
 function MosaicSkeleton() {
     return (
         <section className="w-full overflow-hidden bg-gradient-to-br from-sky-50 via-background to-amber-50 px-3 py-14 sm:px-4 dark:from-sky-950/20 dark:via-background dark:to-amber-950/20">
-            <div className="mx-auto max-w-[1180px]">
+            <div className="mx-auto max-w-[1360px]">
                 <div className="mx-auto mb-8 h-7 w-48 animate-pulse rounded bg-muted" />
 
-                <div className="grid min-w-0 gap-3 lg:grid-cols-[1.05fr_1fr] lg:items-stretch">
-                    <div className="min-h-[340px] animate-pulse rounded-xl bg-muted sm:min-h-[460px] lg:min-h-[560px]" />
+                {/* //// mobile skeleton ---- */}
+                <div className="lg:hidden">
+                    <div className="min-h-[340px] animate-pulse rounded-xl bg-muted sm:min-h-[460px]" />
+                    <div className="mt-3 min-h-[120px] animate-pulse rounded-2xl bg-muted sm:min-h-[145px]" />
 
-                    <div className="grid min-w-0 auto-rows-[145px] grid-cols-2 gap-3 sm:auto-rows-[165px] lg:auto-rows-[170px] lg:grid-cols-6">
-                        <div className="min-h-0 animate-pulse rounded-xl bg-muted lg:col-span-2" />
-                        <div className="col-span-2 min-h-0 animate-pulse rounded-2xl bg-muted lg:col-span-4" />
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                        {Array.from({ length: 8 }).map((_, index) => (
+                            <div
+                                key={index}
+                                className="aspect-[1.45/1] animate-pulse rounded-xl bg-muted"
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                {/* //// desktop skeleton ---- */}
+                <div className="hidden min-w-0 gap-3 lg:grid lg:grid-cols-[1.05fr_1fr] lg:items-stretch">
+                    <div className="min-h-[560px] animate-pulse rounded-xl bg-muted" />
+
+                    <div className="grid min-w-0 auto-rows-[170px] grid-cols-6 gap-3">
+                        <div className="col-span-2 animate-pulse rounded-xl bg-muted" />
+                        <div className="col-span-4 animate-pulse rounded-2xl bg-muted" />
 
                         {Array.from({ length: 7 }).map((_, index) => (
                             <div
                                 key={index}
-                                className="min-h-0 animate-pulse rounded-xl bg-muted lg:col-span-2"
+                                className="col-span-2 animate-pulse rounded-xl bg-muted"
                             />
                         ))}
                     </div>

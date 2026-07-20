@@ -1805,7 +1805,13 @@ function Inspector({
                         <SelectField
                             label="Hero design"
                             value={widget.settings.hero_design ?? 'default'}
-                            options={['default', 'reference_1', 'reference_2', 'reference_3']}
+                            options={[
+                                'default',
+                                'reference_1',
+                                'reference_2',
+                                'reference_3',
+                                'reference_4',
+                            ]}
                             onChange={(value) => setSetting('hero_design', value)}
                         />
                         <div className="grid gap-2">
@@ -1957,7 +1963,11 @@ function Inspector({
 
                         <SelectField
                             label="View all sort"
-                            value={widget.settings.group_view_all_sort ?? widget.settings.group_sort ?? 'popular'}
+                            value={
+                                widget.settings.group_view_all_sort ??
+                                widget.settings.group_sort ??
+                                'popular'
+                            }
                             options={['popular', 'latest', 'likes', 'views', 'featured']}
                             onChange={(value) => setSetting('group_view_all_sort', value)}
                         />

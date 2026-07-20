@@ -29,13 +29,18 @@ export interface PageWidgetSettings {
     align?: 'auto' | 'start' | 'center' | 'end' | 'stretch' | 'justify'
     display?: 'block' | 'inline'
     columns?: number
-    info_layout?: 'image_only' | 'image_title' | 'image_title_inline' | 'title_image' | 'image_title_description'
+    info_layout?:
+        | 'image_only'
+        | 'image_title'
+        | 'image_title_inline'
+        | 'title_image'
+        | 'image_title_description'
     placement?: 'tight' | 'overlay'
     anchor_widget_id?: string | null
     metric?: 'views' | 'likes'
     limit?: number
     allow_overlap?: boolean
-    hero_design?: 'default' | 'reference_1' | 'reference_2' | 'reference_3'
+    hero_design?: 'default' | 'reference_1' | 'reference_2' | 'reference_3' | 'reference_4'
     hero_show_name?: boolean
     hero_show_artist?: boolean
     hero_show_views?: boolean

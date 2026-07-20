@@ -37,7 +37,7 @@ type HeroItem = {
 }
 
 // HERO DESIGNS FOR ANNOUNCEMENTS, ARTS, WORKS, AND COMMISSIONS
-type CarouselDesign = 'default' | 'reference_1' | 'reference_2' | 'reference_3'
+type CarouselDesign = 'default' | 'reference_1' | 'reference_2' | 'reference_3' | 'reference_4'
 
 const AUTO_ROTATE_DELAY = 5_000
 const DRAG_THRESHOLD = 55
@@ -312,6 +312,10 @@ export default function FeaturedHeroWidget({
 
             {design === 'reference_3' && <GappedHero {...sharedCarouselProps} />}
 
+            {design === 'reference_4' && (
+                <BlurredBackgroundHeroSameHeight {...sharedCarouselProps} />
+            )}
+
             {design === 'default' && <AnnouncementStyleHero {...sharedCarouselProps} />}
 
             <HeroModal
@@ -403,6 +407,84 @@ function AnnouncementStyleHero({
                         />
                         <MetaOverlay item={current} widget={widget} />
                     </HeroActionCard>
+                </div>
+
+                <CarouselNavigation
+                    itemCount={items.length}
+                    currentIndex={currentIndex}
+                    onPrev={onPrev}
+                    onNext={onNext}
+                    onGoTo={onGoTo}
+                />
+            </div>
+        </section>
+    )
+}
+
+function BlurredBackgroundHeroSameHeight({
+    widget,
+    items,
+    current,
+    currentIndex,
+    previousItem,
+    nextItem,
+    onPrev,
+    onNext,
+    onGoTo,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel,
+    onOpenItem,
+    dragOffset,
+    isDragging,
+}: HeroLayoutProps) {
+    return (
+        <section className="relative w-full overflow-hidden py-5 sm:py-7">
+            <img
+                key={`background-${current.id}`}
+                src={current.image!}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl"
+            />
+
+            <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" />
+
+            <div
+                className={`relative mx-auto flex min-h-[330px] max-w-[1360px] touch-pan-y select-none items-center justify-center px-4 sm:min-h-[390px] ${
+                    isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                }`}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={onPointerCancel}
+            >
+                <div
+                    className="flex w-full items-center justify-center gap-3 sm:gap-5"
+                    style={{
+                        transform: `translateX(${dragOffset * 0.25}px)`,
+                        transition: isDragging ? 'none' : 'transform 300ms ease',
+                    }}
+                >
+                    <SideImageCard
+                        item={previousItem}
+                        onClick={onPrev}
+                        className="h-[300px] w-full max-w-[760px] sm:h-[350px] md:w-[54%]"
+                    />
+
+                    <HeroImageCard
+                        item={current}
+                        widget={widget}
+                        onOpenItem={onOpenItem}
+                        className="h-[300px] w-full max-w-[760px] sm:h-[350px] md:w-[54%]"
+                    />
+
+                    <SideImageCard
+                        item={nextItem}
+                        onClick={onNext}
+                        className="h-[300px] w-full max-w-[760px] sm:h-[350px] md:w-[54%]"
+                    />
                 </div>
 
                 <CarouselNavigation
@@ -525,7 +607,7 @@ function OverlappingHero({
                 onPointerCancel={onPointerCancel}
             >
                 <div
-                    className="relative mx-auto h-full w-full max-w-[1180px]"
+                    className="relative mx-auto h-full w-full max-w-[1360px]"
                     style={{
                         transform: `translateX(${dragOffset * 0.24}px)`,
                         transition: isDragging ? 'none' : 'transform 300ms ease',
@@ -643,7 +725,11 @@ function HeroImageCard({
     className: string
 }) {
     return (
-        <HeroActionCard item={item} onOpenItem={onOpenItem} className={`relative block shrink-0 overflow-hidden bg-muted ${className}`}>
+        <HeroActionCard
+            item={item}
+            onOpenItem={onOpenItem}
+            className={`relative block shrink-0 overflow-hidden bg-muted ${className}`}
+        >
             <img
                 src={item.image!}
                 alt={item.title}

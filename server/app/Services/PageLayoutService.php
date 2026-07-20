@@ -222,7 +222,7 @@ class PageLayoutService
                 : 'views',
             'limit' => max(1, min(30, (int) ($settings['limit'] ?? 10))),
             'allow_overlap' => $allowOverlap,
-            'hero_design' => in_array($settings['hero_design'] ?? '', ['default', 'reference_1', 'reference_2', 'reference_3'], true)
+            'hero_design' => in_array($settings['hero_design'] ?? '', ['default', 'reference_1', 'reference_2', 'reference_3','reference_4'], true)
                 ? $settings['hero_design']
                 : 'default',
             'hero_show_name' => (bool) ($settings['hero_show_name'] ?? true),

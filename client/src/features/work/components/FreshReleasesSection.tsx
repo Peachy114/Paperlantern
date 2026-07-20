@@ -30,8 +30,9 @@ export default function FreshReleasesSection({
     const imageFor = (work: Work) => cover(work.cover, work.type === 'art' ? undefined : 'sm')
 
     return (
+        // Fresh Releases Section ----
         <section className="mt-10 sm:mt-5 w-full max-w-[1360px] mx-auto px-5">
-            <h2 className="text-2xl font-bold py-5">FRESH RELEASE "Fresh sections"</h2>
+            <h2 className="text-2xl font-bold py-5">FRESH RELEASES</h2>
 
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
                 {fresh.paginated.map((work, i) => (
