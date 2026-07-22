@@ -19,8 +19,10 @@ export default function NavbarWrapper() {
 
     const isChapterPage = /\/comics\/\d+\/chapters\/\d+/.test(location.pathname)
     const isComixActive = location.pathname.startsWith('/comix')
-    const isArtistsActive = location.pathname.startsWith('/explore/arts')
+    const isNovelsActive = location.pathname.startsWith('/novels')
+    const isArtsActive = location.pathname.startsWith('/explore/arts')
     const isCommissionsActive = location.pathname.startsWith('/commissions')
+    const isShopActive = location.pathname.startsWith('/shop')
     const isDailyActive = location.pathname.startsWith('/daily')
 
     useEffect(() => {
@@ -82,9 +84,11 @@ export default function NavbarWrapper() {
             token={token}
             isChapterPage={isChapterPage}
             isComicsActive={isComixActive}
-            isNovelsActive={isArtistsActive}
+            isNovelsActive={isNovelsActive}
+            isArtsActive={isArtsActive}
             isDailyActive={isDailyActive}
             isCommissionsActive={isCommissionsActive}
+            isShopActive={isShopActive}
             navbarHidden={navbarHidden}
             profileOpen={profileOpen}
             profileButtonRef={profileButtonRef}

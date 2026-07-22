@@ -1,21 +1,33 @@
 import { useState, type ChangeEvent, type DragEvent, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
     BriefcaseBusiness,
     CheckCircle2,
     ChevronDown,
     Clock3,
+    ClipboardList,
+    Eye,
+    FileQuestion,
+    GripVertical,
+    Heart,
     ImageOff,
+    MessageSquareText,
+    Users,
     PlusCircle,
+    Settings,
     ShieldAlert,
     Sparkles,
+    Star,
     Trash2,
+    Workflow,
 } from 'lucide-react'
 import { studioApi } from '@/api/studio'
 import { storageUrl } from '@/utils/storage'
 import type { CommissionProfile } from '@/types/art'
 import BoostModal from '@/features/boosts/components/BoostModal'
+import ThemedLogo from '@/components/layout/ThemedLogo'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
@@ -180,6 +192,7 @@ interface CommissionOrder {
         title: string
         slug: string
         image_path: string | null
+        base_price_credits?: number
     } | null
     customer: {
         id: string
@@ -316,6 +329,18 @@ const EMPTY_SERVICE_FORM: ServiceForm = {
     ],
 }
 
+const COMMISSION_NAV_ITEMS = [
+    { value: 'workflow', label: 'Commissions', icon: Sparkles },
+    { value: 'services', label: 'Services', icon: BriefcaseBusiness },
+    { value: 'forms', label: 'Forms', icon: ClipboardList },
+    { value: 'requests', label: 'Orders', icon: Workflow },
+    { value: 'policies', label: 'Policies', icon: ShieldAlert },
+    { value: 'discounts', label: 'Promotions', icon: Star },
+    { value: 'faq', label: 'FAQ', icon: FileQuestion },
+    { value: 'ratings', label: 'Ratings', icon: CheckCircle2 },
+    { value: 'settings', label: 'Settings', icon: Settings },
+]
+
 export default function MyCommission() {
     const queryClient = useQueryClient()
     const { data, isLoading } = useQuery<CommissionPageResponse>({
@@ -346,8 +371,14 @@ export default function MyCommission() {
     const updateSettings = useMutation({
         mutationFn: (payload: {
             commissions_enabled?: boolean
-            commission_status?: 'open' | 'waitlist' | 'closed'
+            commission_status?: 'open' | 'closed'
             terms?: string
+            policies?: Record<string, string>
+            request_forms?: RequestQuestion[]
+            faqs?: InfoQuestion[]
+            discounts?: PromoDiscount[]
+            client_fields?: ClientFields
+            flow_template?: FlowStep[]
         }) => studioApi.updateCommissionProfile(payload).then((res) => res.data),
         onSuccess: () => {
             toast.success('Commission settings saved.')
@@ -402,26 +433,6 @@ export default function MyCommission() {
         onError: () => toast.error('Could not update commission request.'),
     })
 
-    const quoteOrder = useMutation({
-        mutationFn: ({
-            id,
-            quote_credits,
-            quote_note,
-            flow,
-        }: {
-            id: string
-            quote_credits: number
-            quote_note?: string
-            flow: FlowStep[]
-        }) => studioApi.quoteCommissionOrder(id, { quote_credits, quote_note, flow }),
-        onSuccess: () => {
-            toast.success('Commission quote sent.')
-            queryClient.invalidateQueries({ queryKey: QUERY_KEY })
-        },
-        onError: (error: any) =>
-            toast.error(error?.response?.data?.message ?? 'Could not send quote.'),
-    })
-
     const advanceStage = useMutation({
         mutationFn: ({ id, step_index, note }: { id: string; step_index: number; note?: string }) =>
             studioApi.advanceCommissionStage(id, { step_index, note }),
@@ -431,38 +442,6 @@ export default function MyCommission() {
         },
         onError: (error: any) =>
             toast.error(error?.response?.data?.message ?? 'Could not update stage.'),
-    })
-
-    const uploadDelivery = useMutation({
-        mutationFn: ({ id, payload }: { id: string; payload: FormData }) =>
-            studioApi.uploadCommissionDeliveryFile(id, payload).then((res) => res.data),
-        onSuccess: () => {
-            toast.success('Final delivery uploaded.')
-            queryClient.invalidateQueries({ queryKey: QUERY_KEY })
-        },
-        onError: (error: any) =>
-            toast.error(error?.response?.data?.message ?? 'Could not upload delivery file.'),
-    })
-
-    const updateRevision = useMutation({
-        mutationFn: ({
-            id,
-            status,
-            artist_response,
-        }: {
-            id: string
-            status: 'in_progress' | 'resolved' | 'rejected'
-            artist_response?: string
-        }) =>
-            studioApi
-                .updateCommissionRevision(id, { status, artist_response })
-                .then((res) => res.data),
-        onSuccess: () => {
-            toast.success('Revision updated.')
-            queryClient.invalidateQueries({ queryKey: QUERY_KEY })
-        },
-        onError: (error: any) =>
-            toast.error(error?.response?.data?.message ?? 'Could not update revision.'),
     })
 
     const appealRating = useMutation({
@@ -485,135 +464,1119 @@ export default function MyCommission() {
     }
 
     return (
-        <div className="rounded-3xl border bg-muted/30 p-5">
-            <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Commission</h1>
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                        Apply, create commission services, and manage your commission availability.
-                    </p>
-                </div>
-            </div>
+        <div className="mx-auto w-full max-w-[1500px] pb-16">
+            <header className="mb-5 px-1">
+                <h1 className="text-2xl font-black uppercase tracking-[0.03em] sm:text-3xl">
+                    Commissions
+                </h1>
+                <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                    Apply, create commission services, and manage your commission availability.
+                </p>
+            </header>
 
-            <Tabs defaultValue="dashboard" className="space-y-5">
-                <TabsList className="flex w-full flex-wrap justify-start">
-                    <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-                    <TabsTrigger value="requests">Commission Request</TabsTrigger>
-                    <TabsTrigger value="ratings">Ratings</TabsTrigger>
-                    <TabsTrigger value="settings">Commission Settings</TabsTrigger>
-                </TabsList>
+            <CommissionDashboardHero
+                profile={profile}
+                services={services}
+                orders={orders}
+                widgets={widgets}
+            />
 
-                <TabsContent value="dashboard" className="space-y-5">
-                    <CommissionWidgets profile={profile} services={services} widgets={widgets} />
+            {profile.application_status !== 'approved' && (
+                <div className="mt-5">
                     <CommissionApplicationSection
                         profile={profile}
                         busy={applyCommission.isPending}
                         onApply={(reason) => applyCommission.mutate(reason)}
                     />
-                    <CommissionServicesSection
-                        profile={profile}
-                        services={services}
-                        categories={categories}
-                        saving={createService.isPending || updateService.isPending}
-                        deleting={deleteService.isPending}
-                        onCreate={(payload) => createService.mutate(payload)}
-                        onUpdate={(slug, payload) => updateService.mutate({ slug, payload })}
-                        onDelete={(slug) => deleteService.mutate(slug)}
-                    />
-                </TabsContent>
+                </div>
+            )}
 
-                <TabsContent value="requests">
-                    <CommissionRequestsSection
-                        orders={orders}
-                        busy={
-                            updateOrder.isPending ||
-                            quoteOrder.isPending ||
-                            advanceStage.isPending ||
-                            uploadDelivery.isPending ||
-                            updateRevision.isPending
-                        }
-                        onUpdate={(id, status) => updateOrder.mutate({ id, status })}
-                        onQuote={(id, quote_credits, quote_note, flow) =>
-                            quoteOrder.mutate({ id, quote_credits, quote_note, flow })
-                        }
-                        onAdvance={(id, step_index, note) =>
-                            advanceStage.mutate({ id, step_index, note })
-                        }
-                        onUploadDelivery={(id, payload) => uploadDelivery.mutate({ id, payload })}
-                        onUpdateRevision={(id, status, artist_response) =>
-                            updateRevision.mutate({ id, status, artist_response })
-                        }
-                    />
-                </TabsContent>
+            <Tabs
+                defaultValue="workflow"
+                className="mt-5 grid items-start gap-5 lg:grid-cols-[210px_minmax(0,1fr)]"
+            >
+                <TabsList className="flex h-auto w-full flex-row items-stretch justify-start gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/70 bg-background/80 p-2 shadow-sm backdrop-blur lg:sticky lg:top-24 lg:flex-col lg:overflow-visible lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none">
+                    {COMMISSION_NAV_ITEMS.map(({ value, label, icon: Icon }) => (
+                        <TabsTrigger
+                            key={value}
+                            value={value}
+                            className="group h-11 shrink-0 justify-start gap-3 rounded-xl border border-transparent bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-foreground shadow-none transition-all duration-200 hover:bg-muted/70 data-[state=active]:border-sky-200 data-[state=active]:bg-sky-500 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_20px_rgba(14,165,233,0.28)] lg:w-full"
+                        >
+                            <Icon className="h-4 w-4 shrink-0 text-orange-500 transition-colors group-data-[state=active]:text-white" />
+                            <span>{label}</span>
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
 
-                <TabsContent value="ratings">
-                    <CommissionRatingsSectionV2
-                        ratings={ratings}
-                        busy={appealRating.isPending}
-                        onAppeal={(id, appeal_reason) => appealRating.mutate({ id, appeal_reason })}
-                    />
-                </TabsContent>
+                <div className="min-w-0">
+                    <TabsContent value="workflow" className="mt-0">
+                        <CommissionWorkflowSection
+                            orders={orders}
+                            busy={advanceStage.isPending || updateOrder.isPending}
+                            onMove={(id, status) => updateOrder.mutate({ id, status })}
+                        />
+                    </TabsContent>
 
-                <TabsContent value="settings">
-                    <CommissionSettingsSection
-                        profile={profile}
-                        busy={updateSettings.isPending}
-                        onSave={(payload) => updateSettings.mutate(payload)}
-                    />
-                </TabsContent>
+                    <TabsContent value="services" className="mt-0">
+                        <CommissionServicesSection
+                            profile={profile}
+                            services={services}
+                            categories={categories}
+                            saving={createService.isPending || updateService.isPending}
+                            deleting={deleteService.isPending}
+                            onCreate={(payload) => createService.mutate(payload)}
+                            onUpdate={(slug, payload) => updateService.mutate({ slug, payload })}
+                            onDelete={(slug) => deleteService.mutate(slug)}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="forms" className="mt-0">
+                        <CommissionFormsWorkspace
+                            profile={profile}
+                            busy={updateSettings.isPending}
+                            onSave={(request_forms) => updateSettings.mutate({ request_forms })}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="requests" className="mt-0">
+                        <CommissionRequestsSection orders={orders} />
+                    </TabsContent>
+
+                    <TabsContent value="policies" className="mt-0">
+                        <CommissionPoliciesSection
+                            profile={profile}
+                            busy={updateSettings.isPending}
+                            onSave={(policies) => updateSettings.mutate({ policies })}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="discounts" className="mt-0">
+                        <CommissionDiscountWorkspace
+                            profile={profile}
+                            busy={updateSettings.isPending}
+                            onSave={(discounts) => updateSettings.mutate({ discounts })}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="faq" className="mt-0">
+                        <CommissionFaqWorkspace
+                            profile={profile}
+                            busy={updateSettings.isPending}
+                            onSave={(faqs) => updateSettings.mutate({ faqs })}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="ratings" className="mt-0">
+                        <CommissionRatingsSectionV2
+                            ratings={ratings}
+                            busy={appealRating.isPending}
+                            onAppeal={(id, appeal_reason) =>
+                                appealRating.mutate({ id, appeal_reason })
+                            }
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="settings" className="mt-0">
+                        <CommissionSettingsSection
+                            profile={profile}
+                            busy={updateSettings.isPending}
+                            onSave={(payload) => updateSettings.mutate(payload)}
+                        />
+                    </TabsContent>
+                </div>
             </Tabs>
         </div>
     )
 }
 
-function CommissionWidgets({
+function CommissionDashboardHero({
     profile,
     services,
+    orders,
     widgets,
 }: {
     profile: CommissionProfile
     services: CommissionService[]
+    orders: CommissionOrder[]
     widgets?: CommissionWidgetsData
 }) {
-    const active = services.filter(
+    const activeServices = services.filter(
         (service) => service.status === 'open' && service.is_published
     ).length
-    const waitlist = services.filter((service) => service.status === 'waitlist').length
+    const totalOrders = widgets?.total_orders ?? orders.length
+    const completedOrders =
+        widgets?.completed_orders ?? orders.filter((order) => order.status === 'completed').length
+    const activeOrders =
+        widgets?.active_orders ??
+        orders.filter((order) =>
+            ['awaiting_payment', 'in_progress', 'delivered'].includes(order.status)
+        ).length
+    const chartPoints = buildCommissionChartPoints(orders)
+    const featuredService = services.find((service) => service.image_path) ?? services[0] ?? null
+    const featuredImage = featuredService?.image_path ?? null
+    const averageRating = profile.ratings_count ? profile.average_rating.toFixed(1) : 'New'
 
     return (
-        <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Widget label="Total customers" value={profile.customers_count} />
-            <Widget
-                label="Average rating"
-                value={profile.ratings_count ? profile.average_rating.toFixed(1) : 'New'}
-            />
-            <Widget label="Total orders" value={widgets?.total_orders ?? 0} />
-            <Widget label="Active orders" value={widgets?.active_orders ?? 0} />
-            <Widget label="Completed orders" value={widgets?.completed_orders ?? 0} />
-            <Widget label="Active services" value={active} />
-            <Widget label="Waitlist services" value={waitlist} />
-            <Widget
-                label="Commission earnings"
-                value={formatCredits(widgets?.commission_earnings ?? 0)}
-            />
-            {/* <Widget label="Works earnings" value={formatCredits(widgets?.works_earnings ?? 0)} /> */}
-            {/* <Widget label="Arts earnings" value={formatCredits(widgets?.arts_earnings ?? 0)} /> */}
-            {/* <Widget label="Super Likes" value={formatCredits(widgets?.super_like_earnings ?? 0)} /> */}
-            {/* <Widget label="Creator total" value={formatCredits(widgets?.combined_creator_earnings ?? 0)} /> */}
+        <div className="space-y-4">
+            <section className="overflow-hidden rounded-[28px] border border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-background to-orange-50/40 p-2.5 shadow-[0_16px_45px_rgba(15,23,42,0.06)] sm:p-3">
+                <div className="grid gap-3 xl:grid-cols-[190px_minmax(0,1fr)]">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                        <div className="relative min-h-56 overflow-hidden rounded-2xl border border-white/80 bg-white shadow-sm">
+                            {featuredImage ? (
+                                <img
+                                    src={storageUrl(featuredImage)!}
+                                    alt={featuredService?.title ?? 'Featured commission service'}
+                                    className="absolute inset-0 h-full w-full object-cover"
+                                />
+                            ) : (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-orange-100 via-rose-50 to-sky-100 text-center">
+                                    <ThemedLogo width={96} height={96} className="object-contain" />
+                                    <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-slate-600">
+                                        Events
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent px-4 pb-3 pt-12 text-white">
+                                <p className="line-clamp-1 text-sm font-bold">
+                                    {featuredService?.title ?? 'Open for commissions'}
+                                </p>
+                                <p className="mt-0.5 text-[10px] text-white/80">
+                                    {activeServices} active service
+                                    {activeServices === 1 ? '' : 's'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200/80 bg-background px-4 py-3 shadow-sm">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+                                        Commission status
+                                    </p>
+                                    <p className="mt-1 text-sm font-bold capitalize">
+                                        {profile.commission_status ?? 'closed'}
+                                    </p>
+                                </div>
+                                <span
+                                    className={`h-2.5 w-2.5 rounded-full ${
+                                        profile.commission_status === 'open'
+                                            ? 'bg-emerald-500 shadow-[0_0_0_5px_rgba(16,185,129,0.12)]'
+                                            : 'bg-slate-300 shadow-[0_0_0_5px_rgba(148,163,184,0.12)]'
+                                    }`}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200/80 bg-background p-4 shadow-sm sm:p-5">
+                        <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-[0.12em] text-orange-500">
+                                    Activity
+                                </p>
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                    Last seven days · commission requests
+                                </p>
+                            </div>
+                            <span className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
+                                {totalOrders} total
+                            </span>
+                        </div>
+
+                        <MiniAreaChart points={chartPoints} />
+
+                        <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+                            <DashboardStat
+                                icon={<BriefcaseBusiness className="h-4 w-4" />}
+                                label="Services"
+                                value={services.length}
+                            />
+                            <DashboardStat
+                                icon={<Eye className="h-4 w-4" />}
+                                label="Orders"
+                                value={totalOrders}
+                            />
+                            <DashboardStat
+                                icon={<Heart className="h-4 w-4 fill-rose-500 text-rose-500" />}
+                                label="Active"
+                                value={activeOrders}
+                            />
+                            <DashboardStat
+                                icon={<Star className="h-4 w-4 fill-amber-400 text-amber-400" />}
+                                label="Rate"
+                                value={averageRating}
+                            />
+                            <DashboardStat
+                                icon={<MessageSquareText className="h-4 w-4 text-orange-500" />}
+                                label="Completed"
+                                value={completedOrders}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+                <section className="rounded-[24px] border border-slate-200/80 bg-muted/35 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.035)]">
+                    <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-orange-500" />
+                        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+                            Customers & orders
+                        </p>
+                    </div>
+
+                    <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-5">
+                        <MiniMetric label="Total orders" value={totalOrders} />
+                        <MiniMetric label="Average rating" value={averageRating} />
+                        <MiniMetric label="Completed orders" value={completedOrders} />
+                        <MiniMetric label="Active orders" value={activeOrders} />
+                    </div>
+                </section>
+
+                <section className="relative min-h-44 overflow-hidden rounded-[24px] border border-slate-200/80 bg-gradient-to-r from-rose-100 via-orange-50 to-sky-100 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+                    {featuredImage ? (
+                        <img
+                            src={storageUrl(featuredImage)!}
+                            alt="Commission banner"
+                            className="absolute inset-0 h-full w-full object-cover object-center"
+                        />
+                    ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <ThemedLogo width={126} height={126} className="object-contain" />
+                        </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/15 via-transparent to-transparent" />
+                </section>
+            </div>
         </div>
     )
 }
 
-function formatCredits(value: number) {
-    return `${Number(value || 0).toFixed(2)} cr`
+function MiniAreaChart({ points }: { points: number[] }) {
+    const width = 720
+    const height = 190
+    const baseline = 144
+    const chartTop = 30
+    const max = Math.max(...points, 1)
+    const left = 18
+    const right = width - 18
+    const step = (right - left) / Math.max(points.length - 1, 1)
+    const coords = points.map((point, index) => ({
+        x: left + index * step,
+        y: baseline - (point / max) * (baseline - chartTop),
+    }))
+    const linePath = createSmoothChartPath(coords)
+    const first = coords[0]
+    const last = coords[coords.length - 1]
+    const areaPath =
+        first && last ? `${linePath} L ${last.x} ${baseline} L ${first.x} ${baseline} Z` : ''
+    const labels = points.map((_, index) => {
+        const date = new Date()
+        date.setDate(date.getDate() - (points.length - 1 - index))
+        return date.toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+        })
+    })
+
+    return (
+        <div className="h-52 overflow-hidden rounded-2xl bg-gradient-to-b from-background to-sky-50/65 sm:h-56">
+            <svg
+                viewBox={`0 0 ${width} ${height}`}
+                className="h-full w-full"
+                role="img"
+                aria-label="Commission requests during the last seven days"
+            >
+                {[0, 1, 2, 3].map((lineIndex) => {
+                    const y = 34 + lineIndex * 32
+                    return (
+                        <line
+                            key={lineIndex}
+                            x1={left}
+                            x2={right}
+                            y1={y}
+                            y2={y}
+                            stroke="currentColor"
+                            strokeDasharray="3 5"
+                            className="text-slate-200/90"
+                        />
+                    )
+                })}
+
+                <defs>
+                    <linearGradient id="commission-chart-fill" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.68" />
+                        <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.03" />
+                    </linearGradient>
+                </defs>
+
+                <path d={areaPath} fill="url(#commission-chart-fill)" />
+                <path
+                    d={linePath}
+                    fill="none"
+                    stroke="#7dd3fc"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
+
+                {coords.map((point, index) => (
+                    <g key={`${point.x}-${index}`}>
+                        <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r="3.5"
+                            fill="#ffffff"
+                            stroke="#38bdf8"
+                            strokeWidth="2"
+                        />
+                        <text
+                            x={point.x}
+                            y={174}
+                            textAnchor="middle"
+                            className="fill-slate-400 text-[8px]"
+                        >
+                            {labels[index]}
+                        </text>
+                    </g>
+                ))}
+            </svg>
+        </div>
+    )
 }
 
-function Widget({ label, value }: { label: string; value: number | string }) {
+function createSmoothChartPath(points: Array<{ x: number; y: number }>) {
+    if (points.length === 0) return ''
+    if (points.length === 1) return `M ${points[0].x} ${points[0].y}`
+
+    return points.reduce((path, point, index) => {
+        if (index === 0) return `M ${point.x} ${point.y}`
+
+        const previous = points[index - 1]
+        const controlX = (previous.x + point.x) / 2
+
+        return `${path} C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`
+    }, '')
+}
+
+function buildCommissionChartPoints(orders: CommissionOrder[]) {
+    const days = Array.from({ length: 7 }, (_, index) => {
+        const day = new Date()
+        day.setHours(0, 0, 0, 0)
+        day.setDate(day.getDate() - (6 - index))
+        return day
+    })
+
+    const points = days.map((day) => {
+        const next = new Date(day)
+        next.setDate(day.getDate() + 1)
+        return orders.filter((order) => {
+            const created = new Date(order.created_at)
+            return created >= day && created < next
+        }).length
+    })
+
+    return points.some(Boolean) ? points : [0, 1, 2, 3, 5, 3, 1]
+}
+
+function DashboardStat({
+    icon,
+    label,
+    value,
+}: {
+    icon: ReactNode
+    label: string
+    value: number | string
+}) {
     return (
-        <div className="rounded-lg border bg-background p-4">
-            <div className="text-2xl font-bold">{value}</div>
-            <div className="mt-0.5 text-xs text-muted-foreground">{label}</div>
+        <div className="rounded-2xl border border-slate-200/80 bg-background px-3 py-3 shadow-[0_5px_18px_rgba(15,23,42,0.04)]">
+            <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
+                <span className="text-foreground">{icon}</span>
+                <span>{label}</span>
+            </div>
+            <div className="mt-1 text-center text-lg font-black tracking-tight">
+                {typeof value === 'number' ? formatCompactMetric(value) : value}
+            </div>
         </div>
+    )
+}
+
+function MiniMetric({ label, value }: { label: string; value: number | string }) {
+    return (
+        <div>
+            <div className="text-lg font-black tracking-tight sm:text-xl">
+                {typeof value === 'number' ? formatCompactMetric(value) : value}
+            </div>
+            <div className="mt-0.5 text-[10px] leading-tight text-muted-foreground">{label}</div>
+        </div>
+    )
+}
+
+function formatCompactMetric(value: number) {
+    return Intl.NumberFormat(undefined, {
+        notation: value >= 1000 ? 'compact' : 'standard',
+        maximumFractionDigits: 1,
+    }).format(value)
+}
+
+function normalizeClientFields(value?: CommissionProfile['client_fields']): ClientFields {
+    return {
+        ...DEFAULT_CLIENT_FIELDS,
+        ...(value ?? {}),
+        name: { ...DEFAULT_CLIENT_FIELDS.name, ...(value?.name ?? {}) },
+        nickname: { ...DEFAULT_CLIENT_FIELDS.nickname, ...(value?.nickname ?? {}) },
+        email: { ...DEFAULT_CLIENT_FIELDS.email, ...(value?.email ?? {}) },
+        discord: { ...DEFAULT_CLIENT_FIELDS.discord, ...(value?.discord ?? {}) },
+        twitter: { ...DEFAULT_CLIENT_FIELDS.twitter, ...(value?.twitter ?? {}) },
+        instagram: {
+            ...DEFAULT_CLIENT_FIELDS.instagram,
+            ...(value?.instagram ?? {}),
+        },
+        facebook: { ...DEFAULT_CLIENT_FIELDS.facebook, ...(value?.facebook ?? {}) },
+        tiktok: { ...DEFAULT_CLIENT_FIELDS.tiktok, ...(value?.tiktok ?? {}) },
+    }
+}
+
+function normalizeFlowTemplate(value?: CommissionProfile['flow_template']): FlowStep[] {
+    const source = Array.isArray(value) && value.length > 0 ? value : EMPTY_SERVICE_FORM.flow
+    return source.map((step) => ({
+        type: normalizeFlowType(step.type),
+        label: step.label || 'Commission step',
+        percent: typeof step.percent === 'number' ? step.percent : undefined,
+        rounds: typeof step.rounds === 'number' ? step.rounds : undefined,
+    }))
+}
+
+function normalizeFlowType(type: string): FlowType {
+    return ['pay', 'sketch', 'revision', 'add', 'done'].includes(type) ? (type as FlowType) : 'add'
+}
+
+function normalizeRequestQuestions(value?: CommissionProfile['request_forms']): RequestQuestion[] {
+    const source = Array.isArray(value) && value.length > 0 ? value : [DEFAULT_LICENSE_QUESTION]
+    return source.map((question) => ({
+        id: question.id || makeLocalId(),
+        title: question.title || 'Question',
+        description: question.description ?? '',
+        type: question.type ?? 'textarea',
+        required: Boolean(question.required),
+        options: Array.isArray(question.options) ? question.options : [],
+    }))
+}
+
+function CommissionPoliciesSection({
+    profile,
+    busy,
+    onSave,
+}: {
+    profile: CommissionProfile
+    busy: boolean
+    onSave: (policies: Record<string, string>) => void
+}) {
+    const [policies, setPolicies] = useState({
+        terms: profile.policies?.terms ?? profile.terms ?? '',
+        refund_policy:
+            profile.policies?.refund_policy ??
+            '100% refund if no sketch/work has been sent. 50% refund once the first sketch/work has started.',
+        required_references: profile.policies?.required_references ?? '',
+    })
+
+    const setPolicy = (key: keyof typeof policies, value: string) =>
+        setPolicies((current) => ({ ...current, [key]: value }))
+
+    return (
+        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+            <div className="mb-4">
+                <h2 className="text-base font-semibold">Policies</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Terms, refund policy, and required references. Use headings, bold markers, and
+                    bullets to keep it readable.
+                </p>
+            </div>
+            <Tabs defaultValue="terms" className="space-y-4">
+                <TabsList className="flex h-auto w-full flex-wrap justify-start">
+                    <TabsTrigger value="terms">Terms of Service</TabsTrigger>
+                    <TabsTrigger value="refund">Refund policy</TabsTrigger>
+                    <TabsTrigger value="references">Required references</TabsTrigger>
+                </TabsList>
+                <TabsContent value="terms" className="mt-0">
+                    <RichTextBlock
+                        label="Terms of Service"
+                        value={policies.terms}
+                        onChange={(value) => setPolicy('terms', value)}
+                        onFormat={(prefix, suffix = '') =>
+                            setPolicy(
+                                'terms',
+                                policies.terms ? `${prefix}${policies.terms}${suffix}` : prefix
+                            )
+                        }
+                    />
+                </TabsContent>
+                <TabsContent value="refund" className="mt-0">
+                    <RichTextBlock
+                        label="Refund policy"
+                        value={policies.refund_policy}
+                        onChange={(value) => setPolicy('refund_policy', value)}
+                        onFormat={(prefix, suffix = '') =>
+                            setPolicy(
+                                'refund_policy',
+                                policies.refund_policy
+                                    ? `${prefix}${policies.refund_policy}${suffix}`
+                                    : prefix
+                            )
+                        }
+                    />
+                </TabsContent>
+                <TabsContent value="references" className="mt-0">
+                    <RichTextBlock
+                        label="Required references"
+                        value={policies.required_references}
+                        onChange={(value) => setPolicy('required_references', value)}
+                        onFormat={(prefix, suffix = '') =>
+                            setPolicy(
+                                'required_references',
+                                policies.required_references
+                                    ? `${prefix}${policies.required_references}${suffix}`
+                                    : prefix
+                            )
+                        }
+                    />
+                </TabsContent>
+            </Tabs>
+            <Button className="mt-4" disabled={busy} onClick={() => onSave(policies)}>
+                {busy ? 'Saving...' : 'Save policies'}
+            </Button>
+        </section>
+    )
+}
+
+function CommissionFormsWorkspace({
+    profile,
+    busy,
+    onSave,
+}: {
+    profile: CommissionProfile
+    busy: boolean
+    onSave: (forms: RequestQuestion[]) => void
+}) {
+    const [forms, setForms] = useState<RequestQuestion[]>(
+        normalizeRequestQuestions(profile.request_forms)
+    )
+    const [adding, setAdding] = useState(false)
+    const [draft, setDraft] = useState<RequestQuestion>({
+        id: makeLocalId(),
+        title: '',
+        description: '',
+        type: 'textarea',
+        required: false,
+        options: [],
+    })
+
+    const openAdd = () => {
+        setDraft({
+            id: makeLocalId(),
+            title: '',
+            description: '',
+            type: 'textarea',
+            required: false,
+            options: [],
+        })
+        setAdding(true)
+    }
+
+    const addDraft = () => {
+        if (!draft.title.trim()) {
+            toast.error('Question title is required.')
+            return
+        }
+        setForms((current) => [...current, draft])
+        setAdding(false)
+    }
+
+    return (
+        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+            <RequestQuestionsSection
+                questions={forms}
+                onAdd={openAdd}
+                onUpdate={(index, patch) =>
+                    setForms((current) =>
+                        current.map((question, questionIndex) =>
+                            questionIndex === index ? { ...question, ...patch } : question
+                        )
+                    )
+                }
+                onRemove={(index) =>
+                    setForms((current) =>
+                        current.filter((_, questionIndex) => questionIndex !== index)
+                    )
+                }
+            />
+            <Button className="mt-4" disabled={busy} onClick={() => onSave(forms)}>
+                {busy ? 'Saving...' : 'Save forms'}
+            </Button>
+            <Dialog open={adding} onOpenChange={setAdding}>
+                <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Add question</DialogTitle>
+                        <DialogDescription>
+                            Save a reusable question that can be attached to a commission service.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-3">
+                        <div>
+                            <Label>Question</Label>
+                            <Input
+                                value={draft.title}
+                                onChange={(event) =>
+                                    setDraft((current) => ({ ...current, title: event.target.value }))
+                                }
+                                placeholder="How will you use this commission?"
+                            />
+                        </div>
+                        <div>
+                            <Label>Description</Label>
+                            <Textarea
+                                value={draft.description}
+                                onChange={(event) =>
+                                    setDraft((current) => ({
+                                        ...current,
+                                        description: event.target.value,
+                                    }))
+                                }
+                                className="min-h-20"
+                                placeholder="Optional helper text."
+                            />
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <SelectField
+                                label="Answer type"
+                                value={draft.type}
+                                options={[
+                                    ['textarea', 'Textarea'],
+                                    ['short_text', 'Short text'],
+                                    ['multiple_choice', 'Multiple choice'],
+                                    ['date', 'Date'],
+                                    ['checkbox', 'Checkbox'],
+                                ]}
+                                onChange={(value) =>
+                                    setDraft((current) => ({
+                                        ...current,
+                                        type: value as RequestQuestion['type'],
+                                    }))
+                                }
+                            />
+                            <label className="mt-6 flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={draft.required}
+                                    onChange={(event) =>
+                                        setDraft((current) => ({
+                                            ...current,
+                                            required: event.target.checked,
+                                        }))
+                                    }
+                                />
+                                Required
+                            </label>
+                        </div>
+                        {draft.type === 'multiple_choice' && (
+                            <div>
+                                <Label>Options</Label>
+                                <Textarea
+                                    value={draft.options.join('\n')}
+                                    onChange={(event) =>
+                                        setDraft((current) => ({
+                                            ...current,
+                                            options: event.target.value
+                                                .split(/\r?\n/)
+                                                .map((option) => option.trim())
+                                                .filter(Boolean),
+                                        }))
+                                    }
+                                    className="min-h-24"
+                                    placeholder={'One option per line'}
+                                />
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setAdding(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={addDraft}>
+                            Add question
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </section>
+    )
+}
+
+function CommissionFaqWorkspace({
+    profile,
+    busy,
+    onSave,
+}: {
+    profile: CommissionProfile
+    busy: boolean
+    onSave: (faqs: InfoQuestion[]) => void
+}) {
+    const [faqs, setFaqs] = useState<InfoQuestion[]>(profile.faqs ?? [])
+
+    return (
+        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+            <InfoQuestionsSection
+                items={faqs}
+                onAdd={() =>
+                    setFaqs((current) => [
+                        ...current,
+                        {
+                            id: makeLocalId(),
+                            question: 'Question clients often ask',
+                            answer: 'Answer wanderers can read before requesting.',
+                        },
+                    ])
+                }
+                onUpdate={(index, patch) =>
+                    setFaqs((current) =>
+                        current.map((item, itemIndex) =>
+                            itemIndex === index ? { ...item, ...patch } : item
+                        )
+                    )
+                }
+                onRemove={(index) =>
+                    setFaqs((current) => current.filter((_, itemIndex) => itemIndex !== index))
+                }
+            />
+            <Button className="mt-4" disabled={busy} onClick={() => onSave(faqs)}>
+                {busy ? 'Saving...' : 'Save FAQ'}
+            </Button>
+        </section>
+    )
+}
+
+function CommissionDiscountWorkspace({
+    profile,
+    busy,
+    onSave,
+}: {
+    profile: CommissionProfile
+    busy: boolean
+    onSave: (discounts: PromoDiscount[]) => void
+}) {
+    const [discounts, setDiscounts] = useState<PromoDiscount[]>(
+        (profile.discounts ?? []).map((discount) => ({
+            ...discount,
+            starts_at: discount.starts_at ?? '',
+            ends_at: discount.ends_at ?? '',
+        }))
+    )
+    const [adding, setAdding] = useState(false)
+    const [draft, setDraft] = useState<PromoDiscount>({
+        id: makeLocalId(),
+        label: 'Opening promo',
+        type: 'percent',
+        amount: 10,
+        starts_at: '',
+        ends_at: '',
+        active: true,
+    })
+
+    const openAdd = () => {
+        setDraft({
+            id: makeLocalId(),
+            label: 'Opening promo',
+            type: 'percent',
+            amount: 10,
+            starts_at: '',
+            ends_at: '',
+            active: true,
+        })
+        setAdding(true)
+    }
+
+    const addDraft = () => {
+        if (!draft.label.trim()) {
+            toast.error('Discount name is required.')
+            return
+        }
+        setDiscounts((current) => [...current, draft])
+        setAdding(false)
+    }
+
+    return (
+        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+            <DiscountsSection
+                discounts={discounts}
+                onAdd={openAdd}
+                onUpdate={(index, patch) =>
+                    setDiscounts((current) =>
+                        current.map((discount, discountIndex) =>
+                            discountIndex === index ? { ...discount, ...patch } : discount
+                        )
+                    )
+                }
+                onRemove={(index) =>
+                    setDiscounts((current) =>
+                        current.filter((_, discountIndex) => discountIndex !== index)
+                    )
+                }
+            />
+            <Button className="mt-4" disabled={busy} onClick={() => onSave(discounts)}>
+                {busy ? 'Saving...' : 'Save discounts'}
+            </Button>
+            <Dialog open={adding} onOpenChange={setAdding}>
+                <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Add discount</DialogTitle>
+                        <DialogDescription>
+                            Create a promo the artist can attach to commission services.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-3">
+                        <div>
+                            <Label>Discount name</Label>
+                            <Input
+                                value={draft.label}
+                                onChange={(event) =>
+                                    setDraft((current) => ({ ...current, label: event.target.value }))
+                                }
+                            />
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <SelectField
+                                label="Type"
+                                value={draft.type}
+                                options={[
+                                    ['percent', 'Percent'],
+                                    ['fixed', 'Fixed credits'],
+                                ]}
+                                onChange={(value) =>
+                                    setDraft((current) => ({
+                                        ...current,
+                                        type: value as PromoDiscount['type'],
+                                    }))
+                                }
+                            />
+                            <div>
+                                <Label>Amount</Label>
+                                <Input
+                                    type="number"
+                                    value={draft.amount}
+                                    onChange={(event) =>
+                                        setDraft((current) => ({
+                                            ...current,
+                                            amount: Number(event.target.value),
+                                        }))
+                                    }
+                                />
+                            </div>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <Label>Promo start</Label>
+                                <Input
+                                    type="date"
+                                    value={draft.starts_at}
+                                    onChange={(event) =>
+                                        setDraft((current) => ({
+                                            ...current,
+                                            starts_at: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                            <div>
+                                <Label>Promo end</Label>
+                                <Input
+                                    type="date"
+                                    value={draft.ends_at}
+                                    onChange={(event) =>
+                                        setDraft((current) => ({
+                                            ...current,
+                                            ends_at: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                        </div>
+                        <label className="flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={draft.active}
+                                onChange={(event) =>
+                                    setDraft((current) => ({
+                                        ...current,
+                                        active: event.target.checked,
+                                    }))
+                                }
+                            />
+                            Active
+                        </label>
+                    </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setAdding(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={addDraft}>
+                            Add discount
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </section>
+    )
+}
+
+function CommissionWorkflowSection({
+    orders,
+    busy,
+    onMove,
+}: {
+    orders: CommissionOrder[]
+    busy: boolean
+    onMove: (id: string, status: 'in_progress' | 'delivered' | 'cancelled' | 'disputed') => void
+}) {
+    const columns = [
+        {
+            key: 'todo',
+            title: 'TODO',
+            statuses: ['requested', 'awaiting_payment'],
+        },
+        {
+            key: 'in_progress',
+            title: 'IN-PROGRESS',
+            statuses: ['in_progress', 'disputed'],
+        },
+        {
+            key: 'done',
+            title: 'DONE',
+            statuses: ['delivered', 'completed', 'cancelled'],
+        },
+    ]
+
+    const statusForColumn = (key: string): 'in_progress' | 'delivered' | null => {
+        if (key === 'in_progress') return 'in_progress'
+        if (key === 'done') return 'delivered'
+        return null
+    }
+
+    return (
+        <section className="overflow-hidden rounded-[28px] border border-sky-100 bg-gradient-to-br from-sky-100/80 via-background to-orange-50/70 p-4 shadow-[0_14px_40px_rgba(15,23,42,0.055)] sm:p-5">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h2 className="text-base font-black tracking-tight">Commissions</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Drag active orders to move them through your production board.
+                    </p>
+                </div>
+                <span className="rounded-full border border-white/80 bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-600 shadow-sm">
+                    {orders.length} order{orders.length === 1 ? '' : 's'}
+                </span>
+            </div>
+
+            <div className="overflow-x-auto pb-1">
+                <div className="grid min-w-[790px] grid-cols-3 gap-3">
+                    {columns.map((column) => {
+                        const columnOrders = orders.filter((order) =>
+                            column.statuses.includes(order.status)
+                        )
+                        const nextStatus = statusForColumn(column.key)
+
+                        return (
+                            <div
+                                key={column.key}
+                                onDragOver={(event) => {
+                                    if (nextStatus) event.preventDefault()
+                                }}
+                                onDrop={(event) => {
+                                    if (!nextStatus) return
+                                    const id = event.dataTransfer.getData('text/plain')
+                                    if (id) onMove(id, nextStatus)
+                                }}
+                                className="min-h-[420px] rounded-2xl bg-white/15 p-1"
+                            >
+                                <div className="mb-3 flex items-center justify-between px-1">
+                                    <h3 className="text-[11px] font-black tracking-[0.08em] text-slate-800">
+                                        {column.title}
+                                    </h3>
+                                    <span className="rounded-full bg-white/75 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                                        {columnOrders.length}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-2.5">
+                                    {columnOrders.length === 0 ? (
+                                        <div className="flex min-h-28 items-center justify-center rounded-2xl border border-dashed border-slate-300/80 bg-white/35 px-4 text-center text-xs text-slate-400">
+                                            No commissions in this column.
+                                        </div>
+                                    ) : (
+                                        columnOrders.map((order) => {
+                                            const canDrag =
+                                                !busy &&
+                                                !['completed', 'cancelled'].includes(order.status)
+
+                                            return (
+                                                <article
+                                                    key={order.id}
+                                                    draggable={canDrag}
+                                                    onDragStart={(event) =>
+                                                        event.dataTransfer.setData(
+                                                            'text/plain',
+                                                            order.id
+                                                        )
+                                                    }
+                                                    className={`rounded-2xl border border-slate-200/90 bg-background p-3 shadow-[0_7px_20px_rgba(15,23,42,0.055)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)] ${
+                                                        canDrag
+                                                            ? 'cursor-grab active:cursor-grabbing'
+                                                            : 'cursor-default'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <h4 className="truncate text-xs font-black">
+                                                                {order.service?.title ??
+                                                                    'Commission request'}
+                                                            </h4>
+                                                            <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">
+                                                                {order.request_message ||
+                                                                    'No request description was provided.'}
+                                                            </p>
+                                                        </div>
+                                                        <GripVertical className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                                    </div>
+
+                                                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                                                        <span className="text-[9px] font-semibold text-sky-500">
+                                                            {order.customer?.name ?? 'Wanderer'}
+                                                        </span>
+                                                        <span className="rounded-md bg-muted px-1.5 py-0.5 text-[9px] capitalize text-muted-foreground">
+                                                            {order.status.replace(/_/g, ' ')}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="mt-2 border-t border-slate-100 pt-2 text-[9px] text-muted-foreground">
+                                                        {Number(order.quote_credits || 0).toFixed(
+                                                            0
+                                                        )}{' '}
+                                                        credits ·{' '}
+                                                        {Number(order.escrow_credits || 0).toFixed(
+                                                            0
+                                                        )}{' '}
+                                                        paid
+                                                    </div>
+                                                </article>
+                                            )
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        </section>
     )
 }
 
@@ -648,7 +1611,7 @@ function CommissionApplicationSection({
     }[profile.application_status]
 
     return (
-        <section className="mb-5 rounded-xl border bg-background p-4">
+        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -768,83 +1731,110 @@ function CommissionSettingsSection({
     busy: boolean
     onSave: (payload: {
         commissions_enabled: boolean
-        commission_status: 'open' | 'waitlist' | 'closed'
-        terms: string
+        commission_status: 'open' | 'closed'
+        client_fields: ClientFields
+        flow_template: FlowStep[]
     }) => void
 }) {
-    const [enabled, setEnabled] = useState(profile.commissions_enabled)
-    const [status, setStatus] = useState(profile.commission_status)
-    const [terms, setTerms] = useState(profile.terms ?? '')
+    const [status, setStatus] = useState<'open' | 'closed'>(
+        profile.commission_status === 'open' ? 'open' : 'closed'
+    )
+    const [clientFields, setClientFields] = useState<ClientFields>(
+        normalizeClientFields(profile.client_fields)
+    )
+    const [flow, setFlow] = useState<FlowStep[]>(normalizeFlowTemplate(profile.flow_template))
     const approved = profile.application_status === 'approved'
 
+    const updateClientField = (
+        field: keyof ClientFields,
+        patch: Partial<ClientFields[keyof ClientFields]>
+    ) => {
+        setClientFields((current) => ({
+            ...current,
+            [field]: { ...current[field], ...patch },
+        }))
+    }
+
+    const updateFlowStep = (index: number, patch: Partial<FlowStep>) => {
+        setFlow((current) =>
+            current.map((step, stepIndex) => (stepIndex === index ? { ...step, ...patch } : step))
+        )
+    }
+
+    const moveFlowStep = (index: number, target: number) => {
+        setFlow((current) => {
+            if (target < 0 || target >= current.length) return current
+            const next = [...current]
+            const [item] = next.splice(index, 1)
+            next.splice(target, 0, item)
+            return next
+        })
+    }
+
     return (
-        <section className="mb-5 rounded-xl border bg-background p-4">
+        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="mb-4">
                 <h2 className="text-base font-semibold">Commission settings</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    These settings unlock after admin approves your commission application.
+                    Control global commission availability, required client details, and the default
+                    flow used for new services.
                 </p>
             </div>
 
             <div className={!approved ? 'pointer-events-none opacity-50' : ''}>
-                <div className="mb-4 rounded-lg border p-3">
-                    <label className="flex items-center justify-between gap-4 text-sm">
-                        <span>
-                            <span className="block font-semibold">Do commissions</span>
-                            <span className="mt-0.5 block text-xs text-muted-foreground">
-                                Turn this off to globally close all commission services.
-                            </span>
-                        </span>
-                        <input
-                            type="checkbox"
-                            checked={enabled}
-                            onChange={(event) => {
-                                setEnabled(event.target.checked)
-                                if (!event.target.checked) setStatus('closed')
-                            }}
-                            className="h-4 w-4"
-                        />
-                    </label>
-                </div>
-                <div className="mb-4 flex flex-wrap items-center gap-4">
-                    <select
-                        value={status}
-                        onChange={(event) =>
-                            setStatus(event.target.value as 'open' | 'waitlist' | 'closed')
-                        }
-                        disabled={!enabled}
-                        className="h-9 rounded-md border bg-background px-3 text-sm"
-                    >
-                        <option value="open">Open</option>
-                        <option value="waitlist">Waitlist</option>
-                        <option value="closed">Closed</option>
-                    </select>
-                </div>
+                <Tabs defaultValue="availability" className="space-y-4">
+                    <TabsList>
+                        <TabsTrigger value="availability">Availability</TabsTrigger>
+                        <TabsTrigger value="client">Client Details</TabsTrigger>
+                        <TabsTrigger value="flow">Flow</TabsTrigger>
+                    </TabsList>
 
-                <div>
-                    <Label htmlFor="commission-terms">Artist commission terms</Label>
-                    <Textarea
-                        id="commission-terms"
-                        value={terms}
-                        onChange={(event) => setTerms(event.target.value)}
-                        maxLength={3000}
-                        placeholder="Add global commission terms. Service terms can be set per service."
-                        className="mt-1 min-h-24"
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        Your terms cannot override admin terms. Updates may be reviewed by admin.
-                    </p>
-                </div>
+                    <TabsContent value="availability" className="rounded-lg border p-3">
+                        <Label>Commissions status</Label>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                            <RadioCard
+                                checked={status === 'open'}
+                                title="Open"
+                                description="All published open services can receive requests."
+                                onChange={() => setStatus('open')}
+                            />
+                            <RadioCard
+                                checked={status === 'closed'}
+                                title="Closed"
+                                description="Globally close commission requests for every service."
+                                onChange={() => setStatus('closed')}
+                            />
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="client">
+                        <ClientFieldsSection fields={clientFields} onUpdate={updateClientField} />
+                    </TabsContent>
+
+                    <TabsContent value="flow">
+                        <FlowEditor
+                            flow={flow}
+                            setFlow={setFlow}
+                            onUpdate={updateFlowStep}
+                            onMove={moveFlowStep}
+                        />
+                    </TabsContent>
+                </Tabs>
 
                 <Button
                     type="button"
                     className="mt-4"
                     disabled={busy || !approved}
                     onClick={() =>
-                        onSave({ commissions_enabled: enabled, commission_status: status, terms })
+                        onSave({
+                            commissions_enabled: status === 'open',
+                            commission_status: status,
+                            client_fields: clientFields,
+                            flow_template: flow,
+                        })
                     }
                 >
-                    {busy ? 'Saving...' : 'Save commission settings'}
+                    {busy ? 'Saving...' : 'Save settings'}
                 </Button>
             </div>
         </section>
@@ -874,7 +1864,10 @@ function CommissionServicesSection({
     const [editing, setEditing] = useState<CommissionService | null>(null)
     const [boostService, setBoostService] = useState<CommissionService | null>(null)
     const [form, setForm] = useState<ServiceForm>(EMPTY_SERVICE_FORM)
+    const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([])
     const approved = profile.application_status === 'approved'
+    const allSelected =
+        services.length > 0 && services.every((service) => selectedServiceIds.includes(service.id))
 
     const openCreate = () => {
         setEditing(null)
@@ -902,9 +1895,15 @@ function CommissionServicesSection({
             required_references: service.required_references ?? '',
             request_questions: service.request_questions ?? [],
             info_questions: service.info_questions ?? [],
-            client_fields: { ...DEFAULT_CLIENT_FIELDS, ...(service.client_fields ?? {}) },
+            client_fields: {
+                ...DEFAULT_CLIENT_FIELDS,
+                ...(service.client_fields ?? {}),
+            },
             promo_discounts: service.promo_discounts ?? [],
-            setup_options: { ...DEFAULT_SETUP_OPTIONS, ...(service.setup_options ?? {}) },
+            setup_options: {
+                ...DEFAULT_SETUP_OPTIONS,
+                ...(service.setup_options ?? {}),
+            },
             flow: service.flow?.length ? service.flow : EMPTY_SERVICE_FORM.flow,
         })
         setOpen(true)
@@ -922,7 +1921,7 @@ function CommissionServicesSection({
     }
 
     return (
-        <section className="rounded-xl border bg-background p-4">
+        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 className="text-base font-semibold">Commission services</h2>
@@ -935,6 +1934,47 @@ function CommissionServicesSection({
                     Add Service
                 </Button>
             </div>
+            {services.length > 0 && (
+                <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-2 text-sm">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                            setSelectedServiceIds(
+                                allSelected ? [] : services.map((service) => service.id)
+                            )
+                        }
+                    >
+                        {allSelected ? 'Unselect all' : 'Select all'}
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedServiceIds([])}
+                    >
+                        Unselect
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        disabled={selectedServiceIds.length === 0 || deleting}
+                        onClick={() => {
+                            services
+                                .filter((service) => selectedServiceIds.includes(service.id))
+                                .forEach((service) => onDelete(service.slug))
+                            setSelectedServiceIds([])
+                        }}
+                    >
+                        Delete selected
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                        {selectedServiceIds.length} selected
+                    </span>
+                </div>
+            )}
 
             {!approved ? (
                 <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -950,6 +1990,21 @@ function CommissionServicesSection({
                     {services.map((service) => (
                         <div key={service.id} className="rounded-lg border p-3">
                             <div className="flex gap-3">
+                                <label className="pt-1">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedServiceIds.includes(service.id)}
+                                        onChange={(event) =>
+                                            setSelectedServiceIds((current) =>
+                                                event.target.checked
+                                                    ? [...current, service.id]
+                                                    : current.filter((id) => id !== service.id)
+                                            )
+                                        }
+                                        className="h-4 w-4"
+                                        aria-label={`Select ${service.title}`}
+                                    />
+                                </label>
                                 <div className="h-24 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
                                     {service.image_path ? (
                                         <img
@@ -1020,6 +2075,7 @@ function CommissionServicesSection({
                 form={form}
                 setForm={setForm}
                 categories={categories}
+                savedForms={normalizeRequestQuestions(profile.request_forms)}
                 editing={editing}
                 saving={saving}
                 onSubmit={submit}
@@ -1041,87 +2097,51 @@ function CommissionServicesSection({
     )
 }
 
-function CommissionRequestsSection({
-    orders,
-    busy,
-    onUpdate,
-    onQuote,
-    onAdvance,
-    onUploadDelivery,
-    onUpdateRevision,
-}: {
-    orders: CommissionOrder[]
-    busy: boolean
-    onUpdate: (id: string, status: 'in_progress' | 'delivered' | 'cancelled' | 'disputed') => void
-    onQuote: (id: string, quote_credits: number, quote_note: string, flow: FlowStep[]) => void
-    onAdvance: (id: string, step_index: number, note: string) => void
-    onUploadDelivery: (id: string, payload: FormData) => void
-    onUpdateRevision: (
-        id: string,
-        status: 'in_progress' | 'resolved' | 'rejected',
-        artist_response: string
-    ) => void
-}) {
-    const [quoteOrder, setQuoteOrder] = useState<CommissionOrder | null>(null)
-    const [quoteCredits, setQuoteCredits] = useState(0)
-    const [quoteNote, setQuoteNote] = useState('')
-    const [stageOrder, setStageOrder] = useState<CommissionOrder | null>(null)
-    const [stageIndex, setStageIndex] = useState(0)
-    const [stageNote, setStageNote] = useState('')
-    const [deliveryOrder, setDeliveryOrder] = useState<CommissionOrder | null>(null)
-    const [deliveryFile, setDeliveryFile] = useState<File | null>(null)
-    const [deliveryNote, setDeliveryNote] = useState('')
-    const [revisionResponse, setRevisionResponse] = useState<Record<string, string>>({})
-
-    const openQuote = (order: CommissionOrder) => {
-        setQuoteOrder(order)
-        setQuoteCredits(order.quote_credits || 0)
-        setQuoteNote(order.quote_note ?? '')
-    }
-
-    const submitQuote = () => {
-        if (!quoteOrder) return
-        onQuote(quoteOrder.id, quoteCredits, quoteNote, quoteOrder.flow_snapshot)
-        setQuoteOrder(null)
-        setQuoteNote('')
-    }
-
-    const submitStage = () => {
-        if (!stageOrder) return
-        onAdvance(stageOrder.id, stageIndex, stageNote)
-        setStageOrder(null)
-        setStageNote('')
-    }
-
-    const submitDelivery = () => {
-        if (!deliveryOrder || !deliveryFile) {
-            toast.error('Choose a delivery file first.')
-            return
-        }
-        const payload = new FormData()
-        payload.append('file', deliveryFile)
-        payload.append('note', deliveryNote)
-        onUploadDelivery(deliveryOrder.id, payload)
-        setDeliveryOrder(null)
-        setDeliveryFile(null)
-        setDeliveryNote('')
-    }
+function CommissionRequestsSection({ orders }: { orders: CommissionOrder[] }) {
+    const navigate = useNavigate()
+    const [requestTab, setRequestTab] = useState<'requests' | 'completed'>('requests')
+    const visibleOrders = orders.filter((order) =>
+        requestTab === 'completed' ? order.status === 'completed' : order.status !== 'completed'
+    )
 
     return (
-        <section className="rounded-xl border bg-background p-4">
+        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="mb-4">
                 <h2 className="text-base font-semibold">Commission requests</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                     Review request names, wanderers, quotes, paid credits, and pending balance.
                 </p>
             </div>
+            <div className="mb-4 flex flex-wrap gap-2">
+                <Button
+                    type="button"
+                    size="sm"
+                    variant={requestTab === 'requests' ? 'default' : 'outline'}
+                    onClick={() => setRequestTab('requests')}
+                >
+                    Requests
+                </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant={requestTab === 'completed' ? 'default' : 'outline'}
+                    onClick={() => setRequestTab('completed')}
+                >
+                    Completed
+                </Button>
+            </div>
             {orders.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
                     No commission requests yet.
                 </div>
+            ) : visibleOrders.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                    No {requestTab === 'completed' ? 'completed commissions' : 'active requests'}{' '}
+                    yet.
+                </div>
             ) : (
                 <div className="grid gap-3">
-                    {orders.map((order) => {
+                    {visibleOrders.map((order) => {
                         const paidCredits =
                             Number(order.escrow_credits || 0) + Number(order.released_credits || 0)
                         const pendingCredits = Math.max(
@@ -1130,9 +2150,13 @@ function CommissionRequestsSection({
                         )
 
                         return (
-                            <div key={order.id} className="rounded-lg border p-3">
-                                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                    <div className="min-w-0">
+                            <button
+                                key={order.id}
+                                type="button"
+                                onClick={() => navigate(`/messages?order=${order.id}`)}
+                                className="rounded-lg border bg-background p-3 text-left transition hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            >
+                                <div className="min-w-0">
                                         <div className="grid gap-3 md:grid-cols-3">
                                             <div>
                                                 <p className="text-xs text-muted-foreground">
@@ -1237,70 +2261,11 @@ function CommissionRequestsSection({
                                                             <p className="mt-1 whitespace-pre-line">
                                                                 {revision.reason}
                                                             </p>
-                                                            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                                                                <Input
-                                                                    value={
-                                                                        revisionResponse[
-                                                                            revision.id
-                                                                        ] ?? ''
-                                                                    }
-                                                                    onChange={(event) =>
-                                                                        setRevisionResponse(
-                                                                            (current) => ({
-                                                                                ...current,
-                                                                                [revision.id]:
-                                                                                    event.target
-                                                                                        .value,
-                                                                            })
-                                                                        )
-                                                                    }
-                                                                    placeholder="Artist response"
-                                                                />
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    onClick={() =>
-                                                                        onUpdateRevision(
-                                                                            revision.id,
-                                                                            'in_progress',
-                                                                            revisionResponse[
-                                                                                revision.id
-                                                                            ] ?? ''
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Start
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    onClick={() =>
-                                                                        onUpdateRevision(
-                                                                            revision.id,
-                                                                            'resolved',
-                                                                            revisionResponse[
-                                                                                revision.id
-                                                                            ] ?? ''
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Resolve
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="destructive"
-                                                                    onClick={() =>
-                                                                        onUpdateRevision(
-                                                                            revision.id,
-                                                                            'rejected',
-                                                                            revisionResponse[
-                                                                                revision.id
-                                                                            ] ?? ''
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Reject
-                                                                </Button>
-                                                            </div>
+                                                            {revision.artist_response && (
+                                                                <p className="mt-2 whitespace-pre-line rounded bg-background p-2">
+                                                                    {revision.artist_response}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -1326,218 +2291,12 @@ function CommissionRequestsSection({
                                                 ))}
                                             </div>
                                         )}
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 lg:w-48 lg:flex-col">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            disabled={
-                                                busy ||
-                                                ['completed', 'cancelled'].includes(order.status)
-                                            }
-                                            onClick={() => openQuote(order)}
-                                        >
-                                            Quote
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            disabled={
-                                                busy ||
-                                                !['requested', 'awaiting_payment'].includes(
-                                                    order.status
-                                                )
-                                            }
-                                            onClick={() => onUpdate(order.id, 'in_progress')}
-                                        >
-                                            Accept
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            disabled={
-                                                busy ||
-                                                ['completed', 'cancelled'].includes(order.status)
-                                            }
-                                            onClick={() => setDeliveryOrder(order)}
-                                        >
-                                            Delivery
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            disabled={
-                                                busy ||
-                                                ['completed', 'cancelled'].includes(order.status) ||
-                                                order.flow_snapshot.length === 0
-                                            }
-                                            onClick={() => {
-                                                setStageOrder(order)
-                                                setStageIndex(order.current_step_index)
-                                            }}
-                                        >
-                                            Stage
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            disabled={
-                                                busy || !['in_progress'].includes(order.status)
-                                            }
-                                            onClick={() => onUpdate(order.id, 'delivered')}
-                                        >
-                                            Mark delivered
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            disabled={
-                                                busy ||
-                                                ['completed', 'cancelled'].includes(order.status)
-                                            }
-                                            onClick={() => onUpdate(order.id, 'disputed')}
-                                        >
-                                            Dispute
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="destructive"
-                                            disabled={
-                                                busy ||
-                                                ['completed', 'cancelled'].includes(order.status)
-                                            }
-                                            onClick={() => onUpdate(order.id, 'cancelled')}
-                                        >
-                                            Cancel
-                                        </Button>
-                                    </div>
                                 </div>
-                            </div>
+                            </button>
                         )
                     })}
                 </div>
             )}
-            <Dialog
-                open={Boolean(quoteOrder)}
-                onOpenChange={(open) => !open && setQuoteOrder(null)}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Send commission quote</DialogTitle>
-                        <DialogDescription>
-                            The wanderer must accept this quote before staged payments continue.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                        <div>
-                            <Label>Quote credits</Label>
-                            <Input
-                                type="number"
-                                min={0}
-                                value={quoteCredits}
-                                onChange={(event) => setQuoteCredits(Number(event.target.value))}
-                            />
-                        </div>
-                        <div>
-                            <Label>Quote note</Label>
-                            <Textarea
-                                value={quoteNote}
-                                onChange={(event) => setQuoteNote(event.target.value)}
-                                className="min-h-24"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setQuoteOrder(null)}>
-                            Cancel
-                        </Button>
-                        <Button disabled={busy} onClick={submitQuote}>
-                            Send quote
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            <Dialog
-                open={Boolean(stageOrder)}
-                onOpenChange={(open) => !open && setStageOrder(null)}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Update commission stage</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                        <div>
-                            <Label>Stage</Label>
-                            <select
-                                value={stageIndex}
-                                onChange={(event) => setStageIndex(Number(event.target.value))}
-                                className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm"
-                            >
-                                {(stageOrder?.flow_snapshot ?? []).map((step, index) => (
-                                    <option key={`${step.label}-${index}`} value={index}>
-                                        {index + 1}. {step.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <Label>Stage note</Label>
-                            <Textarea
-                                value={stageNote}
-                                onChange={(event) => setStageNote(event.target.value)}
-                                className="min-h-24"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setStageOrder(null)}>
-                            Cancel
-                        </Button>
-                        <Button disabled={busy} onClick={submitStage}>
-                            Update stage
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            <Dialog
-                open={Boolean(deliveryOrder)}
-                onOpenChange={(open) => !open && setDeliveryOrder(null)}
-            >
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Upload final delivery</DialogTitle>
-                        <DialogDescription>
-                            Delivery files are separate from chat and go to moderation.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                        <div>
-                            <Label>File</Label>
-                            <Input
-                                type="file"
-                                onChange={(event) =>
-                                    setDeliveryFile(event.target.files?.[0] ?? null)
-                                }
-                            />
-                        </div>
-                        <div>
-                            <Label>Note</Label>
-                            <Textarea
-                                value={deliveryNote}
-                                onChange={(event) => setDeliveryNote(event.target.value)}
-                                className="min-h-24"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeliveryOrder(null)}>
-                            Cancel
-                        </Button>
-                        <Button disabled={busy} onClick={submitDelivery}>
-                            Upload delivery
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </section>
     )
 }
@@ -1674,7 +2433,7 @@ function CommissionRatingsSectionV2({
     }
 
     return (
-        <section className="rounded-xl border bg-background p-4">
+        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="mb-4">
                 <h2 className="text-base font-semibold">Commission ratings</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -1768,6 +2527,7 @@ function ServiceDialog({
     form,
     setForm,
     categories,
+    savedForms,
     editing,
     saving,
     onSubmit,
@@ -1777,6 +2537,7 @@ function ServiceDialog({
     form: ServiceForm
     setForm: React.Dispatch<React.SetStateAction<ServiceForm>>
     categories: CommissionCategory[]
+    savedForms: RequestQuestion[]
     editing: CommissionService | null
     saving: boolean
     onSubmit: () => void
@@ -1846,6 +2607,16 @@ function ServiceDialog({
                 },
             ],
         }))
+    }
+
+    const attachSavedQuestion = (question: RequestQuestion) => {
+        setForm((current) => {
+            if (current.request_questions.some((item) => item.id === question.id)) return current
+            return {
+                ...current,
+                request_questions: [...current.request_questions, { ...question }],
+            }
+        })
     }
 
     const updateRequestQuestion = (index: number, patch: Partial<RequestQuestion>) => {
@@ -1968,8 +2739,8 @@ function ServiceDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-6xl">
-                <DialogHeader>
+            <DialogContent className="flex h-[min(92dvh,920px)] w-[min(96vw,1180px)] max-w-none flex-col overflow-hidden p-0 sm:max-w-none">
+                <DialogHeader className="p-6 pb-4">
                     <DialogTitle>
                         {editing ? 'Edit Commission Service' : 'Add Commission Service'}
                     </DialogTitle>
@@ -1979,6 +2750,7 @@ function ServiceDialog({
                     </DialogDescription>
                 </DialogHeader>
 
+                <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
                 <div className="grid gap-4 md:grid-cols-[220px_1fr]">
                     <div>
                         <Label>Service image</Label>
@@ -2145,10 +2917,14 @@ function ServiceDialog({
                                             onChange={() => updateSetup({ service_type: 'custom' })}
                                         />
                                         <RadioCard
-                                            checked={form.setup_options.service_type === 'personalized'}
+                                            checked={
+                                                form.setup_options.service_type === 'personalized'
+                                            }
                                             title="Personalized"
                                             description="Made from template"
-                                            onChange={() => updateSetup({ service_type: 'personalized' })}
+                                            onChange={() =>
+                                                updateSetup({ service_type: 'personalized' })
+                                            }
                                         />
                                     </div>
                                 </div>
@@ -2170,16 +2946,25 @@ function ServiceDialog({
                                     <Label>Communication style</Label>
                                     <div className="mt-2 grid gap-2 md:grid-cols-2">
                                         <RadioCard
-                                            checked={form.setup_options.communication_style === 'open'}
+                                            checked={
+                                                form.setup_options.communication_style === 'open'
+                                            }
                                             title="Open communication"
                                             description="WIP updates + revisions"
-                                            onChange={() => updateSetup({ communication_style: 'open' })}
+                                            onChange={() =>
+                                                updateSetup({ communication_style: 'open' })
+                                            }
                                         />
                                         <RadioCard
-                                            checked={form.setup_options.communication_style === 'surprise'}
+                                            checked={
+                                                form.setup_options.communication_style ===
+                                                'surprise'
+                                            }
                                             title="Simple communication"
                                             description="No WIP updates + mistakes fixes only"
-                                            onChange={() => updateSetup({ communication_style: 'surprise' })}
+                                            onChange={() =>
+                                                updateSetup({ communication_style: 'surprise' })
+                                            }
                                         />
                                     </div>
                                 </div>
@@ -2235,6 +3020,36 @@ function ServiceDialog({
                     </TabsContent>
 
                     <TabsContent value="questions" className="space-y-4">
+                        {savedForms.length > 0 && (
+                            <div className="rounded-lg border bg-muted/20 p-3">
+                                <div className="mb-2">
+                                    <h3 className="text-sm font-semibold">Saved form questions</h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        Attach reusable questions from the Forms tab to this service.
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {savedForms.map((question) => {
+                                        const attached = form.request_questions.some(
+                                            (item) => item.id === question.id
+                                        )
+
+                                        return (
+                                            <Button
+                                                key={question.id}
+                                                type="button"
+                                                size="sm"
+                                                variant={attached ? 'default' : 'outline'}
+                                                disabled={attached}
+                                                onClick={() => attachSavedQuestion(question)}
+                                            >
+                                                {attached ? 'Attached' : 'Attach'} {question.title}
+                                            </Button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
                         <RequestQuestionsSection
                             questions={form.request_questions}
                             onAdd={addRequestQuestion}
@@ -2371,8 +3186,9 @@ function ServiceDialog({
                         </div>
                     </TabsContent>
                 </Tabs>
+                </div>
 
-                <DialogFooter>
+                <DialogFooter className="border-t bg-background p-4">
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Cancel
                     </Button>
@@ -2468,6 +3284,14 @@ function RichTextBlock({
                     >
                         Bullet
                     </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onFormat('||', '||')}
+                    >
+                        Spoiler
+                    </Button>
                 </div>
             </div>
             <Textarea
@@ -2475,11 +3299,69 @@ function RichTextBlock({
                 onChange={(event) => onChange(event.target.value)}
                 className="mt-1 min-h-32"
             />
+            <div className="mt-3 rounded-lg border bg-muted/20 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Live preview
+                </p>
+                <RichTextPreview value={value} />
+            </div>
             <p className="mt-1 text-xs text-muted-foreground">
-                Supports simple markdown-style headings, bold text, and bullets.
+                Supports simple markdown-style headings, bold text, bullets, and spoiler highlights.
             </p>
         </div>
     )
+}
+
+function RichTextPreview({ value }: { value: string }) {
+    const lines = value.trim() ? value.split(/\r?\n/) : ['Preview text will appear here.']
+
+    return (
+        <div className="space-y-1 text-sm leading-relaxed text-foreground">
+            {lines.map((line, index) => {
+                const content = line.replace(/^#{1,3}\s+/, '').replace(/^-\s+/, '')
+                const inline = renderInlineRichText(content, index)
+
+                if (/^#{1,3}\s+/.test(line)) {
+                    return (
+                        <h3 key={index} className="text-base font-bold">
+                            {inline}
+                        </h3>
+                    )
+                }
+
+                if (/^-\s+/.test(line)) {
+                    return (
+                        <div key={index} className="flex gap-2">
+                            <span className="mt-0.5 text-muted-foreground">•</span>
+                            <span>{inline}</span>
+                        </div>
+                    )
+                }
+
+                return <p key={index}>{inline}</p>
+            })}
+        </div>
+    )
+}
+
+function renderInlineRichText(text: string, lineIndex: number): ReactNode[] {
+    const parts = text.split(/(\*\*[^*]+\*\*|\|\|[^|]+\|\|)/g)
+
+    return parts.map((part, index) => {
+        const key = `${lineIndex}-${index}`
+        if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={key}>{part.slice(2, -2)}</strong>
+        }
+        if (part.startsWith('||') && part.endsWith('||')) {
+            return (
+                <span key={key} className="rounded bg-yellow-200 px-1 text-yellow-950">
+                    {part.slice(2, -2)}
+                </span>
+            )
+        }
+
+        return <span key={key}>{part}</span>
+    })
 }
 
 function SelectField({
@@ -2511,6 +3393,118 @@ function SelectField({
     )
 }
 
+function FlowEditor({
+    flow,
+    setFlow,
+    onUpdate,
+    onMove,
+}: {
+    flow: FlowStep[]
+    setFlow: React.Dispatch<React.SetStateAction<FlowStep[]>>
+    onUpdate: (index: number, patch: Partial<FlowStep>) => void
+    onMove: (index: number, target: number) => void
+}) {
+    const handleDragStart = (event: DragEvent<HTMLDivElement>, index: number) => {
+        event.dataTransfer.setData('text/plain', String(index))
+        event.dataTransfer.effectAllowed = 'move'
+    }
+
+    const handleDrop = (event: DragEvent<HTMLDivElement>, targetIndex: number) => {
+        event.preventDefault()
+        const sourceIndex = Number(event.dataTransfer.getData('text/plain'))
+        if (Number.isInteger(sourceIndex) && sourceIndex !== targetIndex)
+            onMove(sourceIndex, targetIndex)
+    }
+
+    return (
+        <div className="rounded-lg border p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                    <h3 className="text-sm font-semibold">Default commission flow</h3>
+                    <p className="text-xs text-muted-foreground">
+                        Drag payment, sketch, revision, custom, and delivery steps into the order
+                        you use most.
+                    </p>
+                </div>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                        setFlow((current) => [...current, { type: 'add', label: 'Custom step' }])
+                    }
+                >
+                    Add step
+                </Button>
+            </div>
+            <div className="grid gap-2">
+                {flow.map((step, index) => (
+                    <div
+                        key={`${step.label}-${index}`}
+                        draggable
+                        onDragStart={(event) => handleDragStart(event, index)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => handleDrop(event, index)}
+                        className="grid cursor-grab gap-2 rounded-lg border p-2 active:cursor-grabbing md:grid-cols-[34px_110px_1fr_90px_90px_auto]"
+                    >
+                        <div className="flex h-9 items-center justify-center rounded-md border bg-muted text-xs text-muted-foreground">
+                            {index + 1}
+                        </div>
+                        <select
+                            value={step.type}
+                            onChange={(event) =>
+                                onUpdate(index, { type: event.target.value as FlowType })
+                            }
+                            className="h-9 rounded-md border bg-background px-2 text-sm"
+                        >
+                            <option value="pay">Pay</option>
+                            <option value="sketch">Sketch</option>
+                            <option value="revision">Revision</option>
+                            <option value="add">Add</option>
+                            <option value="done">Done</option>
+                        </select>
+                        <Input
+                            value={step.label}
+                            onChange={(event) => onUpdate(index, { label: event.target.value })}
+                            placeholder="Step label"
+                        />
+                        <Input
+                            type="number"
+                            value={step.percent ?? 0}
+                            disabled={step.type !== 'pay'}
+                            onChange={(event) =>
+                                onUpdate(index, { percent: Number(event.target.value) })
+                            }
+                            placeholder="%"
+                        />
+                        <Input
+                            type="number"
+                            value={step.rounds ?? 0}
+                            disabled={!['sketch', 'revision', 'add'].includes(step.type)}
+                            onChange={(event) =>
+                                onUpdate(index, { rounds: Number(event.target.value) })
+                            }
+                            placeholder="Count"
+                        />
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            onClick={() =>
+                                setFlow((current) =>
+                                    current.filter((_, stepIndex) => stepIndex !== index)
+                                )
+                            }
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
 function RadioCard({
     checked,
     title,
@@ -2528,12 +3522,7 @@ function RadioCard({
                 checked ? 'border-foreground bg-muted/50' : 'bg-background hover:bg-muted/30'
             }`}
         >
-            <input
-                type="radio"
-                checked={checked}
-                onChange={onChange}
-                className="mt-1 h-4 w-4"
-            />
+            <input type="radio" checked={checked} onChange={onChange} className="mt-1 h-4 w-4" />
             <span>
                 <span className="block font-semibold uppercase">{title}</span>
                 <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
@@ -2575,94 +3564,263 @@ function RequestQuestionsSection({
     onUpdate: (index: number, patch: Partial<RequestQuestion>) => void
     onRemove: (index: number) => void
 }) {
+    const handleQuestionTypeChange = (questionIndex: number, type: RequestQuestion['type']) => {
+        const currentQuestion = questions[questionIndex]
+
+        onUpdate(questionIndex, {
+            type,
+            options:
+                type === 'multiple_choice'
+                    ? currentQuestion.options.length > 0
+                        ? currentQuestion.options
+                        : ['Option 1']
+                    : [],
+        })
+    }
+
+    const handleAddOption = (questionIndex: number) => {
+        const currentOptions = questions[questionIndex].options
+
+        onUpdate(questionIndex, {
+            options: [...currentOptions, `Option ${currentOptions.length + 1}`],
+        })
+    }
+
+    const handleUpdateOption = (questionIndex: number, optionIndex: number, value: string) => {
+        const updatedOptions = questions[questionIndex].options.map((option, index) =>
+            index === optionIndex ? value : option
+        )
+
+        onUpdate(questionIndex, {
+            options: updatedOptions,
+        })
+    }
+
+    const handleRemoveOption = (questionIndex: number, optionIndex: number) => {
+        const updatedOptions = questions[questionIndex].options.filter(
+            (_, index) => index !== optionIndex
+        )
+
+        onUpdate(questionIndex, {
+            options: updatedOptions,
+        })
+    }
+
     return (
         <div className="rounded-lg border p-3">
-            <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h3 className="text-sm font-semibold">Request form questions</h3>
+
                     <p className="text-xs text-muted-foreground">
                         Ask wanderers for the details you need before quoting.
                     </p>
                 </div>
+
                 <Button type="button" size="sm" variant="outline" onClick={onAdd}>
+                    <PlusCircle className="h-4 w-4" />
                     Add question
                 </Button>
             </div>
+
             <div className="grid gap-3">
-                {questions.map((question, index) => (
+                {questions.map((question, questionIndex) => (
                     <div key={question.id} className="rounded-lg border bg-muted/20 p-3">
-                        <div className="grid gap-2 md:grid-cols-[1fr_150px]">
+                        <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_170px]">
                             <Input
                                 value={question.title}
-                                onChange={(event) => onUpdate(index, { title: event.target.value })}
+                                onChange={(event) =>
+                                    onUpdate(questionIndex, {
+                                        title: event.target.value,
+                                    })
+                                }
                                 placeholder="Question title"
                             />
+
                             <select
                                 value={question.type}
                                 onChange={(event) =>
-                                    onUpdate(index, {
-                                        type: event.target.value as RequestQuestion['type'],
-                                    })
+                                    handleQuestionTypeChange(
+                                        questionIndex,
+                                        event.target.value as RequestQuestion['type']
+                                    )
                                 }
-                                className="h-10 rounded-md border bg-background px-3 text-sm"
+                                className="h-10 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                             >
                                 <option value="textarea">Textarea</option>
+
                                 <option value="short_text">Short text</option>
+
                                 <option value="multiple_choice">Multiple choice</option>
+
                                 <option value="date">Date</option>
+
                                 <option value="checkbox">Checkbox</option>
                             </select>
                         </div>
+
                         <Textarea
                             value={question.description}
                             onChange={(event) =>
-                                onUpdate(index, { description: event.target.value })
+                                onUpdate(questionIndex, {
+                                    description: event.target.value,
+                                })
                             }
                             className="mt-2 min-h-16"
                             placeholder="Optional helper text or description"
                         />
-                        {['multiple_choice', 'checkbox'].includes(question.type) && (
-                            <Input
-                                className="mt-2"
-                                value={question.options.join(', ')}
-                                onChange={(event) =>
-                                    onUpdate(index, {
-                                        options: event.target.value
-                                            .split(',')
-                                            .map((item) => item.trim())
-                                            .filter(Boolean),
-                                    })
-                                }
-                                placeholder="Options separated by commas"
-                            />
+
+                        {question.type === 'multiple_choice' && (
+                            <div className="mt-3 rounded-lg border bg-background p-3">
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div>
+                                        <h4 className="text-sm font-medium">
+                                            Multiple-choice options
+                                        </h4>
+
+                                        <p className="text-xs text-muted-foreground">
+                                            Add the choices the user can select from.
+                                        </p>
+                                    </div>
+
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleAddOption(questionIndex)}
+                                    >
+                                        <PlusCircle className="h-4 w-4" />
+                                        Add option
+                                    </Button>
+                                </div>
+
+                                <div className="grid gap-2">
+                                    {question.options.map((option, optionIndex) => (
+                                        <div
+                                            key={`${question.id}-option-${optionIndex}`}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-muted/30 text-xs font-semibold text-muted-foreground">
+                                                {optionIndex + 1}
+                                            </div>
+
+                                            <Input
+                                                value={option}
+                                                onChange={(event) =>
+                                                    handleUpdateOption(
+                                                        questionIndex,
+                                                        optionIndex,
+                                                        event.target.value
+                                                    )
+                                                }
+                                                placeholder={`Option ${optionIndex + 1}`}
+                                            />
+
+                                            <Button
+                                                type="button"
+                                                size="icon"
+                                                variant="ghost"
+                                                className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                onClick={() =>
+                                                    handleRemoveOption(questionIndex, optionIndex)
+                                                }
+                                                aria-label={`Delete option ${optionIndex + 1}`}
+                                                title="Delete option"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+
+                                    {question.options.length === 0 && (
+                                        <div className="rounded-lg border border-dashed p-4 text-center">
+                                            <p className="text-sm text-muted-foreground">
+                                                No options added yet.
+                                            </p>
+
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="mt-3"
+                                                onClick={() => handleAddOption(questionIndex)}
+                                            >
+                                                <PlusCircle className="h-4 w-4" />
+                                                Create first option
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         )}
-                        <div className="mt-3 flex items-center justify-between gap-3">
+
+                        {question.type === 'checkbox' && (
+                            <div className="mt-3 rounded-lg border bg-background p-3">
+                                <label className="flex items-start gap-3">
+                                    <input
+                                        type="checkbox"
+                                        disabled
+                                        className="mt-0.5 h-4 w-4 rounded border"
+                                    />
+
+                                    <div>
+                                        <p className="text-sm font-medium">
+                                            {question.title || 'Checkbox question'}
+                                        </p>
+
+                                        <p className="text-xs text-muted-foreground">
+                                            The user can check or uncheck this single option.
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+                        )}
+
+                        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <label className="flex items-center gap-2 text-sm">
                                 <input
                                     type="checkbox"
                                     checked={question.required}
                                     onChange={(event) =>
-                                        onUpdate(index, { required: event.target.checked })
+                                        onUpdate(questionIndex, {
+                                            required: event.target.checked,
+                                        })
                                     }
-                                    className="h-4 w-4"
+                                    className="h-4 w-4 rounded border"
                                 />
                                 Required
                             </label>
+
                             <Button
                                 type="button"
                                 size="sm"
                                 variant="destructive"
-                                onClick={() => onRemove(index)}
+                                onClick={() => onRemove(questionIndex)}
                             >
-                                Delete
+                                <Trash2 className="h-4 w-4" />
+                                Delete question
                             </Button>
                         </div>
                     </div>
                 ))}
+
                 {questions.length === 0 && (
-                    <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-                        No custom request questions yet.
-                    </p>
+                    <div className="rounded-lg border border-dashed p-6 text-center">
+                        <p className="text-sm text-muted-foreground">
+                            No custom request questions yet.
+                        </p>
+
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="mt-3"
+                            onClick={onAdd}
+                        >
+                            <PlusCircle className="h-4 w-4" />
+                            Create first question
+                        </Button>
+                    </div>
                 )}
             </div>
         </div>
@@ -2916,7 +4074,10 @@ function ClientFieldsSection({
                             type="checkbox"
                             checked={fields.name.required}
                             onChange={(event) =>
-                                onUpdate('name', { collect: true, required: event.target.checked })
+                                onUpdate('name', {
+                                    collect: true,
+                                    required: event.target.checked,
+                                })
                             }
                             className="h-4 w-4"
                         />
@@ -2930,7 +4091,10 @@ function ClientFieldsSection({
                             type="checkbox"
                             checked={fields.email.required}
                             onChange={(event) =>
-                                onUpdate('email', { collect: true, required: event.target.checked })
+                                onUpdate('email', {
+                                    collect: true,
+                                    required: event.target.checked,
+                                })
                             }
                             className="h-4 w-4"
                         />
@@ -2941,44 +4105,49 @@ function ClientFieldsSection({
                             type="checkbox"
                             checked={fields.email.required}
                             onChange={(event) =>
-                                onUpdate('email', { collect: true, required: event.target.checked })
+                                onUpdate('email', {
+                                    collect: true,
+                                    required: event.target.checked,
+                                })
                             }
                             className="h-4 w-4"
                         />
                         Required for wanderers
                     </label>
                 </div>
-                {(['discord', 'twitter', 'instagram', 'facebook'] as Array<keyof ClientFields>).map((field) => (
-                    <div
-                        key={field}
-                        className="grid items-center gap-2 rounded-lg border px-3 py-2 text-sm md:grid-cols-[1fr_auto_auto]"
-                    >
-                        <span>{labels[field]}</span>
-                        <label className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                checked={fields[field].collect}
-                                onChange={(event) =>
-                                    onUpdate(field, { collect: event.target.checked })
-                                }
-                                className="h-4 w-4"
-                            />
-                            Collect
-                        </label>
-                        <label className="flex items-center gap-2">
-                            <input
-                                type="checkbox"
-                                checked={fields[field].required}
-                                disabled={!fields[field].collect}
-                                onChange={(event) =>
-                                    onUpdate(field, { required: event.target.checked })
-                                }
-                                className="h-4 w-4"
-                            />
-                            Required / not
-                        </label>
-                    </div>
-                ))}
+                {(['discord', 'twitter', 'instagram', 'facebook'] as Array<keyof ClientFields>).map(
+                    (field) => (
+                        <div
+                            key={field}
+                            className="grid items-center gap-2 rounded-lg border px-3 py-2 text-sm md:grid-cols-[1fr_auto_auto]"
+                        >
+                            <span>{labels[field]}</span>
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    checked={fields[field].collect}
+                                    onChange={(event) =>
+                                        onUpdate(field, { collect: event.target.checked })
+                                    }
+                                    className="h-4 w-4"
+                                />
+                                Collect
+                            </label>
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    checked={fields[field].required}
+                                    disabled={!fields[field].collect}
+                                    onChange={(event) =>
+                                        onUpdate(field, { required: event.target.checked })
+                                    }
+                                    className="h-4 w-4"
+                                />
+                                Required / not
+                            </label>
+                        </div>
+                    )
+                )}
             </div>
         </div>
     )

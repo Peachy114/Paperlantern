@@ -14,7 +14,9 @@ interface NavbarViewProps {
     isComicsActive: boolean
     isDailyActive: boolean
     isNovelsActive: boolean
+    isArtsActive: boolean
     isCommissionsActive: boolean
+    isShopActive: boolean
     navbarHidden: boolean
     profileOpen: boolean
     profileButtonRef: React.RefObject<HTMLButtonElement | null>
@@ -29,7 +31,9 @@ export default function NavbarView({
     isDailyActive,
     isComicsActive,
     isNovelsActive,
+    isArtsActive,
     isCommissionsActive,
+    isShopActive,
     navbarHidden,
     profileOpen,
     profileButtonRef,
@@ -37,10 +41,12 @@ export default function NavbarView({
     setProfileOpen,
 }: NavbarViewProps) {
     const navLinks = [
-        // { label: 'DAILY', to: '/daily', active: isDailyActive }, Close
+        { label: 'DAILY', to: '/daily', active: isDailyActive },
         { label: 'COMIX', to: '/comix', active: isComicsActive },
-        { label: 'ARTS', to: '/explore/arts', active: isNovelsActive },
+        { label: 'NOVELS', to: '/novels', active: isNovelsActive },
+        { label: 'ARTS', to: '/explore/arts', active: isArtsActive },
         { label: 'COMMISSION', to: '/commissions', active: isCommissionsActive },
+        { label: 'SHOP', to: '/shop', active: isShopActive },
     ]
 
     return (

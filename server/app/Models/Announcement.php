@@ -19,11 +19,13 @@ class Announcement extends Model
         'image',
         'is_pinned',
         'is_featured',
+        'rotation_seconds',
     ];
 
     protected $casts = [
         'is_pinned' => 'boolean',
         'is_featured' => 'boolean',
+        'rotation_seconds' => 'integer',
     ];
 
     public function creator(): BelongsTo

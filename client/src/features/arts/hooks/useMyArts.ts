@@ -58,7 +58,7 @@ export function useMyArts() {
     const updateCommissionProfile = useMutation({
         mutationFn: (payload: {
             commissions_enabled?: boolean
-            commission_status?: 'open' | 'waitlist' | 'closed'
+            commission_status?: 'open' | 'closed'
             terms?: string
         }) => studioApi.updateCommissionProfile(payload).then((res) => res.data),
         onSuccess: invalidateArts,

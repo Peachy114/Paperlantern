@@ -105,6 +105,9 @@ class CommissionOrderService
     ): CommissionOrder {
         abort_unless($order->artist_id === $artist->id, 404);
         abort_if(in_array($order->status, ['completed', 'cancelled'], true), 422, 'This commission can no longer be quoted.');
+        $order->loadMissing('service');
+        $minimumQuote = (int) ($order->service?->base_price_credits ?? 0);
+        abort_if($quoteCredits < $minimumQuote, 422, "Quote must be at least {$minimumQuote} credits.");
 
         $order->update([
             'status' => 'quoted',

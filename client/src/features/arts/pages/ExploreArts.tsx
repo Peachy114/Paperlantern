@@ -4,7 +4,6 @@ import {
     useRef,
     useState,
     type ComponentType,
-    type FormEvent,
     type PointerEvent,
 } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -13,8 +12,6 @@ import {
     CalendarDays,
     ChevronLeft,
     ChevronRight,
-    Coins,
-    Download,
     Eye,
     Gift,
     Heart,
@@ -22,12 +19,11 @@ import {
     MessageCircle,
     Minus,
     Plus,
-    Search,
+    Share2,
     Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { publicApi } from '@/api/public'
-import { getWalletBalance } from '@/api/wallet'
 import { storageUrl } from '@/utils/storage'
 import { useAuthStore } from '@/store/authStore'
 import { useModalStore } from '@/store/modalStore'
@@ -41,12 +37,15 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import CommentSection from '@/features/comments/components/CommentSection'
 import SuperLikeButton from '@/features/comments/components/SuperLikeButton'
 import { CustomPageWidget, PageWidgetFrame } from '@/features/page-builder/PageWidgetFrame'
 import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
+import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
+import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
+import ShopCardWidget from '@/features/page-builder/ShopCardWidget'
+import type { WorkItem } from '@/features/work/hooks/useHome'
 import type { PageLayout, PageWidget } from '@/types/pageLayout'
 
 interface TagCount {
@@ -101,7 +100,6 @@ const defaultArtsWidgets: PageWidget[] = [
 
 export default function ExploreArts() {
     const [searchParams, setSearchParams] = useSearchParams()
-    const [search, setSearch] = useState(searchParams.get('q') ?? '')
     const [selectedArt, setSelectedArt] = useState<Art | null>(null)
     const activeLabel = searchParams.get('label') ?? ''
     const activeSort = searchParams.get('sort') ?? ''
@@ -126,14 +124,6 @@ export default function ExploreArts() {
         retry: false,
     })
 
-    const submitSearch = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
-        const next = new URLSearchParams(searchParams)
-        if (search.trim()) next.set('q', search.trim())
-        else next.delete('q')
-        setSearchParams(next)
-    }
-
     const setLabel = (label: string) => {
         const next = new URLSearchParams(searchParams)
         if (activeLabel === label) next.delete('label')
@@ -142,6 +132,8 @@ export default function ExploreArts() {
     }
 
     const arts = data?.arts.data ?? []
+    const widgetArts = (widget: PageWidget) => applyArtWidgetFilters(arts, widget)
+    const heroWorks = (items: Art[]) => items.map(artToWork)
     const tags = data?.tags ?? []
     const artists = data?.featured_artists ?? []
     const openArt = (art: Art) => {
@@ -190,7 +182,8 @@ export default function ExploreArts() {
                     </p>
                 </div>
 
-                <form onSubmit={submitSearch} className="flex w-full gap-2 md:w-96">
+                {/* i dont need search in herer at that moments */}
+                {/* <form onSubmit={submitSearch} className="flex w-full gap-2 md:w-96">
                     <Input
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
@@ -199,51 +192,93 @@ export default function ExploreArts() {
                     <Button type="submit" size="icon">
                         <Search className="h-4 w-4" />
                     </Button>
-                </form>
+                </form> */}
             </div>
 
-            {(data?.layout.widgets ?? defaultArtsWidgets).filter((widget) => widget.enabled).map((widget) => {
-                if (widget.type === 'featured_artists') {
-                    return (
-                        <PageWidgetFrame key={widget.id} widget={widget}>
-                            <FeaturedArtistsSection artists={artists} />
-                        </PageWidgetFrame>
-                    )
-                }
+            {(data?.layout.widgets ?? defaultArtsWidgets)
+                .filter((widget) => widget.enabled)
+                .map((widget) => {
+                    if (widget.type === 'featured_artists') {
+                        return (
+                            <PageWidgetFrame key={widget.id} widget={widget}>
+                                <FeaturedArtistsSection artists={artists} />
+                            </PageWidgetFrame>
+                        )
+                    }
 
-                if (widget.type === 'content_tabs') {
-                    return (
-                        <PageWidgetFrame key={widget.id} widget={widget}>
-                            <ContentTabsWidget widget={widget} />
-                        </PageWidgetFrame>
-                    )
-                }
+                    if (widget.type === 'content_tabs') {
+                        return (
+                            <PageWidgetFrame key={widget.id} widget={widget}>
+                                <ContentTabsWidget widget={widget} />
+                            </PageWidgetFrame>
+                        )
+                    }
 
-                if (widget.type === 'labels') {
-                    return (
-                        <PageWidgetFrame key={widget.id} widget={widget}>
-                            <LabelsSection tags={tags} activeLabel={activeLabel} onSelect={setLabel} />
-                        </PageWidgetFrame>
-                    )
-                }
+                    if (widget.type === 'featured_hero') {
+                        return (
+                            <PageWidgetFrame key={widget.id} widget={widget}>
+                                <FeaturedHeroWidget
+                                    widget={widget}
+                                    works={heroWorks(widgetArts(widget)).slice(
+                                        0,
+                                        widget.settings.limit ?? 10
+                                    )}
+                                />
+                            </PageWidgetFrame>
+                        )
+                    }
 
-                if (widget.type === 'arts_grid') {
-                    return (
-                        <PageWidgetFrame key={widget.id} widget={widget}>
-                            <ArtsGrid
-                                arts={arts}
-                                isLoading={isLoading}
-                                grid={widget.settings.grid ?? 'masonry'}
-                                columns={widget.settings.columns}
-                                infoLayout={widget.settings.info_layout ?? 'image_only'}
-                                onOpen={openArt}
-                            />
-                        </PageWidgetFrame>
-                    )
-                }
+                    if (widget.type === 'group_hero') {
+                        return (
+                            <PageWidgetFrame key={widget.id} widget={widget}>
+                                <GroupHeroWidget
+                                    widget={widget}
+                                    works={heroWorks(widgetArts(widget)).slice(
+                                        0,
+                                        widget.settings.limit ?? 10
+                                    )}
+                                />
+                            </PageWidgetFrame>
+                        )
+                    }
 
-                return <CustomPageWidget key={widget.id} widget={widget} />
-            })}
+                    if (widget.type === 'labels') {
+                        return (
+                            <PageWidgetFrame key={widget.id} widget={widget}>
+                                <LabelsSection
+                                    tags={tags}
+                                    activeLabel={activeLabel}
+                                    onSelect={setLabel}
+                                />
+                            </PageWidgetFrame>
+                        )
+                    }
+
+                    if (widget.type === 'arts_grid') {
+                        return (
+                            <PageWidgetFrame key={widget.id} widget={widget}>
+                                <ArtsGrid
+                                    arts={widgetArts(widget)}
+                                    isLoading={isLoading}
+                                    grid={widget.settings.grid ?? 'masonry'}
+                                    columns={widget.settings.columns}
+                                    infoLayout={widget.settings.info_layout ?? 'image_only'}
+                                    onOpen={openArt}
+                                />
+                            </PageWidgetFrame>
+                        )
+                    }
+
+                    if (widget.type === 'shop_card') {
+                        return (
+                            <PageWidgetFrame key={widget.id} widget={widget}>
+                                <ShopCardWidget widget={widget} />
+                            </PageWidgetFrame>
+                        )
+                    }
+
+                    return <CustomPageWidget key={widget.id} widget={widget} />
+                })}
 
             <ArtDetailDialog
                 art={selectedArt}
@@ -257,6 +292,53 @@ export default function ExploreArts() {
     )
 }
 
+function applyArtWidgetFilters(arts: Art[], widget: PageWidget) {
+    const settings = widget.settings ?? {}
+    const multiSource = settings.label_filter_source ?? 'none'
+    const multiValues = (settings.label_filter_values ?? [])
+        .map((value) => value.toLowerCase())
+        .filter(Boolean)
+    const badgeSource = settings.badge_filter_source ?? 'none'
+    const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
+
+    return arts.filter((art) => {
+        const matches = (source: string, value: string) => {
+            if (!value || source === 'none') return true
+            if (source === 'status') return String(art.status ?? '').toLowerCase() === value
+            if (source === 'genre' || source === 'label') {
+                return (art.labels ?? []).some((label) => label.toLowerCase() === value)
+            }
+            return source !== 'commission_type'
+        }
+        const multiOk =
+            multiSource === 'none' || multiValues.length === 0
+                ? true
+                : multiValues.some((value) => matches(multiSource, value))
+        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+        return multiOk && badgeOk
+    })
+}
+
+function artToWork(art: Art): WorkItem {
+    const image = art.images?.[0]?.image_path ?? art.image_path ?? null
+    return {
+        id: art.id,
+        slug: art.slug,
+        title: art.title,
+        cover: image,
+        banner: image,
+        description: art.description ?? '',
+        type: 'art',
+        content_type: 'art',
+        genres: art.labels ?? [],
+        views: art.views ?? 0,
+        likes: art.likes ?? 0,
+        created_at: art.created_at,
+        status: art.status === 'archived' ? 'draft' : art.status,
+        is_featured: Boolean(art.is_featured),
+    }
+}
+
 function FeaturedArtistsSection({ artists }: { artists: FeaturedArtist[] }) {
     if (artists.length === 0) return null
 
@@ -264,7 +346,9 @@ function FeaturedArtistsSection({ artists }: { artists: FeaturedArtist[] }) {
         <section className="mb-8 rounded-lg border bg-background/80 p-4">
             <div className="mb-3 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-500" />
-                <h2 className="text-sm font-semibold uppercase tracking-widest">Featured Artists</h2>
+                <h2 className="text-sm font-semibold uppercase tracking-widest">
+                    Featured Artists
+                </h2>
             </div>
             <div className="flex gap-3 overflow-x-auto pb-1">
                 {artists.map((artist) => (
@@ -289,7 +373,9 @@ function FeaturedArtistsSection({ artists }: { artists: FeaturedArtist[] }) {
                             </div>
                             <div className="min-w-0">
                                 <p className="truncate text-sm font-medium">{artist.name}</p>
-                                <p className="truncate text-xs text-muted-foreground">@{artist.username}</p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                    @{artist.username}
+                                </p>
                             </div>
                         </div>
                         {artist.artist_title && (
@@ -372,11 +458,21 @@ function ArtsGrid({
     if (grid === 'standard') {
         return (
             <div
-                style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}
+                style={
+                    columns
+                        ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }
+                        : undefined
+                }
                 className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
             >
                 {arts.map((art) => (
-                    <ArtExploreCard key={art.id} art={art} onOpen={onOpen} square infoLayout={infoLayout} />
+                    <ArtExploreCard
+                        key={art.id}
+                        art={art}
+                        onOpen={onOpen}
+                        square
+                        infoLayout={infoLayout}
+                    />
                 ))}
             </div>
         )
@@ -385,11 +481,21 @@ function ArtsGrid({
     if (grid === 'gallery') {
         return (
             <div
-                style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}
+                style={
+                    columns
+                        ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }
+                        : undefined
+                }
                 className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
             >
                 {arts.map((art) => (
-                    <ArtExploreCard key={art.id} art={art} onOpen={onOpen} gallery infoLayout={infoLayout} />
+                    <ArtExploreCard
+                        key={art.id}
+                        art={art}
+                        onOpen={onOpen}
+                        gallery
+                        infoLayout={infoLayout}
+                    />
                 ))}
             </div>
         )
@@ -450,16 +556,43 @@ function ArtExploreCard({
             )}
         </button>
     )
-    const titleNode = <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-snug">{art.title}</h3>
-    const descriptionNode = <p className="line-clamp-1 min-h-4 text-xs text-muted-foreground">{art.labels?.join(', ')}</p>
+    const titleNode = (
+        <h3 className="line-clamp-2 min-h-10 text-sm font-semibold leading-snug">{art.title}</h3>
+    )
+    const descriptionNode = (
+        <p className="line-clamp-1 min-h-4 text-xs text-muted-foreground">
+            {art.labels?.join(', ')}
+        </p>
+    )
 
     return (
         <article className={square || gallery ? '' : 'mb-4 break-inside-avoid'}>
             {infoLayout === 'image_only' && imageButton}
-            {infoLayout === 'image_title' && <div className="flex h-full flex-col gap-2">{imageButton}{titleNode}</div>}
-            {infoLayout === 'image_title_inline' && <div className="flex h-full items-center gap-3"><div className="w-20 shrink-0">{imageButton}</div><div className="min-w-0">{titleNode}</div></div>}
-            {infoLayout === 'title_image' && <div className="flex h-full flex-col gap-2">{titleNode}{imageButton}</div>}
-            {infoLayout === 'image_title_description' && <div className="flex h-full flex-col gap-2">{imageButton}{titleNode}{descriptionNode}</div>}
+            {infoLayout === 'image_title' && (
+                <div className="flex h-full flex-col gap-2">
+                    {imageButton}
+                    {titleNode}
+                </div>
+            )}
+            {infoLayout === 'image_title_inline' && (
+                <div className="flex h-full items-center gap-3">
+                    <div className="w-20 shrink-0">{imageButton}</div>
+                    <div className="min-w-0">{titleNode}</div>
+                </div>
+            )}
+            {infoLayout === 'title_image' && (
+                <div className="flex h-full flex-col gap-2">
+                    {titleNode}
+                    {imageButton}
+                </div>
+            )}
+            {infoLayout === 'image_title_description' && (
+                <div className="flex h-full flex-col gap-2">
+                    {imageButton}
+                    {titleNode}
+                    {descriptionNode}
+                </div>
+            )}
         </article>
     )
 }
@@ -481,14 +614,10 @@ function ArtDetailDialog({
     const [liked, setLiked] = useState(false)
     const [likes, setLikes] = useState(0)
     const [views, setViews] = useState(0)
-    const [downloadUnlocked, setDownloadUnlocked] = useState(false)
-    const [downloadsCount, setDownloadsCount] = useState(0)
-    const [downloadConfirmOpen, setDownloadConfirmOpen] = useState(false)
-    const [downloadError, setDownloadError] = useState('')
     const recordedViewRef = useRef<string | null>(null)
     const imageScrollerRef = useRef<HTMLDivElement | null>(null)
     const queryClient = useQueryClient()
-    const { token, user } = useAuthStore()
+    const { token } = useAuthStore()
     const { openLogin } = useModalStore()
     const panRef = useRef({
         pointerId: -1,
@@ -500,25 +629,13 @@ function ArtDetailDialog({
     const images = useMemo(() => (art ? getArtImages(art) : []), [art])
     const activeImage = images[activeIndex]
     const activeImageSrc = activeImage?.image_path ?? art?.image_path ?? null
-    const isOwner = Boolean(art?.user?.id && user?.id === art.user.id)
-    const walletQuery = useQuery({
-        queryKey: ['wallet'],
-        queryFn: getWalletBalance,
-        enabled: Boolean(open && token && art?.download_policy === 'paid' && !downloadUnlocked),
-        staleTime: 30_000,
-    })
-
     useEffect(() => {
         setActiveIndex(0)
         setZoom(1)
-        setDownloadConfirmOpen(false)
-        setDownloadError('')
         setIsPanning(false)
         setLiked(Boolean(art?.liked_by_me))
         setLikes(art?.likes ?? 0)
         setViews(art?.views ?? 0)
-        setDownloadUnlocked(Boolean(art?.download_unlocked))
-        setDownloadsCount(art?.downloads_count ?? 0)
     }, [art?.id])
 
     useEffect(() => {
@@ -530,7 +647,8 @@ function ArtDetailDialog({
         if (recordedViewRef.current === art.id) return
 
         recordedViewRef.current = art.id
-        publicApi.recordArtView(art.id)
+        publicApi
+            .recordArtView(art.id)
             .then((res) => {
                 setViews(res.data.views)
                 queryClient.invalidateQueries({ queryKey: ['public-arts'] })
@@ -552,93 +670,6 @@ function ArtDetailDialog({
             toast.error(error.response?.data?.message ?? 'Could not like this art.')
         },
     })
-
-    const purchaseDownloadMutation = useMutation({
-        mutationFn: () => publicApi.purchaseArtDownload(art!.id).then((res) => res.data),
-        onSuccess: (result) => {
-            setDownloadUnlocked(Boolean(result.unlocked))
-            setDownloadError('')
-            queryClient.invalidateQueries({ queryKey: ['wallet'] })
-            queryClient.invalidateQueries({ queryKey: ['public-arts'] })
-        },
-        onError: (error: any) => {
-            const message = error.response?.data?.message ?? 'Could not unlock this download.'
-            setDownloadError(message)
-            toast.error(message)
-        },
-    })
-
-    const downloadOriginal = async () => {
-        if (!art) return
-
-        const activeImageId = art.images?.some((image) => image.id === activeImage?.id)
-            ? activeImage?.id
-            : undefined
-        const response = await publicApi.downloadArt(art.id, activeImageId)
-        saveDownloadBlob(response.data, responseFileName(response, downloadFileName(art, activeImage)))
-        setDownloadUnlocked(true)
-        setDownloadsCount((count) => count + 1)
-        queryClient.invalidateQueries({ queryKey: ['public-arts'] })
-        toast.success('Original art download started.')
-    }
-
-    const handleDownload = async () => {
-        if (!art) return
-
-        const policy = art.download_policy ?? 'disabled'
-        if (policy === 'disabled') return
-        if (isOwner) {
-            toast.error('You cannot download your own art from the public page.')
-            return
-        }
-        if (policy === 'paid' && !token) {
-            toast.info(`This original download costs ${creditLabel(art.download_credits)}. Please sign in to continue.`)
-            openLogin()
-            return
-        }
-        if (policy === 'paid') {
-            setDownloadConfirmOpen(true)
-            return
-        }
-
-        try {
-            await downloadOriginal()
-        } catch (error: any) {
-            const fallback = error.response?.status === 402
-                ? `Unlock this download for ${art.download_credits} credits first.`
-                : 'Could not download this art.'
-            toast.error(error.response?.data?.message ?? fallback)
-        }
-    }
-
-    const confirmPaidDownload = async () => {
-        if (!art) return
-        setDownloadError('')
-
-        if (hasInsufficientCredits(art, downloadUnlocked, walletQuery.data?.balance)) {
-            setDownloadError(
-                `You need ${creditLabel(art.download_credits)} to buy this download. Top up credits first.`
-            )
-            return
-        }
-
-        try {
-            if (!downloadUnlocked) {
-                const result = await purchaseDownloadMutation.mutateAsync()
-                if (!result.unlocked) return
-                toast.success(result.message ?? 'Original art download unlocked.')
-            }
-
-            setDownloadConfirmOpen(false)
-            try {
-                await downloadOriginal()
-            } catch (error: any) {
-                toast.error(error.response?.data?.message ?? 'Could not download this art.')
-            }
-        } catch {
-            // The mutation already shows the API error.
-        }
-    }
 
     useEffect(() => {
         const scroller = imageScrollerRef.current
@@ -692,12 +723,6 @@ function ArtDetailDialog({
     if (!art) return null
 
     const isAdmin = art.user?.role === 'super_admin'
-    const insufficientCredits = hasInsufficientCredits(
-        art,
-        downloadUnlocked,
-        walletQuery.data?.balance
-    )
-
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="h-[96dvh] !w-[calc(100vw-0.75rem)] !max-w-none overflow-hidden p-0 sm:!max-w-none lg:!w-[min(99vw,1540px)]">
@@ -711,16 +736,13 @@ function ArtDetailDialog({
                         <div className="mb-4 flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <h2 className="text-xl font-semibold leading-tight">{art.title}</h2>
-                                {artDownloadPriceLabel(art) && (
-                                    <div className="mt-2 inline-flex items-center gap-1.5 rounded-md border bg-muted/30 px-2 py-1 text-xs font-semibold">
-                                        <Coins className="h-3.5 w-3.5 text-amber-500" />
-                                        {artDownloadPriceLabel(art)}
-                                    </div>
-                                )}
                                 <div className="mt-2">
                                     {isAdmin ? (
                                         <p className="text-sm text-muted-foreground">
-                                            By <span className="font-medium text-foreground">Admin</span>
+                                            By{' '}
+                                            <span className="font-medium text-foreground">
+                                                Admin
+                                            </span>
                                         </p>
                                     ) : art.user?.username ? (
                                         <Link
@@ -743,121 +765,15 @@ function ArtDetailDialog({
                             )}
                         </div>
 
-                        {isArtDownloadable(art) && (
-                            <div className="mb-4 rounded-lg border bg-muted/20 p-3">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                                            Original download
-                                        </p>
-                                        <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
-                                            <Coins className="h-4 w-4 text-amber-500" />
-                                            {artDownloadPriceLabel(art)}
-                                        </p>
-                                    </div>
-                                    {!isOwner ? (
-                                        <Button
-                                            type="button"
-                                            variant={art.download_policy === 'paid' ? 'default' : 'outline'}
-                                            onClick={handleDownload}
-                                            disabled={purchaseDownloadMutation.isPending}
-                                            className="shrink-0"
-                                        >
-                                            <Download className="h-4 w-4" />
-                                            {downloadButtonLabel(art, downloadUnlocked)}
-                                        </Button>
-                                    ) : (
-                                        <p className="text-xs text-muted-foreground">
-                                            Public downloads are hidden for your own art.
-                                        </p>
-                                    )}
-                                </div>
-                                {downloadConfirmOpen && art.download_policy === 'paid' && !isOwner && (
-                                    <div className="mt-3 rounded-lg border bg-background p-3">
-                                        <p className="text-sm font-semibold">
-                                            {downloadUnlocked
-                                                ? 'Download original art?'
-                                                : 'Buy original download?'}
-                                        </p>
-                                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                                            {downloadUnlocked
-                                                ? 'You already purchased this paid art download. Confirm to download the clean original file.'
-                                                : `This paid art download costs ${creditLabel(art.download_credits)}. Confirm before credits are deducted. After purchase, the clean original file will download.`}
-                                        </p>
-                                        <div className="mt-3 rounded-md border bg-muted/30 p-3 text-sm">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <span className="text-muted-foreground">
-                                                    {downloadUnlocked ? 'Status' : 'Cost'}
-                                                </span>
-                                                <span className="font-semibold">
-                                                    {downloadUnlocked
-                                                        ? 'Purchased'
-                                                        : creditLabel(art.download_credits)}
-                                                </span>
-                                            </div>
-                                            {!downloadUnlocked && (
-                                                <div className="mt-2 flex items-center justify-between gap-3">
-                                                    <span className="text-muted-foreground">Your credits</span>
-                                                    <span className="font-semibold">
-                                                        {walletQuery.isLoading
-                                                            ? 'Checking...'
-                                                            : (walletQuery.data?.balance ?? 0).toLocaleString()}
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-                                        {(downloadError || insufficientCredits) && (
-                                            <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
-                                                <p className="font-medium">
-                                                    {downloadError ||
-                                                        `You need ${creditLabel(art.download_credits)} to buy this download.`}
-                                                </p>
-                                                <p className="mt-1 text-xs opacity-80">
-                                                    Add credits first, then come back to buy the original file.
-                                                </p>
-                                            </div>
-                                        )}
-                                        <div className="mt-3 flex flex-wrap justify-end gap-2">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => {
-                                                    setDownloadConfirmOpen(false)
-                                                    setDownloadError('')
-                                                }}
-                                            >
-                                                Cancel
-                                            </Button>
-                                            {insufficientCredits && (
-                                                <Button asChild variant="outline">
-                                                    <Link
-                                                        to="/credits"
-                                                        onClick={() => setDownloadConfirmOpen(false)}
-                                                    >
-                                                        Top up credits
-                                                    </Link>
-                                                </Button>
-                                            )}
-                                            <Button
-                                                type="button"
-                                                onClick={confirmPaidDownload}
-                                                disabled={purchaseDownloadMutation.isPending || insufficientCredits}
-                                            >
-                                                {purchaseDownloadMutation.isPending
-                                                    ? 'Processing...'
-                                                    : insufficientCredits
-                                                      ? 'Not enough credits'
-                                                      : downloadUnlocked
-                                                        ? 'Confirm Download'
-                                                        : 'Buy & Download'}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
                         <div className="mb-4 flex flex-wrap items-center gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => shareArt(art)}
+                            >
+                                <Share2 className="h-4 w-4" />
+                                Share
+                            </Button>
                             <Button
                                 type="button"
                                 variant={liked ? 'secondary' : 'outline'}
@@ -870,9 +786,15 @@ function ArtDetailDialog({
                                 }}
                                 disabled={likeMutation.isPending}
                             >
-                                <Heart className={liked ? 'h-4 w-4 fill-current text-red-500' : 'h-4 w-4'} />
+                                <Heart
+                                    className={
+                                        liked ? 'h-4 w-4 fill-current text-red-500' : 'h-4 w-4'
+                                    }
+                                />
                                 Like
-                                <span className="text-xs text-muted-foreground">{likes.toLocaleString()}</span>
+                                <span className="text-xs text-muted-foreground">
+                                    {likes.toLocaleString()}
+                                </span>
                             </Button>
                             <SuperLikeButton
                                 targetType="art"
@@ -885,11 +807,12 @@ function ArtDetailDialog({
                         <div className="grid grid-cols-2 gap-2">
                             <Stat icon={Heart} label="Likes" value={likes} />
                             <Stat icon={Eye} label="Views" value={views} />
-                            <Stat icon={MessageCircle} label="Comments" value={art.comments_count} />
+                            <Stat
+                                icon={MessageCircle}
+                                label="Comments"
+                                value={art.comments_count}
+                            />
                             <Stat icon={Gift} label="Super likes" value={art.super_likes_count} />
-                            {isArtDownloadable(art) && (
-                                <Stat icon={Download} label="Downloads" value={downloadsCount} />
-                            )}
                         </div>
 
                         <Separator className="my-5" />
@@ -1032,7 +955,9 @@ function ArtDetailDialog({
                                         size="icon-sm"
                                         variant="ghost"
                                         className="text-white hover:bg-white/15 hover:text-white"
-                                        onClick={() => setZoom((value) => Math.max(1, value - 0.25))}
+                                        onClick={() =>
+                                            setZoom((value) => Math.max(1, value - 0.25))
+                                        }
                                         title="Zoom out"
                                     >
                                         <Minus className="h-4 w-4" />
@@ -1045,7 +970,9 @@ function ArtDetailDialog({
                                         size="icon-sm"
                                         variant="ghost"
                                         className="text-white hover:bg-white/15 hover:text-white"
-                                        onClick={() => setZoom((value) => Math.min(3, value + 0.25))}
+                                        onClick={() =>
+                                            setZoom((value) => Math.min(3, value + 0.25))
+                                        }
                                         title="Zoom in"
                                     >
                                         <Plus className="h-4 w-4" />
@@ -1084,6 +1011,22 @@ function ArtDetailDialog({
             </DialogContent>
         </Dialog>
     )
+}
+
+async function shareArt(art: Art) {
+    const url = `${window.location.origin}/explore/arts?art=${encodeURIComponent(art.slug || art.id)}`
+
+    try {
+        if (navigator.share) {
+            await navigator.share({ title: art.title, url })
+            return
+        }
+
+        await navigator.clipboard.writeText(url)
+        toast.success('Art link copied.')
+    } catch {
+        toast.error('Could not share this art.')
+    }
 }
 
 function Stat({
@@ -1131,82 +1074,4 @@ function formatDate(value: string) {
     return new Intl.DateTimeFormat(undefined, {
         dateStyle: 'medium',
     }).format(new Date(value))
-}
-
-function downloadButtonLabel(art: Art, unlocked: boolean) {
-    if (art.download_policy === 'paid' && !unlocked) {
-        return `Buy for ${creditLabel(art.download_credits)}`
-    }
-
-    if (art.download_policy === 'paid' && unlocked) {
-        return 'Download purchased original'
-    }
-
-    return 'Download original'
-}
-
-function isArtDownloadable(art: Art) {
-    return art.download_policy === 'free' || art.download_policy === 'paid'
-}
-
-function artDownloadPriceLabel(art: Art) {
-    if (art.download_policy === 'paid') {
-        return `${creditLabel(art.download_credits)} download`
-    }
-
-    if (art.download_policy === 'free') {
-        return 'Free download'
-    }
-
-    return ''
-}
-
-function creditLabel(value: number) {
-    const credits = Math.max(1, Number(value) || 1)
-    return `${credits.toLocaleString()} credit${credits === 1 ? '' : 's'}`
-}
-
-function hasInsufficientCredits(art: Art, unlocked: boolean, balance?: number) {
-    if (art.download_policy !== 'paid' || unlocked || balance === undefined) {
-        return false
-    }
-
-    return balance < Math.max(1, Number(art.download_credits) || 1)
-}
-
-function downloadFileName(art: Art, image?: ArtImage) {
-    const suffix = image?.id ? `-${image.id.slice(0, 8)}` : ''
-    const extension = image?.image_path?.split('.').pop()?.split('?')[0] || 'jpg'
-    return `${slugify(art.title || 'later-n-comix-art')}${suffix}.${extension}`
-}
-
-function responseFileName(response: any, fallback: string) {
-    const disposition = response?.headers?.['content-disposition'] as string | undefined
-    const match = disposition?.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i)
-    if (!match?.[1]) return fallback
-
-    try {
-        return decodeURIComponent(match[1].replace(/"/g, ''))
-    } catch {
-        return match[1].replace(/"/g, '') || fallback
-    }
-}
-
-function saveDownloadBlob(blob: Blob, filename: string) {
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-}
-
-function slugify(value: string) {
-    return value
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') || 'later-n-comix-art'
 }

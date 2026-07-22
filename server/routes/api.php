@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\ArtistProfileController;
 use App\Http\Controllers\Api\FeatureBoostController;
 use App\Http\Controllers\Api\PublicArtController;
 use App\Http\Controllers\Api\PublicCommissionController;
+use App\Http\Controllers\Api\PublicShopController;
 use App\Http\Controllers\Api\CommissionAccountController;
 use App\Http\Controllers\Api\CommissionMessageController;
 use App\Http\Controllers\Api\PaymentSettingsController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\Api\Studio\ChapterController;
 use App\Http\Controllers\Api\Studio\StickyNoteController;
 use App\Http\Controllers\Api\Studio\ViolationController;
 use App\Http\Controllers\Api\Studio\ArtController;
+use App\Http\Controllers\Api\Studio\ShopController;
 use App\Http\Controllers\Api\Studio\CommissionController as StudioCommissionController;
 use App\Http\Controllers\Api\EarningsController;
 use App\Http\Controllers\Api\SuperAdmin\WithdrawalController;
@@ -70,26 +72,67 @@ Route::prefix('public')->group(function () {
     Route::get('/latest-chapters', [PublicWorkController::class, 'latestChapters']);
     Route::get('/announcements',    fn() => response()->json(app(\App\Services\AnnouncementService::class)->getByAudience('public')));
     Route::post('/subscribe', [SubscribeController::class, 'store']);
-    
+
 
     Route::post('/webhooks/paymongo', [PayMongoWebhookController::class, 'handle'])
-    ->withoutMiddleware(['auth:sanctum', \App\Http\Middleware\VerifyCsrfToken::class]);
+        ->withoutMiddleware(['auth:sanctum', \App\Http\Middleware\VerifyCsrfToken::class]);
 
-    Route::get('/search',                                [PublicWorkController::class, 'search']);
-    Route::get('/works/{work}',                          [PublicWorkController::class, 'showWork']);
-    Route::get('/works/{work}/engagement-status',        [PublicWorkController::class, 'getWorkEngagementStatus']);
-    Route::post('/works/{work}/like',                    [PublicWorkController::class, 'toggleWorkLike'])->middleware('auth:sanctum');
-    Route::post('/works/{work}/favorite',                [PublicWorkController::class, 'toggleWorkFavorite'])->middleware('auth:sanctum');
-    Route::get('/works/{work}/chapters',                 [PublicWorkController::class, 'showChapters']);
-    Route::get('/works/{work}/chapters/{chapter}',       [PublicWorkController::class, 'showChapter']);
-    Route::get('/works/{work}/chapters/{chapter}/like-status', [PublicWorkController::class, 'getLikeStatus']);
-    Route::post('/works/{work}/chapters/{chapter}/like',       [PublicWorkController::class, 'toggleLike'])->middleware('auth:sanctum');
-    Route::post('/works/{work}/chapters/{chapter}/view',       [PublicWorkController::class, 'recordView']);
+    Route::get('/search', [PublicWorkController::class, 'search']);
+
+    Route::scopeBindings()->group(function () {
+        Route::get(
+            '/works/{work:slug}',
+            [PublicWorkController::class, 'showWork']
+        );
+
+        Route::get(
+            '/works/{work:slug}/engagement-status',
+            [PublicWorkController::class, 'getWorkEngagementStatus']
+        );
+
+        Route::post(
+            '/works/{work:slug}/like',
+            [PublicWorkController::class, 'toggleWorkLike']
+        )->middleware('auth:sanctum');
+
+        Route::post(
+            '/works/{work:slug}/favorite',
+            [PublicWorkController::class, 'toggleWorkFavorite']
+        )->middleware('auth:sanctum');
+
+        Route::get(
+            '/works/{work:slug}/chapters',
+            [PublicWorkController::class, 'showChapters']
+        );
+
+        Route::get(
+            '/works/{work:slug}/chapters/{chapter:slug}',
+            [PublicWorkController::class, 'showChapter']
+        );
+
+        Route::get(
+            '/works/{work:slug}/chapters/{chapter:slug}/like-status',
+            [PublicWorkController::class, 'getLikeStatus']
+        );
+
+        Route::post(
+            '/works/{work:slug}/chapters/{chapter:slug}/like',
+            [PublicWorkController::class, 'toggleLike']
+        )->middleware('auth:sanctum');
+
+        Route::post(
+            '/works/{work:slug}/chapters/{chapter:slug}/view',
+            [PublicWorkController::class, 'recordView']
+        );
+    });
 
     Route::get('/comics', [PublicWorkController::class, 'comics']);
     Route::get('/arts', [PublicArtController::class, 'index']);
     Route::get('/arts/tags', [PublicArtController::class, 'tags']);
     Route::get('/arts/{art}', [PublicArtController::class, 'show']);
+    Route::get('/shop', [PublicShopController::class, 'index']);
+    Route::post('/shop/{shopItem}/purchase', [PublicShopController::class, 'purchase'])->middleware('auth:sanctum');
+    Route::get('/shop/{shopItem}/download', [PublicShopController::class, 'download']);
     Route::post('/arts/{art}/view', [PublicArtController::class, 'recordView']);
     Route::get('/arts/{art}/download', [PublicArtController::class, 'download']);
     Route::post('/arts/{art}/like', [PublicArtController::class, 'toggleLike'])->middleware('auth:sanctum');
@@ -162,6 +205,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::post('/account/commissions/{order}/revisions', [CommissionAccountController::class, 'requestRevision']);
     Route::post('/account/commissions/{order}/rating', [CommissionAccountController::class, 'rate']);
     Route::get('/messages/commissions',       [CommissionMessageController::class, 'threads']);
+    Route::post('/messages/artists/{username}', [CommissionMessageController::class, 'startDirect']);
     Route::get('/messages/preferences',       [CommissionMessageController::class, 'preferences']);
     Route::put('/messages/preferences',       [CommissionMessageController::class, 'updatePreferences']);
     Route::get('/messages/commissions/{order}', [CommissionMessageController::class, 'show']);
@@ -316,6 +360,10 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::get('/arts/{slug}',          [ArtController::class, 'show']);
         Route::post('/arts/{slug}',         [ArtController::class, 'update']);
         Route::delete('/arts/{slug}',       [ArtController::class, 'destroy']);
+        Route::get('/shop',                 [ShopController::class, 'index']);
+        Route::post('/shop',                [ShopController::class, 'store']);
+        Route::post('/shop/{shopItem}',     [ShopController::class, 'update']);
+        Route::delete('/shop/{shopItem}',   [ShopController::class, 'destroy']);
         Route::get('/commissions/profile',  [StudioCommissionController::class, 'show']);
         Route::post('/commissions/apply',   [StudioCommissionController::class, 'apply']);
         Route::patch('/commissions/profile', [StudioCommissionController::class, 'update']);
@@ -382,5 +430,4 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::middleware('role:wanderer,storyteller,super_admin')->group(function () {
         // coming soon
     });
-
 });

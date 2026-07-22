@@ -3,6 +3,7 @@ import type { PageBoardItem, PageKey, PageWidget } from '@/types/pageLayout'
 export type PageRegistryItem = { key: PageKey; label: string }
 export type WidgetRegistryItem = { value: string; label: string }
 
+// Page Builder Blocks Registry
 export const PAGES: PageRegistryItem[] = [
     { key: 'home', label: 'Homepage' },
     { key: 'comix', label: 'Comix' },
@@ -14,6 +15,13 @@ export const PAGES: PageRegistryItem[] = [
 ]
 
 const COMMON_WIDGETS: WidgetRegistryItem[] = [
+    { value: 'featured_hero', label: 'Featured Hero' },
+    { value: 'group_hero', label: 'Group Hero' },
+    { value: 'grid_image', label: 'Grid Image' },
+    { value: 'cards', label: 'Cards' },
+    { value: 'shop_card', label: 'Shop Card' },
+    { value: 'top_10s', label: "Top 10's" },
+    { value: 'labels', label: 'Labels' },
     { value: 'text', label: 'Text' },
     { value: 'image', label: 'Image' },
     { value: 'sticker', label: 'Sticker' },
@@ -23,8 +31,6 @@ const COMMON_WIDGETS: WidgetRegistryItem[] = [
 
 const DISCOVERY_WIDGETS: WidgetRegistryItem[] = [
     { value: 'content_tabs', label: 'Tabs Menu' },
-    { value: 'featured_hero', label: 'Featured Hero' },
-    { value: 'group_hero', label: 'Group Hero' },
     { value: 'weekly', label: 'Weekly' },
     { value: 'today_releases', label: "Today's Releases" },
     { value: 'today_top', label: "Today's Top 10" },
@@ -34,6 +40,7 @@ const DISCOVERY_WIDGETS: WidgetRegistryItem[] = [
     { value: 'top_liker', label: 'Top Liker' },
 ]
 
+// add widget types to the registry for each page
 export const WIDGET_TYPES: Record<PageKey, WidgetRegistryItem[]> = {
     home: [
         { value: 'hero', label: 'Hero' },
@@ -63,6 +70,8 @@ export const WIDGET_TYPES: Record<PageKey, WidgetRegistryItem[]> = {
     ],
     arts: [
         { value: 'content_tabs', label: 'Tabs Menu' },
+        { value: 'featured_hero', label: 'Featured Hero' },
+        { value: 'group_hero', label: 'Group Hero' },
         { value: 'featured_artists', label: 'Featured Artists' },
         { value: 'labels', label: 'Labels' },
         { value: 'arts_grid', label: 'Arts Grid' },
@@ -70,6 +79,8 @@ export const WIDGET_TYPES: Record<PageKey, WidgetRegistryItem[]> = {
     ],
     commissions: [
         { value: 'content_tabs', label: 'Tabs Menu' },
+        { value: 'featured_hero', label: 'Featured Hero' },
+        { value: 'group_hero', label: 'Group Hero' },
         { value: 'commission_grid', label: 'Commission Grid' },
         { value: 'boosted_commissions', label: 'Boosted Commissions' },
         { value: 'featured_artists', label: 'Featured Artists' },
@@ -118,12 +129,31 @@ export function createWidget(type: string, title: string, index: number): PageWi
     return {
         id: crypto.randomUUID(),
         type,
-        title: type === 'group_hero' ? 'Popular Arts' : title,
+        title: type === 'group_hero' ? 'Popular Arts' : type === 'shop_card' ? 'Shop Picks' : title,
         enabled: true,
         settings: {
             text: type === 'group_hero' ? 'Artwork for this week' : undefined,
             grid: 'masonry',
             filter: 'all',
+            card_show_new: ['shop_card', 'cards', 'grid_image', 'top_10s'].includes(type)
+                ? true
+                : undefined,
+            card_show_popular: ['shop_card', 'cards', 'grid_image', 'top_10s'].includes(type)
+                ? true
+                : undefined,
+            card_show_rating: ['shop_card', 'cards'].includes(type) ? true : undefined,
+            card_show_name: ['shop_card', 'cards', 'grid_image', 'top_10s'].includes(type)
+                ? true
+                : undefined,
+            card_show_artist: ['shop_card', 'cards'].includes(type) ? true : undefined,
+            card_show_sold: type === 'shop_card' ? true : undefined,
+            card_show_views: ['cards', 'grid_image'].includes(type) ? true : undefined,
+            card_show_likes: ['shop_card', 'cards', 'grid_image'].includes(type)
+                ? true
+                : undefined,
+            card_show_rank: ['shop_card', 'top_10s'].includes(type) ? true : undefined,
+            card_show_labels: ['shop_card', 'cards'].includes(type) ? true : undefined,
+            card_show_price: type === 'shop_card' ? true : undefined,
             group_hero_design: type === 'group_hero' ? 'popular_arts' : undefined,
             group_source_arts: type === 'group_hero' ? true : undefined,
             group_source_comix: type === 'group_hero' ? false : undefined,

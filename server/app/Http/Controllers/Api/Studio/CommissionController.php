@@ -47,7 +47,7 @@ class CommissionController extends Controller
             'orders' => CommissionOrder::query()
                 ->where('artist_id', $user->id)
                 ->with([
-                    'service:id,title,slug,image_path',
+                    'service:id,title,slug,image_path,base_price_credits',
                     'customer:id,name,username,avatar',
                     'revisions.requester:id,name,username,avatar',
                     'deliveryFiles.uploader:id,name,username,avatar',
@@ -353,12 +353,48 @@ class CommissionController extends Controller
 
         $validated = $request->validate([
             'commissions_enabled' => ['sometimes', 'boolean'],
-            'commission_status' => ['sometimes', 'in:open,waitlist,closed'],
+            'commission_status' => ['sometimes', 'in:open,closed'],
             'terms' => ['nullable', 'string', 'max:3000'],
+            'policies' => ['nullable', 'array'],
+            'policies.terms' => ['nullable', 'string', 'max:6000'],
+            'policies.refund_policy' => ['nullable', 'string', 'max:4000'],
+            'policies.required_references' => ['nullable', 'string', 'max:4000'],
+            'request_forms' => ['nullable', 'array', 'max:80'],
+            'request_forms.*.id' => ['nullable', 'string', 'max:80'],
+            'request_forms.*.title' => ['nullable', 'string', 'max:500'],
+            'request_forms.*.description' => ['nullable', 'string', 'max:1000'],
+            'request_forms.*.type' => ['nullable', 'in:textarea,short_text,multiple_choice,date,checkbox'],
+            'request_forms.*.required' => ['nullable', 'boolean'],
+            'request_forms.*.options' => ['nullable', 'array', 'max:30'],
+            'request_forms.*.options.*' => ['nullable', 'string', 'max:300'],
+            'faqs' => ['nullable', 'array', 'max:80'],
+            'faqs.*.id' => ['nullable', 'string', 'max:80'],
+            'faqs.*.question' => ['nullable', 'string', 'max:500'],
+            'faqs.*.answer' => ['nullable', 'string', 'max:3000'],
+            'discounts' => ['nullable', 'array', 'max:50'],
+            'discounts.*.id' => ['nullable', 'string', 'max:80'],
+            'discounts.*.label' => ['nullable', 'string', 'max:120'],
+            'discounts.*.type' => ['nullable', 'in:percent,fixed'],
+            'discounts.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'discounts.*.starts_at' => ['nullable', 'date'],
+            'discounts.*.ends_at' => ['nullable', 'date'],
+            'discounts.*.active' => ['nullable', 'boolean'],
+            'client_fields' => ['nullable', 'array'],
+            'client_fields.*.collect' => ['nullable', 'boolean'],
+            'client_fields.*.required' => ['nullable', 'boolean'],
+            'flow_template' => ['nullable', 'array', 'max:30'],
+            'flow_template.*.type' => ['required_with:flow_template', 'string', 'max:40'],
+            'flow_template.*.label' => ['required_with:flow_template', 'string', 'max:120'],
+            'flow_template.*.percent' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'flow_template.*.rounds' => ['nullable', 'integer', 'min:0', 'max:50'],
         ]);
 
         if (array_key_exists('terms', $validated) && $validated['terms'] !== $profile->terms) {
             $validated['terms_moderation_status'] = 'pending';
+        }
+
+        if (array_key_exists('commission_status', $validated)) {
+            $validated['commissions_enabled'] = $validated['commission_status'] === 'open';
         }
 
         $profile->update($validated);
@@ -379,6 +415,12 @@ class CommissionController extends Controller
                 'application_reason' => null,
                 'terms' => null,
                 'terms_moderation_status' => 'approved',
+                'policies' => self::defaultPolicies(),
+                'request_forms' => self::defaultRequestForms(),
+                'faqs' => [],
+                'discounts' => [],
+                'client_fields' => self::defaultClientFields(),
+                'flow_template' => self::defaultFlowTemplate(),
                 'customers_count' => 0,
                 'average_rating' => 0,
                 'ratings_count' => 0,
@@ -393,9 +435,63 @@ class CommissionController extends Controller
             'application_reason' => $profile->application_reason,
             'terms' => $profile->terms,
             'terms_moderation_status' => $profile->terms_moderation_status,
+            'policies' => array_replace(self::defaultPolicies(), $profile->policies ?? []),
+            'request_forms' => $profile->request_forms ?? self::defaultRequestForms(),
+            'faqs' => $profile->faqs ?? [],
+            'discounts' => $profile->discounts ?? [],
+            'client_fields' => array_replace_recursive(self::defaultClientFields(), $profile->client_fields ?? []),
+            'flow_template' => $profile->flow_template ?? self::defaultFlowTemplate(),
             'customers_count' => (int) $profile->customers_count,
             'average_rating' => (float) $profile->average_rating,
             'ratings_count' => (int) $profile->ratings_count,
+        ];
+    }
+
+    private static function defaultPolicies(): array
+    {
+        return [
+            'terms' => "GENERAL\n- Please provide clear and complete references.\n- Additional fees may apply depending on complexity.",
+            'refund_policy' => '100% refund if no sketch/work has been sent. 50% refund once the first sketch/work has started.',
+            'required_references' => "- Character or subject reference.\n- Pose, mood, outfit, and color notes.\n- Usage/license needs.",
+        ];
+    }
+
+    private static function defaultRequestForms(): array
+    {
+        return [[
+            'id' => 'license-use',
+            'title' => 'How will you be using this commission?',
+            'description' => 'Choose the license you need.',
+            'type' => 'multiple_choice',
+            'required' => false,
+            'options' => [
+                'Personal - individual, non-commercial and non-monetized use only',
+                'Commercial: Content - for content creators or businesses distributing commercial or monetized digital content',
+                'Commercial: Merchandising - for creating, promoting, and reselling digital or physical products with the asset',
+            ],
+        ]];
+    }
+
+    private static function defaultClientFields(): array
+    {
+        return [
+            'name' => ['collect' => true, 'required' => false],
+            'email' => ['collect' => false, 'required' => false],
+            'discord' => ['collect' => false, 'required' => false],
+            'twitter' => ['collect' => false, 'required' => false],
+            'instagram' => ['collect' => false, 'required' => false],
+            'facebook' => ['collect' => false, 'required' => false],
+        ];
+    }
+
+    private static function defaultFlowTemplate(): array
+    {
+        return [
+            ['type' => 'pay', 'label' => 'Pay 50%', 'percent' => 50],
+            ['type' => 'sketch', 'label' => 'Sketch', 'rounds' => 2],
+            ['type' => 'revision', 'label' => 'Revision', 'rounds' => 1],
+            ['type' => 'pay', 'label' => 'Pay 50%', 'percent' => 50],
+            ['type' => 'done', 'label' => 'Delivery and receipt'],
         ];
     }
 
@@ -582,11 +678,12 @@ class CommissionController extends Controller
             'delivery_files' => $order->relationLoaded('deliveryFiles')
                 ? $order->deliveryFiles->map(fn(CommissionDeliveryFile $file) => \App\Http\Controllers\Api\CommissionAccountController::formatDeliveryFile($file))->values()
                 : [],
-            'service' => $order->service ? [
+                'service' => $order->service ? [
                 'id' => $order->service->id,
                 'title' => $order->service->title,
                 'slug' => $order->service->slug,
                 'image_path' => $order->service->image_path,
+                'base_price_credits' => (int) ($order->service->base_price_credits ?? 0),
             ] : null,
             'customer' => $order->customer ? [
                 'id' => $order->customer->id,

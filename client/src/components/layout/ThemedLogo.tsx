@@ -3,6 +3,7 @@ import { useEffect, useState, type ImgHTMLAttributes } from 'react'
 type ThemedLogoProps = Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'> & {
     darkSrc?: string
     lightSrc?: string
+    borderRadius?: number
 }
 
 const isDarkMode = () => document.documentElement.classList.contains('dark')

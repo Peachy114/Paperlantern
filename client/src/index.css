@@ -2058,3 +2058,253 @@ input::-webkit-password-auto-fill-button {
         width: 76px;
     }
 }
+
+/* ==========================================================================
+   // content filter theme ----
+   ========================================================================== */
+
+:root {
+    /* //// content filter colors ---- */
+    --comix-filter-background: #f7f2ea;
+    --comix-filter-surface: #ffffff;
+    --comix-filter-text: var(--foreground);
+    --comix-filter-muted-text: var(--muted-foreground);
+    --comix-filter-border: var(--border);
+    --comix-filter-border-hover: var(--border-strong);
+    --comix-filter-pill-background: transparent;
+    --comix-filter-pill-text: var(--muted-foreground);
+    --comix-filter-pill-border: var(--gray-border);
+    --comix-filter-pill-hover-background: var(--surface-muted);
+    --comix-filter-pill-hover-text: var(--foreground);
+    --comix-filter-pill-hover-border: var(--border-strong);
+    --comix-filter-active-background: var(--black);
+    --comix-filter-active-text: #ffffff;
+    --comix-filter-active-border: var(--black);
+    --comix-filter-nav-background: var(--black);
+    --comix-filter-nav-border: transparent;
+    --comix-filter-nav-text: rgb(255 255 255 / 60%);
+    --comix-filter-nav-hover-text: rgb(255 255 255 / 88%);
+    --comix-filter-selected-background: #ffffff;
+    --comix-filter-selected-text: var(--black);
+    --comix-filter-dropdown-background: var(--popover);
+    --comix-filter-dropdown-text: var(--popover-foreground);
+    --comix-filter-dropdown-border: var(--border);
+    --comix-filter-dropdown-hover: var(--surface-muted);
+    --comix-filter-shadow: 0 1px 2px rgb(0 0 0 / 4%), 0 4px 14px rgb(0 0 0 / 6%);
+}
+
+.dark {
+    /* //// content filter dark colors ---- */
+    --comix-filter-background: var(--surface-soft);
+    --comix-filter-surface: var(--surface);
+    --comix-filter-text: var(--foreground);
+    --comix-filter-muted-text: var(--muted-foreground);
+    --comix-filter-border: var(--border);
+    --comix-filter-border-hover: var(--border-strong);
+    --comix-filter-pill-background: transparent;
+    --comix-filter-pill-text: var(--muted-foreground);
+    --comix-filter-pill-border: var(--gray-border);
+    --comix-filter-pill-hover-background: var(--surface-muted);
+    --comix-filter-pill-hover-text: var(--foreground);
+    --comix-filter-pill-hover-border: var(--border-strong);
+    --comix-filter-active-background: var(--foreground);
+    --comix-filter-active-text: var(--background);
+    --comix-filter-active-border: var(--foreground);
+    --comix-filter-nav-background: var(--surface-raised);
+    --comix-filter-nav-border: var(--border);
+    --comix-filter-nav-text: rgb(255 255 255 / 62%);
+    --comix-filter-nav-hover-text: rgb(255 255 255 / 92%);
+    --comix-filter-selected-background: var(--comix-accent);
+    --comix-filter-selected-text: #ffffff;
+    --comix-filter-dropdown-background: var(--popover);
+    --comix-filter-dropdown-text: var(--popover-foreground);
+    --comix-filter-dropdown-border: var(--border);
+    --comix-filter-dropdown-hover: var(--surface-muted);
+    --comix-filter-shadow: 0 1px 2px rgb(0 0 0 / 22%), 0 6px 18px rgb(0 0 0 / 24%);
+}
+
+@layer components {
+    /* ==========================================================================
+       // content filter ----
+       ========================================================================== */
+
+    /* //// content filter parent ---- */
+    .comix-content-filter {
+        width: 100%;
+        color: var(--comix-filter-text);
+        font-family: var(--comix-font-family);
+    }
+
+    /* //// content filter inner ---- */
+    .comix-content-filter__inner {
+        width: 100%;
+        max-width: 1390px;
+        margin-inline: auto;
+        padding: 0.75rem 1rem;
+    }
+
+    /* //// content filter controls ---- */
+    .comix-filter-controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    /* //// content filter pill ---- */
+    .comix-filter-pill {
+        display: inline-flex;
+        min-height: 2rem;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        padding-inline: 0.875rem;
+        border: 1px solid var(--comix-filter-pill-border);
+        border-radius: var(--radius-full);
+        background: var(--comix-filter-pill-background);
+        color: var(--comix-filter-pill-text);
+        font-size: 0.75rem;
+        font-weight: 500;
+        line-height: 1;
+        text-decoration: none;
+        white-space: nowrap;
+        transition:
+            background-color var(--transition-fast),
+            border-color var(--transition-fast),
+            color var(--transition-fast),
+            box-shadow var(--transition-fast),
+            transform var(--transition-fast);
+    }
+
+    .comix-filter-pill:hover {
+        border-color: var(--comix-filter-pill-hover-border);
+        background: var(--comix-filter-pill-hover-background);
+        color: var(--comix-filter-pill-hover-text);
+    }
+
+    .comix-filter-pill[data-active='true'],
+    .comix-filter-pill[aria-current='page'] {
+        border-color: var(--comix-filter-active-border);
+        background: var(--comix-filter-active-background);
+        color: var(--comix-filter-active-text);
+        font-weight: 700;
+        box-shadow: var(--shadow-xs);
+    }
+
+    .comix-filter-pill:focus-visible {
+        outline: var(--focus-outline-width) solid var(--focus-color);
+        outline-offset: var(--focus-outline-offset);
+        box-shadow: var(--focus-ring);
+    }
+
+    /* //// content filter navigation ---- */
+    .comix-filter-nav {
+        display: flex;
+        height: 2.75rem;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        overflow-x: auto;
+        padding-inline: 1rem;
+        border: 1px solid var(--comix-filter-nav-border);
+        border-radius: var(--radius-full);
+        background: var(--comix-filter-nav-background);
+        box-shadow: var(--comix-filter-shadow);
+        scrollbar-width: none;
+    }
+
+    .comix-filter-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* //// content filter navigation item ---- */
+    .comix-filter-nav-item {
+        position: relative;
+        z-index: 1;
+        display: inline-flex;
+        height: 100%;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        padding-inline: 0.75rem;
+        color: var(--comix-filter-nav-text);
+        font-size: 0.875rem;
+        font-weight: 500;
+        line-height: 1;
+        text-decoration: none;
+        white-space: nowrap;
+        transition:
+            color var(--transition-fast),
+            transform var(--transition-fast);
+    }
+
+    .comix-filter-nav-item:hover {
+        color: var(--comix-filter-nav-hover-text);
+    }
+
+    .comix-filter-nav-item[data-active='true'],
+    .comix-filter-nav-item[aria-current='page'] {
+        color: var(--comix-filter-selected-text);
+        font-weight: 700;
+    }
+
+    .comix-filter-nav-item[data-active='true']::before,
+    .comix-filter-nav-item[aria-current='page']::before {
+        position: absolute;
+        z-index: -1;
+        inset-block: 0.25rem;
+        inset-inline: -0.625rem;
+        border-radius: var(--radius-sm);
+        background: var(--comix-filter-selected-background);
+        clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
+        content: '';
+    }
+
+    /* //// content filter dropdown ---- */
+    .comix-filter-dropdown {
+        max-height: 18rem;
+        overflow-y: auto;
+        border: 1px solid var(--comix-filter-dropdown-border);
+        background: var(--comix-filter-dropdown-background);
+        color: var(--comix-filter-dropdown-text);
+        box-shadow: var(--shadow-md);
+    }
+
+    .comix-filter-dropdown-item {
+        color: var(--comix-filter-dropdown-text);
+    }
+
+    .comix-filter-dropdown-item:focus,
+    .comix-filter-dropdown-item[data-highlighted] {
+        background: var(--comix-filter-dropdown-hover);
+        color: var(--comix-filter-dropdown-text);
+    }
+}
+
+/* //// content filter tablet ---- */
+@media (min-width: 640px) {
+    .comix-content-filter__inner {
+        padding-inline: 1.5rem;
+    }
+
+    .comix-filter-nav {
+        gap: 1.25rem;
+        padding-inline: 1.5rem;
+    }
+
+    .comix-filter-nav-item {
+        padding-inline: 1.25rem;
+    }
+}
+
+/* //// content filter desktop ---- */
+@media (min-width: 768px) {
+    .comix-content-filter__inner {
+        padding-inline: 2rem;
+    }
+
+    .comix-filter-nav {
+        padding-inline: 2.5rem;
+    }
+}

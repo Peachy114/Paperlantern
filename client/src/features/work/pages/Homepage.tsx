@@ -11,6 +11,7 @@ import {
 import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
 import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
 import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
+import ShopCardWidget from '@/features/page-builder/ShopCardWidget'
 import type { WorkItem } from '@/features/work/hooks/useHome'
 
 const WeeklyChartSection = lazy(() => import('../components/WeeklyChartSection'))
@@ -53,15 +54,27 @@ export default function Homepage() {
                 <div className="relative w-full">
                     <Suspense fallback={null}>
                         {pageWidgets.map((widget) => {
-                            const filter = widget.settings.filter ?? 'all'
+                            const filter =
+                                widget.settings.filter_cards_data === 'comix'
+                                    ? 'webtoon'
+                                    : widget.settings.filter_cards_data === 'novels'
+                                      ? 'novel'
+                                      : widget.settings.filter_cards_data === 'arts'
+                                        ? 'art'
+                                        : widget.settings.filter ?? 'all'
                             const byType = (works: WorkItem[]) =>
-                                filter === 'all'
-                                    ? works
-                                    : works.filter((work) => {
+                                works
+                                    .filter((work) => work.type !== 'commission')
+                                    .filter((work) => {
+                                        if (filter === 'all') return true
                                         if (filter === 'novel') return work.type === 'wattpad'
                                         if (filter === 'art') return work.type === 'art'
                                         return work.type === 'webtoon'
-                                    })
+                                    }) as (WorkItem & { type: 'webtoon' | 'wattpad' | 'art' })[]
+                            const filteredWorks = (works: WorkItem[]) =>
+                                applyWidgetFilters(byType(works), widget) as (WorkItem & {
+                                    type: 'webtoon' | 'wattpad' | 'art'
+                                })[]
                             const limit = widget.settings.limit ?? 10
 
                             if (widget.type === 'hero') {
@@ -121,7 +134,7 @@ export default function Homepage() {
                             if (widget.type === 'weekly') {
                                 return (
                                     <PageWidgetFrame key={widget.id} widget={widget}>
-                                        <WeeklyChartSection weeklyChart={byType(weeklyChart).slice(0, limit)} cover={cover} />
+                                        <WeeklyChartSection weeklyChart={filteredWorks(weeklyChart).slice(0, limit)} cover={cover} />
                                     </PageWidgetFrame>
                                 )
                             }
@@ -129,7 +142,7 @@ export default function Homepage() {
                             if (widget.type === 'fresh') {
                                 return (
                                     <PageWidgetFrame key={widget.id} widget={widget}>
-                                        <FreshReleasesSection freshReleases={byType(freshReleases).slice(0, limit)} cover={cover} />
+                                        <FreshReleasesSection freshReleases={filteredWorks(freshReleases).slice(0, limit)} cover={cover} />
                                     </PageWidgetFrame>
                                 )
                             }
@@ -145,7 +158,7 @@ export default function Homepage() {
                             if (widget.type === 'daily') {
                                 return (
                                     <PageWidgetFrame key={widget.id} widget={widget}>
-                                        <HomeWorkGrid title={widget.title || "Today's Releases"} works={byType(todayReleases.length ? todayReleases : dailyWorks).slice(0, limit)} cover={cover} columns={widget.settings.columns} infoLayout={widget.settings.info_layout ?? 'image_title_description'} />
+                                        <HomeWorkGrid title={widget.title || "Today's Releases"} works={filteredWorks(todayReleases.length ? todayReleases : dailyWorks).slice(0, limit)} cover={cover} columns={widget.settings.columns} infoLayout={widget.settings.info_layout ?? 'image_title_description'} />
                                     </PageWidgetFrame>
                                 )
                             }
@@ -153,27 +166,35 @@ export default function Homepage() {
                             if (widget.type === 'today_releases') {
                                 return (
                                     <PageWidgetFrame key={widget.id} widget={widget}>
-                                        <HomeWorkGrid title={widget.title || "Today's Releases"} works={byType(todayReleases.length ? todayReleases : dailyWorks).slice(0, limit)} cover={cover} columns={widget.settings.columns} infoLayout={widget.settings.info_layout ?? 'image_title_description'} />
+                                        <HomeWorkGrid title={widget.title || "Today's Releases"} works={filteredWorks(todayReleases.length ? todayReleases : dailyWorks).slice(0, limit)} cover={cover} columns={widget.settings.columns} infoLayout={widget.settings.info_layout ?? 'image_title_description'} />
                                     </PageWidgetFrame>
                                 )
                             }
 
-                            if (widget.type === 'today_top') {
+                            if (widget.type === 'today_top' || widget.type === 'top_10s') {
                                 const source = widget.settings.metric === 'likes'
                                     ? (todayTopLikes.length ? todayTopLikes : topLikedWorks)
                                     : (todayTopViews.length ? todayTopViews : popularWorks)
 
                                 return (
                                     <PageWidgetFrame key={widget.id} widget={widget}>
-                                        <HomeWorkGrid title={widget.title || "Today's Top 10"} works={byType(source).slice(0, limit)} cover={cover} metric={widget.settings.metric ?? 'views'} columns={widget.settings.columns} infoLayout={widget.settings.info_layout ?? 'image_title_description'} />
+                                        <HomeWorkGrid title={widget.title || "Today's Top 10"} works={filteredWorks(source).slice(0, limit)} cover={cover} metric={widget.settings.metric ?? 'views'} columns={widget.settings.columns} infoLayout={widget.settings.info_layout ?? 'image_title_description'} />
                                     </PageWidgetFrame>
                                 )
                             }
 
-                            if (widget.type === 'popular') {
+                            if (widget.type === 'popular' || widget.type === 'grid_image' || widget.type === 'cards') {
                                 return (
                                     <PageWidgetFrame key={widget.id} widget={widget}>
-                                        <HomeWorkGrid title={widget.title || 'Popular'} works={byType(popularWorks).slice(0, limit)} cover={cover} columns={widget.settings.columns} infoLayout={widget.settings.info_layout ?? 'image_title_description'} />
+                                        <HomeWorkGrid title={widget.title || 'Popular'} works={filteredWorks(popularWorks).slice(0, limit)} cover={cover} columns={widget.settings.columns} infoLayout={widget.settings.info_layout ?? 'image_title_description'} />
+                                    </PageWidgetFrame>
+                                )
+                            }
+
+                            if (widget.type === 'shop_card') {
+                                return (
+                                    <PageWidgetFrame key={widget.id} widget={widget}>
+                                        <ShopCardWidget widget={widget} />
                                     </PageWidgetFrame>
                                 )
                             }
@@ -181,7 +202,7 @@ export default function Homepage() {
                             if (widget.type === 'top_liker') {
                                 return (
                                     <PageWidgetFrame key={widget.id} widget={widget}>
-                                        <HomeWorkGrid title={widget.title || 'Top Liker'} works={byType(topLikedWorks.length ? topLikedWorks : popularWorks).slice(0, limit)} cover={cover} columns={widget.settings.columns} infoLayout={widget.settings.info_layout ?? 'image_title_description'} />
+                                        <HomeWorkGrid title={widget.title || 'Top Liker'} works={filteredWorks(topLikedWorks.length ? topLikedWorks : popularWorks).slice(0, limit)} cover={cover} columns={widget.settings.columns} infoLayout={widget.settings.info_layout ?? 'image_title_description'} />
                                     </PageWidgetFrame>
                                 )
                             }
@@ -197,6 +218,36 @@ export default function Homepage() {
             )}
         </>
     )
+}
+
+function applyWidgetFilters(works: WorkItem[], widget: { settings: any }) {
+    const settings = widget.settings ?? {}
+    const multiSource = settings.label_filter_source ?? 'none'
+    const multiValues = ((settings.label_filter_values ?? []) as string[])
+        .map((value) => value.toLowerCase())
+        .filter(Boolean)
+    const badgeSource = settings.badge_filter_source ?? 'none'
+    const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
+
+    return works.filter((work) => {
+        const matches = (source: string, value: string) => {
+            if (!value || source === 'none') return true
+            if (source === 'status') return String(work.status ?? '').toLowerCase() === value
+            if (source === 'genre' || source === 'label') {
+                return (work.genres ?? []).some((genre) => genre.toLowerCase() === value)
+            }
+            if (source === 'commission_type') return false
+            return true
+        }
+
+        const multiOk =
+            multiSource === 'none' || multiValues.length === 0
+                ? true
+                : multiValues.some((value) => matches(multiSource, value))
+        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+
+        return multiOk && badgeOk
+    })
 }
 
 function HomeWorkGrid({

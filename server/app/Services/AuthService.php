@@ -20,6 +20,20 @@ class AuthService
         $user  = $this->repo->create($data);
         $token = $this->repo->createToken($user);
 
+        $this->notificationEmails()->send($user, 'Welcome to LaterNComix', [
+            "Hi {$user->name},",
+            '',
+            'Your account has been created successfully.',
+            "Account type: {$user->role}",
+        ]);
+
+        $this->notificationEmails()->sendToAdmins('New LaterNComix account created', [
+            "Name: {$user->name}",
+            "Username: {$user->username}",
+            "Role: {$user->role}",
+            "Email: {$user->email}",
+        ]);
+
         return [
             'message' => 'Registration successful.',
             'user'    => $this->formatUser($user),
@@ -70,10 +84,27 @@ class AuthService
         $updated = $this->repo->becomeCreator($user);
         $subscriptionNotice = $this->syncSubscriptionForCreatorRole($updated);
 
+        $this->notificationEmails()->send($updated, 'Creator access enabled', [
+            "Hi {$updated->name},",
+            '',
+            'Your account now has artist tools enabled.',
+        ]);
+
+        $this->notificationEmails()->sendToAdmins('A wanderer became an artist', [
+            "Name: {$updated->name}",
+            "Username: {$updated->username}",
+            "Email: {$updated->email}",
+        ]);
+
         return array_filter([
             'user' => $this->formatUser($updated),
             'subscription_notice' => $subscriptionNotice,
         ]);
+    }
+
+    private function notificationEmails(): NotificationEmailService
+    {
+        return app(NotificationEmailService::class);
     }
 
     private function syncSubscriptionForCreatorRole(User $user): ?string

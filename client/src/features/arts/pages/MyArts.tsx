@@ -33,7 +33,7 @@ import BoostModal from '@/features/boosts/components/BoostModal'
 import CommentSection from '@/features/comments/components/CommentSection'
 import { publicApi } from '@/api/public'
 import { storageUrl } from '@/utils/storage'
-import type { Art, ArtDownloadPolicy, ArtStatus } from '@/types/art'
+import type { Art, ArtStatus } from '@/types/art'
 import { Button } from '@/components/ui/button'
 import {
     AlertDialog,
@@ -79,21 +79,14 @@ type ImageDraft = {
     description: string
 }
 
-type DownloadFileDraft = {
-    file: File
-}
-
 type FormState = {
     title: string
     description: string
     labels: string[]
     labelInput: string
     status: ArtStatus
-    downloadPolicy: ArtDownloadPolicy
-    downloadCredits: number
     applyWatermark: boolean
     images: ImageDraft[]
-    downloadFiles: DownloadFileDraft[]
 }
 
 type ConfirmState =
@@ -108,11 +101,8 @@ const EMPTY_FORM: FormState = {
     labels: [],
     labelInput: '',
     status: 'published',
-    downloadPolicy: 'disabled',
-    downloadCredits: 1,
     applyWatermark: true,
     images: [],
-    downloadFiles: [],
 }
 
 const STATUS_COLOR: Record<ArtStatus, string> = {
@@ -144,6 +134,7 @@ export default function MyArts() {
     const [boostArt, setBoostArt] = useState<Art | null>(null)
     const [viewArt, setViewArt] = useState<Art | null>(null)
     const [period, setPeriod] = useState<(typeof periods)[number]>('Weekly')
+    const [selectedArts, setSelectedArts] = useState<string[]>([])
 
     const artistCreditShare = Math.floor(stats.super_like_credits * 0.8)
     const platformCreditShare = stats.super_like_credits - artistCreditShare
@@ -172,11 +163,8 @@ export default function MyArts() {
             labels: art.labels ?? [],
             labelInput: '',
             status: art.status,
-            downloadPolicy: art.download_policy ?? 'disabled',
-            downloadCredits: art.download_credits || 1,
             applyWatermark: art.apply_watermark ?? true,
             images: [],
-            downloadFiles: [],
         })
         setFormOpen(true)
     }
@@ -202,32 +190,18 @@ export default function MyArts() {
         }))
     }
 
-    const handleDownloadFiles = (event: ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(event.target.files ?? []).slice(0, 10)
-        setForm((current) => ({
-            ...current,
-            downloadFiles: files.map((file) => ({ file })),
-        }))
-    }
-
     const buildPayload = () => {
         const payload = new FormData()
 
         payload.append('title', form.title.trim())
         payload.append('description', form.description.trim())
         payload.append('status', form.status)
-        payload.append('download_policy', form.downloadPolicy)
+        payload.append('download_policy', 'disabled')
         payload.append('apply_watermark', form.applyWatermark ? '1' : '0')
-        if (form.downloadPolicy === 'paid') {
-            payload.append('download_credits', String(Math.max(1, form.downloadCredits)))
-        }
         form.labels.forEach((label) => payload.append('labels[]', label))
         form.images.forEach((image) => {
             payload.append('images[]', image.file)
             payload.append('image_descriptions[]', image.description)
-        })
-        form.downloadFiles.forEach((downloadFile) => {
-            payload.append('download_files[]', downloadFile.file)
         })
 
         return payload
@@ -279,6 +253,29 @@ export default function MyArts() {
             setConfirm(null)
         } catch {
             toast.error('Something went wrong. Please try again.')
+        }
+    }
+
+    const toggleSelectedArt = (id: string) => {
+        setSelectedArts((current) =>
+            current.includes(id) ? current.filter((selected) => selected !== id) : [...current, id]
+        )
+    }
+
+    const clearSelectedArts = () => setSelectedArts([])
+
+    const trashSelectedArts = async () => {
+        const selected = arts.filter((art) => selectedArts.includes(art.id))
+        if (selected.length === 0) return
+
+        try {
+            for (const art of selected) {
+                await trashArt.mutateAsync(art.slug)
+            }
+            toast.success(`${selected.length} art post${selected.length === 1 ? '' : 's'} moved to trash.`)
+            clearSelectedArts()
+        } catch {
+            toast.error('Could not move selected art posts to trash.')
         }
     }
 
@@ -337,7 +334,22 @@ export default function MyArts() {
                 </TabsList>
 
                 <TabsContent value="arts">
-                    <StudioPanel title="Art Posts" count={arts.length}>
+                    <StudioPanel
+                        title="Art Posts"
+                        count={arts.length}
+                        action={
+                            arts.length > 0 ? (
+                                <BulkSelectionBar
+                                    selectedCount={selectedArts.length}
+                                    totalCount={arts.length}
+                                    onSelectAll={() => setSelectedArts(arts.map((art) => art.id))}
+                                    onClear={clearSelectedArts}
+                                    onDelete={trashSelectedArts}
+                                    disabled={acting}
+                                />
+                            ) : undefined
+                        }
+                    >
                         {arts.length === 0 ? (
                             <EmptyState
                                 icon={Images}
@@ -351,6 +363,8 @@ export default function MyArts() {
                                     <ArtPostRow
                                         key={art.id}
                                         art={art}
+                                        selected={selectedArts.includes(art.id)}
+                                        onSelect={toggleSelectedArt}
                                         onView={setViewArt}
                                         onEdit={openEdit}
                                         onBoost={setBoostArt}
@@ -525,44 +539,6 @@ export default function MyArts() {
                             </div>
 
                             <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="art-download-policy">Original download</Label>
-                                    <select
-                                        id="art-download-policy"
-                                        value={form.downloadPolicy}
-                                        onChange={(event) =>
-                                            setForm((current) => ({
-                                                ...current,
-                                                downloadPolicy: event.target.value as ArtDownloadPolicy,
-                                            }))
-                                        }
-                                        className="h-9 rounded-md border bg-background px-3 text-sm"
-                                    >
-                                        <option value="disabled">No download button</option>
-                                        <option value="free">Free original download</option>
-                                        <option value="paid">Buy with credits</option>
-                                    </select>
-                                </div>
-
-                                {form.downloadPolicy === 'paid' && (
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="art-download-credits">Credit cost</Label>
-                                        <Input
-                                            id="art-download-credits"
-                                            type="number"
-                                            min={1}
-                                            max={999}
-                                            value={form.downloadCredits}
-                                            onChange={(event) =>
-                                                setForm((current) => ({
-                                                    ...current,
-                                                    downloadCredits: Number(event.target.value) || 1,
-                                                }))
-                                            }
-                                        />
-                                    </div>
-                                )}
-
                                 <label
                                     htmlFor="art-apply-watermark"
                                     className="flex items-start gap-3 rounded-md border bg-background p-3 text-sm"
@@ -587,8 +563,7 @@ export default function MyArts() {
                                                 aria-label="Watermark help"
                                             >
                                                 <title>
-                                                    Watermark protects the public preview. Original
-                                                    downloads still use the clean original file.
+                                                    Watermark protects the public art preview.
                                                 </title>
                                             </Info>
                                         </span>
@@ -598,11 +573,6 @@ export default function MyArts() {
                                         </span>
                                     </span>
                                 </label>
-
-                                <p className="text-xs text-muted-foreground">
-                                    Downloads use the private original file only when this setting
-                                    allows it.
-                                </p>
                             </div>
 
                             <div className="grid gap-2">
@@ -652,39 +622,6 @@ export default function MyArts() {
                                 </p>
                             </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="art-download-files">Download files</Label>
-                                {editing && form.downloadFiles.length === 0 && (
-                                    <ExistingDownloadFiles art={editing} />
-                                )}
-                                {form.downloadFiles.length > 0 && (
-                                    <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-sm">
-                                        {form.downloadFiles.map(({ file }, index) => (
-                                            <div
-                                                key={`${file.name}-${index}`}
-                                                className="flex items-center justify-between gap-3 rounded-md bg-background px-3 py-2"
-                                            >
-                                                <span className="truncate">{file.name}</span>
-                                                <span className="shrink-0 text-xs text-muted-foreground">
-                                                    {formatBytes(file.size)}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                                <Input
-                                    id="art-download-files"
-                                    type="file"
-                                    multiple
-                                    accept="image/png,image/jpeg,image/webp,image/gif,.zip,application/zip"
-                                    onChange={handleDownloadFiles}
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    Optional. Add zip files or clean images to include with the
-                                    original download bundle. New files replace the current download
-                                    file set when editing.
-                                </p>
-                            </div>
                         </div>
 
                         <DialogFooter>
@@ -788,12 +725,16 @@ function StudioPanel({
 
 function ArtPostRow({
     art,
+    selected,
+    onSelect,
     onView,
     onEdit,
     onBoost,
     onTrash,
 }: {
     art: Art
+    selected: boolean
+    onSelect: (id: string) => void
     onView: (art: Art) => void
     onEdit: (art: Art) => void
     onBoost: (art: Art) => void
@@ -805,6 +746,15 @@ function ArtPostRow({
     return (
         <div className="p-4">
             <div className="flex flex-col lg:flex-row gap-4">
+                <label className="flex items-start pt-1">
+                    <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => onSelect(art.id)}
+                        className="h-4 w-4 rounded border-muted-foreground/40"
+                        aria-label={`Select ${art.title}`}
+                    />
+                </label>
                 <ArtImageCarousel art={art} />
 
                 <div className="flex-1 min-w-0">
@@ -871,6 +821,40 @@ function ArtPostRow({
                     </div>
                 </div>
             </div>
+        </div>
+    )
+}
+
+function BulkSelectionBar({
+    selectedCount,
+    totalCount,
+    onSelectAll,
+    onClear,
+    onDelete,
+    disabled,
+}: {
+    selectedCount: number
+    totalCount: number
+    onSelectAll: () => void
+    onClear: () => void
+    onDelete: () => void
+    disabled?: boolean
+}) {
+    return (
+        <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+            <span className="text-muted-foreground">
+                {selectedCount} selected
+            </span>
+            <Button type="button" size="sm" variant="outline" onClick={onSelectAll} disabled={disabled || selectedCount === totalCount}>
+                Select all
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={onClear} disabled={disabled || selectedCount === 0}>
+                Unselect
+            </Button>
+            <Button type="button" size="sm" variant="destructive" onClick={onDelete} disabled={disabled || selectedCount === 0}>
+                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                Delete selected
+            </Button>
         </div>
     )
 }
@@ -942,34 +926,6 @@ function ExistingImagesPreview({ art }: { art: Art }) {
                             {image.description}
                         </p>
                     )}
-                </div>
-            ))}
-        </div>
-    )
-}
-
-function ExistingDownloadFiles({ art }: { art: Art }) {
-    const files = art.download_files ?? []
-
-    if (files.length === 0) {
-        return (
-            <p className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground">
-                No extra download files attached. Buyers will receive the clean original image.
-            </p>
-        )
-    }
-
-    return (
-        <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-sm">
-            {files.map((file) => (
-                <div
-                    key={file.id}
-                    className="flex items-center justify-between gap-3 rounded-md bg-background px-3 py-2"
-                >
-                    <span className="truncate">{file.original_name || 'Download file'}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                        {formatBytes(file.size_bytes)}
-                    </span>
                 </div>
             ))}
         </div>
@@ -1364,15 +1320,6 @@ function getArtImages(art: Art) {
             updated_at: art.updated_at,
         },
     ]
-}
-
-function formatBytes(bytes: number) {
-    if (!bytes) return '0 B'
-    const units = ['B', 'KB', 'MB', 'GB']
-    const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-    const value = bytes / 1024 ** exponent
-
-    return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`
 }
 
 function getFirstImagePath(art: Art) {

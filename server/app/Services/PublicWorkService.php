@@ -44,6 +44,11 @@ class PublicWorkService
         return $payload;
     }
 
+    public function searchContent(string $query): array
+    {
+        return $this->repo->searchContent($query);
+    }
+
     public function getWeeklyChart(): Collection
     {
         return $this->homeItems(

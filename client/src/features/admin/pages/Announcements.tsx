@@ -21,6 +21,7 @@ const EMPTY_FORM: AnnouncementPayload = {
     audience: 'public',
     image: null,
     is_pinned: false,
+    rotation_seconds: 0,
 }
 
 export default function AdminAnnouncements() {
@@ -60,6 +61,7 @@ export default function AdminAnnouncements() {
             audience: a.audience,
             image: null,
             is_pinned: a.is_pinned,
+            rotation_seconds: a.rotation_seconds ?? 0,
         })
         setImagePreview(a.image ? storageUrl(a.image) : null)
         setError(null)
@@ -262,8 +264,8 @@ export default function AdminAnnouncements() {
                                 />
                             </div>
 
-                            {/* Tag + Audience */}
-                            <div className="grid grid-cols-2 gap-3">
+                            {/* Tag + Audience + Rotation */}
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <div>
                                     <label
                                         className="text-[10px] tracking-[0.2em] text-muted-foreground block mb-1"
@@ -303,6 +305,31 @@ export default function AdminAnnouncements() {
                                         <option value="public">Public</option>
                                         <option value="studio">Studio</option>
                                     </select>
+                                </div>
+                                <div>
+                                    <label
+                                        className="text-[10px] tracking-[0.2em] text-muted-foreground block mb-1"
+                                        style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                                    >
+                                        ROTATION TIMER
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        max={300}
+                                        value={form.rotation_seconds ?? 0}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                rotation_seconds: Number(e.target.value),
+                                            }))
+                                        }
+                                        className="w-full border-2 border-foreground bg-transparent px-3 py-2 text-[13px] text-foreground outline-none focus:border-amber-500"
+                                        placeholder="0"
+                                    />
+                                    <p className="mt-1 text-[11px] text-muted-foreground">
+                                        Seconds. Use 0 for default.
+                                    </p>
                                 </div>
                             </div>
 

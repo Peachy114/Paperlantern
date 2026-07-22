@@ -89,13 +89,17 @@ export interface CommissionService {
     slug: string
     description: string | null
     image_path: string | null
-    status: 'open' | 'waitlist' | 'closed'
+    status: 'open' | 'waitlist' | 'closed' | 'paused'
     boosted_until?: string | null
     base_price_credits: number
     min_price_credits: number | null
     delivery_days: number | null
     slots_available: number | null
     is_featured?: boolean
+    views_count?: number
+    likes_count?: number
+    created_at?: string
+    updated_at?: string
     flow: CommissionFlowStep[]
     terms: string | null
     quote_rules: string | null

@@ -14,6 +14,7 @@ import {
     Receipt,
     Shield,
     Sparkles,
+    ShoppingBag,
     Wallet,
     type LucideIcon,
 } from 'lucide-react'
@@ -44,11 +45,12 @@ export default function ProfileIconGrid({
           ? [
                 { label: 'My Series', icon: BookOpen, to: '/studio' },
                 { label: 'My Arts', icon: Images, to: '/arts' },
-                { label: 'Commission', icon: BriefcaseBusiness, to: '/commission' },
+                { label: 'My Shop', icon: ShoppingBag, to: '/my-shop' },
+                { label: 'My Commission', icon: BriefcaseBusiness, to: '/commission' },
             ]
           : [
                 { label: 'Favorites', icon: Heart, to: '/favorites' },
-                { label: 'Commission', icon: BriefcaseBusiness, to: '/commission' },
+                { label: 'My Commission', icon: BriefcaseBusiness, to: '/commission' },
                 { label: 'Messages', icon: MessageCircle, to: '/messages' },
             ]
 
@@ -120,7 +122,13 @@ function ArtistMenu({ onClose }: { onClose: () => void }) {
                     description: 'Posts, comments, boosts',
                 },
                 {
-                    label: 'Commission',
+                    label: 'My Shop',
+                    icon: ShoppingBag,
+                    to: '/my-shop',
+                    description: 'Download products and adoptables',
+                },
+                {
+                    label: 'My Commission',
                     icon: BriefcaseBusiness,
                     to: '/commission',
                     description: 'Services, orders, messages',

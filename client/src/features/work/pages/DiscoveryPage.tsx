@@ -7,12 +7,6 @@ import type { PageKey, PageLayout } from '@/types/pageLayout'
 import ComixLists from '../components/ComixListSection'
 import { useHome } from '../hooks/useHome'
 
-const PAGE_TITLES: Partial<Record<PageKey, string>> = {
-    daily: 'Daily',
-    rankings: 'Rankings',
-    genre: 'Genre',
-}
-
 export default function DiscoveryPage() {
     const location = useLocation()
     const page = useMemo<PageKey>(() => {

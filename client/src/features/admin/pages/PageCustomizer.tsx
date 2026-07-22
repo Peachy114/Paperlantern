@@ -14,9 +14,9 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { GripVertical, ImagePlus, Plus, RotateCcw, Save, Settings2, Trash2 } from 'lucide-react'
-import api from '@/api/axios'
 import { adminArtsApi } from '@/api/adminArts'
 import { commentsApi } from '@/api/comments'
+import { labelingApi } from '@/api/labeling'
 import { pageLayoutApi } from '@/api/pageLayouts'
 import { publicApi } from '@/api/public'
 import { storageUrl } from '@/utils/storage'
@@ -43,6 +43,7 @@ import {
 } from '@/features/admin/page-customizer/pageCustomizerRegistry'
 import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
 import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
+import ShopCardWidget from '@/features/page-builder/ShopCardWidget'
 import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
 import AnnouncementWidget from '@/features/announcements/components/AnnouncementWidget'
 import HeroSection from '@/features/work/components/HeroSection'
@@ -50,7 +51,7 @@ import WeeklyChartSection from '@/features/work/components/WeeklyChartSection'
 import FreshReleasesSection from '@/features/work/components/FreshReleasesSection'
 import LatestChaptersSection from '@/features/work/components/LatestChaptersSection'
 
-//// Helper Types and Functions ----
+// Helper Types and Functions ----
 type DragPayload = { source: 'palette'; type: string } | { source: 'canvas'; id: string }
 
 function parseDragPayload(raw: string): DragPayload | null {
@@ -141,7 +142,7 @@ function isEditableOverlay(widget: PageWidget) {
 // SECTION 2: PREVIEW API DATA TYPES ----
 // Update these interfaces when your API adds new preview response fields.
 // ============================================================================
-//// Home Preview Data ----
+// Home Preview Data ----
 interface HomePreviewData {
     weeklyChart: WorkItem[]
     todayReleases: WorkItem[]
@@ -152,9 +153,10 @@ interface HomePreviewData {
     dailyWorks: WorkItem[]
     popularWorks: WorkItem[]
     topLikedWorks: WorkItem[]
+    // ADD NEW DATA HERE
 }
 
-//// Arts Preview Data ----
+// Arts Preview Data ----
 interface ArtsPreviewData {
     featured_artists: {
         id: string
@@ -167,7 +169,7 @@ interface ArtsPreviewData {
     arts: { data: Art[] }
 }
 
-//// Commissions Preview Data ----
+// Commissions Preview Data ----
 interface CommissionPreviewData {
     commissions: { data: CommissionService[] }
 }
@@ -183,7 +185,6 @@ export default function PageCustomizer() {
     const queryClient = useQueryClient()
     const canvasRef = useRef<HTMLDivElement>(null)
     const widgetRefs = useRef<Map<string, HTMLElement>>(new Map())
-
     const layout = useQuery({
         queryKey: ['admin-page-layout', page],
         queryFn: () => pageLayoutApi.adminShow(page).then((res) => res.data),
@@ -192,7 +193,7 @@ export default function PageCustomizer() {
     const homePreview = useQuery<HomePreviewData>({
         queryKey: ['page-builder-home-preview'],
         enabled: ['home', 'comix', 'daily', 'rankings', 'genre'].includes(page),
-        queryFn: () => api.get('/public/home').then((res) => res.data),
+        queryFn: () => publicApi.getHome().then((res) => res.data),
         staleTime: 60_000,
     })
 
@@ -202,14 +203,19 @@ export default function PageCustomizer() {
         queryFn: () => publicApi.getArts().then((res) => res.data),
         staleTime: 60_000,
     })
-
     const commissionsPreview = useQuery<CommissionPreviewData>({
         queryKey: ['page-builder-commissions-preview'],
         enabled: page === 'commissions',
-        queryFn: () => publicApi.getCommissions().then((res) => res.data),
+        queryFn: async () => {
+            const res = await publicApi.getCommissions()
+
+            console.log('getCommissions Response', res)
+            console.log('getCommissions Data', res.data.commissions)
+
+            return res.data
+        },
         staleTime: 60_000,
     })
-
     useEffect(() => {
         setWidgets(layout.data?.widgets ?? [])
         setSelectedId(null)
@@ -930,16 +936,28 @@ function WidgetContent({
 
 function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewData }) {
     const cover = (path: string | null, variant?: 'sm') => (path ? storageUrl(path, variant) : null)
-    const filter = widget.settings.filter ?? 'all'
+    const filter =
+        widget.settings.filter_cards_data === 'comix'
+            ? 'webtoon'
+            : widget.settings.filter_cards_data === 'novels'
+              ? 'novel'
+              : widget.settings.filter_cards_data === 'arts'
+                ? 'art'
+                : widget.settings.filter ?? 'all'
     const limit = widget.settings.limit ?? 10
     const byType = (works: WorkItem[] = []) =>
-        filter === 'all'
-            ? works
-            : works.filter((work) => {
-                  if (filter === 'novel') return work.type === 'wattpad'
-                  if (filter === 'art') return work.type === 'art'
-                  return work.type === 'webtoon'
-              })
+        works
+            .filter((work) => work.type !== 'commission')
+            .filter((work) => {
+                if (filter === 'all') return true
+                if (filter === 'novel') return work.type === 'wattpad'
+                if (filter === 'art') return work.type === 'art'
+                return work.type === 'webtoon'
+            }) as (WorkItem & { type: 'webtoon' | 'wattpad' | 'art' })[]
+    const filteredWorks = (works: WorkItem[] = []) =>
+        applyPreviewWidgetFilters(byType(works), widget) as (WorkItem & {
+            type: 'webtoon' | 'wattpad' | 'art'
+        })[]
 
     if (widget.type === 'hero') {
         return (
@@ -995,7 +1013,7 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
     if (widget.type === 'weekly')
         return (
             <WeeklyChartSection
-                weeklyChart={byType(data?.weeklyChart).slice(0, limit)}
+                weeklyChart={filteredWorks(data?.weeklyChart).slice(0, limit)}
                 cover={cover}
             />
         )
@@ -1004,20 +1022,20 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
         return (
             <WorkGrid
                 title={widget.title || "Today's Releases"}
-                works={byType(source).slice(0, limit)}
+                works={filteredWorks(source).slice(0, limit)}
                 cover={cover}
                 columns={widget.settings.columns}
                 infoLayout={widget.settings.info_layout ?? 'image_title_description'}
             />
         )
     }
-    if (widget.type === 'today_top') {
+    if (widget.type === 'today_top' || widget.type === 'top_10s') {
         const source =
             widget.settings.metric === 'likes' ? data?.todayTopLikes : data?.todayTopViews
         return (
             <WorkGrid
                 title={widget.title || "Today's Top 10"}
-                works={byType(source).slice(0, limit)}
+                works={filteredWorks(source).slice(0, limit)}
                 cover={cover}
                 metric={widget.settings.metric ?? 'views'}
                 columns={widget.settings.columns}
@@ -1028,7 +1046,7 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
     if (widget.type === 'fresh')
         return (
             <FreshReleasesSection
-                freshReleases={byType(data?.freshReleases).slice(0, limit)}
+                freshReleases={filteredWorks(data?.freshReleases).slice(0, limit)}
                 cover={cover}
             />
         )
@@ -1039,11 +1057,11 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
                 cover={cover}
             />
         )
-    if (widget.type === 'popular')
+    if (widget.type === 'popular' || widget.type === 'grid_image' || widget.type === 'cards')
         return (
             <WorkGrid
                 title={widget.title}
-                works={byType(data?.popularWorks).slice(0, limit)}
+                works={filteredWorks(data?.popularWorks).slice(0, limit)}
                 cover={cover}
                 columns={widget.settings.columns}
                 infoLayout={widget.settings.info_layout ?? 'image_title_description'}
@@ -1053,14 +1071,50 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
         return (
             <WorkGrid
                 title={widget.title}
-                works={byType(data?.topLikedWorks).slice(0, limit)}
+                works={filteredWorks(data?.topLikedWorks).slice(0, limit)}
                 cover={cover}
                 columns={widget.settings.columns}
                 infoLayout={widget.settings.info_layout ?? 'image_title_description'}
             />
         )
+    if (widget.type === 'shop_card') {
+        return (
+            <BuilderPreviewLabel label="Shop Card">
+                <ShopCardWidget widget={widget} />
+            </BuilderPreviewLabel>
+        )
+    }
 
     return <EmptyWidget />
+}
+
+function applyPreviewWidgetFilters(works: WorkItem[], widget: PageWidget) {
+    const settings = widget.settings ?? {}
+    const multiSource = settings.label_filter_source ?? 'none'
+    const multiValues = (settings.label_filter_values ?? [])
+        .map((value) => value.toLowerCase())
+        .filter(Boolean)
+    const badgeSource = settings.badge_filter_source ?? 'none'
+    const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
+
+    return works.filter((work) => {
+        const matches = (source: string, value: string) => {
+            if (!value || source === 'none') return true
+            if (source === 'status') return String(work.status ?? '').toLowerCase() === value
+            if (source === 'genre' || source === 'label') {
+                return (work.genres ?? []).some((genre) => genre.toLowerCase() === value)
+            }
+            return source !== 'commission_type'
+        }
+
+        const multiOk =
+            multiSource === 'none' || multiValues.length === 0
+                ? true
+                : multiValues.some((value) => matches(multiSource, value))
+        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+
+        return multiOk && badgeOk
+    })
 }
 
 function WorkGrid({
@@ -1137,6 +1191,40 @@ function WorkGrid({
 }
 
 function ArtsWidget({ widget, data }: { widget: PageWidget; data?: ArtsPreviewData }) {
+    const filteredArts = applyPreviewArtFilters(data?.arts.data ?? [], widget)
+    const artHeroWorks = filteredArts.map((art) => ({
+        id: art.id,
+        slug: art.slug,
+        title: art.title,
+        cover: art.images?.[0]?.image_path ?? art.image_path,
+        banner: art.images?.[0]?.image_path ?? art.image_path,
+        description: art.description ?? '',
+        type: 'art',
+        content_type: 'art',
+        genres: art.labels ?? [],
+        views: art.views ?? 0,
+        likes: art.likes ?? 0,
+        created_at: art.created_at,
+        status: art.status,
+        is_featured: Boolean(art.is_featured),
+    })) as WorkItem[]
+
+    if (widget.type === 'featured_hero') {
+        return (
+            <BuilderPreviewLabel label="Featured Hero">
+                <FeaturedHeroWidget widget={widget} works={artHeroWorks} />
+            </BuilderPreviewLabel>
+        )
+    }
+
+    if (widget.type === 'group_hero') {
+        return (
+            <BuilderPreviewLabel label="Group Hero">
+                <GroupHeroWidget widget={widget} works={artHeroWorks} />
+            </BuilderPreviewLabel>
+        )
+    }
+
     if (widget.type === 'featured_artists') {
         const artists = data?.featured_artists ?? []
         if (artists.length === 0) return <EmptyWidget />
@@ -1205,7 +1293,7 @@ function ArtsWidget({ widget, data }: { widget: PageWidget; data?: ArtsPreviewDa
         return (
             <ImageGrid
                 title={widget.title}
-                items={(data?.arts.data ?? []).map((art) => ({
+                items={filteredArts.map((art) => ({
                     id: art.id,
                     title: art.title,
                     description: art.labels?.join(', ') ?? '',
@@ -1218,17 +1306,24 @@ function ArtsWidget({ widget, data }: { widget: PageWidget; data?: ArtsPreviewDa
             />
         )
     }
+    if (widget.type === 'shop_card') {
+        return (
+            <BuilderPreviewLabel label="Shop Card">
+                <ShopCardWidget widget={widget} />
+            </BuilderPreviewLabel>
+        )
+    }
 
     return <EmptyWidget />
 }
 
 function CommissionWidget({ widget, data }: { widget: PageWidget; data?: CommissionPreviewData }) {
+    const filteredCommissions = applyPreviewCommissionFilters(data?.commissions.data ?? [], widget)
     if (widget.type === 'commission_grid' || widget.type === 'boosted_commissions') {
-        const commissions = data?.commissions.data ?? []
         const items =
             widget.type === 'boosted_commissions'
-                ? commissions.filter((commission) => commission.boosted_until)
-                : commissions
+                ? filteredCommissions.filter((commission) => commission.boosted_until)
+                : filteredCommissions
 
         return (
             <ImageGrid
@@ -1246,8 +1341,78 @@ function CommissionWidget({ widget, data }: { widget: PageWidget; data?: Commiss
             />
         )
     }
-
+    if (widget.type === 'featured_hero') {
+        return (
+            <BuilderPreviewLabel label="Featured Hero">
+                <FeaturedHeroWidget widget={widget} works={[]} />
+            </BuilderPreviewLabel>
+        )
+    }
+    if (widget.type === 'shop_card') {
+        return (
+            <BuilderPreviewLabel label="Shop Card">
+                <ShopCardWidget widget={widget} />
+            </BuilderPreviewLabel>
+        )
+    }
     return <EmptyWidget />
+}
+
+function applyPreviewArtFilters(arts: Art[], widget: PageWidget) {
+    const settings = widget.settings ?? {}
+    const multiSource = settings.label_filter_source ?? 'none'
+    const multiValues = (settings.label_filter_values ?? [])
+        .map((value) => value.toLowerCase())
+        .filter(Boolean)
+    const badgeSource = settings.badge_filter_source ?? 'none'
+    const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
+
+    return arts.filter((art) => {
+        const matches = (source: string, value: string) => {
+            if (!value || source === 'none') return true
+            if (source === 'status') return String(art.status ?? '').toLowerCase() === value
+            if (source === 'genre' || source === 'label') {
+                return (art.labels ?? []).some((label) => label.toLowerCase() === value)
+            }
+            return source !== 'commission_type'
+        }
+        const multiOk =
+            multiSource === 'none' || multiValues.length === 0
+                ? true
+                : multiValues.some((value) => matches(multiSource, value))
+        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+        return multiOk && badgeOk
+    })
+}
+
+function applyPreviewCommissionFilters(commissions: CommissionService[], widget: PageWidget) {
+    const settings = widget.settings ?? {}
+    const multiSource = settings.label_filter_source ?? 'none'
+    const multiValues = (settings.label_filter_values ?? [])
+        .map((value) => value.toLowerCase())
+        .filter(Boolean)
+    const badgeSource = settings.badge_filter_source ?? 'none'
+    const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
+
+    return commissions.filter((commission) => {
+        const matches = (source: string, value: string) => {
+            if (!value || source === 'none') return true
+            if (source === 'status') return String(commission.status ?? '').toLowerCase() === value
+            if (source === 'commission_type') {
+                return (
+                    commission.category?.name?.toLowerCase() === value ||
+                    commission.category?.slug?.toLowerCase() === value
+                )
+            }
+            return true
+        }
+        const multiOk =
+            multiSource === 'none' || multiValues.length === 0
+                ? true
+                : multiValues.some((value) => matches(multiSource, value))
+        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+        return multiOk && badgeOk
+    })
 }
 
 // ============================================================================
@@ -1687,6 +1852,12 @@ function Inspector({
         enabled: widget?.type === 'sticker' || widget?.type === 'board',
         staleTime: 60_000,
     })
+    const labeling = useQuery({
+        queryKey: ['page-builder-labeling-options'],
+        queryFn: () => labelingApi.publicIndex().then((res) => res.data),
+        enabled: Boolean(widget),
+        staleTime: 300_000,
+    })
     const stickerLibrary = useMemo(() => {
         const stickers = [...(adminStickerLibrary.data ?? []), ...(userStickerLibrary.data ?? [])]
         return Array.from(new Map(stickers.map((sticker) => [sticker.id, sticker])).values())
@@ -1799,6 +1970,35 @@ function Inspector({
                     />
                     Enabled
                 </label>
+
+                {[
+                    'weekly',
+                    'daily',
+                    'today_releases',
+                    'today_top',
+                    'fresh',
+                    'latest',
+                    'popular',
+                    'top_liker',
+                    'grid_image',
+                    'cards',
+                    'shop_card',
+                    'top_10s',
+                    'labels',
+                    'arts_grid',
+                    'commission_grid',
+                    'boosted_commissions',
+                ].includes(widget.type) && (
+                    <FilterControls
+                        widget={widget}
+                        labeling={labeling.data}
+                        setSetting={setSetting}
+                    />
+                )}
+
+                {['cards', 'grid_image', 'top_10s', 'shop_card'].includes(widget.type) && (
+                    <CardContentControls widget={widget} setSetting={setSetting} />
+                )}
 
                 {widget.type === 'featured_hero' && (
                     <div className="space-y-4 rounded-lg border bg-muted/20 p-3">
@@ -3185,6 +3385,200 @@ function SettingsSection({
             </button>
             {open && <div className="space-y-3 border-t p-3">{children}</div>}
         </section>
+    )
+}
+
+function FilterControls({
+    widget,
+    labeling,
+    setSetting,
+}: {
+    widget: PageWidget
+    labeling?: {
+        genres?: Array<{ name: string; slug: string }>
+        labels?: Array<{ name: string; slug: string }>
+        commission_types?: Array<{ name: string; slug: string }>
+    }
+    setSetting: (key: string, value: unknown) => void
+}) {
+    const labelSource = widget.settings.label_filter_source ?? 'none'
+    const badgeSource = widget.settings.badge_filter_source ?? 'none'
+    const labelValues = widget.settings.label_filter_values ?? []
+    const badgeValue = widget.settings.badge_filter_value ?? ''
+    const sourceOptions = ['none', 'genre', 'status', 'label', 'commission_type']
+    const choicesFor = (source: string) => {
+        if (source === 'genre') return labeling?.genres?.map((item) => item.name) ?? []
+        if (source === 'label') return labeling?.labels?.map((item) => item.name) ?? []
+        if (source === 'commission_type')
+            return labeling?.commission_types?.map((item) => item.name) ?? []
+        if (source === 'status') return ['ongoing', 'completed', 'hiatus', 'draft', 'published']
+        return []
+    }
+    const labelChoices = choicesFor(labelSource)
+    const badgeChoices = choicesFor(badgeSource)
+    const toggleLabel = (value: string) => {
+        setSetting(
+            'label_filter_values',
+            labelValues.includes(value)
+                ? labelValues.filter((item) => item !== value)
+                : [...labelValues, value]
+        )
+    }
+
+    return (
+        <div className="space-y-4 rounded-lg border bg-muted/20 p-3">
+            <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Data and filters
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                    Use label filtering for multiple chips. Use badge filtering when this widget should
+                    show only one selected genre/status/label.
+                </p>
+            </div>
+
+            <SelectField
+                label="Cards data"
+                value={widget.settings.filter_cards_data ?? 'mixed'}
+                options={['mixed', 'comix', 'novels', 'arts', 'commissions']}
+                onChange={(value) => {
+                    setSetting('filter_cards_data', value)
+                    if (value === 'comix') setSetting('filter', 'webtoon')
+                    if (value === 'novels') setSetting('filter', 'novel')
+                    if (value === 'arts') setSetting('filter', 'art')
+                    if (value === 'mixed') setSetting('filter', 'all')
+                }}
+            />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+                <SelectField
+                    label="Label filtering"
+                    value={labelSource}
+                    options={sourceOptions}
+                    onChange={(value) => {
+                        setSetting('label_filter_source', value)
+                        setSetting('label_filter_values', [])
+                    }}
+                />
+                <SelectField
+                    label="Badge filtering"
+                    value={badgeSource}
+                    options={sourceOptions}
+                    onChange={(value) => {
+                        setSetting('badge_filter_source', value)
+                        setSetting('badge_filter_value', '')
+                    }}
+                />
+            </div>
+
+            {labelSource !== 'none' && (
+                <div>
+                    <Label>Choose label filters</Label>
+                    <div className="mt-2 flex max-h-32 flex-wrap gap-2 overflow-y-auto rounded-md border bg-background p-2">
+                        {labelChoices.length ? (
+                            labelChoices.map((choice) => (
+                                <button
+                                    key={choice}
+                                    type="button"
+                                    onClick={() => toggleLabel(choice)}
+                                    className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                                        labelValues.includes(choice)
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'bg-background hover:bg-muted'
+                                    }`}
+                                >
+                                    {choice}
+                                </button>
+                            ))
+                        ) : (
+                            <p className="text-xs text-muted-foreground">
+                                No options found yet. You can still type values below.
+                            </p>
+                        )}
+                    </div>
+                    <Input
+                        className="mt-2"
+                        value={labelValues.join(', ')}
+                        onChange={(event) =>
+                            setSetting(
+                                'label_filter_values',
+                                event.target.value
+                                    .split(',')
+                                    .map((item) => item.trim())
+                                    .filter(Boolean)
+                            )
+                        }
+                        placeholder="romance, fantasy, completed"
+                    />
+                </div>
+            )}
+
+            {badgeSource !== 'none' && (
+                <div>
+                    <Label>Badge filter</Label>
+                    <select
+                        value={badgeValue}
+                        onChange={(event) => setSetting('badge_filter_value', event.target.value)}
+                        className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                    >
+                        <option value="">None</option>
+                        {badgeChoices.map((choice) => (
+                            <option key={choice} value={choice}>
+                                {choice}
+                            </option>
+                        ))}
+                    </select>
+                    <Input
+                        className="mt-2"
+                        value={badgeValue}
+                        onChange={(event) => setSetting('badge_filter_value', event.target.value)}
+                        placeholder="One manual badge value"
+                    />
+                </div>
+            )}
+        </div>
+    )
+}
+
+function CardContentControls({
+    widget,
+    setSetting,
+}: {
+    widget: PageWidget
+    setSetting: (key: string, value: unknown) => void
+}) {
+    const options: Array<[keyof PageWidget['settings'], string]> = [
+        ['card_show_new', 'New badge'],
+        ['card_show_popular', 'Popular badge'],
+        ['card_show_rating', 'Rating'],
+        ['card_show_name', 'Name'],
+        ['card_show_artist', 'Artist name'],
+        ['card_show_sold', 'Sold'],
+        ['card_show_views', 'Views / files'],
+        ['card_show_likes', 'Likes'],
+        ['card_show_rank', 'Rank'],
+        ['card_show_labels', 'Labels'],
+        ['card_show_price', 'Price'],
+    ]
+
+    return (
+        <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Card content
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+                {options.map(([key, label]) => (
+                    <label key={key} className="flex items-center gap-2 text-sm">
+                        <input
+                            type="checkbox"
+                            checked={widget.settings[key] !== false}
+                            onChange={(event) => setSetting(key, event.target.checked)}
+                        />
+                        {label}
+                    </label>
+                ))}
+            </div>
+        </div>
     )
 }
 

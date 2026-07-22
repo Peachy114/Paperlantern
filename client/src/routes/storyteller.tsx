@@ -23,6 +23,14 @@ export const storytellerRoutes = (
             }
         />
         <Route
+            path="/my-shop"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.MyShop />
+                </Suspense>
+            }
+        />
+        <Route
             path="/stickers"
             element={
                 <Suspense fallback={<Loading />}>

@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useModalStore } from '@/store/modalStore'
 import { useWallet, unlockChapter } from '@/hooks/useWallet'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bookmark, Heart, Loader2 } from 'lucide-react'
+import { Bookmark, Heart, Loader2, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import UnlockModal from '@/components/shared/UnlockModalChapter'
 
@@ -121,6 +121,7 @@ export default function PublicWorkOverview() {
                         <div className="flex flex-wrap items-center justify-end gap-2">
                             <WorkEngagementButtons
                                 slug={slug ?? ''}
+                                title={work.title}
                                 initialLikeCount={work.work_likes_count ?? 0}
                                 initialFavoriteCount={work.favorites_count ?? 0}
                             />
@@ -153,10 +154,12 @@ interface WorkEngagement {
 
 function WorkEngagementButtons({
     slug,
+    title,
     initialLikeCount,
     initialFavoriteCount,
 }: {
     slug: string
+    title: string
     initialLikeCount: number
     initialFavoriteCount: number
 }) {
@@ -186,19 +189,19 @@ function WorkEngagementButtons({
         }))
     }
 
-    const likeMutation = useMutation({
-        mutationFn: () => publicApi.toggleWorkLike(slug).then((res) => res.data),
-        onSuccess: (result) => mergeEngagement(result),
-        onError: (error: any) => {
-            toast.error(error.response?.data?.message ?? 'Could not update like.')
-        },
-    })
-
     const favoriteMutation = useMutation({
         mutationFn: () => publicApi.toggleWorkFavorite(slug).then((res) => res.data),
         onSuccess: (result) => mergeEngagement(result),
         onError: (error: any) => {
             toast.error(error.response?.data?.message ?? 'Could not update favorite.')
+        },
+    })
+
+    const likeMutation = useMutation({
+        mutationFn: () => publicApi.toggleWorkLike(slug).then((res) => res.data),
+        onSuccess: (result) => mergeEngagement(result),
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message ?? 'Could not update like.')
         },
     })
 
@@ -210,6 +213,16 @@ function WorkEngagementButtons({
 
     return (
         <>
+            <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => sharePage(title)}
+            >
+                <Share2 className="h-4 w-4" />
+                Share
+            </Button>
+
             <Button
                 type="button"
                 size="sm"
@@ -247,4 +260,20 @@ function WorkEngagementButtons({
             </Button>
         </>
     )
+}
+
+async function sharePage(title: string) {
+    const url = window.location.href
+
+    try {
+        if (navigator.share) {
+            await navigator.share({ title, url })
+            return
+        }
+
+        await navigator.clipboard.writeText(url)
+        toast.success('Link copied.')
+    } catch {
+        toast.error('Could not share this page.')
+    }
 }

@@ -1,14 +1,17 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ChevronDown } from 'lucide-react'
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuRadioGroup,
-    DropdownMenuRadioItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+const TYPES = [
+    {
+        label: 'Comic',
+        value: 'comic',
+    },
+    {
+        label: 'Novels',
+        value: 'novel',
+    },
+]
+
 const GENRES = [
     'All',
     'Action',
@@ -27,132 +30,234 @@ const GENRES = [
     'Historical',
     'Psychological',
 ]
-const TYPES = [
-    { label: 'Comic', value: 'comic' },
-    { label: 'Novel', value: 'novel' },
-]
-const SUB_NAV = [
-    ...DAYS.map((d) => ({ label: d, key: 'day', value: d.toLowerCase() })),
-    { label: 'Completed', key: 'status', value: 'completed' },
-    { label: 'Rankings', key: 'view', value: 'rankings' },
-]
 
-export default function ContentFilter() {
+export default function ContentFilter({ contentType }: { contentType?: 'comic' | 'novel' }) {
     const location = useLocation()
-    const navigate = useNavigate()
 
-    if (location.pathname !== '/' && !location.pathname.startsWith('/comix')) return null
+    const genreScrollRef = useRef<HTMLDivElement | null>(null)
+
+    const [isDragging, setIsDragging] = useState(false)
+    const [dragStartX, setDragStartX] = useState(0)
+    const [dragStartScrollLeft, setDragStartScrollLeft] = useState(0)
+
+    const isAllowedPage =
+        location.pathname === '/' ||
+        location.pathname.startsWith('/comix') ||
+        location.pathname.startsWith('/novels')
+
+    if (!isAllowedPage) {
+        return null
+    }
 
     const searchParams = new URLSearchParams(location.search)
-    const currentType = searchParams.get('type') ?? 'comic'
-    const currentGenre = searchParams.get('genre')
-    const currentDay = searchParams.get('day')
-    const currentStatus = searchParams.get('status')
-    const currentView = searchParams.get('view')
+
+    const currentType = contentType ?? searchParams.get('type') ?? 'comic'
+    const currentGenre = searchParams.get('genre') ?? 'All'
 
     const buildHref = (key: string, value: string | null) => {
         const next = new URLSearchParams(location.search)
-        if (value) next.set(key, value)
-        else next.delete(key)
-        return next.toString() ? `${location.pathname}?${next.toString()}` : location.pathname
+
+        if (value) {
+            next.set(key, value)
+        } else {
+            next.delete(key)
+        }
+
+        const query = next.toString()
+
+        return query ? `${location.pathname}?${query}` : location.pathname
     }
 
-    const buildSubNavHref = (key: string, value: string) => {
-        const next = new URLSearchParams(location.search)
-        next.delete('day')
-        next.delete('status')
-        next.delete('view')
-        next.set(key, value)
-        return `${location.pathname}?${next.toString()}`
+    const handleDragStart = (clientX: number) => {
+        const container = genreScrollRef.current
+
+        if (!container) {
+            return
+        }
+
+        setIsDragging(true)
+        setDragStartX(clientX)
+        setDragStartScrollLeft(container.scrollLeft)
     }
 
-    const isSubNavActive = ({ key, value }: { key: string; value: string }) => {
-        if (key === 'day') return currentDay === value
-        if (key === 'status') return currentStatus === value
-        if (key === 'view') return currentView === value
-        return false
+    const handleDragMove = (clientX: number) => {
+        const container = genreScrollRef.current
+
+        if (!container || !isDragging) {
+            return
+        }
+
+        const distance = clientX - dragStartX
+
+        container.scrollLeft = dragStartScrollLeft - distance
     }
 
-    const pill = (active: boolean) =>
-        active
-            ? 'inline-flex items-center px-3.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap no-underline border bg-black text-white transition-all duration-150'
-            : 'inline-flex items-center px-3.5 py-1 rounded-full text-xs font-medium whitespace-nowrap no-underline border border-gray-400 text-gray-500 hover:border-[var(--comix-secondary-bg)] hover:text-[var(--comix-secondary-bg)] transition-all duration-150'
-
-    const activeGenreLabel = currentGenre ?? 'All'
-
-    const handleGenreSelect = (value: string) => {
-        navigate(buildHref('genre', value === 'All' ? null : value))
+    const handleDragEnd = () => {
+        setIsDragging(false)
     }
 
     return (
-        <div className="font-[var(--comix-font-family)]">
-            <div className="w-full max-w-[1390px] mx-auto px-4 sm:px-6 md:px-8 py-3">
-                {/* Type pills */}
-                <div className="flex gap-2 mb-3">
-                    {/* Genre dropdown */}
-                    <div>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <button className={`${pill(!!currentGenre)} gap-1.5`} type="button">
-                                    {activeGenreLabel}
-                                    <ChevronDown className="size-3.5" />
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
-                                <DropdownMenuRadioGroup
-                                    value={activeGenreLabel}
-                                    onValueChange={handleGenreSelect}
-                                >
-                                    {GENRES.map((genre) => (
-                                        <DropdownMenuRadioItem key={genre} value={genre}>
-                                            {genre}
-                                        </DropdownMenuRadioItem>
-                                    ))}
-                                </DropdownMenuRadioGroup>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                    {TYPES.map(({ label, value }) => (
-                        <Link
-                            key={value}
-                            to={buildHref('type', value)}
-                            className={pill(currentType === value)}
+        <section className="w-full font-[var(--comix-font-family)]">
+            <div className="mx-auto w-full max-w-[1390px] px-4 py-3 sm:px-6 md:px-8">
+                {/* // content filter parent ---- */}
+                <nav
+                    aria-label="Content filters"
+                    className="
+                        flex
+                        min-h-14
+                        w-full
+                        items-center
+                        overflow-hidden
+                        rounded-[20px]
+                        border
+                        border-[var(--comix-filter-border)]
+                        bg-[var(--comix-filter-background)]
+                        shadow-[var(--shadow-xs)]
+                    "
+                >
+                    {/* //// fixed content type section ---- */}
+                    {!contentType && (
+                        <div
+                            className="
+                                flex
+                                shrink-0
+                                items-center
+                                gap-1
+                                px-3
+                                sm:px-5
+                            "
                         >
-                            {label}
-                        </Link>
-                    ))}
-                </div>
+                            {TYPES.map((type) => {
+                                const active = currentType === type.value
 
-                {/* Day / Status / Rankings bar */}
-                <div className="flex items-center justify-center h-11 bg-black dark:bg-zinc-800 dark:border dark:border-zinc-700 rounded-full px-4 sm:px-6 md:px-10 overflow-x-auto gap-3 sm:gap-5 scrollbar-none">
-                    {SUB_NAV.map((item) => {
-                        const active = isSubNavActive(item)
-                        return (
-                            <Link
-                                key={item.value}
-                                to={buildSubNavHref(item.key, item.value)}
-                                className={[
-                                    'relative flex items-center justify-center h-full px-3 sm:px-5 text-sm font-medium whitespace-nowrap no-underline transition-colors duration-150 z-[2]',
-                                    active
-                                        ? 'text-black dark:text-white font-semibold'
-                                        : 'text-white/60 hover:text-white/85',
-                                ].join(' ')}
-                            >
-                                {active && (
-                                    <span
-                                        className="absolute inset-y-1 -inset-x-2.5 -z-10 bg-white dark:bg-[#FE7F2D] rounded-sm"
-                                        style={{
-                                            clipPath:
-                                                'polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%)',
-                                        }}
-                                    />
-                                )}
-                                {item.label}
-                            </Link>
-                        )
-                    })}
-                </div>
+                                return (
+                                    <Link
+                                        key={type.value}
+                                        to={buildHref('type', type.value)}
+                                        aria-current={active ? 'page' : undefined}
+                                        className={[
+                                            'inline-flex',
+                                            'h-9',
+                                            'items-center',
+                                            'justify-center',
+                                            'rounded-full',
+                                            'px-3.5',
+                                            'text-sm',
+                                            'font-semibold',
+                                            'no-underline',
+                                            'whitespace-nowrap',
+                                            'transition-all',
+                                            'duration-200',
+                                            active
+                                                ? [
+                                                      'bg-[var(--comix-accent)]',
+                                                      'text-white',
+                                                      'shadow-sm',
+                                                  ].join(' ')
+                                                : [
+                                                      'text-[var(--foreground)]',
+                                                      'hover:bg-white/50',
+                                                  ].join(' '),
+                                        ].join(' ')}
+                                    >
+                                        {type.label}
+                                    </Link>
+                                )
+                            })}
+                        </div>
+                    )}
+
+                    {/* //// section divider ---- */}
+                    {!contentType && (
+                        <div
+                            aria-hidden="true"
+                            className="
+                                h-14
+                                w-px
+                                shrink-0
+                                bg-[var(--comix-filter-border)]
+                            "
+                        />
+                    )}
+
+                    {/* //// scrollable draggable genres ---- */}
+                    <div
+                        ref={genreScrollRef}
+                        onMouseDown={(event) => {
+                            event.preventDefault()
+                            handleDragStart(event.clientX)
+                        }}
+                        onMouseMove={(event) => {
+                            handleDragMove(event.clientX)
+                        }}
+                        onMouseUp={handleDragEnd}
+                        onMouseLeave={handleDragEnd}
+                        onTouchStart={(event) => {
+                            handleDragStart(event.touches[0].clientX)
+                        }}
+                        onTouchMove={(event) => {
+                            handleDragMove(event.touches[0].clientX)
+                        }}
+                        onTouchEnd={handleDragEnd}
+                        className={[
+                            'flex',
+                            'min-w-0',
+                            'flex-1',
+                            'items-center',
+                            'gap-1',
+                            'overflow-x-auto',
+                            'px-3',
+                            'scrollbar-hide',
+                            'select-none',
+                            'sm:gap-2',
+                            'sm:px-5',
+                            isDragging ? 'cursor-grabbing' : 'cursor-grab',
+                        ].join(' ')}
+                    >
+                        {GENRES.map((genre) => {
+                            const active =
+                                genre === 'All' ? currentGenre === 'All' : currentGenre === genre
+
+                            return (
+                                <Link
+                                    key={genre}
+                                    to={buildHref('genre', genre === 'All' ? null : genre)}
+                                    draggable={false}
+                                    aria-current={active ? 'page' : undefined}
+                                    className={[
+                                        'inline-flex',
+                                        'h-9',
+                                        'shrink-0',
+                                        'items-center',
+                                        'justify-center',
+                                        'rounded-full',
+                                        'px-3.5',
+                                        'text-sm',
+                                        'no-underline',
+                                        'whitespace-nowrap',
+                                        'transition-all',
+                                        'duration-200',
+                                        active
+                                            ? [
+                                                  'bg-white/80',
+                                                  'text-[var(--foreground)]',
+                                                  'font-bold',
+                                                  'shadow-sm',
+                                              ].join(' ')
+                                            : [
+                                                  'text-[var(--foreground)]',
+                                                  'font-medium',
+                                                  'hover:bg-white/50',
+                                              ].join(' '),
+                                    ].join(' ')}
+                                >
+                                    {genre}
+                                </Link>
+                            )
+                        })}
+                    </div>
+                </nav>
             </div>
-        </div>
+        </section>
     )
 }

@@ -4,6 +4,7 @@ import { DiscoveryPageWidgets } from '@/features/page-builder/DiscoveryPageWidge
 import type { PageLayout } from '@/types/pageLayout'
 import { useHome } from '../hooks/useHome'
 import ComixLists from '../components/ComixListSection'
+import BannerComixList from '../components/BannerComixSection'
 
 export default function Comix() {
     const homeData = useHome()
@@ -17,7 +18,8 @@ export default function Comix() {
             {layout.data?.widgets?.length ? (
                 <DiscoveryPageWidgets widgets={layout.data.widgets} data={homeData} />
             ) : null}
-            <ComixLists />
+            <BannerComixList />
+            <ComixLists fixedType="comic" />
         </div>
     )
 }

@@ -103,7 +103,7 @@ class PublicWorkController extends Controller
             return response()->json([]);
         }
 
-        return response()->json($this->service->searchWorks($query));
+        return response()->json($this->service->searchContent($query));
     }
 
 

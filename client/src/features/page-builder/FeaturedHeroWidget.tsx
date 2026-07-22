@@ -73,7 +73,14 @@ export default function FeaturedHeroWidget({
     const commissionsQuery = useQuery({
         queryKey: ['featured-hero-commissions'],
         enabled: sources.commissions,
-        queryFn: () => publicApi.getCommissions().then((res) => res.data),
+        queryFn: async () => {
+            const res = await publicApi.getCommissions()
+
+            console.log('getCommissions Response', res)
+            console.log('getCommissions Data', res.data)
+
+            return res.data
+        },
         staleTime: 60_000,
     })
 
@@ -144,6 +151,7 @@ export default function FeaturedHeroWidget({
             const commissions = (commissionsQuery.data?.commissions?.data ??
                 []) as CommissionService[]
 
+            console.log('Commissions Data', commissions)
             commissions.forEach((commission) => {
                 nextItems.push({
                     id: `commission-${commission.id}`,
@@ -470,6 +478,7 @@ function BlurredBackgroundHeroSameHeight({
                     <SideImageCard
                         item={previousItem}
                         onClick={onPrev}
+                        side="left"
                         className="h-[300px] w-full max-w-[760px] sm:h-[350px] md:w-[54%]"
                     />
 
@@ -483,6 +492,7 @@ function BlurredBackgroundHeroSameHeight({
                     <SideImageCard
                         item={nextItem}
                         onClick={onNext}
+                        side="right"
                         className="h-[300px] w-full max-w-[760px] sm:h-[350px] md:w-[54%]"
                     />
                 </div>
@@ -524,7 +534,7 @@ function BlurredBackgroundHero({
                 src={current.image!}
                 alt=""
                 aria-hidden="true"
-                className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl"
+                className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl "
             />
 
             <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" />
@@ -548,6 +558,7 @@ function BlurredBackgroundHero({
                     <SideImageCard
                         item={previousItem}
                         onClick={onPrev}
+                        side="left"
                         className="hidden h-[260px] w-[24%] opacity-75 md:block"
                     />
 
@@ -561,6 +572,7 @@ function BlurredBackgroundHero({
                     <SideImageCard
                         item={nextItem}
                         onClick={onNext}
+                        side="right"
                         className="hidden h-[260px] w-[24%] opacity-75 md:block"
                     />
                 </div>
@@ -613,23 +625,36 @@ function OverlappingHero({
                         transition: isDragging ? 'none' : 'transform 300ms ease',
                     }}
                 >
-                    <SideImageCard
-                        item={previousItem}
-                        onClick={onPrev}
-                        className="absolute left-0 top-1/2 hidden h-[82%] w-[38%] -translate-y-1/2 rounded-2xl opacity-75 shadow-lg md:block"
-                    />
+                    {/* // previous side image ---- */}
+                    <div className="absolute left-0 top-1/2 hidden h-[82%] w-[38%] -translate-y-1/2 overflow-hidden rounded-2xl opacity-80 bg-black shadow-lg md:block">
+                        <SideImageCard
+                            item={previousItem}
+                            onClick={onPrev}
+                            side="left"
+                            className="h-full w-full blur-[1.5px] brightness-[0.50]"
+                        />
 
-                    <SideImageCard
-                        item={nextItem}
-                        onClick={onNext}
-                        className="absolute right-0 top-1/2 hidden h-[82%] w-[38%] -translate-y-1/2 rounded-2xl opacity-75 shadow-lg md:block"
-                    />
+                        <div className="pointer-events-none absolute inset-0 bg-black/10" />
+                    </div>
 
+                    {/* // next side image ---- */}
+                    <div className="absolute right-0 top-1/2 hidden h-[82%] w-[38%] -translate-y-1/2 overflow-hidden rounded-2xl opacity-80 shadow-lg bg-black md:block">
+                        <SideImageCard
+                            item={nextItem}
+                            onClick={onNext}
+                            side="right"
+                            className="h-full w-full blur-[1.5px] brightness-[0.50]"
+                        />
+
+                        <div className="pointer-events-none absolute inset-0 bg-black/10" />
+                    </div>
+
+                    {/* // active hero image ---- */}
                     <HeroImageCard
                         item={current}
                         widget={widget}
                         onOpenItem={onOpenItem}
-                        className="absolute left-1/2 top-1/2 z-10 h-full w-[min(760px,88vw)] -translate-x-1/2 -translate-y-1/2 rounded-[30px] border-4 border-background shadow-2xl"
+                        className="absolute left-1/2 top-1/2 z-10 h-full w-[min(760px,88vw)] -translate-x-1/2 -translate-y-1/2 rounded-[30px] border-2 border-background shadow-2xl"
                     />
                 </div>
 
@@ -684,6 +709,7 @@ function GappedHero({
                     <SideImageCard
                         item={previousItem}
                         onClick={onPrev}
+                        side="left"
                         className="hidden h-[270px] min-w-0 flex-1 rounded-2xl opacity-80 md:block"
                     />
 
@@ -697,6 +723,7 @@ function GappedHero({
                     <SideImageCard
                         item={nextItem}
                         onClick={onNext}
+                        side="right"
                         className="hidden h-[270px] min-w-0 flex-1 rounded-2xl opacity-80 md:block"
                     />
                 </div>
@@ -728,13 +755,13 @@ function HeroImageCard({
         <HeroActionCard
             item={item}
             onOpenItem={onOpenItem}
-            className={`relative block shrink-0 overflow-hidden bg-muted ${className}`}
+            className={`relative block shrink-0 overflow-hidden bg-muted  rounded-lg ${className}`}
         >
             <img
                 src={item.image!}
                 alt={item.title}
                 draggable={false}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover "
             />
             <MetaOverlay item={item} widget={widget} />
         </HeroActionCard>
@@ -779,10 +806,12 @@ function SideImageCard({
     item,
     onClick,
     className,
+    side,
 }: {
     item: HeroItem
     onClick: () => void
     className: string
+    side: 'left' | 'right'
 }) {
     const handlePointerDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
         event.stopPropagation()
@@ -794,19 +823,21 @@ function SideImageCard({
         onClick()
     }
 
+    const borderClass =
+        side === 'left' ? 'border-r-4 border-r-white/70' : 'border-l-4 border-l-white/70'
     return (
         <button
             type="button"
             onPointerDown={handlePointerDown}
             onClick={handleClick}
-            className={`overflow-hidden bg-muted transition duration-300 hover:opacity-100 ${className}`}
+            className={`overflow-hidden bg-muted transition duration-300 hover:opacity-100 ${borderClass} ${className}`}
             aria-label={`Show ${item.title}`}
         >
             <img
                 src={item.image!}
                 alt=""
                 draggable={false}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover "
             />
         </button>
     )

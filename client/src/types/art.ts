@@ -86,10 +86,44 @@ export interface CommissionProfile {
     id?: string
     application_status: CommissionApplicationStatus
     commissions_enabled: boolean
-    commission_status: 'open' | 'waitlist' | 'closed'
+    commission_status: 'open' | 'closed'
     application_reason: string | null
     terms: string | null
     terms_moderation_status: 'pending' | 'approved' | 'hidden' | 'suspended'
+    policies?: {
+        terms?: string
+        refund_policy?: string
+        required_references?: string
+    }
+    request_forms?: Array<{
+        id: string
+        title: string
+        description?: string
+        type: 'textarea' | 'short_text' | 'multiple_choice' | 'date' | 'checkbox'
+        required: boolean
+        options: string[]
+    }>
+    faqs?: Array<{
+        id: string
+        question: string
+        answer: string
+    }>
+    discounts?: Array<{
+        id: string
+        label: string
+        type: 'percent' | 'fixed'
+        amount: number
+        starts_at?: string
+        ends_at?: string
+        active: boolean
+    }>
+    client_fields?: Record<string, { collect: boolean; required: boolean }>
+    flow_template?: Array<{
+        type: string
+        label: string
+        percent?: number
+        rounds?: number
+    }>
     customers_count: number
     average_rating: number
     ratings_count: number

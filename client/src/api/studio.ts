@@ -31,13 +31,29 @@ export const studioApi = {
     getTrashedArts: () => api.get('/studio/arts/trash'),
     restoreArt: (slug: string) => api.post(`/studio/arts/trash/${slug}/restore`),
     forceDeleteArt: (slug: string) => api.delete(`/studio/arts/trash/${slug}`),
+    getShopItems: () => api.get('/studio/shop'),
+    createShopItem: (data: FormData) =>
+        api.post('/studio/shop', data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    updateShopItem: (id: string, data: FormData) =>
+        api.post(`/studio/shop/${id}`, data, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        }),
+    deleteShopItem: (id: string) => api.delete(`/studio/shop/${id}`),
     getCommissionProfile: () => api.get('/studio/commissions/profile'),
     applyCommission: (data: { application_reason: string }) =>
         api.post('/studio/commissions/apply', data),
     updateCommissionProfile: (data: {
         commissions_enabled?: boolean
-        commission_status?: 'open' | 'waitlist' | 'closed'
+        commission_status?: 'open' | 'closed'
         terms?: string
+        policies?: unknown
+        request_forms?: unknown[]
+        faqs?: unknown[]
+        discounts?: unknown[]
+        client_fields?: unknown
+        flow_template?: unknown[]
     }) => api.patch('/studio/commissions/profile', data),
     createCommissionService: (data: FormData) =>
         api.post('/studio/commissions/services', data, {

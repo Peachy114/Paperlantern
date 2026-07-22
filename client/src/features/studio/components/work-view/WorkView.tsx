@@ -17,6 +17,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
 import Charts from '../../components/Index/Charts'
 import WorkViewTable from './WorkViewTable'
 import WorkViewHeader from './WorkViewHeader'
@@ -38,6 +39,7 @@ export default function WorkView() {
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
     const [boostWork, setBoostWork] = useState<(typeof works)[number] | null>(null)
     const [deleting, setDeleting] = useState(false)
+    const [selectedWorks, setSelectedWorks] = useState<string[]>([])
 
     const totalChapters = works.reduce((s, w) => s + w.chapters_count, 0)
     const totalViews = works.reduce((s, w) => s + w.views, 0)
@@ -54,6 +56,31 @@ export default function WorkView() {
         } finally {
             setDeleting(false)
             setPendingDeleteId(null)
+        }
+    }
+
+    const toggleSelectedWork = (slug: string) => {
+        setSelectedWorks((current) =>
+            current.includes(slug)
+                ? current.filter((selected) => selected !== slug)
+                : [...current, slug]
+        )
+    }
+
+    const deleteSelectedWorks = async () => {
+        if (selectedWorks.length === 0) return
+
+        setDeleting(true)
+        try {
+            for (const slug of selectedWorks) {
+                await handleDelete(slug)
+            }
+            toast.success(`${selectedWorks.length} work${selectedWorks.length === 1 ? '' : 's'} deleted.`)
+            setSelectedWorks([])
+        } catch {
+            toast.error('Failed to delete selected works.')
+        } finally {
+            setDeleting(false)
         }
     }
 
@@ -92,11 +119,48 @@ export default function WorkView() {
                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Works
                     </span>
-                    <span className="text-xs text-muted-foreground">{works.length} total</span>
+                    {works.length > 0 ? (
+                        <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+                            <span className="text-muted-foreground">
+                                {selectedWorks.length} selected
+                            </span>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelectedWorks(works.map((work) => work.slug))}
+                                disabled={deleting || selectedWorks.length === works.length}
+                            >
+                                Select all
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setSelectedWorks([])}
+                                disabled={deleting || selectedWorks.length === 0}
+                            >
+                                Unselect
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="destructive"
+                                onClick={deleteSelectedWorks}
+                                disabled={deleting || selectedWorks.length === 0}
+                            >
+                                Delete selected
+                            </Button>
+                        </div>
+                    ) : (
+                        <span className="text-xs text-muted-foreground">{works.length} total</span>
+                    )}
                 </div>
 
                 <WorkViewTable
                     works={works}
+                    selectedSlugs={selectedWorks}
+                    onSelectWork={toggleSelectedWork}
                     onNavigate={navigate}
                     onDeleteRequest={setPendingDeleteId}
                     onBoostRequest={setBoostWork}

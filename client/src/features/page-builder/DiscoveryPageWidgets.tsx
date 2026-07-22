@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import AnnouncementWidget from '@/features/announcements/components/AnnouncementWidget'
 import LatestChaptersSection from '@/features/work/components/LatestChaptersSection'
 import FreshReleasesSection from '@/features/work/components/FreshReleasesSection'
@@ -7,6 +7,7 @@ import WeeklyChartSection from '@/features/work/components/WeeklyChartSection'
 import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
 import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
 import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
+import ShopCardWidget from '@/features/page-builder/ShopCardWidget'
 import { CustomPageWidget, PageWidgetFrame } from '@/features/page-builder/PageWidgetFrame'
 import type { ChapterItem, WorkItem } from '@/features/work/hooks/useHome'
 import type { PageWidget } from '@/types/pageLayout'
@@ -32,28 +33,60 @@ export function DiscoveryPageWidgets({
     widgets: PageWidget[]
     data: DiscoveryWidgetData
 }) {
+    const location = useLocation()
+    const contentFilter = new URLSearchParams(location.search).get('content')
+
     return (
         <Suspense fallback={null}>
             {widgets
                 .filter((widget) => widget.enabled)
                 .map((widget) => (
-                    <DiscoveryWidget key={widget.id} widget={widget} data={data} />
+                    <DiscoveryWidget
+                        key={widget.id}
+                        widget={widget}
+                        data={data}
+                        contentFilter={contentFilter}
+                    />
                 ))}
         </Suspense>
     )
 }
 
-function DiscoveryWidget({ widget, data }: { widget: PageWidget; data: DiscoveryWidgetData }) {
-    const filter = widget.settings.filter ?? 'all'
+function DiscoveryWidget({
+    widget,
+    data,
+    contentFilter,
+}: {
+    widget: PageWidget
+    data: DiscoveryWidgetData
+    contentFilter: string | null
+}) {
+    const filter =
+        normalizeContentFilter(contentFilter) ??
+        (widget.settings.filter_cards_data === 'comix'
+            ? 'webtoon'
+            : widget.settings.filter_cards_data === 'novels'
+              ? 'wattpad'
+              : widget.settings.filter_cards_data === 'arts'
+                ? 'art'
+                : widget.settings.filter ?? 'all')
     const byType = (works: WorkItem[]) =>
-        filter === 'all'
-            ? works
-            : works.filter((work) => {
-                  if (filter === 'novel') return work.type === 'wattpad'
-                  if (filter === 'art') return work.type === 'art'
-                  return work.type === 'webtoon'
-              })
+        works
+            .filter((work) => work.type !== 'commission')
+            .filter((work) => {
+                if (filter === 'all') return true
+                if (filter === 'novel') return work.type === 'wattpad'
+                if (filter === 'wattpad') return work.type === 'wattpad'
+                if (filter === 'art') return work.type === 'art'
+                if (filter === 'commission') return false
+                return work.type === 'webtoon'
+            }) as (WorkItem & { type: 'webtoon' | 'wattpad' | 'art' })[]
+    const filteredWorks = (works: WorkItem[]) =>
+        applyWidgetFilters(byType(works), widget) as (WorkItem & {
+            type: 'webtoon' | 'wattpad' | 'art'
+        })[]
     const limit = widget.settings.limit ?? 10
+    const filteredWidget = contentFilteredWidget(widget, filter)
 
     if (widget.type === 'content_tabs') {
         return (
@@ -67,7 +100,7 @@ function DiscoveryWidget({ widget, data }: { widget: PageWidget; data: Discovery
         return (
             <PageWidgetFrame widget={widget}>
                 <FeaturedHeroWidget
-                    widget={widget}
+                    widget={filteredWidget}
                     works={[
                         ...data.hero,
                         ...data.weeklyChart,
@@ -84,7 +117,7 @@ function DiscoveryWidget({ widget, data }: { widget: PageWidget; data: Discovery
         return (
             <PageWidgetFrame widget={widget}>
                 <GroupHeroWidget
-                    widget={widget}
+                    widget={filteredWidget}
                     works={[
                         ...data.hero,
                         ...data.weeklyChart,
@@ -109,7 +142,7 @@ function DiscoveryWidget({ widget, data }: { widget: PageWidget; data: Discovery
         return (
             <PageWidgetFrame widget={widget}>
                 <WeeklyChartSection
-                    weeklyChart={byType(data.weeklyChart).slice(0, limit)}
+                    weeklyChart={filteredWorks(data.weeklyChart).slice(0, limit)}
                     cover={data.cover}
                 />
             </PageWidgetFrame>
@@ -120,7 +153,7 @@ function DiscoveryWidget({ widget, data }: { widget: PageWidget; data: Discovery
         return (
             <PageWidgetFrame widget={widget}>
                 <FreshReleasesSection
-                    freshReleases={byType(data.freshReleases).slice(0, limit)}
+                    freshReleases={filteredWorks(data.freshReleases).slice(0, limit)}
                     cover={data.cover}
                 />
             </PageWidgetFrame>
@@ -143,7 +176,9 @@ function DiscoveryWidget({ widget, data }: { widget: PageWidget; data: Discovery
             <PageWidgetFrame widget={widget}>
                 <DiscoveryWorkGrid
                     title={widget.title || "Today's Releases"}
-                    works={byType(data.todayReleases.length ? data.todayReleases : data.dailyWorks).slice(0, limit)}
+                    works={filteredWorks(
+                        data.todayReleases.length ? data.todayReleases : data.dailyWorks
+                    ).slice(0, limit)}
                     cover={data.cover}
                     columns={widget.settings.columns}
                     infoLayout={widget.settings.info_layout ?? 'image_title_description'}
@@ -152,7 +187,7 @@ function DiscoveryWidget({ widget, data }: { widget: PageWidget; data: Discovery
         )
     }
 
-    if (widget.type === 'today_top') {
+    if (widget.type === 'today_top' || widget.type === 'top_10s') {
         const source =
             widget.settings.metric === 'likes'
                 ? data.todayTopLikes.length
@@ -166,7 +201,7 @@ function DiscoveryWidget({ widget, data }: { widget: PageWidget; data: Discovery
             <PageWidgetFrame widget={widget}>
                 <DiscoveryWorkGrid
                     title={widget.title || "Today's Top 10"}
-                    works={byType(source).slice(0, limit)}
+                    works={filteredWorks(source).slice(0, limit)}
                     cover={data.cover}
                     metric={widget.settings.metric ?? 'views'}
                     columns={widget.settings.columns}
@@ -176,16 +211,24 @@ function DiscoveryWidget({ widget, data }: { widget: PageWidget; data: Discovery
         )
     }
 
-    if (widget.type === 'popular') {
+    if (widget.type === 'popular' || widget.type === 'grid_image' || widget.type === 'cards') {
         return (
             <PageWidgetFrame widget={widget}>
                 <DiscoveryWorkGrid
                     title={widget.title || 'Popular'}
-                    works={byType(data.popularWorks).slice(0, limit)}
+                    works={filteredWorks(data.popularWorks).slice(0, limit)}
                     cover={data.cover}
                     columns={widget.settings.columns}
                     infoLayout={widget.settings.info_layout ?? 'image_title_description'}
                 />
+            </PageWidgetFrame>
+        )
+    }
+
+    if (widget.type === 'shop_card') {
+        return (
+            <PageWidgetFrame widget={widget}>
+                <ShopCardWidget widget={widget} />
             </PageWidgetFrame>
         )
     }
@@ -195,7 +238,9 @@ function DiscoveryWidget({ widget, data }: { widget: PageWidget; data: Discovery
             <PageWidgetFrame widget={widget}>
                 <DiscoveryWorkGrid
                     title={widget.title || 'Top Liker'}
-                    works={byType(data.topLikedWorks.length ? data.topLikedWorks : data.popularWorks).slice(0, limit)}
+                    works={filteredWorks(
+                        data.topLikedWorks.length ? data.topLikedWorks : data.popularWorks
+                    ).slice(0, limit)}
                     cover={data.cover}
                     columns={widget.settings.columns}
                     infoLayout={widget.settings.info_layout ?? 'image_title_description'}
@@ -205,6 +250,63 @@ function DiscoveryWidget({ widget, data }: { widget: PageWidget; data: Discovery
     }
 
     return <CustomPageWidget widget={widget} />
+}
+
+function applyWidgetFilters(works: WorkItem[], widget: PageWidget) {
+    const settings = widget.settings ?? {}
+    const multiSource = settings.label_filter_source ?? 'none'
+    const multiValues = (settings.label_filter_values ?? [])
+        .map((value) => value.toLowerCase())
+        .filter(Boolean)
+    const badgeSource = settings.badge_filter_source ?? 'none'
+    const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
+
+    return works.filter((work) => {
+        const matches = (source: string, value: string) => {
+            if (!value || source === 'none') return true
+            if (source === 'status') return String(work.status ?? '').toLowerCase() === value
+            if (source === 'genre' || source === 'label') {
+                return (work.genres ?? []).some((genre) => genre.toLowerCase() === value)
+            }
+            return source !== 'commission_type'
+        }
+
+        const multiOk =
+            multiSource === 'none' || multiValues.length === 0
+                ? true
+                : multiValues.some((value) => matches(multiSource, value))
+        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+
+        return multiOk && badgeOk
+    })
+}
+
+function normalizeContentFilter(contentFilter: string | null) {
+    if (!contentFilter || contentFilter === 'all') return null
+    if (contentFilter === 'webtoon') return 'webtoon'
+    if (contentFilter === 'wattpad') return 'wattpad'
+    if (contentFilter === 'art') return 'art'
+    if (contentFilter === 'commission') return 'commission'
+    return null
+}
+
+function contentFilteredWidget(widget: PageWidget, filter: string): PageWidget {
+    if (filter === 'all') return widget
+
+    return {
+        ...widget,
+        settings: {
+            ...widget.settings,
+            hero_source_arts: filter === 'art',
+            hero_source_works: filter === 'webtoon' || filter === 'wattpad',
+            hero_source_commissions: filter === 'commission',
+            hero_source_announcements: false,
+            group_source_arts: filter === 'art',
+            group_source_comix: filter === 'webtoon',
+            group_source_novels: filter === 'wattpad',
+            group_source_commissions: filter === 'commission',
+        },
+    }
 }
 
 function DiscoveryWorkGrid({
@@ -228,7 +330,11 @@ function DiscoveryWorkGrid({
         <section className="mx-auto mt-10 w-full max-w-[1360px] px-5">
             <h2 className="py-5 text-2xl font-bold uppercase">{title}</h2>
             <div
-                style={columns ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined}
+                style={
+                    columns
+                        ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }
+                        : undefined
+                }
                 className="grid grid-cols-3 items-stretch gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6"
             >
                 {works.map((work) => (
@@ -237,7 +343,12 @@ function DiscoveryWorkGrid({
                             <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted">
                                 {cover(work.cover, work.type === 'art' ? undefined : 'sm') ? (
                                     <img
-                                        src={cover(work.cover, work.type === 'art' ? undefined : 'sm')!}
+                                        src={
+                                            cover(
+                                                work.cover,
+                                                work.type === 'art' ? undefined : 'sm'
+                                            )!
+                                        }
                                         alt={work.title}
                                         className="h-full w-full object-cover"
                                     />

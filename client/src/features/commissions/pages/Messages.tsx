@@ -125,6 +125,7 @@ interface MessageResponse {
 export default function Messages() {
     const [searchParams, setSearchParams] = useSearchParams()
     const requestedOrder = searchParams.get('order')
+    const requestedArtist = searchParams.get('to')
     const [selectedId, setSelectedId] = useState<string | null>(requestedOrder)
     const [body, setBody] = useState('')
     const [image, setImage] = useState<File | null>(null)
@@ -235,6 +236,24 @@ export default function Messages() {
         },
         onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not send message.'),
     })
+
+    const startDirectThread = useMutation({
+        mutationFn: (username: string) => commissionApi.startDirectThread(username).then((res) => res.data),
+        onSuccess: (data) => {
+            const threadId = data?.thread?.id
+            if (threadId) {
+                setSelectedId(threadId)
+                setSearchParams({ order: threadId })
+            }
+            queryClient.invalidateQueries({ queryKey: ['commission-message-threads'] })
+        },
+        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not open messages.'),
+    })
+
+    useEffect(() => {
+        if (!requestedArtist || startDirectThread.isPending) return
+        startDirectThread.mutate(requestedArtist)
+    }, [requestedArtist])
 
     const savePreferences = useMutation({
         mutationFn: (payload: MessagePreferences) => commissionApi.updateMessagePreferences(payload).then((res) => res.data),

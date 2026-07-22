@@ -276,6 +276,17 @@ export default function CommentSection({
                     <div className="mt-2 flex flex-wrap items-center gap-1">
                         <Button
                             type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 rounded-full px-2 text-xs"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => wrapSelectedText('## ', '')}
+                            title="Turn selected text into a heading"
+                        >
+                            H
+                        </Button>
+                        <Button
+                            type="button"
                             size="icon-sm"
                             variant="ghost"
                             onMouseDown={(event) => event.preventDefault()}
@@ -300,6 +311,17 @@ export default function CommentSection({
                             variant="ghost"
                             className="h-8 rounded-full px-2 text-xs"
                             onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => wrapSelectedText('- ', '')}
+                            title="Turn selected text into a bullet"
+                        >
+                            Bullet
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 rounded-full px-2 text-xs"
+                            onMouseDown={(event) => event.preventDefault()}
                             onClick={() => wrapSelectedText('||')}
                             title="Spoiler selected text"
                         >
@@ -307,6 +329,15 @@ export default function CommentSection({
                             Spoiler
                         </Button>
                     </div>
+
+                    {body.trim() && (
+                        <div className="mt-3 rounded-lg border bg-muted/20 p-3">
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Live preview
+                            </p>
+                            <CommentComposerPreview text={body} />
+                        </div>
+                    )}
 
                     {reactionEmoji && (
                         <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm">
@@ -886,6 +917,66 @@ function MarkdownText({ text, spoiler }: { text: string; spoiler: boolean }) {
             ))}
         </p>
     )
+}
+
+function CommentComposerPreview({ text }: { text: string }) {
+    return (
+        <div className="space-y-1 text-sm leading-6">
+            {text.split('\n').map((line, index) => {
+                if (/^#{1,3}\s+/.test(line)) {
+                    return (
+                        <h3 key={index} className="text-base font-bold">
+                            {renderPreviewInline(line.replace(/^#{1,3}\s+/, ''), `preview-${index}`)}
+                        </h3>
+                    )
+                }
+
+                if (/^-\s+/.test(line)) {
+                    return (
+                        <div key={index} className="flex gap-2">
+                            <span className="text-muted-foreground">•</span>
+                            <span>{renderPreviewInline(line.replace(/^-\s+/, ''), `preview-${index}`)}</span>
+                        </div>
+                    )
+                }
+
+                return (
+                    <p key={index} className="break-words">
+                        {renderPreviewInline(line, `preview-${index}`)}
+                    </p>
+                )
+            })}
+        </div>
+    )
+}
+
+function renderPreviewInline(text: string, keyPrefix: string): ReactNode[] {
+    const nodes: ReactNode[] = []
+    let lastIndex = 0
+
+    for (const match of text.matchAll(INLINE_MARKDOWN_PATTERN)) {
+        const token = match[0]
+        const index = match.index ?? 0
+        if (index > lastIndex) nodes.push(text.slice(lastIndex, index))
+        nodes.push(renderPreviewToken(token, `${keyPrefix}-${index}`))
+        lastIndex = index + token.length
+    }
+
+    if (lastIndex < text.length) nodes.push(text.slice(lastIndex))
+
+    return nodes
+}
+
+function renderPreviewToken(token: string, key: string): ReactNode {
+    if (token.startsWith('||') && token.endsWith('||')) {
+        return (
+            <span key={key} className="rounded bg-yellow-200 px-1 text-yellow-950">
+                {token.slice(2, -2)}
+            </span>
+        )
+    }
+
+    return renderMarkdownToken(token, key)
 }
 
 const INLINE_MARKDOWN_PATTERN =

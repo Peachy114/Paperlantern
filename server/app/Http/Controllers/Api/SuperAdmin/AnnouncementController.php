@@ -28,6 +28,7 @@ class AnnouncementController extends Controller
             'audience' => ['required', 'in:public,studio'],
             'image'    => ['nullable', 'image', 'max:2048'],
             'is_pinned'=> ['boolean'],
+            'rotation_seconds' => ['nullable', 'integer', 'min:0', 'max:300'],
         ]);
 
         $announcement = $this->service->create(
@@ -49,6 +50,7 @@ class AnnouncementController extends Controller
             'audience' => ['sometimes', 'in:public,studio'],
             'image'    => ['nullable', 'image', 'max:2048'],
             'is_pinned'=> ['boolean'],
+            'rotation_seconds' => ['nullable', 'integer', 'min:0', 'max:300'],
         ]);
 
         $announcement = $this->service->update(

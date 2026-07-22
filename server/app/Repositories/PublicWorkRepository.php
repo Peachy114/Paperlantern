@@ -6,6 +6,8 @@ use App\Models\Chapter;
 use App\Models\ChapterLike;
 use App\Models\ChapterView;
 use App\Models\FeatureBoost;
+use App\Models\Art;
+use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkFavorite;
 use App\Models\WorkLike;
@@ -160,6 +162,84 @@ class PublicWorkRepository
             ->where('title', 'like', "%{$query}%")
             ->limit(8)
             ->get(['id', 'slug', 'title', 'cover', 'type']);
+    }
+
+    public function searchContent(string $query): array
+    {
+        $term = trim($query);
+
+        $works = $this->visibleWorks()
+            ->where(function ($workQuery) use ($term) {
+                $workQuery
+                    ->where('title', 'like', "%{$term}%")
+                    ->orWhere('genres', 'like', "%{$term}%");
+            })
+            ->orderByDesc('views')
+            ->limit(16)
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'views', 'likes']);
+
+        $artLabels = Art::query()
+            ->where('status', 'published')
+            ->where('moderation_status', '!=', 'violated')
+            ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'))
+            ->where('labels', 'like', "%{$term}%")
+            ->get(['labels'])
+            ->flatMap(fn(Art $art) => collect($art->labels ?? []))
+            ->filter(fn($label) => is_string($label) && str_contains(mb_strtolower($label), mb_strtolower($term)))
+            ->map(fn($label) => trim((string) $label))
+            ->filter()
+            ->countBy()
+            ->sortDesc()
+            ->take(8)
+            ->map(fn($count, $label) => [
+                'id' => md5("art-label:{$label}"),
+                'title' => $label,
+                'type' => 'art_label',
+                'count' => $count,
+                'href' => '/explore/arts?label=' . rawurlencode($label),
+            ])
+            ->values();
+
+        $artists = User::query()
+            ->whereIn('role', ['storyteller', 'super_admin'])
+            ->where(function ($artistQuery) use ($term) {
+                $artistQuery
+                    ->where('name', 'like', "%{$term}%")
+                    ->orWhere('username', 'like', "%{$term}%")
+                    ->orWhere('artist_title', 'like', "%{$term}%");
+            })
+            ->withCount(['works', 'arts'])
+            ->orderByDesc('artist_verified')
+            ->limit(8)
+            ->get(['id', 'name', 'username', 'avatar', 'artist_title', 'artist_verified'])
+            ->map(fn(User $artist) => [
+                'id' => $artist->id,
+                'title' => $artist->name,
+                'subtitle' => '@' . $artist->username . ($artist->artist_title ? " - {$artist->artist_title}" : ''),
+                'cover' => $artist->avatar,
+                'type' => 'artist',
+                'verified' => (bool) $artist->artist_verified,
+                'href' => "/artists/{$artist->username}",
+            ]);
+
+        $formatWork = fn(Work $work) => [
+            'id' => $work->id,
+            'slug' => $work->slug,
+            'title' => $work->title,
+            'cover' => $work->cover,
+            'type' => $work->type,
+            'genres' => $work->genres ?? [],
+            'views' => $work->views ?? 0,
+            'likes' => $work->likes ?? 0,
+            'href' => "/works/{$work->slug}",
+        ];
+
+        return [
+            'webcomics' => $works->where('type', 'webtoon')->take(8)->map($formatWork)->values(),
+            'novels' => $works->where('type', 'wattpad')->take(8)->map($formatWork)->values(),
+            'arts' => $artLabels,
+            'artists' => $artists,
+        ];
     }
 
     public function getComics(Request $request): \Illuminate\Contracts\Pagination\LengthAwarePaginator

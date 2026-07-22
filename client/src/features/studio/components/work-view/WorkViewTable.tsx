@@ -41,6 +41,8 @@ export interface Work {
 
 interface WorkViewTableProps {
     works: Work[]
+    selectedSlugs: string[]
+    onSelectWork: (slug: string) => void
     onNavigate: (path: string) => void
     onDeleteRequest: (slug: string) => void
     onBoostRequest: (work: Work) => void
@@ -49,6 +51,8 @@ interface WorkViewTableProps {
 
 export default function WorkViewTable({
     works,
+    selectedSlugs,
+    onSelectWork,
     onNavigate,
     onDeleteRequest,
     onBoostRequest,
@@ -67,6 +71,7 @@ export default function WorkViewTable({
         <Table>
             <TableHeader>
                 <TableRow>
+                    <TableHead className="w-10" />
                     <TableHead>Title</TableHead>
                     <TableHead className="hidden sm:table-cell">Status</TableHead>
                     <TableHead className="hidden sm:table-cell">Chapters</TableHead>
@@ -84,6 +89,15 @@ export default function WorkViewTable({
                             className="cursor-pointer"
                             onClick={() => onNavigate(`/studio/works/${work.slug}/chapters`)}
                         >
+                            <TableCell onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedSlugs.includes(work.slug)}
+                                    onChange={() => onSelectWork(work.slug)}
+                                    className="h-4 w-4 rounded border-muted-foreground/40"
+                                    aria-label={`Select ${work.title}`}
+                                />
+                            </TableCell>
                             <TableCell>
                                 <div>
                                     <p className="font-medium text-sm leading-snug truncate max-w-[200px]">

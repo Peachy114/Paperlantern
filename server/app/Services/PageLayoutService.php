@@ -196,6 +196,30 @@ class PageLayoutService
             'filter' => in_array($settings['filter'] ?? '', ['all', 'webtoon', 'novel', 'art'], true)
                 ? $settings['filter']
                 : 'all',
+            'label_filter_source' => in_array($settings['label_filter_source'] ?? '', ['none', 'genre', 'status', 'label', 'commission_type'], true)
+                ? $settings['label_filter_source']
+                : 'none',
+            'label_filter_values' => $this->sanitizeStringList(
+                is_array($settings['label_filter_values'] ?? null) ? $settings['label_filter_values'] : []
+            ),
+            'badge_filter_source' => in_array($settings['badge_filter_source'] ?? '', ['none', 'genre', 'status', 'label', 'commission_type'], true)
+                ? $settings['badge_filter_source']
+                : 'none',
+            'badge_filter_value' => Str::limit((string) ($settings['badge_filter_value'] ?? ''), 80, ''),
+            'filter_cards_data' => in_array($settings['filter_cards_data'] ?? '', ['mixed', 'comix', 'novels', 'arts', 'commissions'], true)
+                ? $settings['filter_cards_data']
+                : 'mixed',
+            'card_show_new' => (bool) ($settings['card_show_new'] ?? true),
+            'card_show_popular' => (bool) ($settings['card_show_popular'] ?? true),
+            'card_show_rating' => (bool) ($settings['card_show_rating'] ?? true),
+            'card_show_name' => (bool) ($settings['card_show_name'] ?? true),
+            'card_show_artist' => (bool) ($settings['card_show_artist'] ?? true),
+            'card_show_sold' => (bool) ($settings['card_show_sold'] ?? true),
+            'card_show_views' => (bool) ($settings['card_show_views'] ?? true),
+            'card_show_likes' => (bool) ($settings['card_show_likes'] ?? true),
+            'card_show_rank' => (bool) ($settings['card_show_rank'] ?? true),
+            'card_show_labels' => (bool) ($settings['card_show_labels'] ?? true),
+            'card_show_price' => (bool) ($settings['card_show_price'] ?? true),
             'layout' => in_array($settings['layout'] ?? '', ['horizontal', 'vertical', 'compact', 'row', 'column'], true)
                 ? $settings['layout']
                 : 'horizontal',
@@ -222,7 +246,7 @@ class PageLayoutService
                 : 'views',
             'limit' => max(1, min(30, (int) ($settings['limit'] ?? 10))),
             'allow_overlap' => $allowOverlap,
-            'hero_design' => in_array($settings['hero_design'] ?? '', ['default', 'reference_1', 'reference_2', 'reference_3','reference_4'], true)
+            'hero_design' => in_array($settings['hero_design'] ?? '', ['default', 'reference_1', 'reference_2', 'reference_3', 'reference_4'], true)
                 ? $settings['hero_design']
                 : 'default',
             'hero_show_name' => (bool) ($settings['hero_show_name'] ?? true),
@@ -312,6 +336,17 @@ class PageLayoutService
             ->all();
     }
 
+    private function sanitizeStringList(array $items): array
+    {
+        return collect($items)
+            ->map(fn($item) => trim((string) $item))
+            ->filter()
+            ->unique(fn($item) => mb_strtolower($item))
+            ->take(30)
+            ->values()
+            ->all();
+    }
+
     private function sanitizeStyle(array $style): array
     {
         return [
@@ -374,18 +409,29 @@ class PageLayoutService
             'sort_order' => 0,
         ];
     }
-
+    // Widgets to save allowed types ----
     private function allowedType(string $type, string $pageKey): string
     {
-        $common = ['text', 'image', 'sticker', 'board', 'spacer', 'content_tabs'];
+        $common = [
+            'text',
+            'image',
+            'sticker',
+            'board',
+            'spacer',
+            'content_tabs',
+            'featured_hero',
+            'group_hero',
+            'grid_image',
+            'cards',
+            'shop_card',
+            'top_10s',
+            'labels',
+        ];
         $types = match ($pageKey) {
-            'arts' => ['featured_artists', 'labels', 'arts_grid'],
-            'commissions' => ['commission_grid', 'boosted_commissions', 'featured_artists'],
-            'comix' => ['featured_hero', 'group_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
-            'daily' => ['featured_hero', 'group_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
-            'rankings' => ['featured_hero', 'group_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
-            'genre' => ['featured_hero', 'group_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker', 'labels'],
-            default => ['hero', 'featured_hero', 'group_hero', 'announcement_banner', 'announcement_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
+            'arts' => ['featured_artists', 'arts_grid', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
+            'commissions' => ['commission_grid', 'boosted_commissions', 'featured_artists', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
+            'comix', 'daily', 'rankings', 'genre' => ['weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
+            default => ['hero', 'announcement_banner', 'announcement_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
         };
 
         return in_array($type, [...$types, ...$common], true) ? $type : 'text';

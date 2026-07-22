@@ -25,6 +25,22 @@ export interface PageWidgetSettings {
     font_url?: string
     grid?: 'standard' | 'masonry' | 'bento' | 'magazine' | 'gallery' | 'carousel'
     filter?: 'all' | 'webtoon' | 'novel' | 'art'
+    label_filter_source?: 'none' | 'genre' | 'status' | 'label' | 'commission_type'
+    label_filter_values?: string[]
+    badge_filter_source?: 'none' | 'genre' | 'status' | 'label' | 'commission_type'
+    badge_filter_value?: string
+    filter_cards_data?: 'mixed' | 'comix' | 'novels' | 'arts' | 'commissions'
+    card_show_new?: boolean
+    card_show_popular?: boolean
+    card_show_rating?: boolean
+    card_show_name?: boolean
+    card_show_artist?: boolean
+    card_show_sold?: boolean
+    card_show_views?: boolean
+    card_show_likes?: boolean
+    card_show_rank?: boolean
+    card_show_labels?: boolean
+    card_show_price?: boolean
     layout?: 'horizontal' | 'vertical' | 'compact' | 'row' | 'column'
     align?: 'auto' | 'start' | 'center' | 'end' | 'stretch' | 'justify'
     display?: 'block' | 'inline'

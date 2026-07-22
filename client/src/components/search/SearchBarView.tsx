@@ -8,19 +8,56 @@ import SearchResults from './SearchResults'
 import SearchRecent from './SearchRecent'
 
 export interface SearchResult {
-    id: number
+    id: string
     title: string
     cover: string | null
-    type: 'webtoon' | 'wattpad'
-    slug: string
+    type: 'webtoon' | 'wattpad' | 'art_label' | 'artist'
+    slug?: string
     chapterSlug?: string
+    genres?: string[]
+    subtitle?: string
+    count?: number
+    verified?: boolean
+    href?: string
+}
+
+export interface SearchResultsPayload {
+    webcomics: SearchResult[]
+    novels: SearchResult[]
+    arts: SearchResult[]
+    artists: SearchResult[]
+}
+
+const emptyResults: SearchResultsPayload = {
+    webcomics: [],
+    novels: [],
+    arts: [],
+    artists: [],
+}
+
+function normalizeSearchResults(data: SearchResult[] | SearchResultsPayload): SearchResultsPayload {
+    if (Array.isArray(data)) {
+        return {
+            webcomics: data.filter((item) => item.type === 'webtoon'),
+            novels: data.filter((item) => item.type === 'wattpad'),
+            arts: [],
+            artists: [],
+        }
+    }
+
+    return {
+        webcomics: data.webcomics ?? [],
+        novels: data.novels ?? [],
+        arts: data.arts ?? [],
+        artists: data.artists ?? [],
+    }
 }
 
 export default function SearchBarView() {
     const navigate = useNavigate()
 
     const [query, setQuery] = useState('')
-    const [results, setResults] = useState<SearchResult[]>([])
+    const [results, setResults] = useState<SearchResultsPayload>(emptyResults)
     const [open, setOpen] = useState(false)
     const [searching, setSearching] = useState(false)
     const [, setSearchFocused] = useState(false)
@@ -28,6 +65,8 @@ export default function SearchBarView() {
 
     const searchRef = useRef<HTMLDivElement>(null)
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const resultCount =
+        results.webcomics.length + results.novels.length + results.arts.length + results.artists.length
 
     const [recentSearches, setRecentSearches] = useState<string[]>(() => {
         try {
@@ -52,7 +91,7 @@ export default function SearchBarView() {
 
     const resetSearch = () => {
         setQuery('')
-        setResults([])
+        setResults(emptyResults)
         setOpen(false)
     }
 
@@ -72,7 +111,7 @@ export default function SearchBarView() {
         setQuery(val)
         if (timerRef.current) clearTimeout(timerRef.current)
         if (val.length < 2) {
-            setResults([])
+            setResults(emptyResults)
             setOpen(false)
             return
         }
@@ -80,7 +119,7 @@ export default function SearchBarView() {
         timerRef.current = setTimeout(async () => {
             try {
                 const res = await api.get(`/public/search?q=${encodeURIComponent(val)}`)
-                setResults(res.data)
+                setResults(normalizeSearchResults(res.data))
                 setOpen(true)
             } finally {
                 setSearching(false)
@@ -88,9 +127,9 @@ export default function SearchBarView() {
         }, 150)
     }
 
-    const handleSelect = (work: SearchResult, onClose: () => void) => {
-        addToRecent(work.title)
-        navigate(`/works/${work.slug}`)
+    const handleSelect = (item: SearchResult, onClose: () => void) => {
+        addToRecent(item.title)
+        navigate(item.href ?? (item.slug ? `/works/${item.slug}` : '/search'))
         resetSearch()
         onClose()
     }
@@ -161,7 +200,7 @@ export default function SearchBarView() {
                     onReset={resetSearch}
                     onFocus={() => {
                         setSearchFocused(true)
-                        if (results.length > 0) setOpen(true)
+                        if (resultCount > 0) setOpen(true)
                     }}
                     onBlur={() => setSearchFocused(false)}
                 />

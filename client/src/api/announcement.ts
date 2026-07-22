@@ -10,6 +10,7 @@ export interface Announcement {
     image: string | null
     is_pinned: boolean
     is_featured?: boolean
+    rotation_seconds?: number | null
     created_at: string
     updated_at: string
     creator?: {
@@ -26,6 +27,7 @@ export interface AnnouncementPayload {
     audience: 'public' | 'studio'
     image?: File | null
     is_pinned?: boolean
+    rotation_seconds?: number | null
 }
 
 export const announcementApi = {
@@ -39,6 +41,9 @@ export const announcementApi = {
         form.append('tag', payload.tag)
         form.append('audience', payload.audience)
         form.append('is_pinned', payload.is_pinned ? '1' : '0')
+        if (payload.rotation_seconds !== undefined && payload.rotation_seconds !== null) {
+            form.append('rotation_seconds', String(payload.rotation_seconds))
+        }
         if (payload.image) form.append('image', payload.image)
         return api.post('/admin/announcements', form, {
             headers: { 'Content-Type': 'multipart/form-data' },
@@ -52,6 +57,9 @@ export const announcementApi = {
         if (payload.tag) form.append('tag', payload.tag)
         if (payload.audience) form.append('audience', payload.audience)
         if (payload.is_pinned !== undefined) form.append('is_pinned', payload.is_pinned ? '1' : '0')
+        if (payload.rotation_seconds !== undefined && payload.rotation_seconds !== null) {
+            form.append('rotation_seconds', String(payload.rotation_seconds))
+        }
         if (payload.image) form.append('image', payload.image)
         form.append('_method', 'PUT')
         return api.post(`/admin/announcements/${id}`, form, {

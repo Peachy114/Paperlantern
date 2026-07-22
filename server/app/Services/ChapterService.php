@@ -42,6 +42,8 @@ class ChapterService
             $this->repo->saveImages($chapter, $request->file('images'));
         }
 
+        $this->syncWorkStatus($work);
+
         return $chapter->load('images');
     }
 
@@ -80,6 +82,11 @@ class ChapterService
             $this->repo->reorderImages($chapter, $request->existing_image_ids);
         } else {
             $this->repo->deleteImages($chapter);
+        }
+
+        $chapter->loadMissing('work');
+        if ($chapter->work) {
+            $this->syncWorkStatus($chapter->work);
         }
 
         return $chapter->load('images');
@@ -151,5 +158,15 @@ class ChapterService
             return now()->addDays(7);
         }
         return null;
+    }
+
+    private function syncWorkStatus(Work $work): void
+    {
+        if ($work->status === 'completed') {
+            return;
+        }
+
+        $hasPublishedChapter = $work->chapters()->where('status', 'published')->exists();
+        $work->update(['status' => $hasPublishedChapter ? 'ongoing' : 'draft']);
     }
 }

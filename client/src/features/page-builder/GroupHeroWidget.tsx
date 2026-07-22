@@ -42,7 +42,7 @@ export default function GroupHeroWidget({
             ? clampPopularArtsLimit(Number(settings.limit ?? 9))
             : Math.max(1, Number(settings.limit ?? 10))
     const sources = selectedSources(widget)
-    const filters = parseFilters(settings.group_filter_labels)
+    const filters = mergedFilters(widget)
 
     const artParams = useMemo(() => {
         const next = new URLSearchParams()
@@ -374,7 +374,6 @@ function DefaultItemCard({ item, rank }: { item: GroupHeroItem; rank: number }) 
 function GroupItemCard({
     item,
     rank,
-    large = false,
     ribbon = false,
     className = '',
 }: {
@@ -563,6 +562,17 @@ function parseFilters(value?: string) {
         .filter(Boolean)
 }
 
+function mergedFilters(widget: PageWidget) {
+    const settings = widget.settings ?? {}
+    const filters = [
+        ...parseFilters(settings.group_filter_labels),
+        ...((settings.label_filter_values ?? []) as string[]).map((value) => value.toLowerCase()),
+    ]
+    const badge = String(settings.badge_filter_value ?? '').trim().toLowerCase()
+    if (badge) filters.push(badge)
+    return Array.from(new Set(filters.filter(Boolean)))
+}
+
 function sortItems(items: GroupHeroItem[], sort: GroupSort) {
     const sorted = [...items]
     if (sort === 'latest') {
@@ -583,7 +593,7 @@ function viewAllHref(widget: PageWidget) {
     if (settings.group_view_all_enabled === false) return null
 
     const sort = (settings.group_view_all_sort ?? settings.group_sort ?? 'popular') as GroupSort
-    const filter = parseFilters(settings.group_filter_labels)[0]
+    const filter = mergedFilters(widget)[0]
     const source = selectedSources(widget)[0]
 
     if (source === 'arts') {

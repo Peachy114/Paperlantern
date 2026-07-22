@@ -38,9 +38,11 @@ export default function AnnouncementWidget({
 
     React.useEffect(() => {
         if (!api || slides.length < 2) return
-        const timer = window.setInterval(() => api.scrollNext(), 5000)
+        const seconds = slides[current]?.rotation_seconds
+        const delay = seconds && seconds > 0 ? seconds * 1000 : 5000
+        const timer = window.setInterval(() => api.scrollNext(), delay)
         return () => window.clearInterval(timer)
-    }, [api, slides.length])
+    }, [api, current, slides])
 
     if (loading) {
         return (
