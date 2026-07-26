@@ -67,6 +67,7 @@ export function useMyArts() {
     return {
         arts: data.arts,
         stats: data.stats,
+        viewsChart: data.views_chart ?? [],
         commissionProfile: data.commission_profile,
         trashedArts: trashedArts.data ?? [],
         trashLoading: trashedArts.isLoading,

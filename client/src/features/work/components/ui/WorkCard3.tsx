@@ -7,7 +7,7 @@ interface WorkCardProps {
     title: string
     cover: string | null
 
-    type?: 'webtoon' | 'wattpad' | 'novel' | 'manga' | 'manhwa' | 'manhua'
+    type?: 'webtoon' | 'wattpad' | 'novel' | 'art' | 'manga' | 'manhwa' | 'manhua'
 
     genres?: string[]
     status?: string
@@ -17,6 +17,13 @@ interface WorkCardProps {
     rank?: number
 
     showStats?: boolean
+    showTitle?: boolean
+    showViews?: boolean
+    showLikes?: boolean
+    showStatus?: boolean
+    showGenres?: boolean
+    showType?: boolean
+    showRank?: boolean
 
     lastChapterAt?: string | Date | null
     boostedUntil?: string | null
@@ -76,7 +83,14 @@ export default function WorkCard3(props: WorkCardProps) {
         views,
         likes,
         rank,
-        showStats = [],
+        showStats = false,
+        showTitle = true,
+        showViews = true,
+        showLikes = true,
+        showStatus = true,
+        showGenres = true,
+        showType = true,
+        showRank = true,
         lastChapterAt,
         boostedUntil,
         event,
@@ -169,7 +183,7 @@ export default function WorkCard3(props: WorkCardProps) {
                             p-3
                         "
                     >
-                        {rank !== undefined && (
+                        {showRank && rank !== undefined && (
                             <span
                                 className="
                                     shrink-0
@@ -200,7 +214,7 @@ export default function WorkCard3(props: WorkCardProps) {
                                 {title}
                             </h3>
 
-                            {showStats && (
+                            {showStats && (showLikes || showViews) && (
                                 <div
                                     className="
                                         mt-1
@@ -211,15 +225,24 @@ export default function WorkCard3(props: WorkCardProps) {
                                         text-white/80
                                     "
                                 >
-                                    <Heart
-                                        className="
-                                            size-3
-                                            fill-red-500
-                                            text-red-500
-                                        "
-                                    />
+                                    {showLikes ? (
+                                        <>
+                                            <Heart
+                                                className="
+                                                    size-3
+                                                    fill-red-500
+                                                    text-red-500
+                                                "
+                                            />
 
-                                    <span>{formatCount(likes)}</span>
+                                            <span>{formatCount(likes)}</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Eye className="size-3 text-white/80" />
+                                            <span>{formatCount(views)}</span>
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -350,7 +373,7 @@ export default function WorkCard3(props: WorkCardProps) {
                         </div>
 
                         {/* //// ranking ribbon ---- */}
-                        {rank !== undefined && (
+                        {showRank && rank !== undefined && (
                             <div
                                 className="
                                     absolute
@@ -404,7 +427,7 @@ export default function WorkCard3(props: WorkCardProps) {
                         )}
 
                         {/* //// status badge ---- */}
-                        {status && (
+                        {showStatus && status && (
                             <span
                                 className="
                                     absolute
@@ -442,8 +465,9 @@ export default function WorkCard3(props: WorkCardProps) {
                         "
                     >
                         {/* //// work card title ---- */}
-                        <h3
-                            className="
+                        {showTitle && (
+                            <h3
+                                className="
         overflow-hidden
         text-ellipsis
         [display:-webkit-box]
@@ -455,13 +479,14 @@ export default function WorkCard3(props: WorkCardProps) {
         text-foreground
         h-10
     "
-                            title={title}
-                        >
-                            {title}
-                        </h3>
+                                title={title}
+                            >
+                                {title}
+                            </h3>
+                        )}
 
                         {/* //// work card statistics ---- */}
-                        {showStats && (
+                        {showStats && (showViews || showLikes) && (
                             <div
                                 className="
                                     mt-1.5
@@ -473,49 +498,53 @@ export default function WorkCard3(props: WorkCardProps) {
                                     text-muted-foreground
                                 "
                             >
-                                <span
-                                    className="
-                                        inline-flex
-                                        min-w-0
-                                        items-center
-                                        gap-1
-                                    "
-                                >
-                                    <Eye
+                                {showViews && (
+                                    <span
                                         className="
-                                            size-3.5
-                                            shrink-0
-                                            text-rose-500
+                                            inline-flex
+                                            min-w-0
+                                            items-center
+                                            gap-1
                                         "
-                                    />
+                                    >
+                                        <Eye
+                                            className="
+                                                size-3.5
+                                                shrink-0
+                                                text-rose-500
+                                            "
+                                        />
 
-                                    <span>{formatCount(views)}</span>
-                                </span>
+                                        <span>{formatCount(views)}</span>
+                                    </span>
+                                )}
 
-                                <span
-                                    className="
-                                        inline-flex
-                                        min-w-0
-                                        items-center
-                                        gap-1
-                                    "
-                                >
-                                    <Heart
+                                {showLikes && (
+                                    <span
                                         className="
-                                            size-3.5
-                                            shrink-0
-                                            fill-red-500
-                                            text-red-500
+                                            inline-flex
+                                            min-w-0
+                                            items-center
+                                            gap-1
                                         "
-                                    />
+                                    >
+                                        <Heart
+                                            className="
+                                                size-3.5
+                                                shrink-0
+                                                fill-red-500
+                                                text-red-500
+                                            "
+                                        />
 
-                                    <span>{formatCount(likes)}</span>
-                                </span>
+                                        <span>{formatCount(likes)}</span>
+                                    </span>
+                                )}
                             </div>
                         )}
 
                         {/* //// work card labels ---- */}
-                        {(type || primaryGenre) && (
+                        {((showType && type) || (showGenres && primaryGenre)) && (
                             <div
                                 className="
                                     mt-auto
@@ -525,7 +554,7 @@ export default function WorkCard3(props: WorkCardProps) {
                                     pt-2
                                 "
                             >
-                                {type && (
+                                {showType && type && (
                                     <span
                                         className="
                                             inline-flex
@@ -547,7 +576,7 @@ export default function WorkCard3(props: WorkCardProps) {
                                     </span>
                                 )}
 
-                                {primaryGenre && (
+                                {showGenres && primaryGenre && (
                                     <span
                                         className="
                                             inline-flex
@@ -568,7 +597,7 @@ export default function WorkCard3(props: WorkCardProps) {
                                     </span>
                                 )}
 
-                                {SecondaryGenre && (
+                                {showGenres && SecondaryGenre && (
                                     <span
                                         className="
                                             inline-flex

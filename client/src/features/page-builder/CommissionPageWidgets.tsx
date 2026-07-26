@@ -8,6 +8,8 @@ import type { CommissionService } from '@/types/commission'
 import type { PageWidget } from '@/types/pageLayout'
 import type { WorkItem } from '@/features/work/hooks/useHome'
 import CommissionGrid from '@/features/commissions/pages/components/commission_grid'
+import { gridContinuationOffset } from './continuation'
+import SharedDiscoveryWidget, { isSharedDiscoveryWidget } from './SharedDiscoveryWidget'
 
 type CommissionCategory = {
     id: string
@@ -38,14 +40,23 @@ export function CommissionPageWidgets({
             {widgets
                 .filter((widget) => widget.enabled)
                 .map((widget) => (
-                    <CommissionWidget key={widget.id} widget={widget} data={data} />
+                    <CommissionWidget key={widget.id} widget={widget} widgets={widgets} data={data} />
                 ))}
         </Suspense>
     )
 }
 
-function CommissionWidget({ widget, data }: { widget: PageWidget; data: CommissionWidgetData }) {
+function CommissionWidget({
+    widget,
+    widgets,
+    data,
+}: {
+    widget: PageWidget
+    widgets: PageWidget[]
+    data: CommissionWidgetData
+}) {
     const limit = widget.settings.limit ?? 10
+    const gridOffset = gridContinuationOffset(widgets, widget)
     const filteredCommissions = applyCommissionWidgetFilters(data.commissions, widget)
 
     const featuredCommissions = data.featuredCommissions?.length
@@ -84,7 +95,7 @@ function CommissionWidget({ widget, data }: { widget: PageWidget; data: Commissi
         )
     }
 
-    if (widget.type === 'commission_grid' || widget.type === 'boosted_commissions') {
+    if (widget.type === 'commission_grid' || widget.type === 'boosted_commissions' || widget.type === 'grid_con') {
         const source = widget.type === 'boosted_commissions' ? boostedCommissions : filteredCommissions
 
         return (
@@ -96,7 +107,7 @@ function CommissionWidget({ widget, data }: { widget: PageWidget; data: Commissi
                 />
 
                 <CommissionGrid
-                    commissions={source.slice(0, limit)}
+                    commissions={source.slice(gridOffset, gridOffset + limit)}
                     isLoading={data.isLoading}
                     grid={widget.settings.grid ?? 'masonry'}
                     columns={widget.settings.columns}
@@ -115,11 +126,20 @@ function CommissionWidget({ widget, data }: { widget: PageWidget; data: Commissi
         )
     }
 
+    if (isSharedDiscoveryWidget(widget.type)) {
+        return (
+            <PageWidgetFrame widget={widget}>
+                <SharedDiscoveryWidget widget={widget} widgets={widgets} />
+            </PageWidgetFrame>
+        )
+    }
+
     return <CustomPageWidget widget={widget} />
 }
 
 function applyCommissionWidgetFilters(commissions: CommissionService[], widget: PageWidget) {
     const settings = widget.settings ?? {}
+    const dailyDate = settings.daily_date
     const multiSource = settings.label_filter_source ?? 'none'
     const multiValues = (settings.label_filter_values ?? [])
         .map((value) => value.toLowerCase())
@@ -127,7 +147,8 @@ function applyCommissionWidgetFilters(commissions: CommissionService[], widget: 
     const badgeSource = settings.badge_filter_source ?? 'none'
     const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
 
-    return commissions.filter((commission) => {
+    const filtered = commissions.filter((commission) => {
+        if (dailyDate && !isSameDate(commission.created_at, dailyDate)) return false
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
             if (source === 'status') return String(commission.status ?? '').toLowerCase() === value
@@ -146,6 +167,40 @@ function applyCommissionWidgetFilters(commissions: CommissionService[], widget: 
         const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
         return multiOk && badgeOk
     })
+
+    return sortCommissions(filtered, widget)
+}
+
+function sortCommissions(commissions: CommissionService[], widget: PageWidget) {
+    const sorts = widget.settings.sort_order?.length
+        ? widget.settings.sort_order
+        : ['featured', 'popular', 'latest']
+
+    return [...commissions].sort((a, b) => {
+        for (const sort of sorts) {
+            const value = compareCommissionSort(a, b, sort)
+            if (value !== 0) return value
+        }
+
+        return 0
+    })
+}
+
+function compareCommissionSort(a: CommissionService, b: CommissionService, sort: string) {
+    if (sort === 'featured') return Number(b.is_featured) - Number(a.is_featured)
+    if (sort === 'likes') return (b.likes_count ?? 0) - (a.likes_count ?? 0)
+    if (sort === 'views' || sort === 'popular') {
+        return (b.customers_count ?? 0) - (a.customers_count ?? 0)
+    }
+    if (sort === 'new' || sort === 'latest') {
+        return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+    }
+    return 0
+}
+
+function isSameDate(value: string | undefined, date: string) {
+    if (!value || !date) return false
+    return value.slice(0, 10) === date
 }
 
 function CommissionGridCategoryFilters({

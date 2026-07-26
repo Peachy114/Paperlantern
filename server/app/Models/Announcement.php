@@ -15,7 +15,11 @@ class Announcement extends Model
         'title',
         'content',
         'tag',
+        'is_event',
         'audience',
+        'page_targets',
+        'placement',
+        'is_public',
         'image',
         'is_pinned',
         'is_featured',
@@ -24,7 +28,10 @@ class Announcement extends Model
 
     protected $casts = [
         'is_pinned' => 'boolean',
+        'is_event' => 'boolean',
         'is_featured' => 'boolean',
+        'is_public' => 'boolean',
+        'page_targets' => 'array',
         'rotation_seconds' => 'integer',
     ];
 

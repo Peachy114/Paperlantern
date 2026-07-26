@@ -32,7 +32,10 @@ export default function CardStickyNotes() {
     const { violations } = useMyViolations()
 
     useEffect(() => {
-        const listeners: Array<{ el: HTMLDivElement; fn: (e: TouchEvent) => void }> = []
+        const listeners: Array<{
+            el: HTMLDivElement
+            fn: (e: TouchEvent) => void
+        }> = []
 
         displayedNotes.forEach((note) => {
             const el = noteRefs.current.get(note.id)
@@ -54,19 +57,19 @@ export default function CardStickyNotes() {
 
     return (
         <>
-            <div className="border rounded-lg overflow-hidden h-full">
-                <div className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Notes to Self
+            <div className="h-full min-h-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-background shadow-sm">
+                <div className="flex items-center justify-between border-b px-4 py-3">
+                    <span className="text-xs font-black uppercase tracking-[0.12em] text-foreground">
+                        Notes
                     </span>
                     <div className="flex items-center gap-3">
-                        <span className="text-xs text-muted-foreground">{notes.length} pinned</span>
                         <button
+                            type="button"
                             onClick={() => setModalOpen(true)}
-                            className="w-6 h-6 flex items-center justify-center border rounded text-muted-foreground hover:bg-accent hover:text-foreground transition-colors text-base leading-none"
+                            className="inline-flex h-7 items-center justify-center rounded-full bg-sky-400 px-3 text-[10px] font-bold text-white transition hover:bg-sky-500"
                             title="Add note"
                         >
-                            +
+                            + Add notes
                         </button>
                     </div>
                 </div>
@@ -89,7 +92,7 @@ export default function CardStickyNotes() {
                         )}
                     </div>
                 ) : (
-                    <div className="px-4 py-3 bg-muted/10 border-b">
+                    <div className="border-b bg-muted/10 px-4 py-3">
                         <p className="text-xs font-medium mb-1">Welcome to your board!</p>
                         {ANNOUNCEMENT_LINES.map((line, i) => (
                             <p key={i} className="text-xs text-muted-foreground leading-5">
@@ -103,7 +106,7 @@ export default function CardStickyNotes() {
                     ref={boardRef}
                     className="relative w-full bg-muted/5"
                     style={{
-                        minHeight: '220px',
+                        minHeight: '410px',
                         cursor: dragging !== null ? 'grabbing' : 'default',
                         userSelect: dragging !== null ? 'none' : 'auto',
                         overscrollBehavior: 'none',

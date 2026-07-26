@@ -8,7 +8,11 @@ import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
 import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
 import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
 import ShopCardWidget from '@/features/page-builder/ShopCardWidget'
+import LabelRailWidget from '@/features/page-builder/LabelRailWidget'
+import TabCardsWidget from '@/features/page-builder/TabCardsWidget'
+import EpisodesWidget from '@/features/page-builder/EpisodesWidget'
 import { CustomPageWidget, PageWidgetFrame } from '@/features/page-builder/PageWidgetFrame'
+import { gridContinuationOffset, labelContinuationOffset } from '@/features/page-builder/continuation'
 import type { ChapterItem, WorkItem } from '@/features/work/hooks/useHome'
 import type { PageWidget } from '@/types/pageLayout'
 
@@ -35,17 +39,26 @@ export function DiscoveryPageWidgets({
 }) {
     const location = useLocation()
     const contentFilter = new URLSearchParams(location.search).get('content')
+    const enabledWidgets = widgets.filter((widget) => widget.enabled)
+    const labelItems = labelItemsFromWorks([
+        ...data.hero,
+        ...data.weeklyChart,
+        ...data.freshReleases,
+        ...data.popularWorks,
+        ...data.topLikedWorks,
+    ])
 
     return (
         <Suspense fallback={null}>
-            {widgets
-                .filter((widget) => widget.enabled)
+            {enabledWidgets
                 .map((widget) => (
                     <DiscoveryWidget
                         key={widget.id}
                         widget={widget}
                         data={data}
                         contentFilter={contentFilter}
+                        widgets={enabledWidgets}
+                        labels={labelItems}
                     />
                 ))}
         </Suspense>
@@ -56,10 +69,13 @@ function DiscoveryWidget({
     widget,
     data,
     contentFilter,
+    widgets,
 }: {
     widget: PageWidget
     data: DiscoveryWidgetData
     contentFilter: string | null
+    widgets: PageWidget[]
+    labels: { label: string; count: number }[]
 }) {
     const filter =
         normalizeContentFilter(contentFilter) ??
@@ -87,11 +103,59 @@ function DiscoveryWidget({
         })[]
     const limit = widget.settings.limit ?? 10
     const filteredWidget = contentFilteredWidget(widget, filter)
+    const gridOffset = gridContinuationOffset(widgets, widget)
 
     if (widget.type === 'content_tabs') {
         return (
             <PageWidgetFrame widget={widget}>
                 <ContentTabsWidget widget={widget} />
+            </PageWidgetFrame>
+        )
+    }
+
+    if (widget.type === 'tab_cards') {
+        return (
+            <PageWidgetFrame widget={widget}>
+                <TabCardsWidget
+                    widget={filteredWidget}
+                    works={[
+                        ...data.hero,
+                        ...data.weeklyChart,
+                        ...data.freshReleases,
+                        ...data.popularWorks,
+                        ...data.topLikedWorks,
+                    ]}
+                />
+            </PageWidgetFrame>
+        )
+    }
+
+    if (widget.type === 'labels') {
+        return (
+            <PageWidgetFrame widget={widget}>
+                <LabelWidgetBundle
+                    widget={widget}
+                    widgets={widgets}
+                    works={[
+                        ...data.hero,
+                        ...data.weeklyChart,
+                        ...data.freshReleases,
+                        ...data.popularWorks,
+                        ...data.topLikedWorks,
+                    ]}
+                />
+            </PageWidgetFrame>
+        )
+    }
+
+    if (widget.type === 'episodes') {
+        return (
+            <PageWidgetFrame widget={widget}>
+                <EpisodesWidget
+                    widget={filteredWidget}
+                    chapters={data.latestChapters}
+                    cover={data.cover}
+                />
             </PageWidgetFrame>
         )
     }
@@ -142,7 +206,7 @@ function DiscoveryWidget({
         return (
             <PageWidgetFrame widget={widget}>
                 <WeeklyChartSection
-                    weeklyChart={filteredWorks(data.weeklyChart).slice(0, limit)}
+                    weeklyChart={filteredWorks(data.weeklyChart).slice(gridOffset, gridOffset + limit)}
                     cover={data.cover}
                 />
             </PageWidgetFrame>
@@ -153,7 +217,7 @@ function DiscoveryWidget({
         return (
             <PageWidgetFrame widget={widget}>
                 <FreshReleasesSection
-                    freshReleases={filteredWorks(data.freshReleases).slice(0, limit)}
+                    freshReleases={filteredWorks(data.freshReleases).slice(gridOffset, gridOffset + limit)}
                     cover={data.cover}
                 />
             </PageWidgetFrame>
@@ -178,7 +242,7 @@ function DiscoveryWidget({
                     title={widget.title || "Today's Releases"}
                     works={filteredWorks(
                         data.todayReleases.length ? data.todayReleases : data.dailyWorks
-                    ).slice(0, limit)}
+                    ).slice(gridOffset, gridOffset + limit)}
                     cover={data.cover}
                     columns={widget.settings.columns}
                     infoLayout={widget.settings.info_layout ?? 'image_title_description'}
@@ -201,7 +265,7 @@ function DiscoveryWidget({
             <PageWidgetFrame widget={widget}>
                 <DiscoveryWorkGrid
                     title={widget.title || "Today's Top 10"}
-                    works={filteredWorks(source).slice(0, limit)}
+                    works={filteredWorks(source).slice(gridOffset, gridOffset + limit)}
                     cover={data.cover}
                     metric={widget.settings.metric ?? 'views'}
                     columns={widget.settings.columns}
@@ -211,12 +275,12 @@ function DiscoveryWidget({
         )
     }
 
-    if (widget.type === 'popular' || widget.type === 'grid_image' || widget.type === 'cards') {
+    if (widget.type === 'popular' || widget.type === 'grid_image' || widget.type === 'grid_con' || widget.type === 'cards') {
         return (
             <PageWidgetFrame widget={widget}>
                 <DiscoveryWorkGrid
                     title={widget.title || 'Popular'}
-                    works={filteredWorks(data.popularWorks).slice(0, limit)}
+                    works={filteredWorks(data.popularWorks).slice(gridOffset, gridOffset + limit)}
                     cover={data.cover}
                     columns={widget.settings.columns}
                     infoLayout={widget.settings.info_layout ?? 'image_title_description'}
@@ -240,7 +304,7 @@ function DiscoveryWidget({
                     title={widget.title || 'Top Liker'}
                     works={filteredWorks(
                         data.topLikedWorks.length ? data.topLikedWorks : data.popularWorks
-                    ).slice(0, limit)}
+                    ).slice(gridOffset, gridOffset + limit)}
                     cover={data.cover}
                     columns={widget.settings.columns}
                     infoLayout={widget.settings.info_layout ?? 'image_title_description'}
@@ -252,8 +316,69 @@ function DiscoveryWidget({
     return <CustomPageWidget widget={widget} />
 }
 
+function LabelWidgetBundle({
+    widget,
+    widgets,
+    works,
+}: {
+    widget: PageWidget
+    widgets: PageWidget[]
+    works: WorkItem[]
+}) {
+    const display = widget.settings.labels_display ?? 'labels'
+    const labels = labelItemsFromWorks(sourceFilteredWorks(works, widget))
+
+    if (display === 'menu_label') {
+        return (
+            <LabelRailWidget
+                widget={widget}
+                labels={[
+                    { label: 'Main' },
+                    { label: 'Comix' },
+                    { label: 'Novel' },
+                    { label: 'Arts' },
+                ]}
+            />
+        )
+    }
+
+    if (display === 'labels_cards') {
+        return (
+            <div>
+                <LabelRailWidget
+                    widget={widget}
+                    labels={labels}
+                    offset={labelContinuationOffset(widgets, widget)}
+                />
+                <TabCardsWidget widget={widget} works={works} />
+            </div>
+        )
+    }
+
+    return (
+        <LabelRailWidget
+            widget={widget}
+            labels={labels}
+            offset={labelContinuationOffset(widgets, widget)}
+        />
+    )
+}
+
+function sourceFilteredWorks(works: WorkItem[], widget: PageWidget) {
+    const source = widget.settings.filter_cards_data ?? 'mixed'
+
+    return works.filter((work) => {
+        if (source === 'comix') return work.type === 'webtoon'
+        if (source === 'novels') return work.type === 'wattpad'
+        if (source === 'arts') return work.type === 'art'
+        if (source === 'shop' || source === 'commissions' || source === 'announcements') return false
+        return work.type !== 'commission'
+    })
+}
+
 function applyWidgetFilters(works: WorkItem[], widget: PageWidget) {
     const settings = widget.settings ?? {}
+    const dailyDate = settings.daily_date
     const multiSource = settings.label_filter_source ?? 'none'
     const multiValues = (settings.label_filter_values ?? [])
         .map((value) => value.toLowerCase())
@@ -261,7 +386,8 @@ function applyWidgetFilters(works: WorkItem[], widget: PageWidget) {
     const badgeSource = settings.badge_filter_source ?? 'none'
     const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
 
-    return works.filter((work) => {
+    const filtered = works.filter((work) => {
+        if (dailyDate && !isSameDate(work.created_at, dailyDate)) return false
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
             if (source === 'status') return String(work.status ?? '').toLowerCase() === value
@@ -279,6 +405,54 @@ function applyWidgetFilters(works: WorkItem[], widget: PageWidget) {
 
         return multiOk && badgeOk
     })
+
+    return sortWidgetWorks(filtered, widget)
+}
+
+function sortWidgetWorks(works: WorkItem[], widget: PageWidget) {
+    const sorts = widget.settings.sort_order?.length
+        ? widget.settings.sort_order
+        : ['featured', 'popular', 'latest']
+
+    return [...works].sort((a, b) => {
+        for (const sort of sorts) {
+            const value = compareWidgetSort(a, b, sort)
+            if (value !== 0) return value
+        }
+
+        return 0
+    })
+}
+
+function compareWidgetSort(a: WorkItem, b: WorkItem, sort: string) {
+    if (sort === 'featured') return Number(b.is_featured) - Number(a.is_featured)
+    if (sort === 'likes') return (b.likes ?? 0) - (a.likes ?? 0)
+    if (sort === 'views' || sort === 'popular') return (b.views ?? 0) - (a.views ?? 0)
+    if (sort === 'new' || sort === 'latest') {
+        return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+    }
+    return 0
+}
+
+function isSameDate(value: string | undefined, date: string) {
+    if (!value || !date) return false
+    return value.slice(0, 10) === date
+}
+
+function labelItemsFromWorks(works: WorkItem[]) {
+    const counts = new Map<string, number>()
+
+    works.forEach((work) => {
+        ;(work.genres ?? []).forEach((label) => {
+            const clean = label.trim()
+            if (!clean) return
+            counts.set(clean, (counts.get(clean) ?? 0) + 1)
+        })
+    })
+
+    return Array.from(counts.entries())
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([label, count]) => ({ label, count }))
 }
 
 function normalizeContentFilter(contentFilter: string | null) {

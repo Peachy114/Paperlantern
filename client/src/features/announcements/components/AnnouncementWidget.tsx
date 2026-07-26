@@ -14,8 +14,12 @@ const tagLabels: Record<string, string> = {
 
 export default function AnnouncementWidget({
     audience = 'public',
+    page = 'home',
+    placement = 'banner',
 }: {
-    audience?: 'public' | 'studio'
+    audience?: 'public' | 'artist' | 'studio'
+    page?: string
+    placement?: 'banner' | 'hero'
 }) {
     const { announcements, loading, error } = useAnnouncements(audience)
     const [api, setApi] = React.useState<CarouselApi>()
@@ -23,10 +27,20 @@ export default function AnnouncementWidget({
     const [modalSlide, setModalSlide] = React.useState<HeroModalSlide | null>(null)
 
     const slides = React.useMemo(() => {
-        const pinned = announcements.filter((announcement) => announcement.is_pinned)
-        const unpinned = announcements.filter((announcement) => !announcement.is_pinned)
+        const pageAnnouncements = announcements.filter((announcement) => {
+            const targets = announcement.page_targets ?? []
+            const matchesPage = targets.length === 0 || targets.includes(page)
+            const matchesPlacement =
+                !announcement.placement ||
+                announcement.placement === 'both' ||
+                announcement.placement === placement
+
+            return matchesPage && matchesPlacement
+        })
+        const pinned = pageAnnouncements.filter((announcement) => announcement.is_pinned)
+        const unpinned = pageAnnouncements.filter((announcement) => !announcement.is_pinned)
         return [...pinned, ...unpinned]
-    }, [announcements])
+    }, [announcements, page, placement])
 
     React.useEffect(() => {
         if (!api) return

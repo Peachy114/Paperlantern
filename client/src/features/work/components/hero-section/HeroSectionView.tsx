@@ -12,6 +12,8 @@ interface Announcement {
     content: string
     image?: string | null
     tag?: 'event' | 'reminder' | 'update'
+    page_targets?: string[] | null
+    placement?: 'banner' | 'hero' | 'both'
     is_pinned: boolean
     created_at: string
     creator?: { name?: string | null } | null
@@ -30,7 +32,7 @@ const tagStyles: Record<string, { bg: string; label: string }> = {
 export default function HeroSectionView({
     audience = 'public',
 }: {
-    audience?: 'public' | 'studio'
+    audience?: 'public' | 'artist' | 'studio'
 }) {
     const { announcements, loading: newsLoading } = useAnnouncements(audience)
     const [api, setApi] = React.useState<CarouselApi>()
@@ -64,8 +66,15 @@ export default function HeroSectionView({
     const CARD_WIDTH = isMobile ? Math.round(viewportWidth * MOBILE_CARD_RATIO) : DESKTOP_CARD_WIDTH
 
     const slides: Announcement[] = React.useMemo(() => {
-        const pinned = announcements.filter((a) => a.is_pinned)
-        const unpinned = announcements.filter((a) => !a.is_pinned)
+        const heroAnnouncements = announcements.filter((a) => {
+            const targets = a.page_targets ?? []
+            const matchesPage = targets.length === 0 || targets.includes('home')
+            const matchesPlacement = !a.placement || a.placement === 'hero' || a.placement === 'both'
+
+            return matchesPage && matchesPlacement
+        })
+        const pinned = heroAnnouncements.filter((a) => a.is_pinned)
+        const unpinned = heroAnnouncements.filter((a) => !a.is_pinned)
         return [...pinned, ...unpinned]
     }, [announcements])
 

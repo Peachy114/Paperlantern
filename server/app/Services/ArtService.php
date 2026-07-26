@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Art;
+use App\Models\ArtView;
 use App\Http\Controllers\Api\Studio\CommissionController;
 use App\Models\User;
 use App\Repositories\ArtRepository;
@@ -21,6 +22,33 @@ class ArtService
     public function getDashboard(User $user): array
     {
         $arts = $this->repo->getByUser($user);
+        $startDate = now()->startOfDay()->subDays(6);
+        $endDate = now()->endOfDay();
+        $viewsByDate = ArtView::query()
+            ->join('arts', 'arts.id', '=', 'art_views.art_id')
+            ->where('arts.user_id', $user->id)
+            ->whereNull('arts.deleted_at')
+            ->whereBetween('art_views.viewed_on', [
+                $startDate->toDateString(),
+                $endDate->toDateString(),
+            ])
+            ->select('art_views.viewed_on')
+            ->selectRaw('COUNT(*) as views')
+            ->groupBy('art_views.viewed_on')
+            ->pluck('views', 'art_views.viewed_on');
+
+        $viewsChart = collect(range(0, 6))
+            ->map(function (int $offset) use ($startDate, $viewsByDate) {
+                $date = $startDate->copy()->addDays($offset);
+                $dateKey = $date->toDateString();
+
+                return [
+                    'date' => $dateKey,
+                    'views' => (int) ($viewsByDate[$dateKey] ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
 
         return [
             'stats' => [
@@ -31,6 +59,7 @@ class ArtService
                 'super_likes' => $arts->sum('super_likes_count'),
                 'super_like_credits' => $arts->sum('super_like_credits'),
             ],
+            'views_chart' => $viewsChart,
             'commission_profile' => CommissionController::formatProfile($user->commissionArtistProfile),
             'arts' => $arts,
         ];

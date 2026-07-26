@@ -107,7 +107,10 @@ export default function ExploreCommissions() {
             (widget) => widget.enabled
         )
         const hasCommissionGrid = widgets.some(
-            (widget) => widget.type === 'commission_grid' || widget.type === 'boosted_commissions'
+            (widget) =>
+                widget.type === 'commission_grid' ||
+                widget.type === 'boosted_commissions' ||
+                widget.type === 'grid_con'
         )
 
         return hasCommissionGrid ? widgets : [...widgets, defaultCommissionWidgets[0]]
@@ -121,8 +124,8 @@ export default function ExploreCommissions() {
     }
 
     return (
-        <div className="relative mx-auto px-4 py-8">
-            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="relative mx-auto">
+            {/* <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                     <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                         Explore
@@ -133,7 +136,7 @@ export default function ExploreCommissions() {
                         ratings.
                     </p>
                 </div>
-            </div>
+            </div> */}
 
             <CommissionDialog
                 commission={selectedCommission}

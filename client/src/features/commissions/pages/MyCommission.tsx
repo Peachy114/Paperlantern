@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { studioApi } from '@/api/studio'
 import { storageUrl } from '@/utils/storage'
+import WorkspaceBannerPicker from '@/features/announcements/components/WorkspaceBannerPicker'
 import type { CommissionProfile } from '@/types/art'
 import BoostModal from '@/features/boosts/components/BoostModal'
 import ThemedLogo from '@/components/layout/ThemedLogo'
@@ -611,9 +612,13 @@ function CommissionDashboardHero({
         orders.filter((order) =>
             ['awaiting_payment', 'in_progress', 'delivered'].includes(order.status)
         ).length
+    const cancelledOrders = orders.filter((order) => order.status === 'cancelled').length
     const chartPoints = buildCommissionChartPoints(orders)
     const featuredService = services.find((service) => service.image_path) ?? services[0] ?? null
     const featuredImage = featuredService?.image_path ?? null
+    const fallbackBannerImage = storageUrl(featuredImage)
+    const [workspaceBannerImage, setWorkspaceBannerImage] = useState<string | null>(null)
+    const activeBannerImage = workspaceBannerImage ?? fallbackBannerImage
     const averageRating = profile.ratings_count ? profile.average_rating.toFixed(1) : 'New'
 
     return (
@@ -622,9 +627,17 @@ function CommissionDashboardHero({
                 <div className="grid gap-3 xl:grid-cols-[190px_minmax(0,1fr)]">
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
                         <div className="relative min-h-56 overflow-hidden rounded-2xl border border-white/80 bg-white shadow-sm">
-                            {featuredImage ? (
+                            <div className="absolute right-3 top-3 z-20">
+                                <WorkspaceBannerPicker
+                                    audience="studio"
+                                    storageKey="workspace-banner-my-commission"
+                                    fallbackImage={fallbackBannerImage}
+                                    onImageChange={setWorkspaceBannerImage}
+                                />
+                            </div>
+                            {activeBannerImage ? (
                                 <img
-                                    src={storageUrl(featuredImage)!}
+                                    src={activeBannerImage}
                                     alt={featuredService?.title ?? 'Featured commission service'}
                                     className="absolute inset-0 h-full w-full object-cover"
                                 />
@@ -676,17 +689,17 @@ function CommissionDashboardHero({
                                     Activity
                                 </p>
                                 <p className="mt-1 text-[11px] text-muted-foreground">
-                                    Last seven days · commission requests
+                                    Last seven days · total and cancelled orders
                                 </p>
                             </div>
                             <span className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
-                                {totalOrders} total
+                                {totalOrders} total · {cancelledOrders} cancelled
                             </span>
                         </div>
 
                         <MiniAreaChart points={chartPoints} />
 
-                        <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+                        <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
                             <DashboardStat
                                 icon={<BriefcaseBusiness className="h-4 w-4" />}
                                 label="Services"
@@ -712,6 +725,11 @@ function CommissionDashboardHero({
                                 label="Completed"
                                 value={completedOrders}
                             />
+                            <DashboardStat
+                                icon={<Trash2 className="h-4 w-4 text-rose-500" />}
+                                label="Cancelled"
+                                value={cancelledOrders}
+                            />
                         </div>
                     </div>
                 </div>
@@ -731,13 +749,14 @@ function CommissionDashboardHero({
                         <MiniMetric label="Average rating" value={averageRating} />
                         <MiniMetric label="Completed orders" value={completedOrders} />
                         <MiniMetric label="Active orders" value={activeOrders} />
+                        <MiniMetric label="Cancelled orders" value={cancelledOrders} />
                     </div>
                 </section>
 
                 <section className="relative min-h-44 overflow-hidden rounded-[24px] border border-slate-200/80 bg-gradient-to-r from-rose-100 via-orange-50 to-sky-100 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
-                    {featuredImage ? (
+                    {activeBannerImage ? (
                         <img
-                            src={storageUrl(featuredImage)!}
+                            src={activeBannerImage}
                             alt="Commission banner"
                             className="absolute inset-0 h-full w-full object-cover object-center"
                         />
@@ -753,43 +772,103 @@ function CommissionDashboardHero({
     )
 }
 
-function MiniAreaChart({ points }: { points: number[] }) {
+interface CommissionChartPoint {
+    label: string
+    fullLabel: string
+    total: number
+    cancelled: number
+}
+
+function MiniAreaChart({ points }: { points: CommissionChartPoint[] }) {
+    const [activeIndex, setActiveIndex] = useState<number | null>(null)
     const width = 720
     const height = 190
-    const baseline = 144
-    const chartTop = 30
-    const max = Math.max(...points, 1)
-    const left = 18
-    const right = width - 18
+    const baseline = 148
+    const chartTop = 34
+    const left = 28
+    const right = width - 28
+    const max = Math.max(...points.flatMap((point) => [point.total, point.cancelled]), 1)
     const step = (right - left) / Math.max(points.length - 1, 1)
-    const coords = points.map((point, index) => ({
+
+    const totalCoords = points.map((point, index) => ({
         x: left + index * step,
-        y: baseline - (point / max) * (baseline - chartTop),
+        y: baseline - (point.total / max) * (baseline - chartTop),
     }))
-    const linePath = createSmoothChartPath(coords)
-    const first = coords[0]
-    const last = coords[coords.length - 1]
-    const areaPath =
-        first && last ? `${linePath} L ${last.x} ${baseline} L ${first.x} ${baseline} Z` : ''
-    const labels = points.map((_, index) => {
-        const date = new Date()
-        date.setDate(date.getDate() - (points.length - 1 - index))
-        return date.toLocaleDateString(undefined, {
-            month: 'short',
-            day: 'numeric',
-        })
-    })
+    const cancelledCoords = points.map((point, index) => ({
+        x: left + index * step,
+        y: baseline - (point.cancelled / max) * (baseline - chartTop),
+    }))
+
+    const totalLinePath = createSmoothChartPath(totalCoords)
+    const cancelledLinePath = createSmoothChartPath(cancelledCoords)
+    const first = totalCoords[0]
+    const last = totalCoords[totalCoords.length - 1]
+    const totalAreaPath =
+        first && last ? `${totalLinePath} L ${last.x} ${baseline} L ${first.x} ${baseline} Z` : ''
+    const activePoint = activeIndex === null ? null : points[activeIndex]
+    const activeTotalCoord = activeIndex === null ? null : totalCoords[activeIndex]
+    const activeCancelledCoord = activeIndex === null ? null : cancelledCoords[activeIndex]
+    const hasOrders = points.some((point) => point.total > 0)
 
     return (
-        <div className="h-52 overflow-hidden rounded-2xl bg-gradient-to-b from-background to-sky-50/65 sm:h-56">
+        <div className="relative h-56 overflow-hidden rounded-2xl bg-gradient-to-b from-background to-sky-50/65">
+            <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-3 rounded-full border border-slate-200/80 bg-background/90 px-2.5 py-1 text-[9px] font-bold text-muted-foreground shadow-sm backdrop-blur">
+                <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-sky-400" />
+                    Orders
+                </span>
+                <span className="flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-rose-500" />
+                    Cancelled
+                </span>
+            </div>
+
+            {activePoint && activeTotalCoord && activeCancelledCoord && (
+                <div
+                    className={`pointer-events-none absolute top-8 z-20 min-w-32 rounded-xl border border-slate-200/80 bg-background/95 px-3 py-2 text-[10px] shadow-xl backdrop-blur ${
+                        activeIndex === 0
+                            ? 'translate-x-0'
+                            : activeIndex === points.length - 1
+                              ? '-translate-x-full'
+                              : '-translate-x-1/2'
+                    }`}
+                    style={{ left: `${(activeTotalCoord.x / width) * 100}%` }}
+                >
+                    <p className="font-black text-foreground">{activePoint.fullLabel}</p>
+                    <div className="mt-1.5 space-y-1 text-muted-foreground">
+                        <div className="flex items-center justify-between gap-5">
+                            <span className="flex items-center gap-1.5">
+                                <span className="h-2 w-2 rounded-full bg-sky-400" />
+                                Orders
+                            </span>
+                            <strong className="text-foreground">{activePoint.total}</strong>
+                        </div>
+                        <div className="flex items-center justify-between gap-5">
+                            <span className="flex items-center gap-1.5">
+                                <span className="h-2 w-2 rounded-full bg-rose-500" />
+                                Cancelled
+                            </span>
+                            <strong className="text-rose-600">{activePoint.cancelled}</strong>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {!hasOrders && (
+                <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center pt-5 text-xs font-semibold text-muted-foreground">
+                    No orders during the last seven days.
+                </div>
+            )}
+
             <svg
                 viewBox={`0 0 ${width} ${height}`}
                 className="h-full w-full"
                 role="img"
-                aria-label="Commission requests during the last seven days"
+                aria-label="Total and cancelled commission orders during the last seven days"
+                onMouseLeave={() => setActiveIndex(null)}
             >
                 {[0, 1, 2, 3].map((lineIndex) => {
-                    const y = 34 + lineIndex * 32
+                    const y = chartTop + lineIndex * ((baseline - chartTop) / 3)
                     return (
                         <line
                             key={lineIndex}
@@ -805,42 +884,99 @@ function MiniAreaChart({ points }: { points: number[] }) {
                 })}
 
                 <defs>
-                    <linearGradient id="commission-chart-fill" x1="0" x2="0" y1="0" y2="1">
-                        <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.68" />
+                    <linearGradient id="commission-orders-fill" x1="0" x2="0" y1="0" y2="1">
+                        <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.58" />
                         <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.03" />
                     </linearGradient>
                 </defs>
 
-                <path d={areaPath} fill="url(#commission-chart-fill)" />
+                <path d={totalAreaPath} fill="url(#commission-orders-fill)" />
                 <path
-                    d={linePath}
+                    d={totalLinePath}
                     fill="none"
-                    stroke="#7dd3fc"
+                    stroke="#38bdf8"
                     strokeWidth="3"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                 />
+                <path
+                    d={cancelledLinePath}
+                    fill="none"
+                    stroke="#f43f5e"
+                    strokeWidth="2.5"
+                    strokeDasharray="6 5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
 
-                {coords.map((point, index) => (
-                    <g key={`${point.x}-${index}`}>
-                        <circle
-                            cx={point.x}
-                            cy={point.y}
-                            r="3.5"
-                            fill="#ffffff"
-                            stroke="#38bdf8"
-                            strokeWidth="2"
-                        />
-                        <text
-                            x={point.x}
-                            y={174}
-                            textAnchor="middle"
-                            className="fill-slate-400 text-[8px]"
-                        >
-                            {labels[index]}
-                        </text>
-                    </g>
-                ))}
+                {activeTotalCoord && (
+                    <line
+                        x1={activeTotalCoord.x}
+                        x2={activeTotalCoord.x}
+                        y1={chartTop}
+                        y2={baseline}
+                        stroke="#94a3b8"
+                        strokeWidth="1"
+                        strokeDasharray="3 4"
+                    />
+                )}
+
+                {points.map((point, index) => {
+                    const totalCoord = totalCoords[index]
+                    const cancelledCoord = cancelledCoords[index]
+                    const hitLeft =
+                        index === 0 ? left : totalCoord.x - (points.length > 1 ? step / 2 : 0)
+                    const hitRight =
+                        index === points.length - 1
+                            ? right
+                            : totalCoord.x + (points.length > 1 ? step / 2 : right - left)
+                    const isActive = activeIndex === index
+
+                    return (
+                        <g key={`${point.fullLabel}-${index}`}>
+                            <circle
+                                cx={totalCoord.x}
+                                cy={totalCoord.y}
+                                r={isActive ? 5 : 3.5}
+                                fill="#ffffff"
+                                stroke="#38bdf8"
+                                strokeWidth="2"
+                                className="pointer-events-none transition-all"
+                            />
+                            <circle
+                                cx={cancelledCoord.x}
+                                cy={cancelledCoord.y}
+                                r={isActive ? 4.5 : 3}
+                                fill="#ffffff"
+                                stroke="#f43f5e"
+                                strokeWidth="2"
+                                className="pointer-events-none transition-all"
+                            />
+                            <text
+                                x={totalCoord.x}
+                                y={176}
+                                textAnchor="middle"
+                                className="pointer-events-none fill-slate-400 text-[8px]"
+                            >
+                                {point.label}
+                            </text>
+                            <rect
+                                x={hitLeft}
+                                y={chartTop}
+                                width={hitRight - hitLeft}
+                                height={baseline - chartTop + 12}
+                                fill="transparent"
+                                tabIndex={0}
+                                role="button"
+                                aria-label={`${point.fullLabel}: ${point.total} orders, ${point.cancelled} cancelled`}
+                                className="cursor-crosshair outline-none"
+                                onMouseEnter={() => setActiveIndex(index)}
+                                onFocus={() => setActiveIndex(index)}
+                                onBlur={() => setActiveIndex(null)}
+                            />
+                        </g>
+                    )
+                })}
             </svg>
         </div>
     )
@@ -860,7 +996,7 @@ function createSmoothChartPath(points: Array<{ x: number; y: number }>) {
     }, '')
 }
 
-function buildCommissionChartPoints(orders: CommissionOrder[]) {
+function buildCommissionChartPoints(orders: CommissionOrder[]): CommissionChartPoint[] {
     const days = Array.from({ length: 7 }, (_, index) => {
         const day = new Date()
         day.setHours(0, 0, 0, 0)
@@ -868,16 +1004,30 @@ function buildCommissionChartPoints(orders: CommissionOrder[]) {
         return day
     })
 
-    const points = days.map((day) => {
+    return days.map((day) => {
         const next = new Date(day)
         next.setDate(day.getDate() + 1)
-        return orders.filter((order) => {
+
+        const dayOrders = orders.filter((order) => {
             const created = new Date(order.created_at)
             return created >= day && created < next
-        }).length
-    })
+        })
 
-    return points.some(Boolean) ? points : [0, 1, 2, 3, 5, 3, 1]
+        return {
+            label: day.toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+            }),
+            fullLabel: day.toLocaleDateString(undefined, {
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+            }),
+            total: dayOrders.length,
+            cancelled: dayOrders.filter((order) => order.status === 'cancelled').length,
+        }
+    })
 }
 
 function DashboardStat({
@@ -1128,7 +1278,10 @@ function CommissionFormsWorkspace({
                             <Input
                                 value={draft.title}
                                 onChange={(event) =>
-                                    setDraft((current) => ({ ...current, title: event.target.value }))
+                                    setDraft((current) => ({
+                                        ...current,
+                                        title: event.target.value,
+                                    }))
                                 }
                                 placeholder="How will you use this commission?"
                             />
@@ -1340,7 +1493,10 @@ function CommissionDiscountWorkspace({
                             <Input
                                 value={draft.label}
                                 onChange={(event) =>
-                                    setDraft((current) => ({ ...current, label: event.target.value }))
+                                    setDraft((current) => ({
+                                        ...current,
+                                        label: event.target.value,
+                                    }))
                                 }
                             />
                         </div>
@@ -2157,140 +2313,133 @@ function CommissionRequestsSection({ orders }: { orders: CommissionOrder[] }) {
                                 className="rounded-lg border bg-background p-3 text-left transition hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                                 <div className="min-w-0">
-                                        <div className="grid gap-3 md:grid-cols-3">
-                                            <div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Request commission name
-                                                </p>
-                                                <h3 className="font-semibold">
-                                                    {order.service?.title ?? 'Commission service'}
-                                                </h3>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    Name
-                                                </p>
-                                                <p className="font-medium">
-                                                    {order.customer?.name ?? 'Wanderer'}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs text-muted-foreground">
-                                                    How much total
-                                                </p>
-                                                <p className="font-medium">
-                                                    {Number(order.quote_credits || 0).toFixed(2)}{' '}
-                                                    quote
-                                                    <span className="text-muted-foreground">
-                                                        {' '}
-                                                        ({paidCredits.toFixed(2)} paid -{' '}
-                                                        {pendingCredits.toFixed(2)} pending)
-                                                    </span>
-                                                </p>
-                                            </div>
+                                    <div className="grid gap-3 md:grid-cols-3">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">
+                                                Request commission name
+                                            </p>
+                                            <h3 className="font-semibold">
+                                                {order.service?.title ?? 'Commission service'}
+                                            </h3>
                                         </div>
-                                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                                            <span className="rounded-md border px-2 py-0.5 text-xs capitalize text-muted-foreground">
-                                                {order.status.replace('_', ' ')}
-                                            </span>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Name</p>
+                                            <p className="font-medium">
+                                                {order.customer?.name ?? 'Wanderer'}
+                                            </p>
                                         </div>
-                                        <p className="mt-1 text-xs text-muted-foreground">
-                                            From {order.customer?.name ?? 'Wanderer'} · Quote{' '}
-                                            {order.quote_credits} credits · Escrow{' '}
-                                            {order.escrow_credits} credits
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">
+                                                How much total
+                                            </p>
+                                            <p className="font-medium">
+                                                {Number(order.quote_credits || 0).toFixed(2)} quote
+                                                <span className="text-muted-foreground">
+                                                    {' '}
+                                                    ({paidCredits.toFixed(2)} paid -{' '}
+                                                    {pendingCredits.toFixed(2)} pending)
+                                                </span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                                        <span className="rounded-md border px-2 py-0.5 text-xs capitalize text-muted-foreground">
+                                            {order.status.replace('_', ' ')}
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        From {order.customer?.name ?? 'Wanderer'} · Quote{' '}
+                                        {order.quote_credits} credits · Escrow{' '}
+                                        {order.escrow_credits} credits
+                                    </p>
+                                    <p className="mt-3 whitespace-pre-line text-sm text-muted-foreground">
+                                        {order.request_message}
+                                    </p>
+                                    {order.reference_notes && (
+                                        <p className="mt-2 whitespace-pre-line rounded-md bg-muted p-2 text-xs text-muted-foreground">
+                                            {order.reference_notes}
                                         </p>
-                                        <p className="mt-3 whitespace-pre-line text-sm text-muted-foreground">
-                                            {order.request_message}
+                                    )}
+                                    {order.auto_release_at && (
+                                        <p className="mt-2 text-xs text-muted-foreground">
+                                            Auto-release review date:{' '}
+                                            {new Date(order.auto_release_at).toLocaleString()}
                                         </p>
-                                        {order.reference_notes && (
-                                            <p className="mt-2 whitespace-pre-line rounded-md bg-muted p-2 text-xs text-muted-foreground">
-                                                {order.reference_notes}
-                                            </p>
-                                        )}
-                                        {order.auto_release_at && (
-                                            <p className="mt-2 text-xs text-muted-foreground">
-                                                Auto-release review date:{' '}
-                                                {new Date(order.auto_release_at).toLocaleString()}
-                                            </p>
-                                        )}
-                                        {order.payment_due_at && (
-                                            <p className="mt-2 text-xs text-muted-foreground">
-                                                Payment due:{' '}
-                                                {new Date(order.payment_due_at).toLocaleString()}
-                                            </p>
-                                        )}
-                                        {order.flow_snapshot.length > 0 && (
-                                            <div className="mt-3 flex flex-wrap gap-1">
-                                                {order.flow_snapshot.map((step, index) => (
-                                                    <span
-                                                        key={`${step.label}-${index}`}
-                                                        className={`rounded-md border px-2 py-1 text-[11px] ${
-                                                            index === order.current_step_index
-                                                                ? 'border-primary bg-primary/10 text-primary'
-                                                                : 'text-muted-foreground'
-                                                        }`}
-                                                    >
-                                                        {step.label}
-                                                        {step.type === 'pay' &&
-                                                        order.paid_steps.includes(index)
-                                                            ? ' paid'
-                                                            : ''}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {order.revisions.length > 0 && (
-                                            <div className="mt-3 rounded-md border p-2">
-                                                <p className="text-xs font-medium">
-                                                    Revision requests
-                                                </p>
-                                                <div className="mt-2 space-y-2">
-                                                    {order.revisions.map((revision) => (
-                                                        <div
-                                                            key={revision.id}
-                                                            className="rounded-md bg-muted p-2 text-xs text-muted-foreground"
-                                                        >
-                                                            <div className="flex flex-wrap items-center gap-2">
-                                                                <span>
-                                                                    #{revision.revision_number}
-                                                                </span>
-                                                                <span className="capitalize">
-                                                                    {revision.status}
-                                                                </span>
-                                                            </div>
-                                                            <p className="mt-1 whitespace-pre-line">
-                                                                {revision.reason}
-                                                            </p>
-                                                            {revision.artist_response && (
-                                                                <p className="mt-2 whitespace-pre-line rounded bg-background p-2">
-                                                                    {revision.artist_response}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                        {order.delivery_files.length > 0 && (
-                                            <div className="mt-3 rounded-md border p-2 text-xs text-muted-foreground">
-                                                <p className="font-medium text-foreground">
-                                                    Final delivery files
-                                                </p>
-                                                {order.delivery_files.map((file) => (
+                                    )}
+                                    {order.payment_due_at && (
+                                        <p className="mt-2 text-xs text-muted-foreground">
+                                            Payment due:{' '}
+                                            {new Date(order.payment_due_at).toLocaleString()}
+                                        </p>
+                                    )}
+                                    {order.flow_snapshot.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap gap-1">
+                                            {order.flow_snapshot.map((step, index) => (
+                                                <span
+                                                    key={`${step.label}-${index}`}
+                                                    className={`rounded-md border px-2 py-1 text-[11px] ${
+                                                        index === order.current_step_index
+                                                            ? 'border-primary bg-primary/10 text-primary'
+                                                            : 'text-muted-foreground'
+                                                    }`}
+                                                >
+                                                    {step.label}
+                                                    {step.type === 'pay' &&
+                                                    order.paid_steps.includes(index)
+                                                        ? ' paid'
+                                                        : ''}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {order.revisions.length > 0 && (
+                                        <div className="mt-3 rounded-md border p-2">
+                                            <p className="text-xs font-medium">Revision requests</p>
+                                            <div className="mt-2 space-y-2">
+                                                {order.revisions.map((revision) => (
                                                     <div
-                                                        key={file.id}
-                                                        className="mt-1 flex flex-wrap gap-2"
+                                                        key={revision.id}
+                                                        className="rounded-md bg-muted p-2 text-xs text-muted-foreground"
                                                     >
-                                                        <span>
-                                                            {file.original_name ?? 'Delivery file'}
-                                                        </span>
-                                                        <span className="capitalize">
-                                                            ({file.moderation_status})
-                                                        </span>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span>#{revision.revision_number}</span>
+                                                            <span className="capitalize">
+                                                                {revision.status}
+                                                            </span>
+                                                        </div>
+                                                        <p className="mt-1 whitespace-pre-line">
+                                                            {revision.reason}
+                                                        </p>
+                                                        {revision.artist_response && (
+                                                            <p className="mt-2 whitespace-pre-line rounded bg-background p-2">
+                                                                {revision.artist_response}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 ))}
                                             </div>
-                                        )}
+                                        </div>
+                                    )}
+                                    {order.delivery_files.length > 0 && (
+                                        <div className="mt-3 rounded-md border p-2 text-xs text-muted-foreground">
+                                            <p className="font-medium text-foreground">
+                                                Final delivery files
+                                            </p>
+                                            {order.delivery_files.map((file) => (
+                                                <div
+                                                    key={file.id}
+                                                    className="mt-1 flex flex-wrap gap-2"
+                                                >
+                                                    <span>
+                                                        {file.original_name ?? 'Delivery file'}
+                                                    </span>
+                                                    <span className="capitalize">
+                                                        ({file.moderation_status})
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </button>
                         )
@@ -2751,441 +2900,467 @@ function ServiceDialog({
                 </DialogHeader>
 
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
-                <div className="grid gap-4 md:grid-cols-[220px_1fr]">
-                    <div>
-                        <Label>Service image</Label>
-                        <div className="mt-1 aspect-[3/4] overflow-hidden rounded-lg border bg-muted">
-                            {form.imagePreview ? (
-                                <img
-                                    src={form.imagePreview}
-                                    alt=""
-                                    className="h-full w-full object-cover"
+                    <div className="grid gap-4 md:grid-cols-[220px_1fr]">
+                        <div>
+                            <Label>Service image</Label>
+                            <div className="mt-1 aspect-[3/4] overflow-hidden rounded-lg border bg-muted">
+                                {form.imagePreview ? (
+                                    <img
+                                        src={form.imagePreview}
+                                        alt=""
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="flex h-full w-full items-center justify-center">
+                                        <ImageOff className="h-6 w-6 text-muted-foreground" />
+                                    </div>
+                                )}
+                            </div>
+                            <Input
+                                className="mt-2"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImage}
+                            />
+                        </div>
+
+                        <div className="grid gap-4">
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <div>
+                                    <Label>Name service</Label>
+                                    <Input
+                                        value={form.title}
+                                        onChange={(event) => setField('title', event.target.value)}
+                                        placeholder="Character illustration"
+                                    />
+                                </div>
+                                <div>
+                                    <Label>Category</Label>
+                                    <select
+                                        value={form.commission_category_id}
+                                        onChange={(event) =>
+                                            setField('commission_category_id', event.target.value)
+                                        }
+                                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                                    >
+                                        <option value="">No category</option>
+                                        {categories.map((category) => (
+                                            <option key={category.id} value={category.id}>
+                                                {category.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div>
+                                <Label>Description</Label>
+                                <Textarea
+                                    value={form.description}
+                                    onChange={(event) =>
+                                        setField('description', event.target.value)
+                                    }
+                                    className="min-h-24"
+                                    placeholder="Describe what wanderers can request."
                                 />
-                            ) : (
-                                <div className="flex h-full w-full items-center justify-center">
-                                    <ImageOff className="h-6 w-6 text-muted-foreground" />
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-3">
+                                <NumberField
+                                    label="Base credits"
+                                    value={form.base_price_credits}
+                                    onChange={(value) => setField('base_price_credits', value)}
+                                />
+                                <NumberField
+                                    label="Delivery days"
+                                    value={form.delivery_days}
+                                    onChange={(value) => setField('delivery_days', value)}
+                                />
+                                <NumberField
+                                    label="Slots"
+                                    value={form.slots_available}
+                                    onChange={(value) => setField('slots_available', value)}
+                                />
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <div>
+                                    <Label>Start time</Label>
+                                    <Input
+                                        type="time"
+                                        value={form.setup_options.start_time}
+                                        onChange={(event) =>
+                                            updateSetup({ start_time: event.target.value })
+                                        }
+                                    />
+                                </div>
+                                <div>
+                                    <Label>End time</Label>
+                                    <Input
+                                        type="time"
+                                        value={form.setup_options.end_time}
+                                        onChange={(event) =>
+                                            updateSetup({ end_time: event.target.value })
+                                        }
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <div>
+                                    <Label>Status</Label>
+                                    <select
+                                        value={form.status}
+                                        onChange={(event) =>
+                                            setField('status', event.target.value as ServiceStatus)
+                                        }
+                                        className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+                                    >
+                                        <option value="open">Open</option>
+                                        <option value="waitlist">Waitlist</option>
+                                        <option value="closed">Closed</option>
+                                        <option value="paused">Paused</option>
+                                    </select>
+                                </div>
+                                <label className="mt-7 flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.is_published}
+                                        onChange={(event) =>
+                                            setField('is_published', event.target.checked)
+                                        }
+                                        className="h-4 w-4"
+                                    />
+                                    Publish this service
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Tabs defaultValue="setup" className="space-y-4">
+                        <TabsList className="flex w-full flex-wrap justify-start">
+                            <TabsTrigger value="setup">Setup</TabsTrigger>
+                            <TabsTrigger value="questions">Questions</TabsTrigger>
+                            <TabsTrigger value="client">Client Details</TabsTrigger>
+                            <TabsTrigger value="licenses">Licenses</TabsTrigger>
+                            <TabsTrigger value="terms">Terms</TabsTrigger>
+                            <TabsTrigger value="flow">Flow</TabsTrigger>
+                            <TabsTrigger value="promos">Promos</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="setup" className="space-y-4">
+                            <div className="rounded-lg border p-3">
+                                <div className="mb-3">
+                                    <h3 className="text-sm font-semibold">Setup</h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        Choose how this service appears, communicates, and accepts
+                                        requests.
+                                    </p>
+                                </div>
+                                <div className="grid gap-3 md:grid-cols-3">
+                                    <div className="md:col-span-3">
+                                        <Label>Service type</Label>
+                                        <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                            <RadioCard
+                                                checked={
+                                                    form.setup_options.service_type === 'custom'
+                                                }
+                                                title="Custom"
+                                                description="Made from scratch"
+                                                onChange={() =>
+                                                    updateSetup({ service_type: 'custom' })
+                                                }
+                                            />
+                                            <RadioCard
+                                                checked={
+                                                    form.setup_options.service_type ===
+                                                    'personalized'
+                                                }
+                                                title="Personalized"
+                                                description="Made from template"
+                                                onChange={() =>
+                                                    updateSetup({ service_type: 'personalized' })
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                    <SelectField
+                                        label="Requesting process"
+                                        value={form.setup_options.requesting_process}
+                                        options={[
+                                            ['custom_proposal', 'Custom proposal'],
+                                            ['instant_order', 'Instant order'],
+                                        ]}
+                                        onChange={(value) =>
+                                            updateSetup({
+                                                requesting_process:
+                                                    value as SetupOptions['requesting_process'],
+                                            })
+                                        }
+                                    />
+                                    <div className="md:col-span-3">
+                                        <Label>Communication style</Label>
+                                        <div className="mt-2 grid gap-2 md:grid-cols-2">
+                                            <RadioCard
+                                                checked={
+                                                    form.setup_options.communication_style ===
+                                                    'open'
+                                                }
+                                                title="Open communication"
+                                                description="WIP updates + revisions"
+                                                onChange={() =>
+                                                    updateSetup({ communication_style: 'open' })
+                                                }
+                                            />
+                                            <RadioCard
+                                                checked={
+                                                    form.setup_options.communication_style ===
+                                                    'surprise'
+                                                }
+                                                title="Simple communication"
+                                                description="No WIP updates + mistakes fixes only"
+                                                onChange={() =>
+                                                    updateSetup({ communication_style: 'surprise' })
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="mt-3 grid gap-2 md:grid-cols-3">
+                                    <ToggleLine
+                                        label="Notify followers on status change"
+                                        checked={
+                                            form.setup_options.notify_followers_on_status_change
+                                        }
+                                        onChange={(checked) =>
+                                            updateSetup({
+                                                notify_followers_on_status_change: checked,
+                                            })
+                                        }
+                                    />
+                                    <ToggleLine
+                                        label="Mark as sensitive content"
+                                        checked={form.setup_options.sensitive}
+                                        onChange={(checked) => updateSetup({ sensitive: checked })}
+                                    />
+                                    <ToggleLine
+                                        label="Display service stats"
+                                        checked={form.setup_options.display_service_stats}
+                                        onChange={(checked) =>
+                                            updateSetup({ display_service_stats: checked })
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="terms" className="space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <TextBlock
+                                    label="Quote rules"
+                                    value={form.quote_rules}
+                                    onChange={(value) => setField('quote_rules', value)}
+                                />
+                                <TextBlock
+                                    label="Required references"
+                                    value={form.required_references}
+                                    onChange={(value) => setField('required_references', value)}
+                                />
+                                <TextBlock
+                                    label="Refund policy"
+                                    value={form.refund_policy}
+                                    onChange={(value) => setField('refund_policy', value)}
+                                />
+                                <RichTextBlock
+                                    label="Terms of Service"
+                                    value={form.terms}
+                                    onChange={(value) => setField('terms', value)}
+                                    onFormat={applyTermFormat}
+                                />
+                            </div>
+                        </TabsContent>
+
+                        <TabsContent value="questions" className="space-y-4">
+                            {savedForms.length > 0 && (
+                                <div className="rounded-lg border bg-muted/20 p-3">
+                                    <div className="mb-2">
+                                        <h3 className="text-sm font-semibold">
+                                            Saved form questions
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            Attach reusable questions from the Forms tab to this
+                                            service.
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {savedForms.map((question) => {
+                                            const attached = form.request_questions.some(
+                                                (item) => item.id === question.id
+                                            )
+
+                                            return (
+                                                <Button
+                                                    key={question.id}
+                                                    type="button"
+                                                    size="sm"
+                                                    variant={attached ? 'default' : 'outline'}
+                                                    disabled={attached}
+                                                    onClick={() => attachSavedQuestion(question)}
+                                                >
+                                                    {attached ? 'Attached' : 'Attach'}{' '}
+                                                    {question.title}
+                                                </Button>
+                                            )
+                                        })}
+                                    </div>
                                 </div>
                             )}
-                        </div>
-                        <Input
-                            className="mt-2"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImage}
-                        />
-                    </div>
-
-                    <div className="grid gap-4">
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div>
-                                <Label>Name service</Label>
-                                <Input
-                                    value={form.title}
-                                    onChange={(event) => setField('title', event.target.value)}
-                                    placeholder="Character illustration"
-                                />
-                            </div>
-                            <div>
-                                <Label>Category</Label>
-                                <select
-                                    value={form.commission_category_id}
-                                    onChange={(event) =>
-                                        setField('commission_category_id', event.target.value)
-                                    }
-                                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                                >
-                                    <option value="">No category</option>
-                                    {categories.map((category) => (
-                                        <option key={category.id} value={category.id}>
-                                            {category.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div>
-                            <Label>Description</Label>
-                            <Textarea
-                                value={form.description}
-                                onChange={(event) => setField('description', event.target.value)}
-                                className="min-h-24"
-                                placeholder="Describe what wanderers can request."
+                            <RequestQuestionsSection
+                                questions={form.request_questions}
+                                onAdd={addRequestQuestion}
+                                onUpdate={updateRequestQuestion}
+                                onRemove={removeRequestQuestion}
                             />
-                        </div>
 
-                        <div className="grid gap-3 md:grid-cols-3">
-                            <NumberField
-                                label="Base credits"
-                                value={form.base_price_credits}
-                                onChange={(value) => setField('base_price_credits', value)}
+                            <InfoQuestionsSection
+                                items={form.info_questions}
+                                onAdd={addInfoQuestion}
+                                onUpdate={updateInfoQuestion}
+                                onRemove={removeInfoQuestion}
                             />
-                            <NumberField
-                                label="Delivery days"
-                                value={form.delivery_days}
-                                onChange={(value) => setField('delivery_days', value)}
+                        </TabsContent>
+
+                        <TabsContent value="client" className="space-y-4">
+                            <ClientFieldsSection
+                                fields={form.client_fields}
+                                onUpdate={updateClientField}
                             />
-                            <NumberField
-                                label="Slots"
-                                value={form.slots_available}
-                                onChange={(value) => setField('slots_available', value)}
+                        </TabsContent>
+
+                        <TabsContent value="promos" className="space-y-4">
+                            <DiscountsSection
+                                discounts={form.promo_discounts}
+                                onAdd={addDiscount}
+                                onUpdate={updateDiscount}
+                                onRemove={removeDiscount}
                             />
-                        </div>
+                        </TabsContent>
 
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div>
-                                <Label>Start time</Label>
-                                <Input
-                                    type="time"
-                                    value={form.setup_options.start_time}
-                                    onChange={(event) =>
-                                        updateSetup({ start_time: event.target.value })
-                                    }
-                                />
-                            </div>
-                            <div>
-                                <Label>End time</Label>
-                                <Input
-                                    type="time"
-                                    value={form.setup_options.end_time}
-                                    onChange={(event) =>
-                                        updateSetup({ end_time: event.target.value })
-                                    }
-                                />
-                            </div>
-                        </div>
+                        <TabsContent value="licenses" className="space-y-4">
+                            <LicenseSection
+                                questions={form.request_questions}
+                                onUpdate={updateRequestQuestion}
+                                onAdd={() =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        request_questions: [
+                                            ...current.request_questions.filter(
+                                                (question) =>
+                                                    question.id !== DEFAULT_LICENSE_QUESTION.id
+                                            ),
+                                            DEFAULT_LICENSE_QUESTION,
+                                        ],
+                                    }))
+                                }
+                            />
+                        </TabsContent>
 
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div>
-                                <Label>Status</Label>
-                                <select
-                                    value={form.status}
-                                    onChange={(event) =>
-                                        setField('status', event.target.value as ServiceStatus)
-                                    }
-                                    className="h-10 w-full rounded-md border bg-background px-3 text-sm"
-                                >
-                                    <option value="open">Open</option>
-                                    <option value="waitlist">Waitlist</option>
-                                    <option value="closed">Closed</option>
-                                    <option value="paused">Paused</option>
-                                </select>
-                            </div>
-                            <label className="mt-7 flex items-center gap-2 text-sm">
-                                <input
-                                    type="checkbox"
-                                    checked={form.is_published}
-                                    onChange={(event) =>
-                                        setField('is_published', event.target.checked)
-                                    }
-                                    className="h-4 w-4"
-                                />
-                                Publish this service
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <Tabs defaultValue="setup" className="space-y-4">
-                    <TabsList className="flex w-full flex-wrap justify-start">
-                        <TabsTrigger value="setup">Setup</TabsTrigger>
-                        <TabsTrigger value="questions">Questions</TabsTrigger>
-                        <TabsTrigger value="client">Client Details</TabsTrigger>
-                        <TabsTrigger value="licenses">Licenses</TabsTrigger>
-                        <TabsTrigger value="terms">Terms</TabsTrigger>
-                        <TabsTrigger value="flow">Flow</TabsTrigger>
-                        <TabsTrigger value="promos">Promos</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="setup" className="space-y-4">
-                        <div className="rounded-lg border p-3">
-                            <div className="mb-3">
-                                <h3 className="text-sm font-semibold">Setup</h3>
-                                <p className="text-xs text-muted-foreground">
-                                    Choose how this service appears, communicates, and accepts
-                                    requests.
-                                </p>
-                            </div>
-                            <div className="grid gap-3 md:grid-cols-3">
-                                <div className="md:col-span-3">
-                                    <Label>Service type</Label>
-                                    <div className="mt-2 grid gap-2 md:grid-cols-2">
-                                        <RadioCard
-                                            checked={form.setup_options.service_type === 'custom'}
-                                            title="Custom"
-                                            description="Made from scratch"
-                                            onChange={() => updateSetup({ service_type: 'custom' })}
-                                        />
-                                        <RadioCard
-                                            checked={
-                                                form.setup_options.service_type === 'personalized'
-                                            }
-                                            title="Personalized"
-                                            description="Made from template"
-                                            onChange={() =>
-                                                updateSetup({ service_type: 'personalized' })
-                                            }
-                                        />
+                        <TabsContent value="flow" className="space-y-4">
+                            <div className="rounded-lg border p-3">
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div>
+                                        <h3 className="text-sm font-semibold">Commission flow</h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            Add payment, sketch, revision, custom, and delivery
+                                            steps.
+                                        </p>
                                     </div>
-                                </div>
-                                <SelectField
-                                    label="Requesting process"
-                                    value={form.setup_options.requesting_process}
-                                    options={[
-                                        ['custom_proposal', 'Custom proposal'],
-                                        ['instant_order', 'Instant order'],
-                                    ]}
-                                    onChange={(value) =>
-                                        updateSetup({
-                                            requesting_process:
-                                                value as SetupOptions['requesting_process'],
-                                        })
-                                    }
-                                />
-                                <div className="md:col-span-3">
-                                    <Label>Communication style</Label>
-                                    <div className="mt-2 grid gap-2 md:grid-cols-2">
-                                        <RadioCard
-                                            checked={
-                                                form.setup_options.communication_style === 'open'
-                                            }
-                                            title="Open communication"
-                                            description="WIP updates + revisions"
-                                            onChange={() =>
-                                                updateSetup({ communication_style: 'open' })
-                                            }
-                                        />
-                                        <RadioCard
-                                            checked={
-                                                form.setup_options.communication_style ===
-                                                'surprise'
-                                            }
-                                            title="Simple communication"
-                                            description="No WIP updates + mistakes fixes only"
-                                            onChange={() =>
-                                                updateSetup({ communication_style: 'surprise' })
-                                            }
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="mt-3 grid gap-2 md:grid-cols-3">
-                                <ToggleLine
-                                    label="Notify followers on status change"
-                                    checked={form.setup_options.notify_followers_on_status_change}
-                                    onChange={(checked) =>
-                                        updateSetup({ notify_followers_on_status_change: checked })
-                                    }
-                                />
-                                <ToggleLine
-                                    label="Mark as sensitive content"
-                                    checked={form.setup_options.sensitive}
-                                    onChange={(checked) => updateSetup({ sensitive: checked })}
-                                />
-                                <ToggleLine
-                                    label="Display service stats"
-                                    checked={form.setup_options.display_service_stats}
-                                    onChange={(checked) =>
-                                        updateSetup({ display_service_stats: checked })
-                                    }
-                                />
-                            </div>
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="terms" className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <TextBlock
-                                label="Quote rules"
-                                value={form.quote_rules}
-                                onChange={(value) => setField('quote_rules', value)}
-                            />
-                            <TextBlock
-                                label="Required references"
-                                value={form.required_references}
-                                onChange={(value) => setField('required_references', value)}
-                            />
-                            <TextBlock
-                                label="Refund policy"
-                                value={form.refund_policy}
-                                onChange={(value) => setField('refund_policy', value)}
-                            />
-                            <RichTextBlock
-                                label="Terms of Service"
-                                value={form.terms}
-                                onChange={(value) => setField('terms', value)}
-                                onFormat={applyTermFormat}
-                            />
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="questions" className="space-y-4">
-                        {savedForms.length > 0 && (
-                            <div className="rounded-lg border bg-muted/20 p-3">
-                                <div className="mb-2">
-                                    <h3 className="text-sm font-semibold">Saved form questions</h3>
-                                    <p className="text-xs text-muted-foreground">
-                                        Attach reusable questions from the Forms tab to this service.
-                                    </p>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {savedForms.map((question) => {
-                                        const attached = form.request_questions.some(
-                                            (item) => item.id === question.id
-                                        )
-
-                                        return (
-                                            <Button
-                                                key={question.id}
-                                                type="button"
-                                                size="sm"
-                                                variant={attached ? 'default' : 'outline'}
-                                                disabled={attached}
-                                                onClick={() => attachSavedQuestion(question)}
-                                            >
-                                                {attached ? 'Attached' : 'Attach'} {question.title}
-                                            </Button>
-                                        )
-                                    })}
-                                </div>
-                            </div>
-                        )}
-                        <RequestQuestionsSection
-                            questions={form.request_questions}
-                            onAdd={addRequestQuestion}
-                            onUpdate={updateRequestQuestion}
-                            onRemove={removeRequestQuestion}
-                        />
-
-                        <InfoQuestionsSection
-                            items={form.info_questions}
-                            onAdd={addInfoQuestion}
-                            onUpdate={updateInfoQuestion}
-                            onRemove={removeInfoQuestion}
-                        />
-                    </TabsContent>
-
-                    <TabsContent value="client" className="space-y-4">
-                        <ClientFieldsSection
-                            fields={form.client_fields}
-                            onUpdate={updateClientField}
-                        />
-                    </TabsContent>
-
-                    <TabsContent value="promos" className="space-y-4">
-                        <DiscountsSection
-                            discounts={form.promo_discounts}
-                            onAdd={addDiscount}
-                            onUpdate={updateDiscount}
-                            onRemove={removeDiscount}
-                        />
-                    </TabsContent>
-
-                    <TabsContent value="licenses" className="space-y-4">
-                        <LicenseSection
-                            questions={form.request_questions}
-                            onUpdate={updateRequestQuestion}
-                            onAdd={() =>
-                                setForm((current) => ({
-                                    ...current,
-                                    request_questions: [
-                                        ...current.request_questions.filter(
-                                            (question) =>
-                                                question.id !== DEFAULT_LICENSE_QUESTION.id
-                                        ),
-                                        DEFAULT_LICENSE_QUESTION,
-                                    ],
-                                }))
-                            }
-                        />
-                    </TabsContent>
-
-                    <TabsContent value="flow" className="space-y-4">
-                        <div className="rounded-lg border p-3">
-                            <div className="mb-3 flex items-center justify-between gap-3">
-                                <div>
-                                    <h3 className="text-sm font-semibold">Commission flow</h3>
-                                    <p className="text-xs text-muted-foreground">
-                                        Add payment, sketch, revision, custom, and delivery steps.
-                                    </p>
-                                </div>
-                                <Button type="button" size="sm" variant="outline" onClick={addStep}>
-                                    Add step
-                                </Button>
-                            </div>
-                            <div className="grid gap-2">
-                                {form.flow.map((step, index) => (
-                                    <div
-                                        key={`${step.label}-${index}`}
-                                        draggable
-                                        onDragStart={(event) => handleDragStart(event, index)}
-                                        onDragOver={(event) => event.preventDefault()}
-                                        onDrop={(event) => handleDrop(event, index)}
-                                        className="grid cursor-grab gap-2 rounded-lg border p-2 active:cursor-grabbing md:grid-cols-[34px_110px_1fr_90px_90px_100px]"
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={addStep}
                                     >
-                                        <div className="flex h-9 items-center justify-center rounded-md border bg-muted text-xs text-muted-foreground">
-                                            {index + 1}
-                                        </div>
-                                        <select
-                                            value={step.type}
-                                            onChange={(event) =>
-                                                setFlowStep(index, {
-                                                    type: event.target.value as FlowType,
-                                                })
-                                            }
-                                            className="h-9 rounded-md border bg-background px-2 text-sm"
+                                        Add step
+                                    </Button>
+                                </div>
+                                <div className="grid gap-2">
+                                    {form.flow.map((step, index) => (
+                                        <div
+                                            key={`${step.label}-${index}`}
+                                            draggable
+                                            onDragStart={(event) => handleDragStart(event, index)}
+                                            onDragOver={(event) => event.preventDefault()}
+                                            onDrop={(event) => handleDrop(event, index)}
+                                            className="grid cursor-grab gap-2 rounded-lg border p-2 active:cursor-grabbing md:grid-cols-[34px_110px_1fr_90px_90px_100px]"
                                         >
-                                            <option value="pay">Pay</option>
-                                            <option value="sketch">Sketch</option>
-                                            <option value="revision">Revision</option>
-                                            <option value="add">Add</option>
-                                            <option value="done">Done</option>
-                                        </select>
-                                        <Input
-                                            value={step.label}
-                                            onChange={(event) =>
-                                                setFlowStep(index, { label: event.target.value })
-                                            }
-                                            placeholder="Step label"
-                                        />
-                                        <Input
-                                            type="number"
-                                            value={step.percent ?? 0}
-                                            disabled={step.type !== 'pay'}
-                                            onChange={(event) =>
-                                                setFlowStep(index, {
-                                                    percent: Number(event.target.value),
-                                                })
-                                            }
-                                            placeholder="%"
-                                        />
-                                        <Input
-                                            type="number"
-                                            value={step.rounds ?? 0}
-                                            disabled={!['sketch', 'revision'].includes(step.type)}
-                                            onChange={(event) =>
-                                                setFlowStep(index, {
-                                                    rounds: Number(event.target.value),
-                                                })
-                                            }
-                                            placeholder="Rounds"
-                                        />
-                                        <div className="flex gap-1">
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() => removeStep(index)}
+                                            <div className="flex h-9 items-center justify-center rounded-md border bg-muted text-xs text-muted-foreground">
+                                                {index + 1}
+                                            </div>
+                                            <select
+                                                value={step.type}
+                                                onChange={(event) =>
+                                                    setFlowStep(index, {
+                                                        type: event.target.value as FlowType,
+                                                    })
+                                                }
+                                                className="h-9 rounded-md border bg-background px-2 text-sm"
                                             >
-                                                Remove
-                                            </Button>
+                                                <option value="pay">Pay</option>
+                                                <option value="sketch">Sketch</option>
+                                                <option value="revision">Revision</option>
+                                                <option value="add">Add</option>
+                                                <option value="done">Done</option>
+                                            </select>
+                                            <Input
+                                                value={step.label}
+                                                onChange={(event) =>
+                                                    setFlowStep(index, {
+                                                        label: event.target.value,
+                                                    })
+                                                }
+                                                placeholder="Step label"
+                                            />
+                                            <Input
+                                                type="number"
+                                                value={step.percent ?? 0}
+                                                disabled={step.type !== 'pay'}
+                                                onChange={(event) =>
+                                                    setFlowStep(index, {
+                                                        percent: Number(event.target.value),
+                                                    })
+                                                }
+                                                placeholder="%"
+                                            />
+                                            <Input
+                                                type="number"
+                                                value={step.rounds ?? 0}
+                                                disabled={
+                                                    !['sketch', 'revision'].includes(step.type)
+                                                }
+                                                onChange={(event) =>
+                                                    setFlowStep(index, {
+                                                        rounds: Number(event.target.value),
+                                                    })
+                                                }
+                                                placeholder="Rounds"
+                                            />
+                                            <div className="flex gap-1">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    onClick={() => removeStep(index)}
+                                                >
+                                                    Remove
+                                                </Button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    </TabsContent>
-                </Tabs>
+                        </TabsContent>
+                    </Tabs>
                 </div>
 
                 <DialogFooter className="border-t bg-background p-4">

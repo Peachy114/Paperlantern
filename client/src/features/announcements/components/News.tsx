@@ -3,9 +3,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useAnnouncements } from '@/features/announcements/hooks/useAnnouncements'
 import { storageUrl } from '@/utils/storage'
 
-export default function News({ audience }: { audience: 'public' | 'studio' }) {
+type NewsProps = {
+    audience: 'public' | 'artist' | 'studio'
+    variant?: 'default' | 'dashboard'
+}
+
+export default function News({ audience, variant = 'default' }: NewsProps) {
     const { announcements, loading, error } = useAnnouncements(audience)
     const [current, setCurrent] = useState(0)
+
+    if (loading && variant === 'dashboard')
+        return <div className="h-full min-h-[220px] animate-pulse rounded-2xl bg-muted/40" />
 
     if (loading)
         return (
@@ -19,7 +27,24 @@ export default function News({ audience }: { audience: 'public' | 'studio' }) {
                 Loading...
             </div>
         )
-    if (error || !announcements.length) return null
+    if (error || !announcements.length) {
+        if (variant === 'dashboard') {
+            return (
+                <div className="relative min-h-[220px] overflow-hidden rounded-2xl bg-gradient-to-br from-orange-100 via-rose-50 to-sky-100">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_30%,rgba(56,189,248,0.35),transparent_28%),radial-gradient(circle_at_20%_80%,rgba(251,146,60,0.28),transparent_32%)]" />
+                    <div className="relative flex h-full min-h-[220px] flex-col justify-between p-5">
+                        <p className="text-xs font-black uppercase tracking-[0.14em] text-orange-600">
+                            Events
+                        </p>
+                        <p className="max-w-[190px] text-sm font-bold text-slate-800">
+                            New creator events and announcements will appear here.
+                        </p>
+                    </div>
+                </div>
+            )
+        }
+        return null
+    }
 
     const sorted = [
         ...announcements.filter((a) => a.is_pinned),
@@ -29,6 +54,66 @@ export default function News({ audience }: { audience: 'public' | 'studio' }) {
     const featured = sorted[current]
     const total = sorted.length
     const listItems = sorted.slice(0, 5)
+    const featuredKind = featured.is_event || featured.tag === 'event' ? 'Event' : 'Announcement'
+
+    if (variant === 'dashboard') {
+        return (
+            <div className="relative h-full min-h-[220px] overflow-hidden rounded-2xl bg-slate-100">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={featured.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="absolute inset-0"
+                    >
+                        {storageUrl(featured.image) ? (
+                            <img
+                                src={storageUrl(featured.image)!}
+                                alt={featured.title}
+                                className="h-full w-full object-cover"
+                            />
+                        ) : (
+                            <div className="h-full w-full bg-gradient-to-br from-orange-100 via-rose-50 to-sky-200" />
+                        )}
+                    </motion.div>
+                </AnimatePresence>
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/5 to-black/10" />
+                <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
+                    <span className="rounded-full bg-white/90 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-orange-600 shadow-sm">
+                        {featuredKind}
+                    </span>
+                    {total > 1 ? (
+                        <div className="flex gap-1.5">
+                            {sorted.map((_, index) => (
+                                <button
+                                    key={index}
+                                    type="button"
+                                    onClick={() => setCurrent(index)}
+                                    className={`h-2 rounded-full transition-all ${
+                                        index === current ? 'w-5 bg-white' : 'w-2 bg-white/50'
+                                    }`}
+                                    aria-label={`Show announcement ${index + 1}`}
+                                />
+                            ))}
+                        </div>
+                    ) : null}
+                </div>
+                <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                    <h2 className="line-clamp-2 text-sm font-black">{featured.title}</h2>
+                    <p className="mt-1 text-[10px] text-white/75">
+                        {new Date(featured.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                        })}
+                    </p>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div style={{ fontFamily: 'var(--comix-font-family)', marginBottom: '3.5rem' }}>

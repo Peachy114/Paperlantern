@@ -31,7 +31,7 @@ class PublicShopController extends Controller
             ->where('status', 'published')
             ->with([
                 'files',
-                'user:id,name,username,avatar,artist_verified',
+                'user:id,name,username,avatar,artist_verified,role',
             ])
             ->latest()
             ->paginate($limit)
@@ -73,6 +73,10 @@ class PublicShopController extends Controller
             'usage' => $item->usage ?? [],
             'created_at' => $item->created_at,
             'href' => '/shop',
+            'source' => $item->user?->role === 'super_admin' ? 'admin' : 'artist',
+            'source_label' => $item->user?->role === 'super_admin'
+                ? 'By Admin'
+                : 'By ' . ($item->user?->name ?? $item->user?->username ?? 'Artist'),
             'artist' => $item->user ? [
                 'id' => $item->user->id,
                 'name' => $item->user->name,
@@ -249,6 +253,10 @@ class PublicShopController extends Controller
                 'messages' => true,
             ],
             'href' => '/noble-royalty',
+            'source' => $sticker->user?->role === 'super_admin' ? 'admin' : 'artist',
+            'source_label' => $sticker->user?->role === 'super_admin'
+                ? 'By Admin'
+                : 'By ' . ($sticker->user?->name ?? $sticker->user?->username ?? 'Artist'),
             'artist' => $sticker->user ? [
                 'id' => $sticker->user->id,
                 'name' => $sticker->user->name,

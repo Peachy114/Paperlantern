@@ -71,8 +71,14 @@ export interface MyArtsStats {
 
 export interface MyArtsDashboardResponse {
     stats: MyArtsStats
+    views_chart: MyArtsChartPoint[]
     commission_profile: CommissionProfile
     arts: Art[]
+}
+
+export interface MyArtsChartPoint {
+    date: string
+    views: number
 }
 
 export type CommissionApplicationStatus =

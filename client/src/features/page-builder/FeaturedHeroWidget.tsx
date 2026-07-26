@@ -61,7 +61,7 @@ export default function FeaturedHeroWidget({
     const limit = settings.limit ?? 10
     const featuredOnly = Boolean(settings.hero_featured_only)
 
-    const { announcements } = useAnnouncements('public')
+    const { announcements, loading: announcementsLoading } = useAnnouncements('public')
 
     const artsQuery = useQuery({
         queryKey: ['featured-hero-arts'],
@@ -75,10 +75,6 @@ export default function FeaturedHeroWidget({
         enabled: sources.commissions,
         queryFn: async () => {
             const res = await publicApi.getCommissions()
-
-            console.log('getCommissions Response', res)
-            console.log('getCommissions Data', res.data)
-
             return res.data
         },
         staleTime: 60_000,
@@ -151,7 +147,6 @@ export default function FeaturedHeroWidget({
             const commissions = (commissionsQuery.data?.commissions?.data ??
                 []) as CommissionService[]
 
-            console.log('Commissions Data', commissions)
             commissions.forEach((commission) => {
                 nextItems.push({
                     id: `commission-${commission.id}`,
@@ -185,6 +180,11 @@ export default function FeaturedHeroWidget({
         sources.works,
         works,
     ])
+
+    const isLoading =
+        (sources.announcements && announcementsLoading) ||
+        (sources.arts && artsQuery.isLoading) ||
+        (sources.commissions && commissionsQuery.isLoading)
 
     const [index, setIndex] = useState(0)
     const [isHovered, setIsHovered] = useState(false)
@@ -284,6 +284,8 @@ export default function FeaturedHeroWidget({
         setIsDragging(false)
         setDragOffset(0)
     }
+
+    if (isLoading) return <FeaturedHeroSkeleton />
 
     if (items.length === 0) return null
 
@@ -975,5 +977,15 @@ function MetaOverlay({
                 )}
             </div>
         </div>
+    )
+}
+
+function FeaturedHeroSkeleton() {
+    return (
+        <section className="relative w-full overflow-hidden bg-background py-5 sm:py-7">
+            <div className="mx-auto flex min-h-[330px] max-w-[1360px] items-center justify-center px-4 sm:min-h-[390px]">
+                <div className="h-[300px] w-full max-w-[760px] animate-pulse rounded-3xl bg-muted sm:h-[350px]" />
+            </div>
+        </section>
     )
 }

@@ -45,6 +45,9 @@ import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
 import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
 import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
 import ShopCardWidget from '@/features/page-builder/ShopCardWidget'
+import LabelRailWidget from '@/features/page-builder/LabelRailWidget'
+import { gridContinuationOffset, labelContinuationOffset } from '@/features/page-builder/continuation'
+import SharedDiscoveryWidget, { isSharedDiscoveryWidget } from '@/features/page-builder/SharedDiscoveryWidget'
 import type { WorkItem } from '@/features/work/hooks/useHome'
 import type { PageLayout, PageWidget } from '@/types/pageLayout'
 
@@ -136,6 +139,7 @@ export default function ExploreArts() {
     const heroWorks = (items: Art[]) => items.map(artToWork)
     const tags = data?.tags ?? []
     const artists = data?.featured_artists ?? []
+    const pageWidgets = (data?.layout.widgets ?? defaultArtsWidgets).filter((widget) => widget.enabled)
     const openArt = (art: Art) => {
         const next = new URLSearchParams(searchParams)
         next.set('art', art.slug || art.id)
@@ -195,9 +199,10 @@ export default function ExploreArts() {
                 </form> */}
             </div>
 
-            {(data?.layout.widgets ?? defaultArtsWidgets)
-                .filter((widget) => widget.enabled)
+            {pageWidgets
                 .map((widget) => {
+                    const limit = widget.settings.limit ?? 10
+                    const gridOffset = gridContinuationOffset(pageWidgets, widget)
                     if (widget.type === 'featured_artists') {
                         return (
                             <PageWidgetFrame key={widget.id} widget={widget}>
@@ -245,20 +250,25 @@ export default function ExploreArts() {
                     if (widget.type === 'labels') {
                         return (
                             <PageWidgetFrame key={widget.id} widget={widget}>
-                                <LabelsSection
-                                    tags={tags}
+                                <LabelRailWidget
+                                    widget={widget}
+                                    labels={tags.map((tag) => ({
+                                        label: tag.label,
+                                        count: tag.artists_count,
+                                    }))}
                                     activeLabel={activeLabel}
                                     onSelect={setLabel}
+                                    offset={labelContinuationOffset(pageWidgets, widget)}
                                 />
                             </PageWidgetFrame>
                         )
                     }
 
-                    if (widget.type === 'arts_grid') {
+                    if (widget.type === 'arts_grid' || widget.type === 'grid_con') {
                         return (
                             <PageWidgetFrame key={widget.id} widget={widget}>
                                 <ArtsGrid
-                                    arts={widgetArts(widget)}
+                                    arts={widgetArts(widget).slice(gridOffset, gridOffset + limit)}
                                     isLoading={isLoading}
                                     grid={widget.settings.grid ?? 'masonry'}
                                     columns={widget.settings.columns}
@@ -273,6 +283,14 @@ export default function ExploreArts() {
                         return (
                             <PageWidgetFrame key={widget.id} widget={widget}>
                                 <ShopCardWidget widget={widget} />
+                            </PageWidgetFrame>
+                        )
+                    }
+
+                    if (isSharedDiscoveryWidget(widget.type)) {
+                        return (
+                            <PageWidgetFrame key={widget.id} widget={widget}>
+                                <SharedDiscoveryWidget widget={widget} widgets={pageWidgets} />
                             </PageWidgetFrame>
                         )
                     }
@@ -294,6 +312,7 @@ export default function ExploreArts() {
 
 function applyArtWidgetFilters(arts: Art[], widget: PageWidget) {
     const settings = widget.settings ?? {}
+    const dailyDate = settings.daily_date
     const multiSource = settings.label_filter_source ?? 'none'
     const multiValues = (settings.label_filter_values ?? [])
         .map((value) => value.toLowerCase())
@@ -301,7 +320,8 @@ function applyArtWidgetFilters(arts: Art[], widget: PageWidget) {
     const badgeSource = settings.badge_filter_source ?? 'none'
     const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
 
-    return arts.filter((art) => {
+    const filtered = arts.filter((art) => {
+        if (dailyDate && !isSameDate(art.created_at, dailyDate)) return false
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
             if (source === 'status') return String(art.status ?? '').toLowerCase() === value
@@ -317,6 +337,38 @@ function applyArtWidgetFilters(arts: Art[], widget: PageWidget) {
         const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
         return multiOk && badgeOk
     })
+
+    return sortArts(filtered, widget)
+}
+
+function sortArts(arts: Art[], widget: PageWidget) {
+    const sorts = widget.settings.sort_order?.length
+        ? widget.settings.sort_order
+        : ['featured', 'popular', 'latest']
+
+    return [...arts].sort((a, b) => {
+        for (const sort of sorts) {
+            const value = compareArtSort(a, b, sort)
+            if (value !== 0) return value
+        }
+
+        return 0
+    })
+}
+
+function compareArtSort(a: Art, b: Art, sort: string) {
+    if (sort === 'featured') return Number(b.is_featured) - Number(a.is_featured)
+    if (sort === 'likes') return (b.likes ?? 0) - (a.likes ?? 0)
+    if (sort === 'views' || sort === 'popular') return (b.views ?? 0) - (a.views ?? 0)
+    if (sort === 'new' || sort === 'latest') {
+        return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+    }
+    return 0
+}
+
+function isSameDate(value: string | undefined, date: string) {
+    if (!value || !date) return false
+    return value.slice(0, 10) === date
 }
 
 function artToWork(art: Art): WorkItem {
@@ -387,37 +439,6 @@ function FeaturedArtistsSection({ artists }: { artists: FeaturedArtist[] }) {
                 ))}
             </div>
         </section>
-    )
-}
-
-function LabelsSection({
-    tags,
-    activeLabel,
-    onSelect,
-}: {
-    tags: TagCount[]
-    activeLabel: string
-    onSelect: (label: string) => void
-}) {
-    if (tags.length === 0) return null
-
-    return (
-        <div className="mb-6 flex flex-wrap gap-2">
-            {tags.map((tag) => (
-                <button
-                    key={tag.label}
-                    type="button"
-                    onClick={() => onSelect(tag.label)}
-                    className={`rounded-md border px-2.5 py-1 text-xs ${
-                        activeLabel === tag.label
-                            ? 'bg-foreground text-background'
-                            : 'bg-background text-muted-foreground hover:text-foreground'
-                    }`}
-                >
-                    {tag.label} . {tag.artists_count} artists
-                </button>
-            ))}
-        </div>
     )
 }
 

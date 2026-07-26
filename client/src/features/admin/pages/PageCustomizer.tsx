@@ -45,6 +45,11 @@ import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
 import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
 import ShopCardWidget from '@/features/page-builder/ShopCardWidget'
 import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
+import LabelRailWidget from '@/features/page-builder/LabelRailWidget'
+import TabCardsWidget from '@/features/page-builder/TabCardsWidget'
+import EpisodesWidget from '@/features/page-builder/EpisodesWidget'
+import SharedDiscoveryWidget, { isSharedDiscoveryWidget } from '@/features/page-builder/SharedDiscoveryWidget'
+import { gridContinuationOffset, labelContinuationOffset } from '@/features/page-builder/continuation'
 import AnnouncementWidget from '@/features/announcements/components/AnnouncementWidget'
 import HeroSection from '@/features/work/components/HeroSection'
 import WeeklyChartSection from '@/features/work/components/WeeklyChartSection'
@@ -519,6 +524,7 @@ export default function PageCustomizer() {
                                             <CanvasWidget
                                                 page={page}
                                                 widget={widget}
+                                                widgets={widgets}
                                                 selected={selectedId === widget.id}
                                                 homeData={homePreview.data}
                                                 artsData={artsPreview.data}
@@ -617,6 +623,7 @@ function DropZone({
 function CanvasWidget({
     page,
     widget,
+    widgets,
     selected,
     homeData,
     artsData,
@@ -631,6 +638,7 @@ function CanvasWidget({
 }: {
     page: PageKey
     widget: PageWidget
+    widgets: PageWidget[]
     selected: boolean
     homeData?: HomePreviewData
     artsData?: ArtsPreviewData
@@ -879,6 +887,7 @@ function CanvasWidget({
             <WidgetContent
                 page={page}
                 widget={widget}
+                widgets={widgets}
                 homeData={homeData}
                 artsData={artsData}
                 commissionData={commissionData}
@@ -895,6 +904,7 @@ function CanvasWidget({
 function WidgetContent({
     page,
     widget,
+    widgets,
     homeData,
     artsData,
     commissionData,
@@ -902,6 +912,7 @@ function WidgetContent({
 }: {
     page: PageKey
     widget: PageWidget
+    widgets: PageWidget[]
     homeData?: HomePreviewData
     artsData?: ArtsPreviewData
     commissionData?: CommissionPreviewData
@@ -915,6 +926,10 @@ function WidgetContent({
         return <ContentTabsWidget widget={widget} />
     }
 
+    if (widget.type === 'tab_cards') {
+        return <TabCardsWidget widget={widget} />
+    }
+
     if (widget.type === 'board') {
         return <EditableBoardWidget widget={widget} onChange={onChange} />
     }
@@ -924,17 +939,25 @@ function WidgetContent({
     }
 
     if (['home', 'comix', 'daily', 'rankings', 'genre'].includes(page)) {
-        return <HomeWidget widget={widget} data={homeData} />
+        return <HomeWidget widget={widget} widgets={widgets} data={homeData} />
     }
 
     if (page === 'arts') {
-        return <ArtsWidget widget={widget} data={artsData} />
+        return <ArtsWidget widget={widget} widgets={widgets} data={artsData} />
     }
 
-    return <CommissionWidget widget={widget} data={commissionData} />
+    return <CommissionWidget widget={widget} widgets={widgets} data={commissionData} />
 }
 
-function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewData }) {
+function HomeWidget({
+    widget,
+    widgets,
+    data,
+}: {
+    widget: PageWidget
+    widgets: PageWidget[]
+    data?: HomePreviewData
+}) {
     const cover = (path: string | null, variant?: 'sm') => (path ? storageUrl(path, variant) : null)
     const filter =
         widget.settings.filter_cards_data === 'comix'
@@ -944,7 +967,6 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
               : widget.settings.filter_cards_data === 'arts'
                 ? 'art'
                 : widget.settings.filter ?? 'all'
-    const limit = widget.settings.limit ?? 10
     const byType = (works: WorkItem[] = []) =>
         works
             .filter((work) => work.type !== 'commission')
@@ -958,6 +980,14 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
         applyPreviewWidgetFilters(byType(works), widget) as (WorkItem & {
             type: 'webtoon' | 'wattpad' | 'art'
         })[]
+    const allWorks = [
+        ...(data?.weeklyChart ?? []),
+        ...(data?.freshReleases ?? []),
+        ...(data?.popularWorks ?? []),
+        ...(data?.topLikedWorks ?? []),
+    ]
+    const limit = widget.settings.limit ?? 10
+    const gridOffset = gridContinuationOffset(widgets, widget)
 
     if (widget.type === 'hero') {
         return (
@@ -971,12 +1001,7 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
             <BuilderPreviewLabel label="Featured Hero">
                 <FeaturedHeroWidget
                     widget={widget}
-                    works={[
-                        ...(data?.weeklyChart ?? []),
-                        ...(data?.freshReleases ?? []),
-                        ...(data?.popularWorks ?? []),
-                        ...(data?.topLikedWorks ?? []),
-                    ]}
+                    works={allWorks}
                 />
             </BuilderPreviewLabel>
         )
@@ -986,12 +1011,7 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
             <BuilderPreviewLabel label="Group Hero">
                 <GroupHeroWidget
                     widget={widget}
-                    works={[
-                        ...(data?.weeklyChart ?? []),
-                        ...(data?.freshReleases ?? []),
-                        ...(data?.popularWorks ?? []),
-                        ...(data?.topLikedWorks ?? []),
-                    ]}
+                    works={allWorks}
                 />
             </BuilderPreviewLabel>
         )
@@ -1010,10 +1030,55 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
             </BuilderPreviewLabel>
         )
     }
+    if (widget.type === 'labels') {
+        if (widget.settings.labels_display === 'menu_label') {
+            return (
+                <LabelRailWidget
+                    widget={widget}
+                    labels={[
+                        { label: 'Main' },
+                        { label: 'Comix' },
+                        { label: 'Novel' },
+                        { label: 'Arts' },
+                    ]}
+                />
+            )
+        }
+
+        if (widget.settings.labels_display === 'labels_cards') {
+            return (
+                <div>
+                    <LabelRailWidget
+                        widget={widget}
+                        labels={labelItemsFromWorks(sourceFilteredPreviewWorks(allWorks, widget))}
+                        offset={labelContinuationOffset(widgets, widget)}
+                    />
+                    <TabCardsWidget widget={widget} works={allWorks} />
+                </div>
+            )
+        }
+
+        return (
+            <LabelRailWidget
+                widget={widget}
+                labels={labelItemsFromWorks(sourceFilteredPreviewWorks(allWorks, widget))}
+                offset={labelContinuationOffset(widgets, widget)}
+            />
+        )
+    }
+    if (widget.type === 'episodes') {
+        return (
+            <EpisodesWidget
+                widget={widget}
+                chapters={data?.latestChapters ?? []}
+                cover={cover}
+            />
+        )
+    }
     if (widget.type === 'weekly')
         return (
             <WeeklyChartSection
-                weeklyChart={filteredWorks(data?.weeklyChart).slice(0, limit)}
+                weeklyChart={filteredWorks(data?.weeklyChart).slice(gridOffset, gridOffset + limit)}
                 cover={cover}
             />
         )
@@ -1022,7 +1087,7 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
         return (
             <WorkGrid
                 title={widget.title || "Today's Releases"}
-                works={filteredWorks(source).slice(0, limit)}
+                works={filteredWorks(source).slice(gridOffset, gridOffset + limit)}
                 cover={cover}
                 columns={widget.settings.columns}
                 infoLayout={widget.settings.info_layout ?? 'image_title_description'}
@@ -1035,7 +1100,7 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
         return (
             <WorkGrid
                 title={widget.title || "Today's Top 10"}
-                works={filteredWorks(source).slice(0, limit)}
+                works={filteredWorks(source).slice(gridOffset, gridOffset + limit)}
                 cover={cover}
                 metric={widget.settings.metric ?? 'views'}
                 columns={widget.settings.columns}
@@ -1046,7 +1111,7 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
     if (widget.type === 'fresh')
         return (
             <FreshReleasesSection
-                freshReleases={filteredWorks(data?.freshReleases).slice(0, limit)}
+                freshReleases={filteredWorks(data?.freshReleases).slice(gridOffset, gridOffset + limit)}
                 cover={cover}
             />
         )
@@ -1057,11 +1122,11 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
                 cover={cover}
             />
         )
-    if (widget.type === 'popular' || widget.type === 'grid_image' || widget.type === 'cards')
+    if (widget.type === 'popular' || widget.type === 'grid_image' || widget.type === 'grid_con' || widget.type === 'cards')
         return (
             <WorkGrid
                 title={widget.title}
-                works={filteredWorks(data?.popularWorks).slice(0, limit)}
+                works={filteredWorks(data?.popularWorks).slice(gridOffset, gridOffset + limit)}
                 cover={cover}
                 columns={widget.settings.columns}
                 infoLayout={widget.settings.info_layout ?? 'image_title_description'}
@@ -1071,7 +1136,7 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
         return (
             <WorkGrid
                 title={widget.title}
-                works={filteredWorks(data?.topLikedWorks).slice(0, limit)}
+                works={filteredWorks(data?.topLikedWorks).slice(gridOffset, gridOffset + limit)}
                 cover={cover}
                 columns={widget.settings.columns}
                 infoLayout={widget.settings.info_layout ?? 'image_title_description'}
@@ -1084,12 +1149,16 @@ function HomeWidget({ widget, data }: { widget: PageWidget; data?: HomePreviewDa
             </BuilderPreviewLabel>
         )
     }
+    if (isSharedDiscoveryWidget(widget.type)) {
+        return <SharedDiscoveryWidget widget={widget} widgets={widgets} />
+    }
 
     return <EmptyWidget />
 }
 
 function applyPreviewWidgetFilters(works: WorkItem[], widget: PageWidget) {
     const settings = widget.settings ?? {}
+    const dailyDate = settings.daily_date
     const multiSource = settings.label_filter_source ?? 'none'
     const multiValues = (settings.label_filter_values ?? [])
         .map((value) => value.toLowerCase())
@@ -1097,7 +1166,8 @@ function applyPreviewWidgetFilters(works: WorkItem[], widget: PageWidget) {
     const badgeSource = settings.badge_filter_source ?? 'none'
     const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
 
-    return works.filter((work) => {
+    const filtered = works.filter((work) => {
+        if (dailyDate && !isSameDate(work.created_at, dailyDate)) return false
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
             if (source === 'status') return String(work.status ?? '').toLowerCase() === value
@@ -1114,6 +1184,66 @@ function applyPreviewWidgetFilters(works: WorkItem[], widget: PageWidget) {
         const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
 
         return multiOk && badgeOk
+    })
+
+    return sortPreviewWorks(filtered, widget)
+}
+
+function sortPreviewWorks(works: WorkItem[], widget: PageWidget) {
+    const sorts = widget.settings.sort_order?.length
+        ? widget.settings.sort_order
+        : ['featured', 'popular', 'latest']
+
+    return [...works].sort((a, b) => {
+        for (const sort of sorts) {
+            const value = comparePreviewSort(a, b, sort)
+            if (value !== 0) return value
+        }
+
+        return 0
+    })
+}
+
+function comparePreviewSort(a: WorkItem, b: WorkItem, sort: string) {
+    if (sort === 'featured') return Number(b.is_featured) - Number(a.is_featured)
+    if (sort === 'likes') return (b.likes ?? 0) - (a.likes ?? 0)
+    if (sort === 'views' || sort === 'popular') return (b.views ?? 0) - (a.views ?? 0)
+    if (sort === 'new' || sort === 'latest') {
+        return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+    }
+    return 0
+}
+
+function isSameDate(value: string | undefined, date: string) {
+    if (!value || !date) return false
+    return value.slice(0, 10) === date
+}
+
+function labelItemsFromWorks(works: WorkItem[]) {
+    const counts = new Map<string, number>()
+
+    works.forEach((work) => {
+        ;(work.genres ?? []).forEach((label) => {
+            const clean = label.trim()
+            if (!clean) return
+            counts.set(clean, (counts.get(clean) ?? 0) + 1)
+        })
+    })
+
+    return Array.from(counts.entries())
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([label, count]) => ({ label, count }))
+}
+
+function sourceFilteredPreviewWorks(works: WorkItem[], widget: PageWidget) {
+    const source = widget.settings.filter_cards_data ?? 'mixed'
+
+    return works.filter((work) => {
+        if (source === 'comix') return work.type === 'webtoon'
+        if (source === 'novels') return work.type === 'wattpad'
+        if (source === 'arts') return work.type === 'art'
+        if (source === 'shop' || source === 'commissions' || source === 'announcements') return false
+        return work.type !== 'commission'
     })
 }
 
@@ -1190,8 +1320,18 @@ function WorkGrid({
     )
 }
 
-function ArtsWidget({ widget, data }: { widget: PageWidget; data?: ArtsPreviewData }) {
+function ArtsWidget({
+    widget,
+    widgets,
+    data,
+}: {
+    widget: PageWidget
+    widgets: PageWidget[]
+    data?: ArtsPreviewData
+}) {
     const filteredArts = applyPreviewArtFilters(data?.arts.data ?? [], widget)
+    const limit = widget.settings.limit ?? 10
+    const gridOffset = gridContinuationOffset(widgets, widget)
     const artHeroWorks = filteredArts.map((art) => ({
         id: art.id,
         slug: art.slug,
@@ -1274,26 +1414,19 @@ function ArtsWidget({ widget, data }: { widget: PageWidget; data?: ArtsPreviewDa
         if (tags.length === 0) return <EmptyWidget />
 
         return (
-            <section className="mx-auto max-w-[1360px] px-5 py-5">
-                <div className="flex flex-wrap gap-2">
-                    {tags.map((tag) => (
-                        <span
-                            key={tag.label}
-                            className="rounded-md border bg-background px-2.5 py-1 text-xs text-muted-foreground"
-                        >
-                            {tag.label} . {tag.artists_count} artists
-                        </span>
-                    ))}
-                </div>
-            </section>
+            <LabelRailWidget
+                widget={widget}
+                labels={tags.map((tag) => ({ label: tag.label, count: tag.artists_count }))}
+                offset={labelContinuationOffset(widgets, widget)}
+            />
         )
     }
 
-    if (widget.type === 'arts_grid') {
+    if (widget.type === 'arts_grid' || widget.type === 'grid_con') {
         return (
             <ImageGrid
                 title={widget.title}
-                items={filteredArts.map((art) => ({
+                items={filteredArts.slice(gridOffset, gridOffset + limit).map((art) => ({
                     id: art.id,
                     title: art.title,
                     description: art.labels?.join(', ') ?? '',
@@ -1301,7 +1434,7 @@ function ArtsWidget({ widget, data }: { widget: PageWidget; data?: ArtsPreviewDa
                 }))}
                 grid={widget.settings.grid ?? 'masonry'}
                 columns={widget.settings.columns}
-                limit={widget.settings.limit ?? 10}
+                limit={limit}
                 infoLayout={widget.settings.info_layout ?? 'image_only'}
             />
         )
@@ -1317,9 +1450,19 @@ function ArtsWidget({ widget, data }: { widget: PageWidget; data?: ArtsPreviewDa
     return <EmptyWidget />
 }
 
-function CommissionWidget({ widget, data }: { widget: PageWidget; data?: CommissionPreviewData }) {
+function CommissionWidget({
+    widget,
+    widgets,
+    data,
+}: {
+    widget: PageWidget
+    widgets: PageWidget[]
+    data?: CommissionPreviewData
+}) {
     const filteredCommissions = applyPreviewCommissionFilters(data?.commissions.data ?? [], widget)
-    if (widget.type === 'commission_grid' || widget.type === 'boosted_commissions') {
+    const limit = widget.settings.limit ?? 10
+    const gridOffset = gridContinuationOffset(widgets, widget)
+    if (widget.type === 'commission_grid' || widget.type === 'boosted_commissions' || widget.type === 'grid_con') {
         const items =
             widget.type === 'boosted_commissions'
                 ? filteredCommissions.filter((commission) => commission.boosted_until)
@@ -1328,7 +1471,7 @@ function CommissionWidget({ widget, data }: { widget: PageWidget; data?: Commiss
         return (
             <ImageGrid
                 title={widget.title}
-                items={items.map((commission) => ({
+                items={items.slice(gridOffset, gridOffset + limit).map((commission) => ({
                     id: commission.id,
                     title: commission.title,
                     description: commission.status,
@@ -1336,7 +1479,7 @@ function CommissionWidget({ widget, data }: { widget: PageWidget; data?: Commiss
                 }))}
                 grid={widget.settings.grid ?? 'masonry'}
                 columns={widget.settings.columns}
-                limit={widget.settings.limit ?? 10}
+                limit={limit}
                 infoLayout={widget.settings.info_layout ?? 'image_only'}
             />
         )
@@ -1354,6 +1497,9 @@ function CommissionWidget({ widget, data }: { widget: PageWidget; data?: Commiss
                 <ShopCardWidget widget={widget} />
             </BuilderPreviewLabel>
         )
+    }
+    if (isSharedDiscoveryWidget(widget.type)) {
+        return <SharedDiscoveryWidget widget={widget} widgets={widgets} />
     }
     return <EmptyWidget />
 }
@@ -1980,14 +2126,17 @@ function Inspector({
                     'latest',
                     'popular',
                     'top_liker',
+                    'episodes',
                     'grid_image',
                     'cards',
+                    'tab_cards',
                     'shop_card',
                     'top_10s',
                     'labels',
                     'arts_grid',
                     'commission_grid',
                     'boosted_commissions',
+                    'grid_con',
                 ].includes(widget.type) && (
                     <FilterControls
                         widget={widget}
@@ -1996,8 +2145,38 @@ function Inspector({
                     />
                 )}
 
-                {['cards', 'grid_image', 'top_10s', 'shop_card'].includes(widget.type) && (
+                {[
+                    'cards',
+                    'grid_image',
+                    'grid_con',
+                    'top_10s',
+                    'shop_card',
+                    'tab_cards',
+                    'popular',
+                    'weekly',
+                    'daily',
+                    'today_releases',
+                    'today_top',
+                    'fresh',
+                    'top_liker',
+                    'episodes',
+                ].includes(widget.type) && (
                     <CardContentControls widget={widget} setSetting={setSetting} />
+                )}
+
+                {widget.type === 'labels' && (
+                    <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                        <SelectField
+                            label="Label widget type"
+                            value={widget.settings.labels_display ?? 'labels'}
+                            options={['labels', 'menu_label', 'labels_cards']}
+                            onChange={(value) => setSetting('labels_display', value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Labels uses the selected data source. Menu Label shows Main, Comix,
+                            Novel, and Arts. Labels and Cards shows the label rail with cards below.
+                        </p>
+                    </div>
                 )}
 
                 {widget.type === 'featured_hero' && (
@@ -2793,7 +2972,89 @@ function Inspector({
                     </>
                 )}
 
-                {['arts_grid', 'commission_grid', 'boosted_commissions'].includes(widget.type) && (
+                {widget.type === 'labels' && (
+                    <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                            Label rail
+                        </p>
+                        <NumberField
+                            label="Limit"
+                            value={widget.settings.limit ?? 99}
+                            min={1}
+                            max={99}
+                            onChange={(value) => setSetting('limit', value)}
+                        />
+                        <label className="flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={Boolean(widget.settings.continue_from_previous)}
+                                onChange={(event) =>
+                                    setSetting('continue_from_previous', event.target.checked)
+                                }
+                            />
+                            Continue from previous labels widget
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={widget.settings.show_continuation_badge !== false}
+                                onChange={(event) =>
+                                    setSetting('show_continuation_badge', event.target.checked)
+                                }
+                            />
+                            Show continuation badge, like 99+
+                        </label>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                                <Label>Background color</Label>
+                                <Input
+                                    value={String(widget.settings.label_background_color ?? '')}
+                                    onChange={(event) =>
+                                        setSetting('label_background_color', event.target.value)
+                                    }
+                                    placeholder="#ff8a00"
+                                />
+                            </div>
+                            <div>
+                                <Label>Text color</Label>
+                                <Input
+                                    value={String(widget.settings.label_text_color ?? '')}
+                                    onChange={(event) =>
+                                        setSetting('label_text_color', event.target.value)
+                                    }
+                                    placeholder="#ffffff"
+                                />
+                            </div>
+                            <div>
+                                <Label>Active background</Label>
+                                <Input
+                                    value={String(
+                                        widget.settings.label_active_background_color ?? ''
+                                    )}
+                                    onChange={(event) =>
+                                        setSetting(
+                                            'label_active_background_color',
+                                            event.target.value
+                                        )
+                                    }
+                                    placeholder="#56b6ff"
+                                />
+                            </div>
+                            <div>
+                                <Label>Active text</Label>
+                                <Input
+                                    value={String(widget.settings.label_active_text_color ?? '')}
+                                    onChange={(event) =>
+                                        setSetting('label_active_text_color', event.target.value)
+                                    }
+                                    placeholder="#ffffff"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {['arts_grid', 'commission_grid', 'boosted_commissions', 'grid_con'].includes(widget.type) && (
                     <>
                         <SelectField
                             label="Grid"
@@ -2824,9 +3085,21 @@ function Inspector({
                             label="Limit"
                             value={widget.settings.limit ?? 10}
                             min={1}
-                            max={30}
+                            max={99}
                             onChange={(value) => setSetting('limit', value)}
                         />
+                        {widget.type === 'grid_con' && (
+                            <label className="flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={widget.settings.continue_from_previous !== false}
+                                    onChange={(event) =>
+                                        setSetting('continue_from_previous', event.target.checked)
+                                    }
+                                />
+                                Continue from previous grid widget
+                            </label>
+                        )}
                     </>
                 )}
 
@@ -2869,9 +3142,24 @@ function Inspector({
                             label="Limit"
                             value={widget.settings.limit ?? 10}
                             min={1}
-                            max={30}
+                            max={99}
                             onChange={(value) => setSetting('limit', value)}
                         />
+                        {['daily', 'today_releases', 'today_top'].includes(widget.type) && (
+                            <div>
+                                <Label>Specific date</Label>
+                                <Input
+                                    type="date"
+                                    value={widget.settings.daily_date ?? ''}
+                                    onChange={(event) =>
+                                        setSetting('daily_date', event.target.value || undefined)
+                                    }
+                                />
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Leave empty to use the current daily data.
+                                </p>
+                            </div>
+                        )}
                         {widget.type === 'today_top' && (
                             <SelectField
                                 label="Rank by"
@@ -3405,12 +3693,17 @@ function FilterControls({
     const badgeSource = widget.settings.badge_filter_source ?? 'none'
     const labelValues = widget.settings.label_filter_values ?? []
     const badgeValue = widget.settings.badge_filter_value ?? ''
-    const sourceOptions = ['none', 'genre', 'status', 'label', 'commission_type']
+    const sortOrder = widget.settings.sort_order ?? []
+    const dataSource = widget.settings.filter_cards_data ?? defaultDataSourceForWidget(widget.type)
+    const sourceOptions = filterSourceOptionsForData(dataSource)
+    const sortOptions = sortOptionsForData(dataSource)
     const choicesFor = (source: string) => {
         if (source === 'genre') return labeling?.genres?.map((item) => item.name) ?? []
         if (source === 'label') return labeling?.labels?.map((item) => item.name) ?? []
         if (source === 'commission_type')
             return labeling?.commission_types?.map((item) => item.name) ?? []
+        if (source === 'source') return ['By Admin', 'By Artist']
+        if (source === 'artist') return []
         if (source === 'status') return ['ongoing', 'completed', 'hiatus', 'draft', 'published']
         return []
     }
@@ -3422,6 +3715,14 @@ function FilterControls({
             labelValues.includes(value)
                 ? labelValues.filter((item) => item !== value)
                 : [...labelValues, value]
+        )
+    }
+    const toggleSort = (value: (typeof sortOptions)[number]) => {
+        setSetting(
+            'sort_order',
+            sortOrder.includes(value)
+                ? sortOrder.filter((item) => item !== value)
+                : [...sortOrder, value]
         )
     }
 
@@ -3439,16 +3740,49 @@ function FilterControls({
 
             <SelectField
                 label="Cards data"
-                value={widget.settings.filter_cards_data ?? 'mixed'}
-                options={['mixed', 'comix', 'novels', 'arts', 'commissions']}
+                value={dataSource}
+                options={['mixed', 'comix', 'novels', 'arts', 'shop', 'commissions', 'announcements']}
                 onChange={(value) => {
                     setSetting('filter_cards_data', value)
+                    setSetting('label_filter_source', 'none')
+                    setSetting('label_filter_values', [])
+                    setSetting('badge_filter_source', 'none')
+                    setSetting('badge_filter_value', '')
                     if (value === 'comix') setSetting('filter', 'webtoon')
                     if (value === 'novels') setSetting('filter', 'novel')
                     if (value === 'arts') setSetting('filter', 'art')
                     if (value === 'mixed') setSetting('filter', 'all')
                 }}
             />
+
+            <div>
+                <Label>Sort in order</Label>
+                <div className="mt-2 flex flex-wrap gap-2 rounded-md border bg-background p-2">
+                    {sortOptions.map((sort) => {
+                        const active = sortOrder.includes(sort)
+                        const order = sortOrder.indexOf(sort) + 1
+
+                        return (
+                            <button
+                                key={sort}
+                                type="button"
+                                onClick={() => toggleSort(sort)}
+                                className={`rounded-full border px-2.5 py-1 text-xs capitalize transition ${
+                                    active
+                                        ? 'border-primary bg-primary text-primary-foreground'
+                                        : 'bg-background hover:bg-muted'
+                                }`}
+                            >
+                                {active ? `${order}. ` : ''}
+                                {sort}
+                            </button>
+                        )
+                    })}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                    Click multiple sorts in the order you want. Empty uses featured, popular, then latest.
+                </p>
+            </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
                 <SelectField
@@ -3540,6 +3874,32 @@ function FilterControls({
     )
 }
 
+function defaultDataSourceForWidget(type: string) {
+    if (type === 'shop_card') return 'shop'
+    if (type === 'commission_grid' || type === 'boosted_commissions') return 'commissions'
+    if (type === 'arts_grid') return 'arts'
+    if (type === 'episodes' || type === 'latest') return 'comix'
+    return 'mixed'
+}
+
+function filterSourceOptionsForData(dataSource: string) {
+    if (dataSource === 'comix' || dataSource === 'novels') {
+        return ['none', 'genre', 'status', 'artist']
+    }
+    if (dataSource === 'arts') return ['none', 'label', 'artist']
+    if (dataSource === 'shop') return ['none', 'label', 'source', 'artist']
+    if (dataSource === 'commissions') return ['none', 'commission_type', 'status', 'artist']
+    if (dataSource === 'announcements') return ['none', 'label', 'status']
+    return ['none', 'genre', 'status', 'label', 'artist', 'source', 'commission_type']
+}
+
+function sortOptionsForData(dataSource: string) {
+    if (dataSource === 'shop') return ['featured', 'latest', 'popular', 'likes', 'new'] as const
+    if (dataSource === 'commissions') return ['featured', 'latest', 'popular', 'views', 'new'] as const
+    if (dataSource === 'announcements') return ['featured', 'latest', 'new'] as const
+    return ['featured', 'latest', 'popular', 'views', 'likes', 'new'] as const
+}
+
 function CardContentControls({
     widget,
     setSetting,
@@ -3547,19 +3907,55 @@ function CardContentControls({
     widget: PageWidget
     setSetting: (key: string, value: unknown) => void
 }) {
-    const options: Array<[keyof PageWidget['settings'], string]> = [
+    const dataSource = widget.settings.filter_cards_data ?? defaultDataSourceForWidget(widget.type)
+    const baseOptions: Array<[keyof PageWidget['settings'], string]> = [
         ['card_show_new', 'New badge'],
         ['card_show_popular', 'Popular badge'],
-        ['card_show_rating', 'Rating'],
-        ['card_show_name', 'Name'],
-        ['card_show_artist', 'Artist name'],
-        ['card_show_sold', 'Sold'],
-        ['card_show_views', 'Views / files'],
-        ['card_show_likes', 'Likes'],
+        ['card_show_name', dataSource === 'shop' ? 'Product name' : 'Name'],
+        ['card_show_artist', dataSource === 'shop' ? 'Seller / artist' : 'Artist name'],
         ['card_show_rank', 'Rank'],
-        ['card_show_labels', 'Labels'],
-        ['card_show_price', 'Price'],
     ]
+    const sourceOptions: Record<string, Array<[keyof PageWidget['settings'], string]>> = {
+        mixed: [
+            ['card_show_views', 'Views'],
+            ['card_show_likes', 'Likes'],
+            ['card_show_labels', 'Labels'],
+            ['card_show_type', 'Type badge'],
+        ],
+        comix: [
+            ['card_show_views', 'Views'],
+            ['card_show_likes', 'Likes'],
+            ['card_show_status', 'Status'],
+            ['card_show_genres', 'Genres'],
+            ['card_show_type', 'Webcomic badge'],
+        ],
+        novels: [
+            ['card_show_views', 'Views'],
+            ['card_show_likes', 'Likes'],
+            ['card_show_status', 'Status'],
+            ['card_show_genres', 'Genres'],
+            ['card_show_type', 'Novel badge'],
+        ],
+        arts: [
+            ['card_show_views', 'Views'],
+            ['card_show_likes', 'Likes'],
+            ['card_show_labels', 'Labels'],
+        ],
+        shop: [
+            ['card_show_price', 'Price / credits'],
+            ['card_show_sold', 'Sold'],
+            ['card_show_rating', 'Rating'],
+            ['card_show_labels', 'Labels'],
+        ],
+        commissions: [
+            ['card_show_price', 'Base price'],
+            ['card_show_rating', 'Rating'],
+            ['card_show_status', 'Open status'],
+            ['card_show_labels', 'Category'],
+        ],
+        announcements: [['card_show_labels', 'Tag']],
+    }
+    const options = [...baseOptions, ...(sourceOptions[dataSource] ?? sourceOptions.mixed)]
 
     return (
         <div className="space-y-3 rounded-lg border bg-muted/20 p-3">

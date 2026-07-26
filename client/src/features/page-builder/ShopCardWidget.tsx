@@ -14,6 +14,9 @@ type ShopWidgetItem = {
     files_count: number
     downloads_count: number
     likes: number
+    created_at?: string
+    source?: 'admin' | 'artist'
+    source_label?: string
     artist?: {
         name: string
         username: string
@@ -32,16 +35,13 @@ export default function ShopCardWidget({ widget }: { widget: PageWidget }) {
         },
         staleTime: 60_000,
     })
-    const items = ((shop.data?.downloads?.data ?? []) as ShopWidgetItem[]).slice(0, limit)
+    const items = filterShopItems((shop.data?.downloads?.data ?? []) as ShopWidgetItem[], widget).slice(
+        0,
+        limit
+    )
 
     if (shop.isLoading) {
-        return (
-            <section className="mx-auto mt-10 w-full max-w-[1360px] px-5">
-                <div className="rounded-lg border p-6 text-sm text-muted-foreground">
-                    Loading shop products...
-                </div>
-            </section>
-        )
+        return <ShopCardSkeleton count={limit} columns={widget.settings.columns} />
     }
 
     if (items.length === 0) return null
@@ -50,7 +50,10 @@ export default function ShopCardWidget({ widget }: { widget: PageWidget }) {
         <section className="mx-auto mt-10 w-full max-w-[1360px] px-5">
             <div className="mb-5 flex items-center justify-between gap-3">
                 <h2 className="text-2xl font-bold">{widget.title || 'Shop Picks'}</h2>
-                <a href="/shop" className="text-xs font-medium text-muted-foreground hover:text-foreground">
+                <a
+                    href="/shop"
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
                     View all
                 </a>
             </div>
@@ -66,6 +69,113 @@ export default function ShopCardWidget({ widget }: { widget: PageWidget }) {
             >
                 {items.map((item, index) => (
                     <ShopWidgetCard key={item.id} item={item} index={index} widget={widget} />
+                ))}
+            </div>
+        </section>
+    )
+}
+
+function filterShopItems(items: ShopWidgetItem[], widget: PageWidget) {
+    const settings = widget.settings
+    const dailyDate = settings.daily_date
+    const multiSource = settings.label_filter_source ?? 'none'
+    const multiValues = (settings.label_filter_values ?? [])
+        .map((value) => value.toLowerCase())
+        .filter(Boolean)
+    const badgeSource = settings.badge_filter_source ?? 'none'
+    const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
+
+    const filtered = items.filter((item) => {
+        if (dailyDate && !isSameDate(item.created_at, dailyDate)) return false
+
+        const matches = (source: string, value: string) => {
+            if (!value || source === 'none') return true
+            if (source === 'label' || source === 'genre') {
+                return item.labels.some((label) => label.toLowerCase() === value)
+            }
+            if (source === 'source') {
+                return item.source_label?.toLowerCase() === value || item.source?.toLowerCase() === value
+            }
+            if (source === 'artist') {
+                return item.artist?.name.toLowerCase() === value || item.artist?.username.toLowerCase() === value
+            }
+            if (source === 'status') {
+                return item.download_policy.toLowerCase() === value || item.source?.toLowerCase() === value
+            }
+            return source !== 'commission_type'
+        }
+
+        const multiOk =
+            multiSource === 'none' || multiValues.length === 0
+                ? true
+                : multiValues.some((value) => matches(multiSource, value))
+        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+
+        return multiOk && badgeOk
+    })
+
+    return sortShopItems(filtered, widget)
+}
+
+function sortShopItems(items: ShopWidgetItem[], widget: PageWidget) {
+    const sorts = widget.settings.sort_order?.length
+        ? widget.settings.sort_order
+        : ['featured', 'popular', 'latest']
+
+    return [...items].sort((a, b) => {
+        for (const sort of sorts) {
+            const value = compareShopSort(a, b, sort)
+            if (value !== 0) return value
+        }
+
+        return 0
+    })
+}
+
+function compareShopSort(a: ShopWidgetItem, b: ShopWidgetItem, sort: string) {
+    if (sort === 'likes') return b.likes - a.likes
+    if (sort === 'views' || sort === 'popular') return b.downloads_count - a.downloads_count
+    if (sort === 'new' || sort === 'latest') {
+        return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+    }
+    return 0
+}
+
+function isSameDate(value: string | undefined, date: string) {
+    if (!value || !date) return false
+    return value.slice(0, 10) === date
+}
+
+function ShopCardSkeleton({ count, columns }: { count: number; columns?: number }) {
+    return (
+        <section className="mx-auto mt-10 w-full max-w-[1360px] px-5">
+            <div className="mb-5 h-8 w-44 animate-pulse rounded bg-muted" />
+            <div
+                className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5"
+                style={
+                    columns
+                        ? {
+                              gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                          }
+                        : undefined
+                }
+            >
+                {Array.from({ length: Math.max(1, Math.min(count, 10)) }).map((_, index) => (
+                    <div
+                        key={index}
+                        className="rounded-[28px] bg-background p-4 shadow-[0_18px_42px_rgba(15,23,42,0.12)] ring-1 ring-foreground/10"
+                    >
+                        <div className="aspect-[4/3] animate-pulse rounded-[22px] bg-muted" />
+                        <div className="mt-4 flex items-center gap-3">
+                            <div className="h-12 w-12 animate-pulse rounded-full bg-muted" />
+                            <div className="min-w-0 flex-1 space-y-2">
+                                <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                                <div className="h-3 w-16 animate-pulse rounded bg-muted" />
+                            </div>
+                        </div>
+                        <div className="mt-4 h-5 w-3/4 animate-pulse rounded bg-muted" />
+                        <div className="mt-3 h-4 w-1/2 animate-pulse rounded bg-muted" />
+                    </div>
                 ))}
             </div>
         </section>
@@ -102,6 +212,15 @@ function ShopWidgetCard({
                     </div>
                 )}
                 <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+                    <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold shadow-sm ${
+                            item.source === 'admin'
+                                ? 'bg-sky-500 text-white'
+                                : 'bg-background text-orange-500'
+                        }`}
+                    >
+                        {item.source_label ?? (item.source === 'admin' ? 'By Admin' : 'By Artist')}
+                    </span>
                     {settings.card_show_popular !== false && rank <= 3 && (
                         <span className="rounded-full bg-background px-3 py-1 text-xs font-semibold text-orange-500 shadow-sm">
                             Popular

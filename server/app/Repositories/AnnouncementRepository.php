@@ -44,6 +44,7 @@ class AnnouncementRepository
     public function getByAudience(string $audience): Collection
     {
         return Announcement::where('audience', $audience)
+            ->where('is_public', true)
             ->latest('is_pinned')
             ->latest()
             ->get();

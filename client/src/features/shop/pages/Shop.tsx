@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -35,6 +35,12 @@ type ShopDownload = {
     image_path: string | null
     download_policy: 'free' | 'paid'
     credit_cost: number
+    price?: number | string | null
+    currency?: string | null
+    rating?: number | null
+    sold_count?: number | null
+    is_popular?: boolean
+    is_new?: boolean
     download_unlocked?: boolean
     files_count: number
     likes: number
@@ -42,12 +48,15 @@ type ShopDownload = {
     downloads_count: number
     created_at?: string
     href: string
+    source?: 'admin' | 'artist'
+    source_label?: string
     artist?: {
         id?: string
         name: string
         username: string
         avatar?: string | null
         verified?: boolean
+        badges?: string[]
     } | null
 }
 
@@ -66,11 +75,15 @@ type ShopSticker = {
         messages: boolean
     }
     artist?: { name: string; username: string; avatar?: string | null } | null
+    source?: 'admin' | 'artist'
+    source_label?: string
 }
 
 export default function Shop() {
     const queryClient = useQueryClient()
     const [selectedItem, setSelectedItem] = useState<ShopDownload | null>(null)
+    const [productCategory, setProductCategory] = useState('all')
+    const [stickerCategory, setStickerCategory] = useState('all')
     const shop = useQuery({
         queryKey: ['public-shop'],
         queryFn: () => publicApi.getShop().then((res) => res.data),
@@ -90,6 +103,16 @@ export default function Shop() {
 
     const downloads = (shop.data?.downloads?.data ?? []) as ShopDownload[]
     const stickers = (shop.data?.stickers ?? []) as ShopSticker[]
+    const productCategories = useMemo(() => shopCategories(downloads), [downloads])
+    const stickerCategories = useMemo(() => stickerShopCategories(stickers), [stickers])
+    const filteredDownloads = useMemo(
+        () => filterShopDownloads(downloads, productCategory),
+        [downloads, productCategory]
+    )
+    const filteredStickers = useMemo(
+        () => filterShopStickers(stickers, stickerCategory),
+        [stickers, stickerCategory]
+    )
 
     return (
         <main className="mx-auto w-full max-w-[1360px] px-4 py-10 sm:px-6">
@@ -113,10 +136,15 @@ export default function Shop() {
                 description="Downloadable art products, adoptables, ZIP bundles, and ready-made files."
                 empty="No shop products yet."
                 loading={shop.isLoading}
-                count={downloads.length}
+                count={filteredDownloads.length}
             >
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-                    {downloads.map((item, index) => (
+                <ShopCategoryRail
+                    categories={productCategories}
+                    active={productCategory}
+                    onChange={setProductCategory}
+                />
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {filteredDownloads.map((item, index) => (
                         <ShopProductCard
                             key={item.id}
                             item={item}
@@ -132,10 +160,15 @@ export default function Shop() {
                 description="Stickers usable in comments, profiles, message backgrounds, and messages."
                 empty="No public stickers yet."
                 loading={shop.isLoading}
-                count={stickers.length}
+                count={filteredStickers.length}
             >
+                <ShopCategoryRail
+                    categories={stickerCategories}
+                    active={stickerCategory}
+                    onChange={setStickerCategory}
+                />
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-                    {stickers.map((item) => (
+                    {filteredStickers.map((item) => (
                         <article
                             key={item.id}
                             className="rounded-lg border bg-background p-3 transition hover:-translate-y-0.5 hover:shadow-md"
@@ -153,6 +186,11 @@ export default function Shop() {
                             <p className="truncate text-xs text-muted-foreground">
                                 {item.bundle_name || `@${item.artist?.username ?? 'artist'}`}
                             </p>
+                            <SourceBadge
+                                source={item.source}
+                                label={item.source_label}
+                                className="mt-2"
+                            />
                             <div className="mt-2 flex flex-wrap gap-1 text-muted-foreground">
                                 <MessageCircle className="h-3.5 w-3.5" />
                                 <UserRound className="h-3.5 w-3.5" />
@@ -177,7 +215,10 @@ export default function Shop() {
                 </div>
             </ShopSection>
 
-            <ShopProductModal item={selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)} />
+            <ShopProductModal
+                item={selectedItem}
+                onOpenChange={(open) => !open && setSelectedItem(null)}
+            />
         </main>
     )
 }
@@ -191,64 +232,164 @@ function ShopProductCard({
     rank: number
     onOpen: () => void
 }) {
+    const price = shopProductPrice(item)
+    const soldCount = item.sold_count ?? item.downloads_count
+    const rating = Number.isFinite(item.rating) ? Number(item.rating).toFixed(1) : '5.0'
+    const isPopular = item.is_popular ?? rank <= 3
+    const isNew = item.is_new ?? isNewItem(item)
+    const artistBadges =
+        item.artist?.badges?.slice(0, 2) ?? (item.artist?.verified ? ['☀️', '💎'] : [])
+
     return (
         <button
             type="button"
             onClick={onOpen}
-            className="group rounded-[28px] bg-background p-4 text-left shadow-[0_18px_42px_rgba(15,23,42,0.12)] ring-1 ring-foreground/10 transition hover:-translate-y-1 hover:shadow-[0_22px_54px_rgba(15,23,42,0.16)]"
+            aria-label={`Open ${item.title}`}
+            className="
+                group
+                h-full
+                w-full
+                overflow-hidden
+                rounded-[36px]
+                bg-white
+                p-3
+                text-left
+                text-[#111111]
+                shadow-[0_14px_32px_rgba(15,23,42,0.16)]
+                transition
+                duration-300
+                hover:-translate-y-1
+                hover:shadow-[0_20px_42px_rgba(15,23,42,0.20)]
+                focus-visible:outline-none
+                focus-visible:ring-4
+                focus-visible:ring-orange-400/35
+            "
         >
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[22px] bg-muted">
+            <div className="relative aspect-[9/8] overflow-hidden rounded-[26px] bg-[#f2f2f2]">
                 {item.image_path ? (
                     <img
                         src={storageUrl(item.image_path)!}
                         alt={item.title}
-                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                        className="
+                            h-full
+                            w-full
+                            object-cover
+                            transition-transform
+                            duration-500
+                            ease-out
+                            group-hover:scale-[1.035]
+                        "
                     />
                 ) : (
-                    <div className="flex h-full items-center justify-center text-muted-foreground">
-                        <ShoppingBag className="h-8 w-8" />
+                    <div className="flex h-full items-center justify-center text-[#8a8a8a]">
+                        <ShoppingBag className="h-9 w-9" />
                     </div>
                 )}
-                <div className="absolute left-3 top-3 flex gap-2">
-                    {rank <= 3 && (
-                        <span className="rounded-full bg-background px-3 py-1 text-xs font-semibold text-orange-500 shadow-sm">
-                            Popular
+
+                <div className="absolute left-4 top-3 z-10 flex items-center gap-2">
+                    <SourceBadge source={item.source} label={item.source_label} />
+                    {isPopular && (
+                        <span
+                            className="
+                                inline-flex
+                                h-9
+                                items-center
+                                rounded-full
+                                bg-white
+                                px-3.5
+                                text-[13px]
+                                font-medium
+                                text-[#ff8a00]
+                                shadow-[0_2px_8px_rgba(0,0,0,0.08)]
+                            "
+                        >
+                            Popular&nbsp;🔥
                         </span>
                     )}
-                    {isNewItem(item) && (
-                        <span className="rounded-full bg-pink-500 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+
+                    {isNew && (
+                        <span
+                            className="
+                                inline-flex
+                                h-9
+                                items-center
+                                rounded-full
+                                bg-[#ff4f79]
+                                px-5
+                                text-[18px]
+                                font-medium
+                                text-white
+                                shadow-[0_2px_8px_rgba(0,0,0,0.08)]
+                            "
+                        >
                             New
                         </span>
                     )}
                 </div>
-                <span className="absolute right-3 top-0 bg-red-500 px-3 py-4 text-lg font-bold text-white [clip-path:polygon(0_0,100%_0,100%_100%,50%_82%,0_100%)]">
+
+                <span
+                    className="
+                        absolute
+                        right-7
+                        top-0
+                        z-10
+                        flex
+                        h-[54px]
+                        min-w-10
+                        items-start
+                        justify-center
+                        bg-[#ff1010]
+                        px-2
+                        pt-1
+                        text-[18px]
+                        font-semibold
+                        leading-8
+                        text-white
+                        [clip-path:polygon(0_0,100%_0,100%_100%,50%_82%,0_100%)]
+                    "
+                    aria-label={`Rank ${rank}`}
+                >
                     {rank}
                 </span>
             </div>
 
-            <div className="mt-4 flex items-center gap-3">
-                <ArtistAvatar item={item} />
-                <div className="min-w-0">
-                    <p className="truncate text-base font-semibold text-orange-500">
-                        {item.artist?.name ?? 'Creator'}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                        @{item.artist?.username ?? 'artist'}
-                    </p>
+            <div className="px-0.5 pb-5 pt-3">
+                <div className="flex min-w-0 items-center gap-3">
+                    <ArtistAvatar item={item} className="h-[52px] w-[52px] text-xl" />
+
+                    <div className="flex min-w-0 flex-1 items-center gap-1">
+                        <p className="truncate text-[17px] font-medium text-[#ff8500]">
+                            {item.artist?.name ?? 'Creator'}
+                        </p>
+
+                        {artistBadges.map((badge, index) => (
+                            <span
+                                key={`${badge}-${index}`}
+                                className="shrink-0 text-[17px] leading-none"
+                                aria-hidden="true"
+                            >
+                                {badge}
+                            </span>
+                        ))}
+                    </div>
                 </div>
-            </div>
-            <h3 className="mt-3 line-clamp-2 min-h-[2.75rem] text-base font-semibold text-muted-foreground">
-                {item.title}
-            </h3>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                <span className="font-semibold text-foreground">
-                    {item.download_policy === 'free' ? 'Free' : `${item.credit_cost} credits`}
-                </span>
-                <span className="text-muted-foreground">{item.downloads_count} sold</span>
-                <span className="inline-flex items-center gap-1 text-muted-foreground">
-                    <Star className="h-4 w-4 fill-orange-400 text-orange-400" />
-                    5.0
-                </span>
+
+                <h3 className="mt-3 truncate text-[16px] font-medium text-[#7a7a7a]">
+                    {item.title}
+                </h3>
+
+                <div className="mt-2.5 flex min-w-0 items-center gap-2 whitespace-nowrap text-[15px]">
+                    <span className="shrink-0 font-semibold text-[#111111]">{price}</span>
+
+                    <span className="min-w-0 truncate text-[#858585]">
+                        {soldCount.toLocaleString()} sold
+                    </span>
+
+                    <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[#747474]">
+                        <Star className="h-[21px] w-[21px] fill-[#ff9000] text-[#ff9000]" />
+                        {rating}
+                    </span>
+                </div>
             </div>
         </button>
     )
@@ -286,7 +427,10 @@ function ShopProductModal({
             }
 
             const response = await publicApi.downloadShopItem(item.id)
-            saveDownloadBlob(response.data, responseFileName(response, `${slugify(item.title)}.zip`))
+            saveDownloadBlob(
+                response.data,
+                responseFileName(response, `${slugify(item.title)}.zip`)
+            )
         } catch (error: any) {
             toast.error(error?.response?.data?.message ?? 'Could not download this product.')
         }
@@ -328,7 +472,12 @@ function ShopProductModal({
                                     </p>
                                 </div>
                             </div>
-                            <Button type="button" size="icon-sm" variant="ghost" onClick={() => onOpenChange(false)}>
+                            <Button
+                                type="button"
+                                size="icon-sm"
+                                variant="ghost"
+                                onClick={() => onOpenChange(false)}
+                            >
                                 <X className="h-4 w-4" />
                             </Button>
                         </div>
@@ -336,7 +485,9 @@ function ShopProductModal({
                         <h2 className="text-2xl font-bold tracking-tight">{item.title}</h2>
                         <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
                             <span className="font-semibold text-blue-500">{price}</span>
-                            <span className="text-muted-foreground">{item.downloads_count} sold</span>
+                            <span className="text-muted-foreground">
+                                {item.downloads_count} sold
+                            </span>
                             <span className="inline-flex items-center gap-1">
                                 <Star className="h-4 w-4 fill-orange-400 text-orange-400" />
                                 5.0
@@ -349,13 +500,14 @@ function ShopProductModal({
 
                         {item.labels.length > 0 && (
                             <div className="mt-4 flex flex-wrap gap-2">
-                                {item.labels.map((label) => (
-                                    <Badge key={label} variant="secondary" className="rounded-full">
-                                        #{label}
-                                    </Badge>
-                                ))}
-                            </div>
-                        )}
+                        {item.labels.map((label) => (
+                            <Badge key={label} variant="secondary" className="rounded-full">
+                                #{label}
+                            </Badge>
+                        ))}
+                        <SourceBadge source={item.source} label={item.source_label} />
+                    </div>
+                )}
 
                         <div className="mt-5">
                             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -396,7 +548,11 @@ function ShopProductModal({
                                       ? 'Download'
                                       : 'Buy & Download'}
                             </Button>
-                            <Button type="button" variant="outline" onClick={() => shareShopItem(item)}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => shareShopItem(item)}
+                            >
                                 Share
                             </Button>
                         </div>
@@ -409,7 +565,8 @@ function ShopProductModal({
                                 </span>
                             </div>
                             <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                                Product comments will use the same comment design system after the shop checkout flow is connected.
+                                Product comments will use the same comment design system after the
+                                shop checkout flow is connected.
                             </div>
                         </div>
                     </aside>
@@ -419,13 +576,143 @@ function ShopProductModal({
     )
 }
 
-function ArtistAvatar({ item }: { item: ShopDownload }) {
+function ShopCategoryRail({
+    categories,
+    active,
+    onChange,
+}: {
+    categories: string[]
+    active: string
+    onChange: (value: string) => void
+}) {
+    if (categories.length === 0) return null
+
+    return (
+        <div className="mb-5 overflow-hidden rounded-2xl border bg-background/95 shadow-sm">
+            <div className="flex gap-2 overflow-x-auto px-4 py-3">
+                <ShopCategoryButton active={active === 'all'} onClick={() => onChange('all')}>
+                    All category
+                </ShopCategoryButton>
+                {categories.map((category) => (
+                    <ShopCategoryButton
+                        key={category}
+                        active={active === category}
+                        onClick={() => onChange(category)}
+                    >
+                        {category}
+                    </ShopCategoryButton>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+function ShopCategoryButton({
+    active,
+    children,
+    onClick,
+}: {
+    active: boolean
+    children: string
+    onClick: () => void
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`shrink-0 rounded-full px-5 py-2 text-sm font-medium transition ${
+                active ? 'bg-background text-foreground shadow' : 'text-foreground hover:bg-muted'
+            }`}
+        >
+            {children}
+        </button>
+    )
+}
+
+function SourceBadge({
+    source,
+    label,
+    className = '',
+}: {
+    source?: 'admin' | 'artist'
+    label?: string
+    className?: string
+}) {
+    const byAdmin = source === 'admin'
+
+    return (
+        <span
+            className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                byAdmin
+                    ? 'bg-sky-500 text-white'
+                    : 'bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300'
+            } ${className}`}
+        >
+            {label ?? (byAdmin ? 'By Admin' : 'By Artist')}
+        </span>
+    )
+}
+
+function shopCategories(items: ShopDownload[]) {
+    const categories = new Set<string>()
+    items.forEach((item) => {
+        item.labels.forEach((label) => categories.add(label))
+        if (item.source_label) categories.add(item.source_label)
+    })
+
+    return Array.from(categories).sort((a, b) => a.localeCompare(b))
+}
+
+function stickerShopCategories(items: ShopSticker[]) {
+    const categories = new Set<string>()
+    items.forEach((item) => {
+        if (item.source_label) categories.add(item.source_label)
+        if (item.bundle_name) categories.add(item.bundle_name)
+        Object.entries(item.usage).forEach(([key, value]) => {
+            if (value) categories.add(key.charAt(0).toUpperCase() + key.slice(1))
+        })
+    })
+
+    return Array.from(categories).sort((a, b) => a.localeCompare(b))
+}
+
+function filterShopDownloads(items: ShopDownload[], category: string) {
+    if (category === 'all') return items
+
+    return items.filter(
+        (item) => item.labels.includes(category) || item.source_label === category
+    )
+}
+
+function filterShopStickers(items: ShopSticker[], category: string) {
+    if (category === 'all') return items
+
+    return items.filter((item) => {
+        if (item.source_label === category || item.bundle_name === category) return true
+        const usageKey = category.toLowerCase() as keyof ShopSticker['usage']
+        return Boolean(item.usage[usageKey])
+    })
+}
+
+function ArtistAvatar({
+    item,
+    className = 'h-12 w-12 text-lg',
+}: {
+    item: ShopDownload
+    className?: string
+}) {
     const avatar = item.artist?.avatar
 
     return (
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black text-lg font-semibold text-white">
+        <div
+            className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-black font-medium text-white ${className}`}
+        >
             {avatar ? (
-                <img src={storageUrl(avatar)!} alt={item.artist?.name ?? 'Artist'} className="h-full w-full object-cover" />
+                <img
+                    src={storageUrl(avatar)!}
+                    alt={item.artist?.name ?? 'Artist'}
+                    className="h-full w-full object-cover"
+                />
             ) : (
                 (item.artist?.name ?? 'A').charAt(0).toUpperCase()
             )}
@@ -470,6 +757,29 @@ function ShopSection({
             )}
         </section>
     )
+}
+
+function shopProductPrice(item: ShopDownload) {
+    if (item.download_policy === 'free') return 'Free'
+
+    if (typeof item.price === 'number') {
+        const currency = item.currency?.toUpperCase() ?? 'PHP'
+
+        if (currency === 'PHP') {
+            return `₱${item.price.toLocaleString('en-PH', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            })}+`
+        }
+
+        return `${item.price.toLocaleString()} ${currency}`
+    }
+
+    if (typeof item.price === 'string' && item.price.trim()) {
+        return item.price.trim()
+    }
+
+    return `${item.credit_cost.toLocaleString()} credits`
 }
 
 function isNewItem(item: ShopDownload) {

@@ -26,6 +26,7 @@ interface SuperLikeButtonProps {
     size?: 'sm' | 'default'
     ownerUserId?: string | null
     className?: string
+    showCount?: boolean
 }
 
 export default function SuperLikeButton({
@@ -36,6 +37,7 @@ export default function SuperLikeButton({
     size = 'sm',
     ownerUserId,
     className,
+    showCount = true,
 }: SuperLikeButtonProps) {
     const [count, setCount] = useState(initialCount)
     const [confirmOpen, setConfirmOpen] = useState(false)
@@ -53,7 +55,8 @@ export default function SuperLikeButton({
     const selectedAward = awards.find((award) => award.id === selectedAwardId) ?? awards[0] ?? null
 
     const mutation = useMutation({
-        mutationFn: () => commentsApi.superLike(targetType, targetId, selectedAward?.id).then((res) => res.data),
+        mutationFn: () =>
+            commentsApi.superLike(targetType, targetId, selectedAward?.id).then((res) => res.data),
         onSuccess: (result) => {
             setCount(result.super_likes_count)
             queryClient.invalidateQueries({ queryKey: ['wallet'] })
@@ -93,7 +96,9 @@ export default function SuperLikeButton({
             >
                 <Sparkles className="h-4 w-4 text-amber-500" />
                 {label ? <span>{label}</span> : null}
-                <span className="text-xs text-muted-foreground">{count.toLocaleString()}</span>
+                {showCount && (
+                    <span className="text-xs text-muted-foreground">{count.toLocaleString()}</span>
+                )}
             </Button>
 
             <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>

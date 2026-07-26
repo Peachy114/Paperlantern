@@ -153,7 +153,7 @@ export default function GroupHeroWidget({
         (sources.includes('arts') && artsQuery.isLoading) ||
         (sources.includes('commission') && commissionsQuery.isLoading)
 
-    if (isLoading && items.length === 0) {
+    if (isLoading) {
         return design === 'popular_arts' ? <MosaicSkeleton /> : <CardGridSkeleton />
     }
 

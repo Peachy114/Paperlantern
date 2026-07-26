@@ -1,12 +1,14 @@
-// features/studio/components/work-view/WorkView.tsx
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { Bookmark, BookOpen, Eye, Heart, MessageCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStudioDashboard } from '@/features/studio/hooks/useStudioDashboard'
 import CardStickyNotes from '@/features/studio/pages/CardStickyNotes'
 import News from '@/features/announcements/components/News'
+import WorkspaceBannerPicker from '@/features/announcements/components/WorkspaceBannerPicker'
 import BoostModal from '@/features/boosts/components/BoostModal'
-
+import CreatorWorkspaceShell from '@/features/studio/components/workspace/CreatorWorkspaceShell'
+import { storageUrl } from '@/utils/storage'
 import {
     AlertDialog,
     AlertDialogAction,
@@ -17,7 +19,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
 import Charts from '../../components/Index/Charts'
 import WorkViewTable from './WorkViewTable'
 import WorkViewHeader from './WorkViewHeader'
@@ -40,16 +41,53 @@ export default function WorkView() {
     const [boostWork, setBoostWork] = useState<(typeof works)[number] | null>(null)
     const [deleting, setDeleting] = useState(false)
     const [selectedWorks, setSelectedWorks] = useState<string[]>([])
+    const [workspaceBannerImage, setWorkspaceBannerImage] = useState<string | null>(null)
 
-    const totalChapters = works.reduce((s, w) => s + w.chapters_count, 0)
-    const totalViews = works.reduce((s, w) => s + w.views, 0)
-    const pendingWork = works.find((w) => w.slug === pendingDeleteId) ?? null
+    const totalViews = works.reduce((sum, work) => sum + Number(work.views ?? 0), 0)
+    const totalLikes = works.reduce((sum, work) => sum + Number(work.likes ?? 0), 0)
+    const totalFavorites = works.reduce(
+        (sum, work) => sum + Number(work.favorites_count ?? work.favorites ?? 0),
+        0
+    )
+    const totalComments = works.reduce(
+        (sum, work) => sum + Number(work.comments_count ?? work.comments ?? 0),
+        0
+    )
+    const pendingWork = works.find((work) => work.slug === pendingDeleteId) ?? null
+    const featuredWork = works.find((work) => work.cover) ?? works[0] ?? null
+    const bannerImage = storageUrl(featuredWork?.cover ?? null)
+    const activeBannerImage = workspaceBannerImage ?? bannerImage
+
+    const dashboardStats = [
+        {
+            label: 'Work',
+            value: works.length,
+            icon: BookOpen,
+            color: 'text-slate-700',
+        },
+        { label: 'Views', value: totalViews, icon: Eye, color: 'text-slate-700' },
+        { label: 'Likes', value: totalLikes, icon: Heart, color: 'text-rose-500' },
+        {
+            label: 'Favorite',
+            value: totalFavorites,
+            icon: Bookmark,
+            color: 'text-sky-400',
+        },
+        {
+            label: 'Comments',
+            value: totalComments,
+            icon: MessageCircle,
+            color: 'text-amber-400',
+        },
+    ]
 
     const confirmDelete = async () => {
         if (!pendingDeleteId) return
+
         setDeleting(true)
         try {
             await handleDelete(pendingDeleteId)
+            setSelectedWorks((current) => current.filter((slug) => slug !== pendingDeleteId))
             toast.success('Work deleted.')
         } catch {
             toast.error('Failed to delete work.')
@@ -75,7 +113,9 @@ export default function WorkView() {
             for (const slug of selectedWorks) {
                 await handleDelete(slug)
             }
-            toast.success(`${selectedWorks.length} work${selectedWorks.length === 1 ? '' : 's'} deleted.`)
+            toast.success(
+                `${selectedWorks.length} work${selectedWorks.length === 1 ? '' : 's'} deleted.`
+            )
             setSelectedWorks([])
         } catch {
             toast.error('Failed to delete selected works.')
@@ -85,90 +125,130 @@ export default function WorkView() {
     }
 
     return (
-        <div className="p-5 lg:dark:bg-white/4 lg:bg-muted/30 lg:border border-b-zinc-900 rounded-3xl">
-            <News audience="studio" />
-            <WorkViewHeader onNew={() => setShowTypeSelect(true)} onNavigate={navigate} />
+        <CreatorWorkspaceShell
+            layout="dashboard"
+            title="My Studio"
+            description=""
+            action={<WorkViewHeader onNew={() => setShowTypeSelect(true)} onNavigate={navigate} />}
+        >
+            <section className="overflow-hidden rounded-[28px] border border-sky-100 bg-gradient-to-br from-sky-50/80 via-white to-orange-50/60 p-2.5 shadow-sm sm:p-3">
+                <div className="grid gap-3 lg:grid-cols-[250px_minmax(0,1fr)]">
+                    <News audience="studio" variant="dashboard" />
 
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-4 mb-8">
-                {[
-                    { val: works.length, lbl: 'Works' },
-                    { val: totalChapters, lbl: 'Chapters' },
-                    { val: totalViews.toLocaleString(), lbl: 'Views' },
-                ].map(({ val, lbl }) => (
-                    <div key={lbl} className="border rounded-lg p-4">
-                        <div className="text-2xl font-bold">{val}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{lbl}</div>
-                    </div>
-                ))}
-            </div>
+                    <div className="rounded-2xl border border-slate-200 bg-background p-4 shadow-sm">
+                        <Charts />
 
-            {/* CHARTS AND STICKY NOTES */}
-            <div className="flex flex-col lg:flex-row w-full items-stretch gap-4 mb-10">
-                <div className="flex-1 min-w-0">
-                    <Charts />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <CardStickyNotes />
-                </div>
-            </div>
-
-            {/* Works list */}
-            <div className="border rounded-lg overflow-hidden">
-                <div className="px-4 py-2.5 border-b bg-muted/30 flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Works
-                    </span>
-                    {works.length > 0 ? (
-                        <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
-                            <span className="text-muted-foreground">
-                                {selectedWorks.length} selected
-                            </span>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setSelectedWorks(works.map((work) => work.slug))}
-                                disabled={deleting || selectedWorks.length === works.length}
-                            >
-                                Select all
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setSelectedWorks([])}
-                                disabled={deleting || selectedWorks.length === 0}
-                            >
-                                Unselect
-                            </Button>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="destructive"
-                                onClick={deleteSelectedWorks}
-                                disabled={deleting || selectedWorks.length === 0}
-                            >
-                                Delete selected
-                            </Button>
+                        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                            {dashboardStats.map(({ label, value, icon: Icon, color }) => (
+                                <div
+                                    key={label}
+                                    className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
+                                >
+                                    <div className={`flex items-center gap-1.5 ${color}`}>
+                                        <Icon className="h-3.5 w-3.5" />
+                                        <span className="text-[9px] font-bold">{label}</span>
+                                    </div>
+                                    <p className="mt-2 text-lg font-black leading-none text-slate-900">
+                                        {value.toLocaleString()}
+                                    </p>
+                                </div>
+                            ))}
                         </div>
-                    ) : (
-                        <span className="text-xs text-muted-foreground">{works.length} total</span>
-                    )}
+                    </div>
+                </div>
+            </section>
+
+            <section
+                className="relative mt-5 h-36 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-200 via-rose-100 to-sky-200 sm:h-48"
+                aria-label="Featured creator banner"
+            >
+                <div className="absolute right-3 top-3 z-20">
+                    <WorkspaceBannerPicker
+                        audience="studio"
+                        storageKey="workspace-banner-my-studio"
+                        fallbackImage={bannerImage}
+                        onImageChange={setWorkspaceBannerImage}
+                    />
+                </div>
+                {activeBannerImage ? (
+                    <img
+                        src={activeBannerImage}
+                        alt=""
+                        className="absolute inset-0 h-full w-full scale-110 object-cover blur-[1px]"
+                    />
+                ) : null}
+                <div className="absolute inset-0 bg-gradient-to-r from-orange-400/35 via-white/10 to-sky-500/30" />
+                <div className="absolute -left-10 top-1/2 -translate-y-1/2 -rotate-6">
+                    <p className="whitespace-nowrap text-5xl font-black italic tracking-tighter text-white/90 drop-shadow sm:text-7xl">
+                        the extraordinary
+                    </p>
+                </div>
+                {featuredWork ? (
+                    <div className="absolute bottom-3 right-4 max-w-[45%] rounded-full bg-black/45 px-4 py-2 text-right text-[10px] font-bold text-white backdrop-blur">
+                        {featuredWork.title}
+                    </div>
+                ) : null}
+            </section>
+
+            <section className="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
+                <div className="min-w-0">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <h2 className="text-xs font-black uppercase tracking-[0.12em]">My Works</h2>
+
+                        {works.length > 0 ? (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                {selectedWorks.length > 0 ? (
+                                    <span className="mr-1 text-[10px] text-muted-foreground">
+                                        {selectedWorks.length} selected
+                                    </span>
+                                ) : null}
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedWorks(works.map((work) => work.slug))}
+                                    disabled={deleting || selectedWorks.length === works.length}
+                                    className="rounded-full border px-3 py-1 text-[9px] font-bold transition hover:bg-muted disabled:opacity-40"
+                                >
+                                    Select all
+                                </button>
+                                {selectedWorks.length > 0 ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedWorks([])}
+                                            disabled={deleting}
+                                            className="rounded-full border px-3 py-1 text-[9px] font-bold transition hover:bg-muted disabled:opacity-40"
+                                        >
+                                            Clear
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={deleteSelectedWorks}
+                                            disabled={deleting}
+                                            className="rounded-full bg-rose-500 px-3 py-1 text-[9px] font-bold text-white transition hover:bg-rose-600 disabled:opacity-40"
+                                        >
+                                            Delete selected
+                                        </button>
+                                    </>
+                                ) : null}
+                            </div>
+                        ) : null}
+                    </div>
+
+                    <WorkViewTable
+                        works={works}
+                        selectedSlugs={selectedWorks}
+                        onSelectWork={toggleSelectedWork}
+                        onNavigate={navigate}
+                        onDeleteRequest={setPendingDeleteId}
+                        onBoostRequest={setBoostWork}
+                        onCreateFirst={() => setShowTypeSelect(true)}
+                    />
                 </div>
 
-                <WorkViewTable
-                    works={works}
-                    selectedSlugs={selectedWorks}
-                    onSelectWork={toggleSelectedWork}
-                    onNavigate={navigate}
-                    onDeleteRequest={setPendingDeleteId}
-                    onBoostRequest={setBoostWork}
-                    onCreateFirst={() => setShowTypeSelect(true)}
-                />
-            </div>
+                <CardStickyNotes />
+            </section>
 
-            {boostWork && (
+            {boostWork ? (
                 <BoostModal
                     open={boostWork !== null}
                     onOpenChange={(open) => {
@@ -178,14 +258,11 @@ export default function WorkView() {
                     targetType="work"
                     targetId={boostWork.id}
                     title={boostWork.title}
-                    placement={
-                        boostWork.type === 'wattpad' ? 'Novel Explore' : 'Webtoon Explore'
-                    }
+                    placement={boostWork.type === 'wattpad' ? 'Novel Explore' : 'Webtoon Explore'}
                     onBoosted={() => queryClient.invalidateQueries({ queryKey: ['studio-works'] })}
                 />
-            )}
+            ) : null}
 
-            {/* New Work Modal */}
             <WorkTypeSelectModal
                 open={showTypeSelect}
                 selectedType={selectedType}
@@ -194,7 +271,6 @@ export default function WorkView() {
                 onConfirm={handleConfirmType}
             />
 
-            {/* Delete Confirmation */}
             <AlertDialog
                 open={pendingDeleteId !== null}
                 onOpenChange={(open) => {
@@ -222,6 +298,6 @@ export default function WorkView() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </CreatorWorkspaceShell>
     )
 }

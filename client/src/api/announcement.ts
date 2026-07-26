@@ -6,7 +6,11 @@ export interface Announcement {
     title: string
     content: string
     tag: 'event' | 'update' | 'reminder'
-    audience: 'public' | 'studio'
+    is_event?: boolean
+    audience: 'public' | 'artist' | 'studio'
+    page_targets?: string[] | null
+    placement?: 'banner' | 'hero' | 'both'
+    is_public?: boolean
     image: string | null
     is_pinned: boolean
     is_featured?: boolean
@@ -24,7 +28,11 @@ export interface AnnouncementPayload {
     title: string
     content: string
     tag: 'event' | 'update' | 'reminder'
-    audience: 'public' | 'studio'
+    is_event?: boolean
+    audience: 'public' | 'artist' | 'studio'
+    page_targets?: string[]
+    placement?: 'banner' | 'hero' | 'both'
+    is_public?: boolean
     image?: File | null
     is_pinned?: boolean
     rotation_seconds?: number | null
@@ -39,8 +47,12 @@ export const announcementApi = {
         form.append('title', payload.title)
         form.append('content', payload.content)
         form.append('tag', payload.tag)
+        form.append('is_event', payload.is_event ? '1' : '0')
         form.append('audience', payload.audience)
         form.append('is_pinned', payload.is_pinned ? '1' : '0')
+        form.append('is_public', payload.is_public === false ? '0' : '1')
+        form.append('placement', payload.placement ?? 'banner')
+        ;(payload.page_targets ?? []).forEach((page) => form.append('page_targets[]', page))
         if (payload.rotation_seconds !== undefined && payload.rotation_seconds !== null) {
             form.append('rotation_seconds', String(payload.rotation_seconds))
         }
@@ -55,8 +67,14 @@ export const announcementApi = {
         if (payload.title) form.append('title', payload.title)
         if (payload.content) form.append('content', payload.content)
         if (payload.tag) form.append('tag', payload.tag)
+        if (payload.is_event !== undefined) form.append('is_event', payload.is_event ? '1' : '0')
         if (payload.audience) form.append('audience', payload.audience)
         if (payload.is_pinned !== undefined) form.append('is_pinned', payload.is_pinned ? '1' : '0')
+        if (payload.is_public !== undefined) form.append('is_public', payload.is_public ? '1' : '0')
+        if (payload.placement) form.append('placement', payload.placement)
+        if (payload.page_targets) {
+            payload.page_targets.forEach((page) => form.append('page_targets[]', page))
+        }
         if (payload.rotation_seconds !== undefined && payload.rotation_seconds !== null) {
             form.append('rotation_seconds', String(payload.rotation_seconds))
         }

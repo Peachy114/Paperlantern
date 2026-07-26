@@ -1,11 +1,11 @@
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useState, useRef, useEffect } from 'react'
+import { Search } from 'lucide-react'
 import api from '@/api/axios'
 import { Button } from '@/components/ui/button'
-import { Search } from 'lucide-react'
 import SearchInput from './SearchInput'
-import SearchResults from './SearchResults'
 import SearchRecent from './SearchRecent'
+import SearchResults from './SearchResults'
 
 export interface SearchResult {
     id: string
@@ -40,8 +40,8 @@ function normalizeSearchResults(data: SearchResult[] | SearchResultsPayload): Se
         return {
             webcomics: data.filter((item) => item.type === 'webtoon'),
             novels: data.filter((item) => item.type === 'wattpad'),
-            arts: [],
-            artists: [],
+            arts: data.filter((item) => item.type === 'art_label'),
+            artists: data.filter((item) => item.type === 'artist'),
         }
     }
 
@@ -55,14 +55,11 @@ function normalizeSearchResults(data: SearchResult[] | SearchResultsPayload): Se
 
 export default function SearchBarView() {
     const navigate = useNavigate()
-
     const [query, setQuery] = useState('')
     const [results, setResults] = useState<SearchResultsPayload>(emptyResults)
     const [open, setOpen] = useState(false)
     const [searching, setSearching] = useState(false)
-    const [, setSearchFocused] = useState(false)
     const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
-
     const searchRef = useRef<HTMLDivElement>(null)
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const resultCount =
@@ -76,10 +73,11 @@ export default function SearchBarView() {
         }
     })
 
-    const addToRecent = (val: string) => {
-        const trimmed = val.trim()
+    const addToRecent = (value: string) => {
+        const trimmed = value.trim()
         if (!trimmed) return
-        const updated = [trimmed, ...recentSearches.filter((s) => s !== trimmed)].slice(0, 5)
+
+        const updated = [trimmed, ...recentSearches.filter((item) => item !== trimmed)].slice(0, 5)
         setRecentSearches(updated)
         localStorage.setItem('recentSearches', JSON.stringify(updated))
     }
@@ -96,30 +94,39 @@ export default function SearchBarView() {
     }
 
     useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
-            if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
                 setOpen(false)
-                setSearchFocused(false)
                 setMobileSearchOpen(false)
             }
         }
+
         document.addEventListener('mousedown', handleClickOutside)
+
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [])
 
-    const handleSearch = (val: string) => {
-        setQuery(val)
-        if (timerRef.current) clearTimeout(timerRef.current)
-        if (val.length < 2) {
+    const handleSearch = (value: string) => {
+        setQuery(value)
+
+        if (timerRef.current) {
+            clearTimeout(timerRef.current)
+        }
+
+        if (value.trim().length < 2) {
             setResults(emptyResults)
             setOpen(false)
             return
         }
+
         setSearching(true)
         timerRef.current = setTimeout(async () => {
             try {
-                const res = await api.get(`/public/search?q=${encodeURIComponent(val)}`)
-                setResults(normalizeSearchResults(res.data))
+                const response = await api.get(`/public/search?q=${encodeURIComponent(value)}`)
+                setResults(normalizeSearchResults(response.data))
+                setOpen(true)
+            } catch {
+                setResults(emptyResults)
                 setOpen(true)
             } finally {
                 setSearching(false)
@@ -142,7 +149,6 @@ export default function SearchBarView() {
 
     return (
         <div ref={searchRef} className="relative ml-2">
-            {/* Mobile */}
             <div className="md:hidden">
                 <Button
                     variant="ghost"
@@ -150,11 +156,11 @@ export default function SearchBarView() {
                     onClick={() => setMobileSearchOpen(true)}
                     aria-label="Open search"
                 >
-                    <Search className="w-5 h-5" />
+                    <Search className="h-5 w-5" />
                 </Button>
 
                 {mobileSearchOpen && (
-                    <div className="fixed inset-0 z-50 bg-background flex flex-col p-4 gap-4">
+                    <div className="fixed inset-0 z-50 flex flex-col gap-4 bg-background p-4">
                         <SearchInput
                             query={query}
                             onSearch={handleSearch}
@@ -167,20 +173,19 @@ export default function SearchBarView() {
                         />
 
                         <div className="flex-1 overflow-y-auto">
-                            {query.length < 2 && (
+                            {query.length < 2 ? (
                                 <SearchRecent
                                     recentSearches={recentSearches}
                                     onSelect={handleSearch}
                                     onClear={clearRecent}
                                 />
-                            )}
-                            {query.length >= 2 && (
+                            ) : (
                                 <SearchResults
                                     results={results}
                                     searching={searching}
                                     query={query}
-                                    onSelect={(work) =>
-                                        handleSelect(work, () => setMobileSearchOpen(false))
+                                    onSelect={(item) =>
+                                        handleSelect(item, () => setMobileSearchOpen(false))
                                     }
                                     onSeeAll={() =>
                                         handleSeeAll(() => setMobileSearchOpen(false))
@@ -192,26 +197,23 @@ export default function SearchBarView() {
                 )}
             </div>
 
-            {/* Desktop */}
-            <div className="hidden md:block relative w-[280px]">
+            <div className="relative hidden w-[280px] md:block">
                 <SearchInput
                     query={query}
                     onSearch={handleSearch}
                     onReset={resetSearch}
                     onFocus={() => {
-                        setSearchFocused(true)
                         if (resultCount > 0) setOpen(true)
                     }}
-                    onBlur={() => setSearchFocused(false)}
                 />
 
                 {open && (
-                    <div className="absolute top-full mt-1 left-0 w-full z-50 bg-background border rounded-md shadow-md p-2">
+                    <div className="absolute left-0 top-full z-50 mt-1 w-full rounded-md border bg-background p-2 shadow-md">
                         <SearchResults
                             results={results}
                             searching={searching}
                             query={query}
-                            onSelect={(work) => handleSelect(work, () => setOpen(false))}
+                            onSelect={(item) => handleSelect(item, () => setOpen(false))}
                             onSeeAll={() => handleSeeAll(() => setOpen(false))}
                         />
                     </div>

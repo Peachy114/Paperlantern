@@ -1,4 +1,12 @@
-export type PageKey = 'home' | 'comix' | 'arts' | 'commissions' | 'daily' | 'rankings' | 'genre'
+export type PageKey =
+    | 'home'
+    | 'comix'
+    | 'arts'
+    | 'commissions'
+    | 'shop'
+    | 'daily'
+    | 'rankings'
+    | 'genre'
 
 export type PageBoardItemType = 'sticker' | 'image' | 'text'
 
@@ -25,11 +33,13 @@ export interface PageWidgetSettings {
     font_url?: string
     grid?: 'standard' | 'masonry' | 'bento' | 'magazine' | 'gallery' | 'carousel'
     filter?: 'all' | 'webtoon' | 'novel' | 'art'
-    label_filter_source?: 'none' | 'genre' | 'status' | 'label' | 'commission_type'
+    label_filter_source?: 'none' | 'genre' | 'status' | 'label' | 'artist' | 'source' | 'commission_type'
     label_filter_values?: string[]
-    badge_filter_source?: 'none' | 'genre' | 'status' | 'label' | 'commission_type'
+    badge_filter_source?: 'none' | 'genre' | 'status' | 'label' | 'artist' | 'source' | 'commission_type'
     badge_filter_value?: string
-    filter_cards_data?: 'mixed' | 'comix' | 'novels' | 'arts' | 'commissions'
+    filter_cards_data?: 'mixed' | 'comix' | 'novels' | 'arts' | 'shop' | 'commissions' | 'announcements'
+    labels_display?: 'labels' | 'menu_label' | 'labels_cards'
+    sort_order?: Array<'featured' | 'latest' | 'popular' | 'views' | 'likes' | 'new'>
     card_show_new?: boolean
     card_show_popular?: boolean
     card_show_rating?: boolean
@@ -38,9 +48,19 @@ export interface PageWidgetSettings {
     card_show_sold?: boolean
     card_show_views?: boolean
     card_show_likes?: boolean
+    card_show_status?: boolean
+    card_show_genres?: boolean
+    card_show_type?: boolean
     card_show_rank?: boolean
     card_show_labels?: boolean
     card_show_price?: boolean
+    daily_date?: string
+    continue_from_previous?: boolean
+    show_continuation_badge?: boolean
+    label_background_color?: string
+    label_text_color?: string
+    label_active_background_color?: string
+    label_active_text_color?: string
     layout?: 'horizontal' | 'vertical' | 'compact' | 'row' | 'column'
     align?: 'auto' | 'start' | 'center' | 'end' | 'stretch' | 'justify'
     display?: 'block' | 'inline'
@@ -82,6 +102,7 @@ export interface PageWidgetSettings {
     tabs_show_novels?: boolean
     tabs_show_arts?: boolean
     tabs_show_commissions?: boolean
+    tabs_show_shop?: boolean
     selected_board_item_id?: string
     board_items?: PageBoardItem[]
 }

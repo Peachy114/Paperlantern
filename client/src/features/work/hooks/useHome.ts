@@ -24,6 +24,7 @@ export interface WorkItem {
     created_at?: string
     status?: 'draft' | 'ongoing' | 'completed' | 'hiatus' | 'published'
     is_featured?: boolean
+    boosted_until?: string | null
 }
 
 export interface ChapterItem {
