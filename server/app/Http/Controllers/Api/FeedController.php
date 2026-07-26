@@ -7,6 +7,7 @@ use App\Models\Art;
 use App\Models\ArtistSticker;
 use App\Models\CommissionService;
 use App\Models\FeedPost;
+use App\Models\FeedPostAttachment;
 use App\Models\FeedPostLike;
 use App\Models\Ticket;
 use App\Models\User;
@@ -58,6 +59,10 @@ class FeedController extends Controller
             'comments_enabled' => ['sometimes', 'boolean'],
             'attached_work_id' => ['nullable', 'string', 'exists:works,id'],
             'attached_art_id' => ['nullable', 'string', 'exists:arts,id'],
+            'attached_work_ids' => ['nullable', 'array', 'max:3'],
+            'attached_work_ids.*' => ['string', 'exists:works,id'],
+            'attached_art_ids' => ['nullable', 'array', 'max:3'],
+            'attached_art_ids.*' => ['string', 'exists:arts,id'],
             'attached_commission_service_id' => ['nullable', 'string', 'exists:commission_services,id'],
             'sticker_id' => ['nullable', 'string', 'exists:artist_stickers,id'],
             'images' => ['nullable', 'array', 'max:10'],
@@ -65,6 +70,7 @@ class FeedController extends Controller
         ]);
 
         $this->authorizeAttachment($request->user(), $validated);
+        $this->validateMediaCombination($request, $validated);
 
         if (
             trim((string) ($validated['body'] ?? '')) === ''
@@ -72,6 +78,8 @@ class FeedController extends Controller
             && empty($validated['sticker_id'])
             && empty($validated['attached_work_id'])
             && empty($validated['attached_art_id'])
+            && empty($validated['attached_work_ids'])
+            && empty($validated['attached_art_ids'])
             && empty($validated['attached_commission_service_id'])
         ) {
             return response()->json([
@@ -98,7 +106,37 @@ class FeedController extends Controller
             ]);
         }
 
+        $this->syncAttachments($post, $validated);
+
         return response()->json(self::format($post->fresh()->load($this->relations())), 201);
+    }
+
+    public function update(Request $request, FeedPost $post): JsonResponse
+    {
+        $this->authorizeFeedOwner($request->user(), $post);
+
+        $validated = $request->validate([
+            'body' => ['nullable', 'string', 'max:1000'],
+            'audience' => ['required', 'in:all,followers'],
+            'comments_enabled' => ['sometimes', 'boolean'],
+        ]);
+
+        $post->update([
+            'body' => $validated['body'] ?? null,
+            'audience' => $validated['audience'],
+            'comments_enabled' => $request->boolean('comments_enabled', true),
+        ]);
+
+        return response()->json(self::format($post->fresh()->load($this->relations())));
+    }
+
+    public function destroy(Request $request, FeedPost $post): JsonResponse
+    {
+        $this->authorizeFeedOwner($request->user(), $post);
+
+        $post->update(['status' => 'hidden']);
+
+        return response()->json(['message' => 'Feed post deleted.']);
     }
 
     public function toggleFollow(Request $request, string $username): JsonResponse
@@ -214,6 +252,7 @@ class FeedController extends Controller
             'liked_by_me' => auth('sanctum')->check()
                 ? $post->likes()->where('user_id', auth('sanctum')->id())->exists()
                 : false,
+            'can_manage' => auth('sanctum')->check() && auth('sanctum')->id() === $post->user_id,
             'created_at' => $post->created_at,
             'user' => [
                 'id' => $post->user?->id,
@@ -235,6 +274,7 @@ class FeedController extends Controller
                 'image_path' => $post->sticker->image_path,
             ] : null,
             'attachment' => self::formatAttachment($post),
+            'attachments' => self::formatAttachments($post),
         ];
     }
 
@@ -266,6 +306,7 @@ class FeedController extends Controller
         return [
             'user:id,name,username,avatar,artist_verified',
             'images',
+            'attachments.attachable',
             'sticker:id,name,image_path',
             'attachedWork:id,slug,title,type,cover,user_id',
             'attachedArt:id,slug,title,user_id',
@@ -283,7 +324,7 @@ class FeedController extends Controller
                 'title' => $post->attachedWork->title,
                 'subtitle' => $post->attachedWork->type === 'wattpad' ? 'Novel' : 'Webtoon',
                 'image_path' => $post->attachedWork->cover,
-                'href' => "/works/comix/{$post->attachedWork->slug}",
+                'href' => "/comix/{$post->attachedWork->slug}",
             ];
         }
 
@@ -313,14 +354,67 @@ class FeedController extends Controller
         return null;
     }
 
+    private static function formatAttachments(FeedPost $post): array
+    {
+        $items = $post->relationLoaded('attachments')
+            ? $post->attachments
+                ->map(function ($attachment) {
+                    $target = $attachment->attachable;
+
+                    if ($target instanceof Work) {
+                        return [
+                            'type' => 'work',
+                            'id' => $target->id,
+                            'title' => $target->title,
+                            'subtitle' => $target->type === 'wattpad' ? 'Novel' : 'Webtoon',
+                            'image_path' => $target->cover,
+                            'href' => "/comix/{$target->slug}",
+                        ];
+                    }
+
+                    if ($target instanceof Art) {
+                        $target->loadMissing('images');
+                        $image = $target->images->first();
+
+                        return [
+                            'type' => 'art',
+                            'id' => $target->id,
+                            'title' => $target->title,
+                            'subtitle' => 'Art',
+                            'image_path' => $image?->image_path,
+                            'href' => '/arts',
+                        ];
+                    }
+
+                    return null;
+                })
+                ->filter()
+                ->values()
+            : collect();
+
+        if ($items->isEmpty() && ($legacy = self::formatAttachment($post))) {
+            $items->push($legacy);
+        }
+
+        return $items->all();
+    }
+
     private function authorizeAttachment(User $user, array $validated): void
     {
         if (! empty($validated['attached_work_id'])) {
             Work::where('id', $validated['attached_work_id'])->where('user_id', $user->id)->firstOrFail();
         }
 
+        foreach ($validated['attached_work_ids'] ?? [] as $workId) {
+            Work::where('id', $workId)->where('user_id', $user->id)->firstOrFail();
+        }
+
         if (! empty($validated['attached_art_id'])) {
             Art::where('id', $validated['attached_art_id'])->where('user_id', $user->id)->firstOrFail();
+        }
+
+        foreach ($validated['attached_art_ids'] ?? [] as $artId) {
+            Art::where('id', $artId)->where('user_id', $user->id)->firstOrFail();
         }
 
         if (! empty($validated['attached_commission_service_id'])) {
@@ -330,6 +424,60 @@ class FeedController extends Controller
         if (! empty($validated['sticker_id'])) {
             $sticker = ArtistSticker::findOrFail($validated['sticker_id']);
             abort_unless($sticker->user_id === $user->id || $sticker->is_public || $user->purchasedArtistStickers()->where('artist_stickers.id', $sticker->id)->exists() || $user->subscribedArtistStickers()->where('artist_stickers.id', $sticker->id)->exists(), 403);
+        }
+    }
+
+    private function authorizeFeedOwner(User $user, FeedPost $post): void
+    {
+        abort_unless($post->user_id === $user->id || $user->role === 'super_admin', 403, 'You cannot manage this feed post.');
+    }
+
+    private function validateMediaCombination(Request $request, array $validated): void
+    {
+        $attachedItems = collect([
+            ...($validated['attached_work_ids'] ?? []),
+            ...($validated['attached_art_ids'] ?? []),
+            ...array_filter([$validated['attached_work_id'] ?? null, $validated['attached_art_id'] ?? null]),
+        ])->unique()->values();
+
+        abort_if($attachedItems->count() > 3, 422, 'Attach up to 3 works or arts per post.');
+
+        $types = 0;
+        $types += $request->hasFile('images') ? 1 : 0;
+        $types += ! empty($validated['sticker_id']) ? 1 : 0;
+        $types += ($attachedItems->isNotEmpty() || ! empty($validated['attached_commission_service_id'])) ? 1 : 0;
+
+        abort_if($types > 2, 422, 'Use up to 2 attachment types per feed post.');
+    }
+
+    private function syncAttachments(FeedPost $post, array $validated): void
+    {
+        $sort = 1;
+        $seen = [];
+
+        foreach ($validated['attached_work_ids'] ?? [] as $workId) {
+            $seen["work:{$workId}"] = [Work::class, $workId, $sort++];
+        }
+
+        if (! empty($validated['attached_work_id'])) {
+            $seen["work:{$validated['attached_work_id']}"] = [Work::class, $validated['attached_work_id'], $sort++];
+        }
+
+        foreach ($validated['attached_art_ids'] ?? [] as $artId) {
+            $seen["art:{$artId}"] = [Art::class, $artId, $sort++];
+        }
+
+        if (! empty($validated['attached_art_id'])) {
+            $seen["art:{$validated['attached_art_id']}"] = [Art::class, $validated['attached_art_id'], $sort++];
+        }
+
+        foreach (array_slice(array_values($seen), 0, 3) as [$type, $id, $order]) {
+            FeedPostAttachment::create([
+                'feed_post_id' => $post->id,
+                'attachable_type' => $type,
+                'attachable_id' => $id,
+                'sort_order' => $order,
+            ]);
         }
     }
 }

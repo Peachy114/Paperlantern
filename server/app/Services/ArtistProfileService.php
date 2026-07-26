@@ -88,6 +88,8 @@ class ArtistProfileService
                 'works_total' => Work::where('user_id', $artist->id)->count(),
                 'arts_total' => Art::where('user_id', $artist->id)->count(),
                 'followers_count' => $artist->followers()->count(),
+                'total_likes' => (int) Work::where('user_id', $artist->id)->sum('likes')
+                    + (int) Art::where('user_id', $artist->id)->sum('likes'),
                 'feed_posts_count' => $artist->feedPosts()->where('status', 'published')->count(),
                 'is_following' => $viewer
                     ? UserFollow::where('follower_id', $viewer->id)->where('followee_id', $artist->id)->exists()
@@ -613,6 +615,7 @@ class ArtistProfileService
                 'works' => (bool) ($visibility['works'] ?? true),
                 'stickers' => (bool) ($visibility['stickers'] ?? true),
                 'comments' => (bool) ($visibility['comments'] ?? true),
+                'feeds' => (bool) ($visibility['feeds'] ?? true),
             ],
             'section_mode' => $sectionMode,
             'positions' => $positions,
@@ -659,6 +662,15 @@ class ArtistProfileService
                 'avatar_frame' => (bool) ($value['header_locks']['avatar_frame'] ?? false),
                 'avatar_border' => (bool) ($value['header_locks']['avatar_border'] ?? false),
             ],
+            'global_styles' => [
+                'font_family' => trim((string) ($value['global_styles']['font_family'] ?? '')),
+                'text_color' => $this->normalizeColor($value['global_styles']['text_color'] ?? '#111827', '#111827'),
+                'muted_text_color' => $this->normalizeColor($value['global_styles']['muted_text_color'] ?? '#6b7280', '#6b7280'),
+                'accent_color' => $this->normalizeColor($value['global_styles']['accent_color'] ?? '#111827', '#111827'),
+                'base_font_size' => $this->clampNumber($value['global_styles']['base_font_size'] ?? 14, 10, 28),
+                'widget_font_size' => $this->clampNumber($value['global_styles']['widget_font_size'] ?? 13, 10, 28),
+                'button_font_size' => $this->clampNumber($value['global_styles']['button_font_size'] ?? 14, 10, 24),
+            ],
         ];
     }
 
@@ -671,6 +683,7 @@ class ArtistProfileService
                 'works' => true,
                 'stickers' => true,
                 'comments' => false,
+                'feeds' => true,
             ],
             'section_mode' => 'separate_pages',
             'positions' => [
@@ -679,16 +692,19 @@ class ArtistProfileService
                 'works' => ['x' => 30, 'y' => 0, 'w' => 28, 'h' => 36],
                 'stickers' => ['x' => 60, 'y' => 0, 'w' => 32, 'h' => 36],
                 'comments' => ['x' => 30, 'y' => 52, 'w' => 30, 'h' => 36],
+                'feeds' => ['x' => 62, 'y' => 52, 'w' => 28, 'h' => 36],
             ],
             'buttons' => [
                 ['id' => 'tab-arts', 'type' => 'arts', 'kind' => 'tab', 'page' => 'arts', 'display' => 'grid', 'pagination' => true, 'x' => 0, 'y' => 0, 'w' => 28, 'h' => 36],
                 ['id' => 'tab-works', 'type' => 'works', 'kind' => 'tab', 'page' => 'works', 'display' => 'grid', 'pagination' => true, 'x' => 30, 'y' => 0, 'w' => 28, 'h' => 36],
                 ['id' => 'tab-stickers', 'type' => 'stickers', 'kind' => 'tab', 'page' => 'stickers', 'display' => 'grid', 'pagination' => true, 'x' => 60, 'y' => 0, 'w' => 32, 'h' => 36],
+                ['id' => 'tab-feeds', 'type' => 'feeds', 'kind' => 'tab', 'page' => 'feeds', 'display' => 'cards', 'pagination' => true, 'x' => 62, 'y' => 52, 'w' => 28, 'h' => 36],
             ],
             'sections' => [
                 ['id' => 'section-arts', 'type' => 'arts', 'kind' => 'section', 'page' => 'arts', 'display' => 'masonry', 'pagination' => true, 'x' => 5, 'y' => 120, 'w' => 90, 'h' => 420],
                 ['id' => 'section-works', 'type' => 'works', 'kind' => 'section', 'page' => 'works', 'display' => 'image_title', 'pagination' => true, 'x' => 5, 'y' => 120, 'w' => 90, 'h' => 420],
                 ['id' => 'section-stickers', 'type' => 'stickers', 'kind' => 'section', 'page' => 'stickers', 'display' => 'grid', 'pagination' => true, 'x' => 5, 'y' => 120, 'w' => 90, 'h' => 420],
+                ['id' => 'section-feeds', 'type' => 'feeds', 'kind' => 'section', 'page' => 'feeds', 'display' => 'cards', 'pagination' => true, 'x' => 5, 'y' => 120, 'w' => 90, 'h' => 420],
             ],
             'cover_offset' => ['x' => 0, 'y' => 0],
             'border_offset' => ['x' => 0, 'y' => 0],
@@ -701,6 +717,15 @@ class ArtistProfileService
                 'cover_frame' => false,
                 'avatar_frame' => false,
                 'avatar_border' => false,
+            ],
+            'global_styles' => [
+                'font_family' => '',
+                'text_color' => '#111827',
+                'muted_text_color' => '#6b7280',
+                'accent_color' => '#111827',
+                'base_font_size' => 14,
+                'widget_font_size' => 13,
+                'button_font_size' => 14,
             ],
         ];
     }
@@ -897,6 +922,13 @@ class ArtistProfileService
     private function clampNumber(mixed $value, float $min, float $max): float
     {
         return min(max((float) $value, $min), $max);
+    }
+
+    private function normalizeColor(mixed $value, string $fallback): string
+    {
+        $color = trim((string) $value);
+
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $color) ? $color : $fallback;
     }
 
     private function formatPublicComment(Comment $comment): array

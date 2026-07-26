@@ -14,6 +14,7 @@ export const commissionApi = {
     rateOrder: (id: string, payload: { rating: number; comment?: string }) =>
         api.post(`/account/commissions/${id}/rating`, payload),
     getMessageThreads: () => api.get('/messages/commissions'),
+    startDirectThread: (username: string) => api.post(`/messages/artists/${username}`),
     getMessagePreferences: () => api.get('/messages/preferences'),
     updateMessagePreferences: (payload: {
         message_read_receipts_enabled: boolean

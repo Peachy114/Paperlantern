@@ -26,7 +26,7 @@ class PublicWorkService
 
     public function getHome(): array
     {
-        $payload = Cache::remember('public_home_payload:v7', now()->addMinute(), fn () => [
+        $payload = Cache::remember('public_home_payload:v8', now()->addMinute(), fn () => [
             'hero' => $this->getHeroWorks(),
             'weeklyChart' => $this->getWeeklyChart(),
             'todayReleases' => $this->getTodayReleases(),
@@ -42,6 +42,11 @@ class PublicWorkService
         $payload['layout'] = $this->layouts->get('home');
 
         return $payload;
+    }
+
+    public function searchContent(string $query): array
+    {
+        return $this->repo->searchContent($query);
     }
 
     public function getWeeklyChart(): Collection

@@ -112,6 +112,18 @@ interface ReviewCommentImage {
     user: ModerationUser
 }
 
+interface ReviewFeedImage {
+    id: string
+    image_path: string
+    moderation_status: string
+    created_at: string
+    feed_post?: {
+        id: string
+        body: string | null
+        user?: ModerationUser
+    } | null
+}
+
 interface ReviewCommissionMessageImage {
     id: string
     body: string | null
@@ -151,6 +163,7 @@ interface ModerationReview {
     arts: ReviewArt[]
     profile_blocks: ReviewProfileBlock[]
     comment_images?: ReviewCommentImage[]
+    feed_images?: ReviewFeedImage[]
     commission_message_images?: ReviewCommissionMessageImage[]
     commission_delivery_files?: ReviewCommissionDeliveryFile[]
     active_suspensions: ActiveSuspension[]
@@ -329,6 +342,34 @@ export function useAdminModerationQueue() {
         },
     })
 
+    const approveFeedImage = useMutation({
+        mutationFn: (id: string) => moderationApi.approveFeedImage(id),
+        onSuccess: (_, id) => {
+            queryClient.setQueryData<ModerationQueue>(QUEUE_KEY, (prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          review: {
+                              ...prev.review,
+                              feed_images: (prev.review.feed_images ?? []).filter(
+                                  (image) => image.id !== id
+                              ),
+                          },
+                      }
+                    : prev
+            )
+        },
+    })
+
+    const suspendFeedImage = useMutation({
+        mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+            moderationApi.suspendFeedImage(id, reason),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: QUEUE_KEY })
+            queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+        },
+    })
+
     const approveCommissionMessageImage = useMutation({
         mutationFn: (id: string) => moderationApi.approveCommissionMessageImage(id),
         onSuccess: (_, id) => {
@@ -406,6 +447,9 @@ export function useAdminModerationQueue() {
         approveCommentImage: (id: string) => approveCommentImage.mutate(id),
         suspendCommentImage: (id: string, reason: string) =>
             suspendCommentImage.mutate({ id, reason }),
+        approveFeedImage: (id: string) => approveFeedImage.mutate(id),
+        suspendFeedImage: (id: string, reason: string) =>
+            suspendFeedImage.mutate({ id, reason }),
         approveCommissionMessageImage: (id: string) => approveCommissionMessageImage.mutate(id),
         suspendCommissionMessageImage: (id: string, reason: string) =>
             suspendCommissionMessageImage.mutate({ id, reason }),
@@ -427,6 +471,8 @@ export function useAdminModerationQueue() {
         suspendingCommentImage: suspendCommentImage.isPending
             ? suspendCommentImage.variables?.id
             : null,
+        approvingFeedImage: approveFeedImage.isPending ? approveFeedImage.variables : null,
+        suspendingFeedImage: suspendFeedImage.isPending ? suspendFeedImage.variables?.id : null,
         approvingCommissionMessageImage: approveCommissionMessageImage.isPending
             ? approveCommissionMessageImage.variables
             : null,

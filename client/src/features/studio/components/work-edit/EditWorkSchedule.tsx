@@ -78,27 +78,30 @@ export default function EditWorkSchedule({
 
     return (
         <>
-            {/* Status + Schedule */}
+            {/* Completion + Schedule */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Status */}
                 <div className="flex flex-col gap-1.5">
-                    <Label>Status</Label>
-                    <Select
-                        value={status}
-                        onValueChange={(val) =>
-                            onStatusChange({ target: { name: 'status', value: val } })
-                        }
+                    <Label>Series completion</Label>
+                    <label
+                        className={`flex h-10 items-center gap-2 rounded-md border px-3 text-sm ${
+                            statusError ? 'border-red-400' : 'border-input'
+                        }`}
                     >
-                        <SelectTrigger className={statusError ? 'border-red-400' : ''}>
-                            <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="ongoing">Ongoing</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="hiatus">Hiatus</SelectItem>
-                        </SelectContent>
-                    </Select>
+                        <input
+                            type="checkbox"
+                            checked={status === 'completed'}
+                            onChange={(event) =>
+                                onStatusChange({
+                                    target: {
+                                        name: 'status',
+                                        value: event.target.checked ? 'completed' : 'ongoing',
+                                    },
+                                })
+                            }
+                            className="h-4 w-4"
+                        />
+                        Completed
+                    </label>
                     <FieldError fieldErrors={fieldErrors} field="status" />
                 </div>
 

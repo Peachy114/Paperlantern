@@ -47,7 +47,7 @@ class CommissionController extends Controller
             'orders' => CommissionOrder::query()
                 ->where('artist_id', $user->id)
                 ->with([
-                    'service:id,title,slug,image_path',
+                    'service:id,title,slug,image_path,base_price_credits',
                     'customer:id,name,username,avatar',
                     'revisions.requester:id,name,username,avatar',
                     'deliveryFiles.uploader:id,name,username,avatar',
@@ -73,6 +73,7 @@ class CommissionController extends Controller
     {
         $this->ensureApproved($request);
         $validated = $this->validateService($request);
+        $validated['min_price_credits'] = (int) $validated['base_price_credits'];
         $validated['slug'] = CommissionService::generateSlug($validated['title']);
         $validated['user_id'] = $request->user()->id;
         $validated['image_path'] = $this->storeImage($request);
@@ -88,6 +89,9 @@ class CommissionController extends Controller
         $this->ensureApproved($request);
 
         $validated = $this->validateService($request, false);
+        if (array_key_exists('base_price_credits', $validated)) {
+            $validated['min_price_credits'] = (int) $validated['base_price_credits'];
+        }
         if (isset($validated['title']) && $validated['title'] !== $service->title) {
             $validated['slug'] = CommissionService::generateSlug($validated['title'], $service->id);
         }
@@ -349,12 +353,48 @@ class CommissionController extends Controller
 
         $validated = $request->validate([
             'commissions_enabled' => ['sometimes', 'boolean'],
-            'commission_status' => ['sometimes', 'in:open,waitlist,closed'],
+            'commission_status' => ['sometimes', 'in:open,closed'],
             'terms' => ['nullable', 'string', 'max:3000'],
+            'policies' => ['nullable', 'array'],
+            'policies.terms' => ['nullable', 'string', 'max:6000'],
+            'policies.refund_policy' => ['nullable', 'string', 'max:4000'],
+            'policies.required_references' => ['nullable', 'string', 'max:4000'],
+            'request_forms' => ['nullable', 'array', 'max:80'],
+            'request_forms.*.id' => ['nullable', 'string', 'max:80'],
+            'request_forms.*.title' => ['nullable', 'string', 'max:500'],
+            'request_forms.*.description' => ['nullable', 'string', 'max:1000'],
+            'request_forms.*.type' => ['nullable', 'in:textarea,short_text,multiple_choice,date,checkbox'],
+            'request_forms.*.required' => ['nullable', 'boolean'],
+            'request_forms.*.options' => ['nullable', 'array', 'max:30'],
+            'request_forms.*.options.*' => ['nullable', 'string', 'max:300'],
+            'faqs' => ['nullable', 'array', 'max:80'],
+            'faqs.*.id' => ['nullable', 'string', 'max:80'],
+            'faqs.*.question' => ['nullable', 'string', 'max:500'],
+            'faqs.*.answer' => ['nullable', 'string', 'max:3000'],
+            'discounts' => ['nullable', 'array', 'max:50'],
+            'discounts.*.id' => ['nullable', 'string', 'max:80'],
+            'discounts.*.label' => ['nullable', 'string', 'max:120'],
+            'discounts.*.type' => ['nullable', 'in:percent,fixed'],
+            'discounts.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'discounts.*.starts_at' => ['nullable', 'date'],
+            'discounts.*.ends_at' => ['nullable', 'date'],
+            'discounts.*.active' => ['nullable', 'boolean'],
+            'client_fields' => ['nullable', 'array'],
+            'client_fields.*.collect' => ['nullable', 'boolean'],
+            'client_fields.*.required' => ['nullable', 'boolean'],
+            'flow_template' => ['nullable', 'array', 'max:30'],
+            'flow_template.*.type' => ['required_with:flow_template', 'string', 'max:40'],
+            'flow_template.*.label' => ['required_with:flow_template', 'string', 'max:120'],
+            'flow_template.*.percent' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'flow_template.*.rounds' => ['nullable', 'integer', 'min:0', 'max:50'],
         ]);
 
         if (array_key_exists('terms', $validated) && $validated['terms'] !== $profile->terms) {
             $validated['terms_moderation_status'] = 'pending';
+        }
+
+        if (array_key_exists('commission_status', $validated)) {
+            $validated['commissions_enabled'] = $validated['commission_status'] === 'open';
         }
 
         $profile->update($validated);
@@ -375,6 +415,12 @@ class CommissionController extends Controller
                 'application_reason' => null,
                 'terms' => null,
                 'terms_moderation_status' => 'approved',
+                'policies' => self::defaultPolicies(),
+                'request_forms' => self::defaultRequestForms(),
+                'faqs' => [],
+                'discounts' => [],
+                'client_fields' => self::defaultClientFields(),
+                'flow_template' => self::defaultFlowTemplate(),
                 'customers_count' => 0,
                 'average_rating' => 0,
                 'ratings_count' => 0,
@@ -389,9 +435,63 @@ class CommissionController extends Controller
             'application_reason' => $profile->application_reason,
             'terms' => $profile->terms,
             'terms_moderation_status' => $profile->terms_moderation_status,
+            'policies' => array_replace(self::defaultPolicies(), $profile->policies ?? []),
+            'request_forms' => $profile->request_forms ?? self::defaultRequestForms(),
+            'faqs' => $profile->faqs ?? [],
+            'discounts' => $profile->discounts ?? [],
+            'client_fields' => array_replace_recursive(self::defaultClientFields(), $profile->client_fields ?? []),
+            'flow_template' => $profile->flow_template ?? self::defaultFlowTemplate(),
             'customers_count' => (int) $profile->customers_count,
             'average_rating' => (float) $profile->average_rating,
             'ratings_count' => (int) $profile->ratings_count,
+        ];
+    }
+
+    private static function defaultPolicies(): array
+    {
+        return [
+            'terms' => "GENERAL\n- Please provide clear and complete references.\n- Additional fees may apply depending on complexity.",
+            'refund_policy' => '100% refund if no sketch/work has been sent. 50% refund once the first sketch/work has started.',
+            'required_references' => "- Character or subject reference.\n- Pose, mood, outfit, and color notes.\n- Usage/license needs.",
+        ];
+    }
+
+    private static function defaultRequestForms(): array
+    {
+        return [[
+            'id' => 'license-use',
+            'title' => 'How will you be using this commission?',
+            'description' => 'Choose the license you need.',
+            'type' => 'multiple_choice',
+            'required' => false,
+            'options' => [
+                'Personal - individual, non-commercial and non-monetized use only',
+                'Commercial: Content - for content creators or businesses distributing commercial or monetized digital content',
+                'Commercial: Merchandising - for creating, promoting, and reselling digital or physical products with the asset',
+            ],
+        ]];
+    }
+
+    private static function defaultClientFields(): array
+    {
+        return [
+            'name' => ['collect' => true, 'required' => false],
+            'email' => ['collect' => false, 'required' => false],
+            'discord' => ['collect' => false, 'required' => false],
+            'twitter' => ['collect' => false, 'required' => false],
+            'instagram' => ['collect' => false, 'required' => false],
+            'facebook' => ['collect' => false, 'required' => false],
+        ];
+    }
+
+    private static function defaultFlowTemplate(): array
+    {
+        return [
+            ['type' => 'pay', 'label' => 'Pay 50%', 'percent' => 50],
+            ['type' => 'sketch', 'label' => 'Sketch', 'rounds' => 2],
+            ['type' => 'revision', 'label' => 'Revision', 'rounds' => 1],
+            ['type' => 'pay', 'label' => 'Pay 50%', 'percent' => 50],
+            ['type' => 'done', 'label' => 'Delivery and receipt'],
         ];
     }
 
@@ -423,6 +523,55 @@ class CommissionController extends Controller
             'quote_rules' => ['nullable', 'string', 'max:3000'],
             'refund_policy' => ['nullable', 'string', 'max:3000'],
             'required_references' => ['nullable', 'string', 'max:3000'],
+            'request_questions' => ['nullable', 'array', 'max:50'],
+            'request_questions.*.id' => ['nullable', 'string', 'max:80'],
+            'request_questions.*.title' => ['nullable', 'string', 'max:500'],
+            'request_questions.*.description' => ['nullable', 'string', 'max:1000'],
+            'request_questions.*.type' => ['nullable', 'string', 'max:40'],
+            'request_questions.*.required' => ['nullable', 'boolean'],
+            'request_questions.*.options' => ['nullable', 'array', 'max:20'],
+            'request_questions.*.options.*' => ['nullable', 'string', 'max:300'],
+            'info_questions' => ['nullable', 'array', 'max:50'],
+            'info_questions.*.id' => ['nullable', 'string', 'max:80'],
+            'info_questions.*.question' => ['nullable', 'string', 'max:500'],
+            'info_questions.*.answer' => ['nullable', 'string', 'max:3000'],
+            'client_fields' => ['nullable', 'array'],
+            'client_fields.name.collect' => ['nullable', 'boolean'],
+            'client_fields.name.required' => ['nullable', 'boolean'],
+            'client_fields.nickname.collect' => ['nullable', 'boolean'],
+            'client_fields.nickname.required' => ['nullable', 'boolean'],
+            'client_fields.email.collect' => ['nullable', 'boolean'],
+            'client_fields.email.required' => ['nullable', 'boolean'],
+            'client_fields.discord.collect' => ['nullable', 'boolean'],
+            'client_fields.discord.required' => ['nullable', 'boolean'],
+            'client_fields.twitter.collect' => ['nullable', 'boolean'],
+            'client_fields.twitter.required' => ['nullable', 'boolean'],
+            'client_fields.instagram.collect' => ['nullable', 'boolean'],
+            'client_fields.instagram.required' => ['nullable', 'boolean'],
+            'client_fields.facebook.collect' => ['nullable', 'boolean'],
+            'client_fields.facebook.required' => ['nullable', 'boolean'],
+            'client_fields.tiktok.collect' => ['nullable', 'boolean'],
+            'client_fields.tiktok.required' => ['nullable', 'boolean'],
+            'promo_discounts' => ['nullable', 'array', 'max:20'],
+            'promo_discounts.*.id' => ['nullable', 'string', 'max:80'],
+            'promo_discounts.*.label' => ['nullable', 'string', 'max:120'],
+            'promo_discounts.*.type' => ['nullable', 'in:percent,fixed'],
+            'promo_discounts.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'promo_discounts.*.starts_at' => ['nullable', 'date'],
+            'promo_discounts.*.ends_at' => ['nullable', 'date'],
+            'promo_discounts.*.active' => ['nullable', 'boolean'],
+            'setup_options' => ['nullable', 'array'],
+            'setup_options.visibility' => ['nullable', 'in:discoverable,hidden'],
+            'setup_options.service_type' => ['nullable', 'in:custom,personalized'],
+            'setup_options.communication_style' => ['nullable', 'in:open,surprise'],
+            'setup_options.requesting_process' => ['nullable', 'in:custom_proposal,instant_order'],
+            'setup_options.notify_followers_on_status_change' => ['nullable', 'boolean'],
+            'setup_options.sensitive' => ['nullable', 'boolean'],
+            'setup_options.display_service_stats' => ['nullable', 'boolean'],
+            'setup_options.estimated_start' => ['nullable', 'string', 'max:80'],
+            'setup_options.start_time' => ['nullable', 'date_format:H:i'],
+            'setup_options.end_time' => ['nullable', 'date_format:H:i'],
+            'setup_options.guaranteed_delivery_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'flow' => ['nullable', 'array', 'max:20'],
             'flow.*.type' => ['required_with:flow', 'string', 'max:40'],
             'flow.*.label' => ['required_with:flow', 'string', 'max:120'],
@@ -449,7 +598,7 @@ class CommissionController extends Controller
             'description' => $service->description,
             'image_path' => $service->image_path,
             'base_price_credits' => (int) $service->base_price_credits,
-            'min_price_credits' => $service->min_price_credits,
+            'min_price_credits' => (int) $service->base_price_credits,
             'delivery_days' => $service->delivery_days,
             'slots_available' => $service->slots_available,
             'status' => $service->status,
@@ -458,8 +607,14 @@ class CommissionController extends Controller
             'quote_rules' => $service->quote_rules,
             'refund_policy' => $service->refund_policy,
             'required_references' => $service->required_references,
+            'request_questions' => $service->request_questions ?? [],
+            'info_questions' => $service->info_questions ?? [],
+            'client_fields' => $this->clientFields($service),
+            'promo_discounts' => $service->promo_discounts ?? [],
+            'setup_options' => $this->setupOptions($service),
             'is_published' => (bool) $service->is_published,
             'boosted_until' => $service->boosted_until ?? null,
+            'is_featured' => (bool) ($service->is_featured ?? false),
             'category' => $service->category ? [
                 'id' => $service->category->id,
                 'name' => $service->category->name,
@@ -489,6 +644,8 @@ class CommissionController extends Controller
             'status' => $order->status,
             'request_message' => $order->request_message,
             'reference_notes' => $order->reference_notes,
+            'request_answers' => $order->request_answers ?? [],
+            'client_details' => $order->client_details ?? [],
             'quote_credits' => $order->quote_credits,
             'quote_note' => $order->quote_note,
             'credits_checked' => $order->credits_checked,
@@ -521,11 +678,12 @@ class CommissionController extends Controller
             'delivery_files' => $order->relationLoaded('deliveryFiles')
                 ? $order->deliveryFiles->map(fn(CommissionDeliveryFile $file) => \App\Http\Controllers\Api\CommissionAccountController::formatDeliveryFile($file))->values()
                 : [],
-            'service' => $order->service ? [
+                'service' => $order->service ? [
                 'id' => $order->service->id,
                 'title' => $order->service->title,
                 'slug' => $order->service->slug,
                 'image_path' => $order->service->image_path,
+                'base_price_credits' => (int) ($order->service->base_price_credits ?? 0),
             ] : null,
             'customer' => $order->customer ? [
                 'id' => $order->customer->id,
@@ -551,6 +709,37 @@ class CommissionController extends Controller
             'super_like_earnings' => (float) (clone $earnings)->where('source', 'super_like')->sum('storyteller_cut'),
             'combined_creator_earnings' => (float) (clone $earnings)->sum('storyteller_cut'),
         ];
+    }
+
+    private function clientFields(CommissionService $service): array
+    {
+        return array_replace_recursive([
+            'name' => ['collect' => true, 'required' => false],
+            'nickname' => ['collect' => true, 'required' => false],
+            'email' => ['collect' => false, 'required' => false],
+            'discord' => ['collect' => false, 'required' => false],
+            'twitter' => ['collect' => false, 'required' => false],
+            'instagram' => ['collect' => false, 'required' => false],
+            'facebook' => ['collect' => false, 'required' => false],
+            'tiktok' => ['collect' => false, 'required' => false],
+        ], $service->client_fields ?? []);
+    }
+
+    private function setupOptions(CommissionService $service): array
+    {
+        return array_replace([
+            'visibility' => 'discoverable',
+            'service_type' => 'custom',
+            'communication_style' => 'open',
+            'requesting_process' => 'custom_proposal',
+            'notify_followers_on_status_change' => false,
+            'sensitive' => false,
+            'display_service_stats' => true,
+            'estimated_start' => 'this_month',
+            'start_time' => '',
+            'end_time' => '',
+            'guaranteed_delivery_days' => $service->delivery_days,
+        ], $service->setup_options ?? []);
     }
 
     private function createDisputeTicket(string $userId, CommissionOrder $order, string $message): void

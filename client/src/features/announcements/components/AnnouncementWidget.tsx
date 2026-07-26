@@ -14,8 +14,12 @@ const tagLabels: Record<string, string> = {
 
 export default function AnnouncementWidget({
     audience = 'public',
+    page = 'home',
+    placement = 'banner',
 }: {
-    audience?: 'public' | 'studio'
+    audience?: 'public' | 'artist' | 'studio'
+    page?: string
+    placement?: 'banner' | 'hero'
 }) {
     const { announcements, loading, error } = useAnnouncements(audience)
     const [api, setApi] = React.useState<CarouselApi>()
@@ -23,10 +27,20 @@ export default function AnnouncementWidget({
     const [modalSlide, setModalSlide] = React.useState<HeroModalSlide | null>(null)
 
     const slides = React.useMemo(() => {
-        const pinned = announcements.filter((announcement) => announcement.is_pinned)
-        const unpinned = announcements.filter((announcement) => !announcement.is_pinned)
+        const pageAnnouncements = announcements.filter((announcement) => {
+            const targets = announcement.page_targets ?? []
+            const matchesPage = targets.length === 0 || targets.includes(page)
+            const matchesPlacement =
+                !announcement.placement ||
+                announcement.placement === 'both' ||
+                announcement.placement === placement
+
+            return matchesPage && matchesPlacement
+        })
+        const pinned = pageAnnouncements.filter((announcement) => announcement.is_pinned)
+        const unpinned = pageAnnouncements.filter((announcement) => !announcement.is_pinned)
         return [...pinned, ...unpinned]
-    }, [announcements])
+    }, [announcements, page, placement])
 
     React.useEffect(() => {
         if (!api) return
@@ -38,9 +52,11 @@ export default function AnnouncementWidget({
 
     React.useEffect(() => {
         if (!api || slides.length < 2) return
-        const timer = window.setInterval(() => api.scrollNext(), 5000)
+        const seconds = slides[current]?.rotation_seconds
+        const delay = seconds && seconds > 0 ? seconds * 1000 : 5000
+        const timer = window.setInterval(() => api.scrollNext(), delay)
         return () => window.clearInterval(timer)
-    }, [api, slides.length])
+    }, [api, current, slides])
 
     if (loading) {
         return (
@@ -52,16 +68,24 @@ export default function AnnouncementWidget({
 
     return (
         <section className="mx-auto mt-8 w-full max-w-[1360px] px-5">
-            <Carousel setApi={setApi} opts={{ loop: slides.length > 1, align: 'center' }} className="w-full">
+            <Carousel
+                setApi={setApi}
+                opts={{ loop: slides.length > 1, align: 'center' }}
+                className="w-full"
+            >
                 <CarouselContent className="ml-0">
                     {slides.map((announcement, index) => {
-                        const image = storageUrl(announcement.image ?? null, 'sm') ?? storageUrl(announcement.image ?? null)
+                        const image =
+                            storageUrl(announcement.image ?? null, 'sm') ??
+                            storageUrl(announcement.image ?? null)
 
                         return (
                             <CarouselItem key={announcement.id} className="basis-full pl-0">
                                 <button
                                     type="button"
-                                    onClick={() => setModalSlide({ kind: 'news', data: announcement })}
+                                    onClick={() =>
+                                        setModalSlide({ kind: 'news', data: announcement })
+                                    }
                                     className="group relative block h-44 w-full overflow-hidden rounded-lg bg-muted text-left outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-56"
                                 >
                                     {image ? (
@@ -80,7 +104,9 @@ export default function AnnouncementWidget({
                                         <div className="mb-2 flex flex-wrap items-center gap-2">
                                             {announcement.tag && (
                                                 <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide backdrop-blur">
-                                                    {tagLabels[announcement.tag] ?? announcement.tag}
+                                                    {tagLabels[announcement.tag] ??
+                                                        announcement.tag}{' '}
+                                                    "hero for announcement"
                                                 </span>
                                             )}
                                             {announcement.is_pinned && (

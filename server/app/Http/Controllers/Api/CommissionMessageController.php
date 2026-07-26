@@ -7,6 +7,7 @@ use App\Models\CommissionDeliveryFile;
 use App\Models\CommissionMessage;
 use App\Models\CommissionOrder;
 use App\Models\RoyaltyDesignAsset;
+use App\Models\User;
 use App\Services\CommissionOrderService;
 use App\Services\ArtWatermarkService;
 use Illuminate\Http\JsonResponse;
@@ -42,6 +43,48 @@ class CommissionMessageController extends Controller
         return response()->json([
             'threads' => $orders,
             'preferences' => $this->formatPreferences($user),
+        ]);
+    }
+
+    public function startDirect(Request $request, string $username): JsonResponse
+    {
+        $artist = User::query()->where('username', $username)->firstOrFail();
+        abort_if($artist->id === $request->user()->id, 422, 'You cannot message yourself.');
+
+        $order = CommissionOrder::query()
+            ->whereNull('commission_service_id')
+            ->where('artist_id', $artist->id)
+            ->where('customer_id', $request->user()->id)
+            ->first();
+
+        if (! $order) {
+            $order = CommissionOrder::create([
+                'commission_service_id' => null,
+                'artist_id' => $artist->id,
+                'customer_id' => $request->user()->id,
+                'status' => 'requested',
+                'request_message' => null,
+                'reference_notes' => null,
+                'quote_credits' => 0,
+                'credits_checked' => 0,
+                'escrow_credits' => 0,
+                'flow_snapshot' => [],
+                'current_step_index' => 0,
+                'auto_pay_agreed' => false,
+            ]);
+        }
+
+        $order->load([
+            'service:id,title,slug,image_path',
+            'artist:id,name,username,avatar,artist_verified',
+            'customer:id,name,username,avatar',
+            'messages' => fn($query) => $query->latest()->limit(1),
+            'messages.sender:id,name,username,avatar',
+        ]);
+
+        return response()->json([
+            'message' => 'Conversation ready.',
+            'thread' => $this->formatThread($order, $request->user()->id),
         ]);
     }
 

@@ -23,6 +23,7 @@ class RoyaltyDesignAsset extends Model
         'name',
         'description',
         'image_path',
+        'style_settings',
         'is_active',
         'is_public',
         'subscription_free',
@@ -35,6 +36,7 @@ class RoyaltyDesignAsset extends Model
         'is_public' => 'boolean',
         'subscription_free' => 'boolean',
         'published_at' => 'datetime',
+        'style_settings' => 'array',
         'sort_order' => 'integer',
     ];
 

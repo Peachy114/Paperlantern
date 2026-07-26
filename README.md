@@ -37,29 +37,29 @@ Paperlantern/
 
 1. Install frontend dependencies:
 
-   ```bash
-   cd client
-   npm install
-   cp .env.example .env
-   ```
+    ```bash
+    cd client
+    npm install
+    cp .env.example .env
+    ```
 
 2. Install backend dependencies:
 
-   ```bash
-   cd server
-   composer install
-   cp .env.example .env
-   php artisan key:generate
-   php artisan migrate
-   php artisan storage:link
-   ```
+    ```bash
+    cd server
+    composer install
+    cp .env.example .env
+    php artisan key:generate
+    php artisan migrate
+    php artisan storage:link
+    ```
 
 3. Return to the repository root and run the apps in separate terminals:
 
-   ```bash
-   npm run client:dev
-   npm run server:serve
-   ```
+    ```bash
+    npm run client:dev
+    npm run server:serve
+    ```
 
 ## Common Commands
 
@@ -82,3 +82,10 @@ npm run server:test
 - Keep reusable primitives in `client/src/components/ui`.
 - Put backend business logic in services and persistence details in repositories.
 - Keep controllers thin: validate input, call services, and return responses.
+
+1. pageCustomizerRegistry.ts
+2. createWidget default settings
+3. useCommissions.ts
+4. CommissionPageWidgetData
+5. CommissionPageWidgets renderer
+6. ExploreCommissions.tsx data passing

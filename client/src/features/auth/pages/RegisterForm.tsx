@@ -30,11 +30,16 @@ export default function RegisterForm() {
     const { handleRegister, error, loading } = useAuth()
     const [data, setData] = useState({
         name: '',
+        nickname: '',
         username: '',
         email: '',
         password: '',
         password_confirmation: '',
         role: 'wanderer' as 'wanderer' | 'storyteller',
+        twitter_url: '',
+        discord_url: '',
+        instagram_url: '',
+        tiktok_url: '',
     })
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirm, setShowConfirm] = useState(false)
@@ -77,6 +82,21 @@ export default function RegisterForm() {
                 </div>
                 <div className="flex flex-col px-3 pt-2.5 pb-2">
                     <label
+                        htmlFor="nickname"
+                        className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1"
+                    >
+                        Nickname
+                    </label>
+                    <input
+                        id="nickname"
+                        placeholder="Display nickname"
+                        value={data.nickname}
+                        onChange={(e) => setData({ ...data, nickname: e.target.value })}
+                        className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
+                    />
+                </div>
+                <div className="flex flex-col px-3 pt-2.5 pb-2">
+                    <label
                         htmlFor="email"
                         className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1"
                     >
@@ -88,6 +108,65 @@ export default function RegisterForm() {
                         placeholder="you@example.com"
                         value={data.email}
                         onChange={(e) => setData({ ...data, email: e.target.value })}
+                        className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
+                    />
+                </div>
+            </div>
+
+            <div className="border border-border rounded-md divide-y divide-border">
+                <div className="px-3 pt-2.5 pb-2">
+                    <p className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase">
+                        Public links
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Optional now. If an artist requires them for a commission, they can be reused later.
+                    </p>
+                </div>
+                <div className="flex flex-col px-3 pt-2.5 pb-2">
+                    <label htmlFor="discord_url" className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1">
+                        Discord
+                    </label>
+                    <input
+                        id="discord_url"
+                        placeholder="Discord username or invite/profile link"
+                        value={data.discord_url}
+                        onChange={(e) => setData({ ...data, discord_url: e.target.value })}
+                        className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
+                    />
+                </div>
+                <div className="flex flex-col px-3 pt-2.5 pb-2">
+                    <label htmlFor="twitter_url" className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1">
+                        X / Twitter
+                    </label>
+                    <input
+                        id="twitter_url"
+                        placeholder="https://x.com/yourhandle"
+                        value={data.twitter_url}
+                        onChange={(e) => setData({ ...data, twitter_url: e.target.value })}
+                        className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
+                    />
+                </div>
+                <div className="flex flex-col px-3 pt-2.5 pb-2">
+                    <label htmlFor="instagram_url" className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1">
+                        Instagram
+                    </label>
+                    <input
+                        id="instagram_url"
+                        placeholder="https://instagram.com/yourhandle"
+                        value={data.instagram_url}
+                        onChange={(e) => setData({ ...data, instagram_url: e.target.value })}
+                        className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
+                    />
+                </div>
+                <div className="flex flex-col px-3 pt-2.5 pb-2">
+                    <label htmlFor="tiktok_url" className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1">
+                        TikTok
+                    </label>
+                    <input
+                        id="tiktok_url"
+                        placeholder="https://tiktok.com/@yourhandle"
+                        value={data.tiktok_url}
+                        onChange={(e) => setData({ ...data, tiktok_url: e.target.value })}
                         className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
                     />
                 </div>

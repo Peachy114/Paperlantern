@@ -41,6 +41,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useArtistProfile } from '@/features/artist-profile/hooks/useArtistProfile'
+import { CreatePostDialog, FeedPostCard } from '@/features/feeds/pages/Feeds'
 import CommentSection from '@/features/comments/components/CommentSection'
 import SuperLikeButton from '@/features/comments/components/SuperLikeButton'
 import { storageUrl } from '@/utils/storage'
@@ -1075,7 +1076,6 @@ export default function ArtistProfile() {
                                     </Button>
                                 </div>
                             )}
-                            {/* <ProfileDashboardWidgets profile={profile} /> */}
                             {useCanvasLayout ? (
                                 <ProfileLayoutCanvas
                                     refEl={canvasRef}
@@ -1270,6 +1270,7 @@ export default function ArtistProfile() {
                                         />
                                         <ProfileFeeds
                                             feeds={profile.feeds ?? []}
+                                            canCreate={isOwner}
                                             display={
                                                 getPrimarySectionItem(
                                                     themeDraft.tabsConfig,
@@ -2458,6 +2459,16 @@ function ArtistHeader({
         window.removeEventListener('pointermove', handleHeaderMove)
         if (drag && Object.keys(drag.patch).length > 0) onSavePosition(drag.patch)
     }
+    const globalStyles = theme.tabsConfig.global_styles ?? defaultProfileTabsConfig().global_styles!
+    const profileTextStyle = {
+        fontFamily: globalStyles.font_family || undefined,
+        color: globalStyles.muted_text_color,
+        fontSize: globalStyles.widget_font_size,
+    }
+    const profileButtonStyle = {
+        fontFamily: globalStyles.font_family || undefined,
+        fontSize: globalStyles.button_font_size,
+    }
 
     return (
         <header className="relative z-20 border-b">
@@ -2692,19 +2703,30 @@ function ArtistHeader({
                             variant={profile.stats?.is_following ? 'outline' : 'default'}
                             disabled={followBusy}
                             onClick={onToggleFollow}
+                            style={profileButtonStyle}
                         >
                             {profile.stats?.is_following ? 'Unfollow' : 'Follow'}
                         </Button>
                     </div>
                 )}
-                <p className="mt-2 text-xs text-muted-foreground">
-                    {(
-                        profile.stats?.followers_count ??
-                        artist.followers_count ??
-                        0
-                    ).toLocaleString()}{' '}
-                    followers
-                </p>
+                <div className="mt-2 grid justify-center gap-1 text-xs text-muted-foreground" style={profileTextStyle}>
+                    <p>
+                        {(
+                            profile.stats?.followers_count ??
+                            artist.followers_count ??
+                            0
+                        ).toLocaleString()}{' '}
+                        followers
+                    </p>
+                    <p>{(profile.stats?.total_likes ?? 0).toLocaleString()} total likes</p>
+                </div>
+                {!isOwner && (
+                    <div className="mt-3 flex justify-center">
+                        <Button asChild size="sm" variant="outline" style={profileButtonStyle}>
+                            <Link to={`/messages?to=${artist.username}`}>Message</Link>
+                        </Button>
+                    </div>
+                )}
                 {draft.artistTitle && <p className="mt-1 text-sm">{draft.artistTitle}</p>}
                 {links.length > 0 && (
                     <div className="mt-3 flex flex-wrap justify-center gap-2">
@@ -2732,40 +2754,27 @@ function ArtistHeader({
     )
 }
 
-function ProfileDashboardWidgets({ profile }: { profile: ArtistProfileResponse }) {
-    const stats = profile.stats
-    const items = [
-        { label: 'Works', value: stats?.works_total ?? profile.works.length },
-        { label: 'Arts', value: stats?.arts_total ?? profile.arts.length },
-        { label: 'Followers', value: stats?.followers_count ?? 0 },
-        { label: 'Feeds', value: stats?.feed_posts_count ?? profile.feeds?.length ?? 0 },
-    ]
-
-    return (
-        <section className="mb-5 grid gap-3 sm:grid-cols-4">
-            {items.map((item) => (
-                <div key={item.label} className="rounded-lg border border-border bg-card p-4">
-                    <p className="text-2xl font-bold">{item.value.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">{item.label}</p>
-                </div>
-            ))}
-        </section>
-    )
-}
-
 function ProfileFeeds({
     feeds,
+    canCreate = false,
     display = 'cards',
 }: {
     feeds: NonNullable<ArtistProfileResponse['feeds']>
+    canCreate?: boolean
     display?: ProfileCanvasItem['display']
 }) {
     const MAX_PROFILE_FEEDS = 30
     const FEEDS_PER_LOAD = 5
-    const availableFeeds = feeds.slice(0, MAX_PROFILE_FEEDS)
+    const [feedItems, setFeedItems] = useState(feeds)
+    const [createOpen, setCreateOpen] = useState(false)
+    const availableFeeds = feedItems.slice(0, MAX_PROFILE_FEEDS)
     const [visibleCount, setVisibleCount] = useState(
         Math.min(FEEDS_PER_LOAD, availableFeeds.length)
     )
+
+    useEffect(() => {
+        setFeedItems(feeds)
+    }, [feeds])
 
     useEffect(() => {
         setVisibleCount((current) =>
@@ -2778,13 +2787,25 @@ function ProfileFeeds({
 
     if (availableFeeds.length === 0) {
         return (
-            <div className="rounded-xl border border-dashed border-border bg-card/60 px-6 py-16 text-center">
-                <MessageCircle className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-                <h3 className="font-semibold">No feed posts yet</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Published feed posts will appear here.
-                </p>
-            </div>
+            <>
+                {canCreate && (
+                    <div className="mb-4 flex justify-end">
+                        <Button onClick={() => setCreateOpen(true)}>Create post</Button>
+                    </div>
+                )}
+                <div className="rounded-xl border border-dashed border-border bg-card/60 px-6 py-16 text-center">
+                    <MessageCircle className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                    <h3 className="font-semibold">No feed posts yet</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Published feed posts will appear here.
+                    </p>
+                </div>
+                <CreatePostDialog
+                    open={createOpen}
+                    onOpenChange={setCreateOpen}
+                    onCreated={(post) => setFeedItems((current) => [post, ...current])}
+                />
+            </>
         )
     }
 
@@ -2795,9 +2816,26 @@ function ProfileFeeds({
 
     return (
         <div className="w-full">
+            {canCreate && (
+                <div className="mb-4 flex justify-end">
+                    <Button onClick={() => setCreateOpen(true)}>Create post</Button>
+                </div>
+            )}
             <div className={compact ? 'space-y-3' : 'mx-auto grid max-w-4xl gap-5'}>
                 {visibleFeeds.map((post) => (
-                    <ProfileFeedCard key={post.id} post={post} compact={compact} />
+                    <FeedPostCard
+                        key={post.id}
+                        post={post}
+                        compact={compact}
+                        onChange={(nextPost) =>
+                            setFeedItems((current) =>
+                                current.map((item) => (item.id === nextPost.id ? nextPost : item))
+                            )
+                        }
+                        onDelete={(postId) =>
+                            setFeedItems((current) => current.filter((item) => item.id !== postId))
+                        }
+                    />
                 ))}
             </div>
 
@@ -2824,11 +2862,16 @@ function ProfileFeeds({
             <p className="mt-3 text-center text-xs text-muted-foreground">
                 Showing {visibleFeeds.length} of {availableFeeds.length} posts
             </p>
+            <CreatePostDialog
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                onCreated={(post) => setFeedItems((current) => [post, ...current])}
+            />
         </div>
     )
 }
 
-function ProfileFeedCard({
+export function ProfileFeedCard({
     post,
     compact = false,
 }: {
@@ -2963,7 +3006,7 @@ function ProfileFeedCard({
     )
 }
 
-function ProfileFeedImages({
+export function ProfileFeedImages({
     post,
 }: {
     post: NonNullable<ArtistProfileResponse['feeds']>[number]
@@ -3009,7 +3052,7 @@ function ProfileFeedImages({
     )
 }
 
-function formatFeedDate(value: string | Date) {
+export function formatFeedDate(value: string | Date) {
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return ''
 
@@ -3184,6 +3227,122 @@ function ManageProfileSidebar({
                     <Layers className="h-4 w-4" />
                     Default Settings
                 </Button>
+
+                <ProfileEditSection title="Global Fonts">
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="profile-global-font">Font family</Label>
+                        <Input
+                            id="profile-global-font"
+                            value={draft.tabsConfig.global_styles?.font_family ?? ''}
+                            placeholder="Inter, Comic Relief, sans-serif"
+                            onChange={(event) =>
+                                updateTabsConfig({
+                                    global_styles: {
+                                        ...(draft.tabsConfig.global_styles ??
+                                            defaultProfileTabsConfig().global_styles!),
+                                        font_family: event.target.value,
+                                    },
+                                })
+                            }
+                        />
+                    </div>
+                </ProfileEditSection>
+
+                <ProfileEditSection title="Global Colors">
+                    <ColorField
+                        label="Text"
+                        value={draft.tabsConfig.global_styles?.text_color ?? '#111827'}
+                        fallback="#111827"
+                        onChange={(text_color) =>
+                            updateTabsConfig({
+                                global_styles: {
+                                    ...(draft.tabsConfig.global_styles ??
+                                        defaultProfileTabsConfig().global_styles!),
+                                    text_color,
+                                },
+                            })
+                        }
+                    />
+                    <ColorField
+                        label="Muted text"
+                        value={draft.tabsConfig.global_styles?.muted_text_color ?? '#6b7280'}
+                        fallback="#6b7280"
+                        onChange={(muted_text_color) =>
+                            updateTabsConfig({
+                                global_styles: {
+                                    ...(draft.tabsConfig.global_styles ??
+                                        defaultProfileTabsConfig().global_styles!),
+                                    muted_text_color,
+                                },
+                            })
+                        }
+                    />
+                    <ColorField
+                        label="Accent"
+                        value={draft.tabsConfig.global_styles?.accent_color ?? '#111827'}
+                        fallback="#111827"
+                        onChange={(accent_color) =>
+                            updateTabsConfig({
+                                global_styles: {
+                                    ...(draft.tabsConfig.global_styles ??
+                                        defaultProfileTabsConfig().global_styles!),
+                                    accent_color,
+                                },
+                            })
+                        }
+                    />
+                </ProfileEditSection>
+
+                <ProfileEditSection title="Global Sizes">
+                    <RangeField
+                        label="Base text"
+                        value={draft.tabsConfig.global_styles?.base_font_size ?? 14}
+                        min={10}
+                        max={28}
+                        suffix="px"
+                        onChange={(base_font_size) =>
+                            updateTabsConfig({
+                                global_styles: {
+                                    ...(draft.tabsConfig.global_styles ??
+                                        defaultProfileTabsConfig().global_styles!),
+                                    base_font_size,
+                                },
+                            })
+                        }
+                    />
+                    <RangeField
+                        label="Widget text"
+                        value={draft.tabsConfig.global_styles?.widget_font_size ?? 13}
+                        min={10}
+                        max={28}
+                        suffix="px"
+                        onChange={(widget_font_size) =>
+                            updateTabsConfig({
+                                global_styles: {
+                                    ...(draft.tabsConfig.global_styles ??
+                                        defaultProfileTabsConfig().global_styles!),
+                                    widget_font_size,
+                                },
+                            })
+                        }
+                    />
+                    <RangeField
+                        label="Button text"
+                        value={draft.tabsConfig.global_styles?.button_font_size ?? 14}
+                        min={10}
+                        max={24}
+                        suffix="px"
+                        onChange={(button_font_size) =>
+                            updateTabsConfig({
+                                global_styles: {
+                                    ...(draft.tabsConfig.global_styles ??
+                                        defaultProfileTabsConfig().global_styles!),
+                                    button_font_size,
+                                },
+                            })
+                        }
+                    />
+                </ProfileEditSection>
 
                 <ProfileEditSection title="Profile">
                     <div className="grid gap-1">
@@ -4503,8 +4662,11 @@ function BoardBlock({
     ) => void
 }) {
     const imageSrc = blockImageSrc(block)
-    const objectFit = block.fit_mode === 'stretch' ? 'fill' : block.fit_mode
-    const showBorder = block.show_border ?? (!block.is_sticker && !block.transparent_background)
+    const objectFit = block.fit_mode === 'stretch' ? 'fill' : block.fit_mode === 'stay' ? 'none' : block.fit_mode
+    const showBorder =
+        editMode || (block.type === 'image' && !block.is_sticker)
+            ? (block.show_border ?? (!block.is_sticker && !block.transparent_background))
+            : false
     const transparent = block.transparent_background ?? block.is_sticker
     const backgroundColor = transparent
         ? 'transparent'
@@ -6042,6 +6204,15 @@ function defaultProfileTabsConfig(): ProfileTabsConfig {
             avatar_frame: false,
             avatar_border: false,
         },
+        global_styles: {
+            font_family: '',
+            text_color: '#111827',
+            muted_text_color: '#6b7280',
+            accent_color: '#111827',
+            base_font_size: 14,
+            widget_font_size: 13,
+            button_font_size: 14,
+        },
     }
 }
 
@@ -6084,6 +6255,25 @@ function normalizeProfileTabsConfig(
             cover_frame: value.header_locks?.cover_frame ?? false,
             avatar_frame: value.header_locks?.avatar_frame ?? false,
             avatar_border: value.header_locks?.avatar_border ?? false,
+        },
+        global_styles: {
+            ...defaults.global_styles!,
+            ...(value.global_styles ?? {}),
+            base_font_size: clamp(
+                value.global_styles?.base_font_size ?? defaults.global_styles!.base_font_size,
+                10,
+                28
+            ),
+            widget_font_size: clamp(
+                value.global_styles?.widget_font_size ?? defaults.global_styles!.widget_font_size,
+                10,
+                28
+            ),
+            button_font_size: clamp(
+                value.global_styles?.button_font_size ?? defaults.global_styles!.button_font_size,
+                10,
+                24
+            ),
         },
     }
 }

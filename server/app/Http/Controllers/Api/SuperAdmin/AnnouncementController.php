@@ -25,9 +25,15 @@ class AnnouncementController extends Controller
             'title'    => ['required', 'string', 'max:255'],
             'content'  => ['required', 'string'],
             'tag'      => ['required', 'in:event,update,reminder'],
-            'audience' => ['required', 'in:public,studio'],
+            'is_event' => ['boolean'],
+            'audience' => ['required', 'in:public,artist,studio'],
+            'page_targets' => ['nullable', 'array'],
+            'page_targets.*' => ['string', 'in:home,comix,novels,arts,commissions,shop,daily,rankings,genre'],
+            'placement' => ['nullable', 'in:banner,hero,both'],
+            'is_public' => ['boolean'],
             'image'    => ['nullable', 'image', 'max:2048'],
             'is_pinned'=> ['boolean'],
+            'rotation_seconds' => ['nullable', 'integer', 'min:0', 'max:300'],
         ]);
 
         $announcement = $this->service->create(
@@ -46,9 +52,15 @@ class AnnouncementController extends Controller
             'title'    => ['sometimes', 'string', 'max:255'],
             'content'  => ['sometimes', 'string'],
             'tag'      => ['sometimes', 'in:event,update,reminder'],
-            'audience' => ['sometimes', 'in:public,studio'],
+            'is_event' => ['boolean'],
+            'audience' => ['sometimes', 'in:public,artist,studio'],
+            'page_targets' => ['nullable', 'array'],
+            'page_targets.*' => ['string', 'in:home,comix,novels,arts,commissions,shop,daily,rankings,genre'],
+            'placement' => ['nullable', 'in:banner,hero,both'],
+            'is_public' => ['boolean'],
             'image'    => ['nullable', 'image', 'max:2048'],
             'is_pinned'=> ['boolean'],
+            'rotation_seconds' => ['nullable', 'integer', 'min:0', 'max:300'],
         ]);
 
         $announcement = $this->service->update(

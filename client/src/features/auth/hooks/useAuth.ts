@@ -28,11 +28,16 @@ export function useAuth() {
 
     const handleRegister = async (data: {
         name: string
+        nickname?: string
         username: string
         email: string
         password: string
         password_confirmation: string
         role: 'wanderer' | 'storyteller'
+        twitter_url?: string
+        discord_url?: string
+        instagram_url?: string
+        tiktok_url?: string
     }) => {
         setLoading(true)
         setError(null)

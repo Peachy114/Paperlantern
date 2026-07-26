@@ -37,6 +37,7 @@ class Work extends Model
         'comments_count',
         'super_likes_count',
         'super_like_credits',
+        'is_featured',
     ];
 
     protected function casts(): array
@@ -52,6 +53,7 @@ class Work extends Model
             'comments_count'  => 'integer',
             'super_likes_count' => 'integer',
             'super_like_credits' => 'decimal:2',
+            'is_featured' => 'boolean',
         ];
     }
 

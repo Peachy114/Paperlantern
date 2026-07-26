@@ -31,8 +31,14 @@ class CommissionService extends Model
         'quote_rules',
         'refund_policy',
         'required_references',
+        'request_questions',
+        'info_questions',
+        'client_fields',
+        'promo_discounts',
+        'setup_options',
         'sort_order',
         'is_published',
+        'is_featured',
     ];
 
     protected function casts(): array
@@ -43,8 +49,14 @@ class CommissionService extends Model
             'delivery_days' => 'integer',
             'slots_available' => 'integer',
             'flow' => 'array',
+            'request_questions' => 'array',
+            'info_questions' => 'array',
+            'client_fields' => 'array',
+            'promo_discounts' => 'array',
+            'setup_options' => 'array',
             'sort_order' => 'integer',
             'is_published' => 'boolean',
+            'is_featured' => 'boolean',
         ];
     }
 

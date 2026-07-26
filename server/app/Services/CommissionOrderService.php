@@ -105,6 +105,9 @@ class CommissionOrderService
     ): CommissionOrder {
         abort_unless($order->artist_id === $artist->id, 404);
         abort_if(in_array($order->status, ['completed', 'cancelled'], true), 422, 'This commission can no longer be quoted.');
+        $order->loadMissing('service');
+        $minimumQuote = (int) ($order->service?->base_price_credits ?? 0);
+        abort_if($quoteCredits < $minimumQuote, 422, "Quote must be at least {$minimumQuote} credits.");
 
         $order->update([
             'status' => 'quoted',
@@ -302,6 +305,12 @@ class CommissionOrderService
             $amount = max(0, (int) $order->quote_credits - (int) $order->escrow_credits);
             if ($amount > 0) {
                 $wallet = $this->wallets->findOrCreateByUser($customer->id);
+                abort_if(
+                    (int) $wallet->fresh()->balance < $amount,
+                    402,
+                    "You need {$amount} credits to pay the final delivery."
+                );
+
                 $transaction = $this->wallets->debit($wallet, $amount, [
                     'source' => 'commission_escrow',
                     'description' => 'Commission final payment',

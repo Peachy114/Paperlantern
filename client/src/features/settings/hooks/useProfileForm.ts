@@ -8,6 +8,7 @@ import { authApi } from '@/api/auth'
 
 const schema = yup.object({
     name: yup.string().required('Full name is required').max(255),
+    nickname: yup.string().max(80).nullable().optional(),
     username: yup.string().required('Username is required').max(50),
     account_menu_style: yup
         .mixed<'circular' | 'detailed'>()
@@ -15,6 +16,7 @@ const schema = yup.object({
         .required(),
     bio: yup.string().max(500).nullable().optional(),
     twitter_url: yup.string().url('Enter a valid URL').nullable().optional(),
+    discord_url: yup.string().max(255).nullable().optional(),
     instagram_url: yup.string().url('Enter a valid URL').nullable().optional(),
     tiktok_url: yup.string().url('Enter a valid URL').nullable().optional(),
 })
@@ -34,10 +36,12 @@ export function useProfileForm() {
         resolver: yupResolver(schema) as unknown as Resolver<ProfileFields>,
         defaultValues: {
             name: user?.name ?? '',
+            nickname: user?.nickname ?? '',
             username: user?.username ?? '',
             account_menu_style: user?.account_menu_style ?? 'circular',
             bio: user?.bio ?? '',
             twitter_url: user?.twitter_url ?? '',
+            discord_url: user?.discord_url ?? '',
             instagram_url: user?.instagram_url ?? '',
             tiktok_url: user?.tiktok_url ?? '',
         },
@@ -47,12 +51,14 @@ export function useProfileForm() {
         mutationFn: (data: ProfileFields) => {
             const form = new FormData()
             form.append('name', data.name)
+            form.append('nickname', data.nickname ?? '')
             form.append('username', data.username)
             form.append('account_menu_style', data.account_menu_style)
             form.append('bio', data.bio ?? '')
 
             // Always append social fields, even if empty
             form.append('twitter_url', data.twitter_url ?? '')
+            form.append('discord_url', data.discord_url ?? '')
             form.append('instagram_url', data.instagram_url ?? '')
             form.append('tiktok_url', data.tiktok_url ?? '')
 

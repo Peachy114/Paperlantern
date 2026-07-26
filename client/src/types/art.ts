@@ -9,6 +9,7 @@ export interface Art {
     labels: string[] | null
     image_path: string
     images: ArtImage[]
+    download_files?: ArtDownloadFile[]
     status: ArtStatus
     moderation_status: 'pending' | 'approved' | 'rejected'
     download_policy: ArtDownloadPolicy
@@ -24,6 +25,7 @@ export interface Art {
     super_like_credits: number
     public_sort_order?: number | null
     boosted_until?: string | null
+    is_featured?: boolean
     user?: {
         id: string
         name: string
@@ -47,6 +49,17 @@ export interface ArtImage {
     updated_at: string
 }
 
+export interface ArtDownloadFile {
+    id: string
+    art_id: string
+    original_name: string | null
+    mime_type: string | null
+    size_bytes: number
+    sort_order: number
+    created_at: string
+    updated_at: string
+}
+
 export interface MyArtsStats {
     arts: number
     views: number
@@ -58,8 +71,14 @@ export interface MyArtsStats {
 
 export interface MyArtsDashboardResponse {
     stats: MyArtsStats
+    views_chart: MyArtsChartPoint[]
     commission_profile: CommissionProfile
     arts: Art[]
+}
+
+export interface MyArtsChartPoint {
+    date: string
+    views: number
 }
 
 export type CommissionApplicationStatus =
@@ -73,10 +92,44 @@ export interface CommissionProfile {
     id?: string
     application_status: CommissionApplicationStatus
     commissions_enabled: boolean
-    commission_status: 'open' | 'waitlist' | 'closed'
+    commission_status: 'open' | 'closed'
     application_reason: string | null
     terms: string | null
     terms_moderation_status: 'pending' | 'approved' | 'hidden' | 'suspended'
+    policies?: {
+        terms?: string
+        refund_policy?: string
+        required_references?: string
+    }
+    request_forms?: Array<{
+        id: string
+        title: string
+        description?: string
+        type: 'textarea' | 'short_text' | 'multiple_choice' | 'date' | 'checkbox'
+        required: boolean
+        options: string[]
+    }>
+    faqs?: Array<{
+        id: string
+        question: string
+        answer: string
+    }>
+    discounts?: Array<{
+        id: string
+        label: string
+        type: 'percent' | 'fixed'
+        amount: number
+        starts_at?: string
+        ends_at?: string
+        active: boolean
+    }>
+    client_fields?: Record<string, { collect: boolean; required: boolean }>
+    flow_template?: Array<{
+        type: string
+        label: string
+        percent?: number
+        rounds?: number
+    }>
     customers_count: number
     average_rating: number
     ratings_count: number

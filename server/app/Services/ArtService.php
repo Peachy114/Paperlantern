@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Art;
+use App\Models\ArtView;
 use App\Http\Controllers\Api\Studio\CommissionController;
 use App\Models\User;
 use App\Repositories\ArtRepository;
@@ -21,6 +22,33 @@ class ArtService
     public function getDashboard(User $user): array
     {
         $arts = $this->repo->getByUser($user);
+        $startDate = now()->startOfDay()->subDays(6);
+        $endDate = now()->endOfDay();
+        $viewsByDate = ArtView::query()
+            ->join('arts', 'arts.id', '=', 'art_views.art_id')
+            ->where('arts.user_id', $user->id)
+            ->whereNull('arts.deleted_at')
+            ->whereBetween('art_views.viewed_on', [
+                $startDate->toDateString(),
+                $endDate->toDateString(),
+            ])
+            ->select('art_views.viewed_on')
+            ->selectRaw('COUNT(*) as views')
+            ->groupBy('art_views.viewed_on')
+            ->pluck('views', 'art_views.viewed_on');
+
+        $viewsChart = collect(range(0, 6))
+            ->map(function (int $offset) use ($startDate, $viewsByDate) {
+                $date = $startDate->copy()->addDays($offset);
+                $dateKey = $date->toDateString();
+
+                return [
+                    'date' => $dateKey,
+                    'views' => (int) ($viewsByDate[$dateKey] ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
 
         return [
             'stats' => [
@@ -31,6 +59,7 @@ class ArtService
                 'super_likes' => $arts->sum('super_likes_count'),
                 'super_like_credits' => $arts->sum('super_like_credits'),
             ],
+            'views_chart' => $viewsChart,
             'commission_profile' => CommissionController::formatProfile($user->commissionArtistProfile),
             'arts' => $arts,
         ];
@@ -50,12 +79,12 @@ class ArtService
             ? (bool) $validated['apply_watermark']
             : true;
 
-        return DB::transaction(function () use ($user, $validated, $files, $imageDescriptions) {
+        return DB::transaction(function () use ($user, $validated, $files, $imageDescriptions, $request) {
             $validated['slug'] = Art::generateSlug($validated['title'], $user->id);
             $firstUpload = $this->storeArtFile($files[0], $user, (bool) $validated['apply_watermark']);
             $validated['image_path'] = $firstUpload['display'];
             $validated['original_image_path'] = $firstUpload['original'];
-            unset($validated['image'], $validated['images'], $validated['image_descriptions']);
+            unset($validated['image'], $validated['images'], $validated['image_descriptions'], $validated['download_files']);
 
             $art = $this->repo->create($user, $validated);
 
@@ -76,7 +105,9 @@ class ArtService
                 ]);
             }
 
-            return $art->load('images');
+            $this->replaceDownloadFiles($art, $this->uploadedDownloadFiles($request));
+
+            return $art->load(['images', 'downloadFiles']);
         });
     }
 
@@ -135,9 +166,13 @@ class ArtService
                 $this->regenerateDisplayFiles($art, $applyWatermark);
             }
 
-            unset($validated['image'], $validated['images'], $validated['image_descriptions']);
+            if ($request->hasFile('download_files')) {
+                $this->replaceDownloadFiles($art, $this->uploadedDownloadFiles($request));
+            }
 
-            return $this->repo->update($art, $validated)->load('images');
+            unset($validated['image'], $validated['images'], $validated['image_descriptions'], $validated['download_files']);
+
+            return $this->repo->update($art, $validated)->load(['images', 'downloadFiles']);
         });
     }
 
@@ -146,6 +181,7 @@ class ArtService
         return Art::query()
             ->when($withTrashed, fn($query) => $query->withTrashed())
             ->with('images')
+            ->with('downloadFiles')
             ->where('user_id', $user->id)
             ->where('slug', $slug)
             ->firstOrFail();
@@ -208,6 +244,32 @@ class ArtService
         return [];
     }
 
+    private function uploadedDownloadFiles(Request $request): array
+    {
+        if (! $request->hasFile('download_files')) {
+            return [];
+        }
+
+        return array_values($request->file('download_files'));
+    }
+
+    private function replaceDownloadFiles(Art $art, array $files): void
+    {
+        $this->deleteDownloadFiles($art);
+        $art->downloadFiles()->delete();
+
+        foreach ($files as $index => $file) {
+            $path = $file->store("arts/downloads/{$art->user_id}/{$art->id}", 'local');
+            $art->downloadFiles()->create([
+                'file_path' => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type' => $file->getClientMimeType(),
+                'size_bytes' => $file->getSize() ?: 0,
+                'sort_order' => $index,
+            ]);
+        }
+    }
+
     private function deleteArtFiles(Art $art): void
     {
         $publicPaths = $art->images->pluck('image_path')->push($art->image_path)->filter()->unique();
@@ -219,6 +281,13 @@ class ArtService
 
         Storage::disk('public')->delete($publicPaths->all());
         Storage::disk('local')->delete($originalPaths->all());
+        $this->deleteDownloadFiles($art);
+    }
+
+    private function deleteDownloadFiles(Art $art): void
+    {
+        $paths = $art->downloadFiles->pluck('file_path')->filter()->unique()->all();
+        Storage::disk('local')->delete($paths);
     }
 
     private function regenerateDisplayFiles(Art $art, bool $applyWatermark): void

@@ -11,10 +11,15 @@ class AuthRepository
     {
         return User::create([
             'name'     => $data['name'],
+            'nickname' => $data['nickname'] ?? null,
             'username' => $data['username'],
             'email'    => $data['email'],
             'password' => Hash::make($data['password']),
             'role'     => $data['role'],
+            'twitter_url' => $data['twitter_url'] ?? null,
+            'discord_url' => $data['discord_url'] ?? null,
+            'instagram_url' => $data['instagram_url'] ?? null,
+            'tiktok_url' => $data['tiktok_url'] ?? null,
         ]);
     }
 

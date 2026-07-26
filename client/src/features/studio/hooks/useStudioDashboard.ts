@@ -14,6 +14,10 @@ interface Work {
     cover: string | null
     views: number
     likes: number
+    favorites?: number
+    favorites_count?: number
+    comments?: number
+    comments_count?: number
     chapters_count: number
     created_at: string
     boosted_until?: string | null

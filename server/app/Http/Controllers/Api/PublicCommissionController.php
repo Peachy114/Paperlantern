@@ -29,6 +29,11 @@ class PublicCommissionController extends Controller
             ->select('commission_services.*')
             ->where('is_published', true)
             ->where('status', 'open')
+            ->where(function ($visibility) {
+                $visibility
+                    ->whereNull('setup_options')
+                    ->orWhere('setup_options->visibility', '!=', 'hidden');
+            })
             ->selectSub($this->activeBoostSubquery(), 'boosted_until')
             ->whereHas('user.commissionArtistProfile', function ($profile) {
                 $profile
@@ -64,10 +69,20 @@ class PublicCommissionController extends Controller
             });
         }
 
-        $commissions = $query
+        $query
             ->orderByRaw('CASE WHEN boosted_until IS NULL THEN 1 ELSE 0 END ASC')
             ->orderByDesc('boosted_until')
-            ->orderBy('sort_order')
+            ->orderBy('sort_order');
+
+        if ($request->query('sort') === 'likes') {
+            $query->orderByDesc('published_ratings_count');
+        } elseif ($request->query('sort') === 'views' || $request->query('sort') === 'popular') {
+            $query->orderByDesc('customers_count')->orderByDesc('published_ratings_count');
+        } elseif ($request->query('sort') === 'featured') {
+            $query->orderByDesc('is_featured')->orderByDesc('boosted_until');
+        }
+
+        $commissions = $query
             ->latest()
             ->paginate(24);
 
@@ -108,6 +123,19 @@ class PublicCommissionController extends Controller
         $validated = $request->validate([
             'request_message' => ['required', 'string', 'min:10', 'max:3000'],
             'reference_notes' => ['nullable', 'string', 'max:3000'],
+            'request_answers' => ['nullable', 'array', 'max:50'],
+            'request_answers.*.question_id' => ['nullable', 'string', 'max:80'],
+            'request_answers.*.question' => ['nullable', 'string', 'max:500'],
+            'request_answers.*.answer' => ['nullable', 'string', 'max:5000'],
+            'client_details' => ['nullable', 'array'],
+            'client_details.name' => ['nullable', 'string', 'max:120'],
+            'client_details.nickname' => ['nullable', 'string', 'max:120'],
+            'client_details.email' => ['nullable', 'email', 'max:180'],
+            'client_details.discord' => ['nullable', 'string', 'max:120'],
+            'client_details.twitter' => ['nullable', 'string', 'max:180'],
+            'client_details.instagram' => ['nullable', 'string', 'max:180'],
+            'client_details.facebook' => ['nullable', 'string', 'max:180'],
+            'client_details.tiktok' => ['nullable', 'string', 'max:180'],
             'reference_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
             'agree_to_flow' => ['accepted'],
         ]);
@@ -121,34 +149,33 @@ class PublicCommissionController extends Controller
         );
         abort_if($commission->user_id === $request->user()->id, 403, 'You cannot request your own commission service.');
 
-        $quoteCredits = max(0, (int) $commission->base_price_credits);
+        $this->ensureRequiredRequestFields($commission, $validated);
+
         $flow = $this->flow($commission);
-        $upfrontCredits = $this->upfrontCredits($flow, $quoteCredits);
-        $wallet = $this->wallets->findOrCreateByUser($request->user()->id);
 
-        if ($quoteCredits > 0 && $wallet->balance < $quoteCredits) {
-            return response()->json([
-                'message' => 'Add credits first, then come back to request this commission.',
-                'requires_top_up' => true,
-                'balance' => $wallet->balance,
-                'required_credits' => $quoteCredits,
-            ], 402);
-        }
-
-        $order = DB::transaction(function () use ($request, $commission, $validated, $quoteCredits, $flow, $upfrontCredits, $wallet) {
+        $order = DB::transaction(function () use ($request, $commission, $validated, $flow) {
             $order = CommissionOrder::create([
                 'commission_service_id' => $commission->id,
                 'artist_id' => $commission->user_id,
                 'customer_id' => $request->user()->id,
-                'status' => $upfrontCredits > 0 ? 'awaiting_payment' : 'requested',
+                'status' => 'requested',
                 'request_message' => $validated['request_message'],
                 'reference_notes' => $validated['reference_notes'] ?? null,
-                'quote_credits' => $quoteCredits,
-                'credits_checked' => $quoteCredits,
+                'request_answers' => $validated['request_answers'] ?? [],
+                'client_details' => $validated['client_details'] ?? [],
+                'quote_credits' => 0,
+                'credits_checked' => 0,
                 'escrow_credits' => 0,
                 'flow_snapshot' => $flow,
                 'current_step_index' => 0,
                 'auto_pay_agreed' => true,
+            ]);
+
+            CommissionMessage::create([
+                'commission_order_id' => $order->id,
+                'sender_id' => $request->user()->id,
+                'body' => $validated['request_message'],
+                'kind' => 'message',
             ]);
 
             if ($request->hasFile('reference_image')) {
@@ -163,34 +190,11 @@ class PublicCommissionController extends Controller
                 ]);
             }
 
-            if ($upfrontCredits > 0) {
-                $transaction = $this->wallets->debit($wallet, $upfrontCredits, [
-                    'source' => 'commission_escrow',
-                    'description' => "Commission escrow - {$commission->title}",
-                    'meta' => [
-                        'commission_order_id' => $order->id,
-                        'commission_service_id' => $commission->id,
-                        'upfront_credits' => $upfrontCredits,
-                    ],
-                ]);
-
-                if ($transaction === false) {
-                    abort(402, 'Insufficient credits.');
-                }
-
-                $order->update([
-                    'status' => 'requested',
-                    'escrow_credits' => $upfrontCredits,
-                ]);
-            }
-
             return $order->fresh(['service.category', 'artist:id,name,username,avatar', 'customer:id,name,username,avatar']);
         });
 
         return response()->json([
-            'message' => $upfrontCredits > 0
-                ? 'Commission request sent and upfront credits are held in escrow.'
-                : 'Commission request sent.',
+            'message' => 'Commission request sent. Continue in Messages while the artist reviews and quotes.',
             'order' => $this->formatOrder($order),
         ], 201);
     }
@@ -211,8 +215,9 @@ class PublicCommissionController extends Controller
             'image_path' => $service->image_path,
             'status' => $service->status,
             'boosted_until' => $service->boosted_until ?? null,
+            'is_featured' => (bool) ($service->is_featured ?? false),
             'base_price_credits' => (int) $service->base_price_credits,
-            'min_price_credits' => $service->min_price_credits,
+            'min_price_credits' => (int) $service->base_price_credits,
             'delivery_days' => $service->delivery_days,
             'slots_available' => $service->slots_available,
             'flow' => $this->flow($service),
@@ -220,6 +225,11 @@ class PublicCommissionController extends Controller
             'quote_rules' => $service->quote_rules,
             'refund_policy' => $service->refund_policy,
             'required_references' => $service->required_references,
+            'request_questions' => $service->request_questions ?? [],
+            'info_questions' => $service->info_questions ?? [],
+            'client_fields' => $this->clientFields($service),
+            'promo_discounts' => $service->promo_discounts ?? [],
+            'setup_options' => $this->setupOptions($service),
             'artist_terms' => $profile?->terms_moderation_status === 'approved' ? $profile->terms : null,
             'platform_terms' => $this->platformTerms(),
             'rating_average' => round($rating, 2),
@@ -316,6 +326,8 @@ class PublicCommissionController extends Controller
             'escrow_credits' => $order->escrow_credits,
             'request_message' => $order->request_message,
             'reference_notes' => $order->reference_notes,
+            'request_answers' => $order->request_answers ?? [],
+            'client_details' => $order->client_details ?? [],
             'flow_snapshot' => $order->flow_snapshot,
             'service' => $order->service ? [
                 'id' => $order->service->id,
@@ -348,6 +360,62 @@ class PublicCommissionController extends Controller
             'Completed commissions only can receive public ratings.',
             'Refunds, cancellations, and invalid ratings can be escalated to support.',
         ];
+    }
+
+    private function ensureRequiredRequestFields(CommissionService $commission, array $validated): void
+    {
+        $answers = collect($validated['request_answers'] ?? [])
+            ->keyBy(fn($answer) => (string) ($answer['question_id'] ?? ''));
+
+        foreach (($commission->request_questions ?? []) as $question) {
+            if (! ($question['required'] ?? false)) {
+                continue;
+            }
+
+            $id = (string) ($question['id'] ?? '');
+            $answer = trim((string) ($answers->get($id)['answer'] ?? ''));
+            abort_if($id === '' || $answer === '', 422, "Please answer: {$question['title']}");
+        }
+
+        $details = $validated['client_details'] ?? [];
+        foreach ($this->clientFields($commission) as $field => $config) {
+            if (! ($config['collect'] ?? false) || ! ($config['required'] ?? false)) {
+                continue;
+            }
+
+            abort_if(trim((string) ($details[$field] ?? '')) === '', 422, "Please provide your {$field}.");
+        }
+    }
+
+    private function clientFields(CommissionService $service): array
+    {
+        return array_replace_recursive([
+            'name' => ['collect' => true, 'required' => false],
+            'nickname' => ['collect' => true, 'required' => false],
+            'email' => ['collect' => false, 'required' => false],
+            'discord' => ['collect' => false, 'required' => false],
+            'twitter' => ['collect' => false, 'required' => false],
+            'instagram' => ['collect' => false, 'required' => false],
+            'facebook' => ['collect' => false, 'required' => false],
+            'tiktok' => ['collect' => false, 'required' => false],
+        ], $service->client_fields ?? []);
+    }
+
+    private function setupOptions(CommissionService $service): array
+    {
+        return array_replace([
+            'visibility' => 'discoverable',
+            'service_type' => 'custom',
+            'communication_style' => 'open',
+            'requesting_process' => 'custom_proposal',
+            'notify_followers_on_status_change' => false,
+            'sensitive' => false,
+            'display_service_stats' => true,
+            'estimated_start' => 'this_month',
+            'start_time' => '',
+            'end_time' => '',
+            'guaranteed_delivery_days' => $service->delivery_days,
+        ], $service->setup_options ?? []);
     }
 
     private function activeBoostSubquery()

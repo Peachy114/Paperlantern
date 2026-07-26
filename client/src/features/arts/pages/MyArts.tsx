@@ -1,5 +1,4 @@
 import {
-    useMemo,
     useState,
     type ChangeEvent,
     type FormEvent,
@@ -28,12 +27,14 @@ import {
     X,
 } from 'lucide-react'
 import News from '@/features/announcements/components/News'
+import WorkspaceBannerPicker from '@/features/announcements/components/WorkspaceBannerPicker'
 import { useMyArts } from '@/features/arts/hooks/useMyArts'
 import BoostModal from '@/features/boosts/components/BoostModal'
 import CommentSection from '@/features/comments/components/CommentSection'
+import CreatorWorkspaceShell from '@/features/studio/components/workspace/CreatorWorkspaceShell'
 import { publicApi } from '@/api/public'
 import { storageUrl } from '@/utils/storage'
-import type { Art, ArtDownloadPolicy, ArtStatus } from '@/types/art'
+import type { Art, ArtStatus } from '@/types/art'
 import { Button } from '@/components/ui/button'
 import {
     AlertDialog,
@@ -62,7 +63,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
     Table,
@@ -85,8 +85,6 @@ type FormState = {
     labels: string[]
     labelInput: string
     status: ArtStatus
-    downloadPolicy: ArtDownloadPolicy
-    downloadCredits: number
     applyWatermark: boolean
     images: ImageDraft[]
 }
@@ -103,8 +101,6 @@ const EMPTY_FORM: FormState = {
     labels: [],
     labelInput: '',
     status: 'published',
-    downloadPolicy: 'disabled',
-    downloadCredits: 1,
     applyWatermark: true,
     images: [],
 }
@@ -115,13 +111,12 @@ const STATUS_COLOR: Record<ArtStatus, string> = {
     archived: 'text-yellow-500',
 }
 
-const periods = ['Daily', 'Weekly', 'Monthly'] as const
-
 export default function MyArts() {
     const queryClient = useQueryClient()
     const {
         arts,
         stats,
+        viewsChart,
         trashedArts,
         trashLoading,
         createArt,
@@ -137,20 +132,31 @@ export default function MyArts() {
     const [confirm, setConfirm] = useState<ConfirmState>(null)
     const [boostArt, setBoostArt] = useState<Art | null>(null)
     const [viewArt, setViewArt] = useState<Art | null>(null)
-    const [period, setPeriod] = useState<(typeof periods)[number]>('Weekly')
+    const [selectedArts, setSelectedArts] = useState<string[]>([])
+    const [activeSection, setActiveSection] = useState('arts')
+    const [workspaceBannerImage, setWorkspaceBannerImage] = useState<string | null>(null)
 
-    const artistCreditShare = Math.floor(stats.super_like_credits * 0.8)
-    const platformCreditShare = stats.super_like_credits - artistCreditShare
+    const featuredArt = arts.find((art) => getFirstImagePath(art)) ?? arts[0] ?? null
+    const featuredImage = featuredArt ? storageUrl(getFirstImagePath(featuredArt)) : null
+    const activeBannerImage = workspaceBannerImage ?? featuredImage
 
-    const statCards = useMemo(
-        () => [
-            { label: 'Posts', value: stats.arts.toLocaleString(), icon: Images },
-            { label: 'Views', value: stats.views.toLocaleString(), icon: BarChart3 },
-            { label: 'Likes', value: stats.likes.toLocaleString(), icon: Heart },
-            { label: 'Super Likes', value: stats.super_likes.toLocaleString(), icon: Sparkles },
-        ],
-        [stats]
-    )
+    const statCards = [
+        { label: 'Arts', value: stats.arts, icon: Images, color: 'text-slate-700' },
+        { label: 'Views', value: stats.views, icon: Eye, color: 'text-slate-700' },
+        { label: 'Likes', value: stats.likes, icon: Heart, color: 'text-rose-500' },
+        {
+            label: 'Super Likes',
+            value: stats.super_likes,
+            icon: Sparkles,
+            color: 'text-amber-400',
+        },
+        {
+            label: 'Comments',
+            value: stats.comments,
+            icon: MessageCircle,
+            color: 'text-orange-500',
+        },
+    ]
 
     const openCreate = () => {
         setEditing(null)
@@ -166,8 +172,6 @@ export default function MyArts() {
             labels: art.labels ?? [],
             labelInput: '',
             status: art.status,
-            downloadPolicy: art.download_policy ?? 'disabled',
-            downloadCredits: art.download_credits || 1,
             applyWatermark: art.apply_watermark ?? true,
             images: [],
         })
@@ -201,11 +205,8 @@ export default function MyArts() {
         payload.append('title', form.title.trim())
         payload.append('description', form.description.trim())
         payload.append('status', form.status)
-        payload.append('download_policy', form.downloadPolicy)
+        payload.append('download_policy', 'disabled')
         payload.append('apply_watermark', form.applyWatermark ? '1' : '0')
-        if (form.downloadPolicy === 'paid') {
-            payload.append('download_credits', String(Math.max(1, form.downloadCredits)))
-        }
         form.labels.forEach((label) => payload.append('labels[]', label))
         form.images.forEach((image) => {
             payload.append('images[]', image.file)
@@ -230,7 +231,10 @@ export default function MyArts() {
 
         try {
             if (editing) {
-                await updateArt.mutateAsync({ slug: editing.slug, payload: buildPayload() })
+                await updateArt.mutateAsync({
+                    slug: editing.slug,
+                    payload: buildPayload(),
+                })
                 toast.success('Art post updated.')
             } else {
                 await createArt.mutateAsync(buildPayload())
@@ -264,6 +268,31 @@ export default function MyArts() {
         }
     }
 
+    const toggleSelectedArt = (id: string) => {
+        setSelectedArts((current) =>
+            current.includes(id) ? current.filter((selected) => selected !== id) : [...current, id]
+        )
+    }
+
+    const clearSelectedArts = () => setSelectedArts([])
+
+    const trashSelectedArts = async () => {
+        const selected = arts.filter((art) => selectedArts.includes(art.id))
+        if (selected.length === 0) return
+
+        try {
+            for (const art of selected) {
+                await trashArt.mutateAsync(art.slug)
+            }
+            toast.success(
+                `${selected.length} art post${selected.length === 1 ? '' : 's'} moved to trash.`
+            )
+            clearSelectedArts()
+        } catch {
+            toast.error('Could not move selected art posts to trash.')
+        }
+    }
+
     const daysLeft = (deletedAt?: string | null) => {
         if (!deletedAt) return 30
         const expires = new Date(new Date(deletedAt).getTime() + 30 * 24 * 60 * 60 * 1000)
@@ -278,61 +307,177 @@ export default function MyArts() {
         updateArt.isPending
 
     return (
-        <div className="p-5 lg:dark:bg-white/4 lg:bg-muted/30 lg:border border-b-zinc-900 rounded-3xl">
-            <News audience="studio" />
-
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">My Arts</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                        Manage your art posts
-                    </p>
+        <CreatorWorkspaceShell
+            layout="dashboard"
+            title="Arts"
+            description=""
+            action={
+                <div className="flex items-center gap-2">
+                    {activeSection === 'trash' ? (
+                        <button
+                            type="button"
+                            onClick={() => setActiveSection('arts')}
+                            className="inline-flex h-8 items-center rounded-full border border-sky-200 bg-white px-4 text-xs font-bold text-sky-600 shadow-sm transition hover:bg-sky-50"
+                        >
+                            Back to Arts
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={openCreate}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-full bg-sky-400 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-sky-500"
+                        >
+                            <PlusCircle className="h-3.5 w-3.5" />
+                            Add Artwork
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() =>
+                            setActiveSection((current) => (current === 'trash' ? 'arts' : 'trash'))
+                        }
+                        className="inline-flex h-8 items-center gap-1.5 rounded-full bg-sky-400 px-4 text-xs font-bold text-white shadow-sm transition hover:bg-sky-500"
+                    >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {activeSection === 'trash' ? 'Arts' : 'Trash'}
+                    </button>
                 </div>
-
-                <Button onClick={openCreate}>
-                    <PlusCircle className="h-4 w-4" />
-                    Add Post
-                </Button>
-            </div>
-
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                {statCards.map(({ label, value, icon: Icon }) => (
-                    <div key={label} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <div className="text-2xl font-bold">{value}</div>
-                                <div className="text-xs text-muted-foreground mt-0.5">{label}</div>
-                            </div>
-                            <Icon className="h-4 w-4 text-muted-foreground" />
+            }
+        >
+            {activeSection === 'trash' ? (
+                <StudioPanel title="Trash" count={trashedArts.length}>
+                    {trashLoading ? (
+                        <div className="py-12 text-center text-sm text-muted-foreground">
+                            Loading...
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ) : trashedArts.length === 0 ? (
+                        <EmptyState icon={Trash2} title="Trash is empty" />
+                    ) : (
+                        <TrashTable
+                            arts={trashedArts}
+                            daysLeft={daysLeft}
+                            onRestore={(art) => setConfirm({ type: 'restore', art })}
+                            onForceDelete={(art) => setConfirm({ type: 'force', art })}
+                        />
+                    )}
+                </StudioPanel>
+            ) : (
+                <>
+                    <section className="overflow-hidden rounded-[28px] border border-sky-100 bg-gradient-to-br from-sky-50/80 via-white to-orange-50/60 p-2.5 shadow-sm sm:p-3">
+                        <div className="grid gap-3 lg:grid-cols-[250px_minmax(0,1fr)]">
+                            <News audience="studio" variant="dashboard" />
 
-            <Tabs defaultValue="arts">
-                <TabsList className="mb-4 flex h-auto flex-wrap">
-                    <TabsTrigger value="arts">Arts</TabsTrigger>
-                    <TabsTrigger value="analytics">Analytics</TabsTrigger>
-                    <TabsTrigger value="comments">Comments</TabsTrigger>
-                    <TabsTrigger value="earnings">Earnings</TabsTrigger>
-                    <TabsTrigger value="trash">Trash</TabsTrigger>
-                </TabsList>
+                            <div className="rounded-2xl border border-slate-200 bg-background p-4 shadow-sm">
+                                <ArtsActivityChart points={viewsChart} />
 
-                <TabsContent value="arts">
-                    <StudioPanel title="Art Posts" count={arts.length}>
+                                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                                    {statCards.map(({ label, value, icon: Icon, color }) => (
+                                        <div
+                                            key={label}
+                                            className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
+                                        >
+                                            <div className={`flex items-center gap-1.5 ${color}`}>
+                                                <Icon className="h-3.5 w-3.5" />
+                                                <span className="text-[9px] font-bold">
+                                                    {label}
+                                                </span>
+                                            </div>
+                                            <p className="mt-2 text-lg font-black leading-none text-slate-900">
+                                                {value.toLocaleString()}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="relative mt-5 h-36 overflow-hidden rounded-2xl bg-gradient-to-r from-orange-200 via-rose-100 to-sky-200 sm:h-52">
+                        <div className="absolute right-3 top-3 z-20">
+                            <WorkspaceBannerPicker
+                                audience="studio"
+                                storageKey="workspace-banner-my-arts"
+                                fallbackImage={featuredImage}
+                                onImageChange={setWorkspaceBannerImage}
+                            />
+                        </div>
+                        {activeBannerImage ? (
+                            <img
+                                src={activeBannerImage}
+                                alt=""
+                                className="absolute inset-0 h-full w-full object-cover object-center"
+                            />
+                        ) : (
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,rgba(251,146,60,0.5),transparent_30%),radial-gradient(circle_at_75%_50%,rgba(56,189,248,0.45),transparent_35%)]" />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/10" />
+                        {featuredArt ? (
+                            <div className="absolute bottom-3 right-4 max-w-[55%] rounded-full bg-black/45 px-4 py-2 text-right text-[10px] font-bold text-white backdrop-blur">
+                                {featuredArt.title}
+                            </div>
+                        ) : null}
+                    </section>
+
+                    <section className="mt-5">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <h2 className="text-xs font-black uppercase tracking-[0.12em]">
+                                My Arts
+                            </h2>
+
+                            {arts.length > 0 ? (
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    {selectedArts.length > 0 ? (
+                                        <span className="mr-1 text-[10px] text-muted-foreground">
+                                            {selectedArts.length} selected
+                                        </span>
+                                    ) : null}
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedArts(arts.map((art) => art.id))}
+                                        disabled={acting || selectedArts.length === arts.length}
+                                        className="rounded-full border px-3 py-1 text-[9px] font-bold transition hover:bg-muted disabled:opacity-40"
+                                    >
+                                        Select all
+                                    </button>
+                                    {selectedArts.length > 0 ? (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={clearSelectedArts}
+                                                disabled={acting}
+                                                className="rounded-full border px-3 py-1 text-[9px] font-bold transition hover:bg-muted disabled:opacity-40"
+                                            >
+                                                Clear
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={trashSelectedArts}
+                                                disabled={acting}
+                                                className="rounded-full bg-rose-500 px-3 py-1 text-[9px] font-bold text-white transition hover:bg-rose-600 disabled:opacity-40"
+                                            >
+                                                Delete selected
+                                            </button>
+                                        </>
+                                    ) : null}
+                                </div>
+                            ) : null}
+                        </div>
+
                         {arts.length === 0 ? (
                             <EmptyState
                                 icon={Images}
                                 title="No art posts yet"
-                                actionLabel="Add art post"
+                                actionLabel="Add artwork"
                                 onAction={openCreate}
                             />
                         ) : (
-                            <div className="divide-y">
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                                 {arts.map((art) => (
-                                    <ArtPostRow
+                                    <ArtDashboardCard
                                         key={art.id}
                                         art={art}
+                                        selected={selectedArts.includes(art.id)}
+                                        onSelect={toggleSelectedArt}
                                         onView={setViewArt}
                                         onEdit={openEdit}
                                         onBoost={setBoostArt}
@@ -343,90 +488,9 @@ export default function MyArts() {
                                 ))}
                             </div>
                         )}
-                    </StudioPanel>
-                </TabsContent>
-
-                <TabsContent value="analytics">
-                    <StudioPanel
-                        title={`${period} Picture Views`}
-                        action={
-                            <div className="flex rounded-md border overflow-hidden">
-                                {periods.map((item) => (
-                                    <button
-                                        key={item}
-                                        type="button"
-                                        onClick={() => setPeriod(item)}
-                                        className={`px-3 py-1 text-xs ${
-                                            period === item
-                                                ? 'bg-foreground text-background'
-                                                : 'hover:bg-accent'
-                                        }`}
-                                    >
-                                        {item}
-                                    </button>
-                                ))}
-                            </div>
-                        }
-                    >
-                        <AnalyticsTable arts={arts} />
-                    </StudioPanel>
-                </TabsContent>
-
-                <TabsContent value="comments">
-                    <StudioPanel title="Comments" count={stats.comments}>
-                        <div className="px-4 py-3 border-b bg-muted/20 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            <span className="border rounded-md px-2 py-1">All art posts</span>
-                            <span className="border rounded-md px-2 py-1">All languages</span>
-                            <span className="border rounded-md px-2 py-1">Manage blocked users</span>
-                        </div>
-                        <EmptyState icon={MessageCircle} title="No art comments yet" />
-                    </StudioPanel>
-                </TabsContent>
-
-                <TabsContent value="earnings">
-                    <div className="grid gap-4 md:grid-cols-3">
-                        <div className="border rounded-lg p-4">
-                            <div className="text-xs text-muted-foreground">Super Like Credits</div>
-                            <div className="text-2xl font-bold mt-1">
-                                {stats.super_like_credits.toLocaleString()}
-                            </div>
-                        </div>
-                        <div className="border rounded-lg p-4">
-                            <div className="text-xs text-muted-foreground">Artist Share</div>
-                            <div className="text-2xl font-bold mt-1">
-                                {artistCreditShare.toLocaleString()}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">80%</p>
-                        </div>
-                        <div className="border rounded-lg p-4">
-                            <div className="text-xs text-muted-foreground">Website Share</div>
-                            <div className="text-2xl font-bold mt-1">
-                                {platformCreditShare.toLocaleString()}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-1">20%</p>
-                        </div>
-                    </div>
-                </TabsContent>
-
-                <TabsContent value="trash">
-                    <StudioPanel title="Trash" count={trashedArts.length}>
-                        {trashLoading ? (
-                            <div className="py-12 text-center text-sm text-muted-foreground">
-                                Loading...
-                            </div>
-                        ) : trashedArts.length === 0 ? (
-                            <EmptyState icon={Trash2} title="Trash is empty" />
-                        ) : (
-                            <TrashTable
-                                arts={trashedArts}
-                                daysLeft={daysLeft}
-                                onRestore={(art) => setConfirm({ type: 'restore', art })}
-                                onForceDelete={(art) => setConfirm({ type: 'force', art })}
-                            />
-                        )}
-                    </StudioPanel>
-                </TabsContent>
-            </Tabs>
+                    </section>
+                </>
+            )}
 
             <Dialog open={formOpen} onOpenChange={setFormOpen}>
                 <DialogContent className="sm:max-w-2xl">
@@ -507,44 +571,6 @@ export default function MyArts() {
                             </div>
 
                             <div className="grid gap-3 rounded-lg border bg-muted/20 p-3">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="art-download-policy">Original download</Label>
-                                    <select
-                                        id="art-download-policy"
-                                        value={form.downloadPolicy}
-                                        onChange={(event) =>
-                                            setForm((current) => ({
-                                                ...current,
-                                                downloadPolicy: event.target.value as ArtDownloadPolicy,
-                                            }))
-                                        }
-                                        className="h-9 rounded-md border bg-background px-3 text-sm"
-                                    >
-                                        <option value="disabled">No download button</option>
-                                        <option value="free">Free original download</option>
-                                        <option value="paid">Buy with credits</option>
-                                    </select>
-                                </div>
-
-                                {form.downloadPolicy === 'paid' && (
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="art-download-credits">Credit cost</Label>
-                                        <Input
-                                            id="art-download-credits"
-                                            type="number"
-                                            min={1}
-                                            max={999}
-                                            value={form.downloadCredits}
-                                            onChange={(event) =>
-                                                setForm((current) => ({
-                                                    ...current,
-                                                    downloadCredits: Number(event.target.value) || 1,
-                                                }))
-                                            }
-                                        />
-                                    </div>
-                                )}
-
                                 <label
                                     htmlFor="art-apply-watermark"
                                     className="flex items-start gap-3 rounded-md border bg-background p-3 text-sm"
@@ -569,8 +595,7 @@ export default function MyArts() {
                                                 aria-label="Watermark help"
                                             >
                                                 <title>
-                                                    Watermark protects the public preview. Original
-                                                    downloads still use the clean original file.
+                                                    Watermark protects the public art preview.
                                                 </title>
                                             </Info>
                                         </span>
@@ -580,11 +605,6 @@ export default function MyArts() {
                                         </span>
                                     </span>
                                 </label>
-
-                                <p className="text-xs text-muted-foreground">
-                                    Downloads use the private original file only when this setting
-                                    allows it.
-                                </p>
                             </div>
 
                             <div className="grid gap-2">
@@ -661,7 +681,9 @@ export default function MyArts() {
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>{confirmTitle(confirm)}</AlertDialogTitle>
-                        <AlertDialogDescription>{confirmDescription(confirm)}</AlertDialogDescription>
+                        <AlertDialogDescription>
+                            {confirmDescription(confirm)}
+                        </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={acting}>Cancel</AlertDialogCancel>
@@ -702,7 +724,376 @@ export default function MyArts() {
                     if (!open) setViewArt(null)
                 }}
             />
+        </CreatorWorkspaceShell>
+    )
+}
+
+function ArtsActivityChart({ points }: { points: Array<{ date: string; views: number }> }) {
+    const [activeIndex, setActiveIndex] = useState<number | null>(null)
+    const width = 720
+    const height = 190
+    const baseline = 148
+    const chartTop = 34
+    const left = 28
+    const right = width - 28
+    const max = Math.max(...points.map((point) => Number(point.views)), 1)
+    const step = (right - left) / Math.max(points.length - 1, 1)
+
+    const normalizedPoints = points.map((point) => {
+        const date = new Date(`${point.date}T00:00:00`)
+
+        return {
+            ...point,
+            views: Number(point.views) || 0,
+            label: Number.isNaN(date.getTime())
+                ? point.date
+                : date.toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                  }),
+            fullLabel: Number.isNaN(date.getTime())
+                ? point.date
+                : date.toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                  }),
+        }
+    })
+    const coordinates = normalizedPoints.map((point, index) => ({
+        x: left + index * step,
+        y: baseline - (point.views / max) * (baseline - chartTop),
+    }))
+    const linePath = createArtsChartPath(coordinates)
+    const first = coordinates[0]
+    const last = coordinates[coordinates.length - 1]
+    const areaPath =
+        first && last ? `${linePath} L ${last.x} ${baseline} L ${first.x} ${baseline} Z` : ''
+    const activePoint = activeIndex === null ? null : normalizedPoints[activeIndex]
+    const activeCoordinate = activeIndex === null ? null : coordinates[activeIndex]
+    const totalViews = normalizedPoints.reduce((sum, point) => sum + point.views, 0)
+    const hasViews = normalizedPoints.some((point) => point.views > 0)
+
+    return (
+        <div>
+            <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p className="text-xs font-black uppercase tracking-[0.12em] text-orange-500">
+                        Views
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                        Last seven days · views across all your artwork
+                    </p>
+                </div>
+                <span className="rounded-full border border-sky-100 bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
+                    {totalViews.toLocaleString()} total views
+                </span>
+            </div>
+
+            <div className="relative h-56 overflow-hidden rounded-2xl bg-gradient-to-b from-background to-sky-50/65">
+                <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-background/90 px-2.5 py-1 text-[9px] font-bold text-muted-foreground shadow-sm backdrop-blur">
+                    <span className="h-2 w-2 rounded-full bg-sky-400" />
+                    Views
+                </div>
+
+                {activePoint && activeCoordinate ? (
+                    <div
+                        className={`pointer-events-none absolute top-8 z-20 min-w-32 rounded-xl border border-slate-200/80 bg-background/95 px-3 py-2 text-[10px] shadow-xl backdrop-blur ${
+                            activeIndex === 0
+                                ? 'translate-x-0'
+                                : activeIndex === normalizedPoints.length - 1
+                                  ? '-translate-x-full'
+                                  : '-translate-x-1/2'
+                        }`}
+                        style={{ left: `${(activeCoordinate.x / width) * 100}%` }}
+                    >
+                        <p className="font-black text-foreground">{activePoint.fullLabel}</p>
+                        <div className="mt-1.5 flex items-center justify-between gap-5 text-muted-foreground">
+                            <span className="flex items-center gap-1.5">
+                                <span className="h-2 w-2 rounded-full bg-sky-400" />
+                                Views
+                            </span>
+                            <strong className="text-foreground">
+                                {activePoint.views.toLocaleString()}
+                            </strong>
+                        </div>
+                    </div>
+                ) : null}
+
+                {!hasViews ? (
+                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center pt-5 text-xs font-semibold text-muted-foreground">
+                        No art views during the last seven days.
+                    </div>
+                ) : null}
+
+                <svg
+                    viewBox={`0 0 ${width} ${height}`}
+                    className="h-full w-full"
+                    role="img"
+                    aria-label="Art views during the last seven days"
+                    onMouseLeave={() => setActiveIndex(null)}
+                >
+                    {[0, 1, 2, 3].map((lineIndex) => {
+                        const y = chartTop + lineIndex * ((baseline - chartTop) / 3)
+
+                        return (
+                            <line
+                                key={lineIndex}
+                                x1={left}
+                                x2={right}
+                                y1={y}
+                                y2={y}
+                                stroke="currentColor"
+                                strokeDasharray="3 5"
+                                className="text-slate-200/90"
+                            />
+                        )
+                    })}
+
+                    <defs>
+                        <linearGradient id="arts-views-fill" x1="0" x2="0" y1="0" y2="1">
+                            <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.58" />
+                            <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.03" />
+                        </linearGradient>
+                    </defs>
+
+                    <path d={areaPath} fill="url(#arts-views-fill)" />
+                    <path
+                        d={linePath}
+                        fill="none"
+                        stroke="#38bdf8"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    />
+
+                    {activeCoordinate ? (
+                        <line
+                            x1={activeCoordinate.x}
+                            x2={activeCoordinate.x}
+                            y1={chartTop}
+                            y2={baseline}
+                            stroke="#94a3b8"
+                            strokeWidth="1"
+                            strokeDasharray="3 4"
+                        />
+                    ) : null}
+
+                    {normalizedPoints.map((point, index) => {
+                        const coordinate = coordinates[index]
+                        const hitLeft =
+                            index === 0
+                                ? left
+                                : coordinate.x - (normalizedPoints.length > 1 ? step / 2 : 0)
+                        const hitRight =
+                            index === normalizedPoints.length - 1
+                                ? right
+                                : coordinate.x +
+                                  (normalizedPoints.length > 1 ? step / 2 : right - left)
+                        const active = activeIndex === index
+
+                        return (
+                            <g key={`${point.date}-${index}`}>
+                                <circle
+                                    cx={coordinate.x}
+                                    cy={coordinate.y}
+                                    r={active ? 5 : 3.5}
+                                    fill="#ffffff"
+                                    stroke="#38bdf8"
+                                    strokeWidth="2"
+                                    className="pointer-events-none transition-all"
+                                />
+                                <text
+                                    x={coordinate.x}
+                                    y={176}
+                                    textAnchor="middle"
+                                    className="pointer-events-none fill-slate-400 text-[8px]"
+                                >
+                                    {point.label}
+                                </text>
+                                <rect
+                                    x={hitLeft}
+                                    y={chartTop}
+                                    width={hitRight - hitLeft}
+                                    height={baseline - chartTop + 12}
+                                    fill="transparent"
+                                    tabIndex={0}
+                                    role="button"
+                                    aria-label={`${point.fullLabel}: ${point.views.toLocaleString()} views`}
+                                    className="cursor-crosshair outline-none"
+                                    onMouseEnter={() => setActiveIndex(index)}
+                                    onFocus={() => setActiveIndex(index)}
+                                    onBlur={() => setActiveIndex(null)}
+                                />
+                            </g>
+                        )
+                    })}
+                </svg>
+            </div>
         </div>
+    )
+}
+
+function createArtsChartPath(points: Array<{ x: number; y: number }>) {
+    if (points.length === 0) return ''
+    if (points.length === 1) return `M ${points[0].x} ${points[0].y}`
+
+    return points.reduce((path, point, index) => {
+        if (index === 0) return `M ${point.x} ${point.y}`
+
+        const previous = points[index - 1]
+        const controlX = (previous.x + point.x) / 2
+
+        return `${path} C ${controlX} ${previous.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`
+    }, '')
+}
+
+function ArtDashboardCard({
+    art,
+    selected,
+    onSelect,
+    onView,
+    onEdit,
+    onBoost,
+    onTrash,
+}: {
+    art: Art
+    selected: boolean
+    onSelect: (id: string) => void
+    onView: (art: Art) => void
+    onEdit: (art: Art) => void
+    onBoost: (art: Art) => void
+    onTrash: (art: Art) => void
+}) {
+    const image = storageUrl(getFirstImagePath(art))
+    const labels = art.labels ?? []
+
+    return (
+        <article
+            className={`group overflow-hidden rounded-2xl border bg-background shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                selected ? 'border-sky-400 ring-2 ring-sky-200' : 'border-slate-200'
+            }`}
+        >
+            <div className="relative aspect-square overflow-hidden bg-muted">
+                <button
+                    type="button"
+                    onClick={() => onView(art)}
+                    className="h-full w-full"
+                    aria-label={`View ${art.title}`}
+                >
+                    {image ? (
+                        <img
+                            src={image}
+                            alt={art.title}
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                        />
+                    ) : (
+                        <span className="flex h-full items-center justify-center bg-gradient-to-br from-orange-100 via-rose-100 to-sky-100">
+                            <ImageOff className="h-8 w-8 text-slate-400" />
+                        </span>
+                    )}
+                </button>
+
+                <div className="absolute left-2 top-2 flex flex-wrap gap-1">
+                    <span className="rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold capitalize text-slate-700 shadow-sm backdrop-blur">
+                        {art.status}
+                    </span>
+                    {art.boosted_until ? (
+                        <span className="rounded-full bg-rose-400 px-2 py-1 text-[9px] font-bold text-white shadow-sm">
+                            Boosted
+                        </span>
+                    ) : null}
+                </div>
+
+                <label className="absolute right-2 top-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-black/45 text-white backdrop-blur">
+                    <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => onSelect(art.id)}
+                        className="h-4 w-4 accent-sky-500"
+                        aria-label={`Select ${art.title}`}
+                    />
+                </label>
+            </div>
+
+            <div className="p-2.5">
+                <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                        <button
+                            type="button"
+                            onClick={() => onView(art)}
+                            className="line-clamp-2 min-h-8 w-full text-left text-xs font-black leading-[1.35] hover:text-sky-500"
+                        >
+                            {art.title}
+                        </button>
+                        <p className="mt-1 truncate text-[9px] font-semibold text-orange-500">
+                            {art.user?.name ?? 'Artist'}
+                        </p>
+                    </div>
+                    <ArtActions
+                        art={art}
+                        onView={onView}
+                        onEdit={onEdit}
+                        onBoost={onBoost}
+                        onTrash={onTrash}
+                    />
+                </div>
+
+                {art.description ? (
+                    <p className="mt-2 line-clamp-2 min-h-7 text-[9px] leading-relaxed text-muted-foreground">
+                        {art.description}
+                    </p>
+                ) : null}
+
+                {labels.length > 0 ? (
+                    <div className="mt-2 flex min-h-4 flex-wrap gap-1">
+                        {labels.slice(0, 2).map((label) => (
+                            <span
+                                key={label}
+                                className="rounded-full bg-muted px-1.5 py-0.5 text-[8px] text-muted-foreground"
+                            >
+                                #{label}
+                            </span>
+                        ))}
+                    </div>
+                ) : null}
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[8px] text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                        <Eye className="h-2.5 w-2.5" />
+                        {art.views.toLocaleString()}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-rose-500">
+                        <Heart className="h-2.5 w-2.5 fill-current" />
+                        {art.likes.toLocaleString()}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                        <MessageCircle className="h-2.5 w-2.5" />
+                        {art.comments_count.toLocaleString()}
+                    </span>
+                </div>
+
+                <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+                    <button
+                        type="button"
+                        onClick={() => onEdit(art)}
+                        className="inline-flex h-7 items-center justify-center gap-1 rounded-full bg-rose-400 text-[9px] font-bold text-white transition hover:bg-rose-500"
+                    >
+                        <Pencil className="h-2.5 w-2.5" />
+                        Edit
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => onBoost(art)}
+                        className="inline-flex h-7 items-center justify-center gap-1 rounded-full bg-sky-400 text-[9px] font-bold text-white transition hover:bg-sky-500"
+                    >
+                        <Sparkles className="h-2.5 w-2.5" />
+                        Boost
+                    </button>
+                </div>
+            </div>
+        </article>
     )
 }
 
@@ -736,12 +1127,16 @@ function StudioPanel({
 
 function ArtPostRow({
     art,
+    selected,
+    onSelect,
     onView,
     onEdit,
     onBoost,
     onTrash,
 }: {
     art: Art
+    selected: boolean
+    onSelect: (id: string) => void
     onView: (art: Art) => void
     onEdit: (art: Art) => void
     onBoost: (art: Art) => void
@@ -753,6 +1148,15 @@ function ArtPostRow({
     return (
         <div className="p-4">
             <div className="flex flex-col lg:flex-row gap-4">
+                <label className="flex items-start pt-1">
+                    <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => onSelect(art.id)}
+                        className="h-4 w-4 rounded border-muted-foreground/40"
+                        aria-label={`Select ${art.title}`}
+                    />
+                </label>
                 <ArtImageCarousel art={art} />
 
                 <div className="flex-1 min-w-0">
@@ -766,8 +1170,7 @@ function ArtPostRow({
                             </p>
                             {art.boosted_until && (
                                 <p className="mt-1 text-[11px] text-amber-500">
-                                    Boosted until{' '}
-                                    {new Date(art.boosted_until).toLocaleDateString()}
+                                    Boosted until {new Date(art.boosted_until).toLocaleDateString()}
                                 </p>
                             )}
                         </div>
@@ -819,6 +1222,56 @@ function ArtPostRow({
                     </div>
                 </div>
             </div>
+        </div>
+    )
+}
+
+function BulkSelectionBar({
+    selectedCount,
+    totalCount,
+    onSelectAll,
+    onClear,
+    onDelete,
+    disabled,
+}: {
+    selectedCount: number
+    totalCount: number
+    onSelectAll: () => void
+    onClear: () => void
+    onDelete: () => void
+    disabled?: boolean
+}) {
+    return (
+        <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+            <span className="text-muted-foreground">{selectedCount} selected</span>
+            <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onSelectAll}
+                disabled={disabled || selectedCount === totalCount}
+            >
+                Select all
+            </Button>
+            <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onClear}
+                disabled={disabled || selectedCount === 0}
+            >
+                Unselect
+            </Button>
+            <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                onClick={onDelete}
+                disabled={disabled || selectedCount === 0}
+            >
+                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                Delete selected
+            </Button>
         </div>
     )
 }
@@ -926,7 +1379,10 @@ function ArtViewDialog({
                         ) : (
                             <div className="grid gap-4">
                                 {images.map((image, index) => (
-                                    <figure key={`${image.image_path}-${index}`} className="rounded-lg bg-black/30 p-2">
+                                    <figure
+                                        key={`${image.image_path}-${index}`}
+                                        className="rounded-lg bg-black/30 p-2"
+                                    >
                                         <img
                                             src={storageUrl(image.image_path)!}
                                             alt={`${art.title} image ${index + 1}`}
@@ -954,12 +1410,17 @@ function ArtViewDialog({
                                 {art.description}
                             </p>
                         ) : (
-                            <p className="mt-4 text-sm text-muted-foreground">No description added.</p>
+                            <p className="mt-4 text-sm text-muted-foreground">
+                                No description added.
+                            </p>
                         )}
                         {labels.length > 0 && (
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {labels.map((label) => (
-                                    <span key={label} className="rounded-md border px-2 py-1 text-xs text-muted-foreground">
+                                    <span
+                                        key={label}
+                                        className="rounded-md border px-2 py-1 text-xs text-muted-foreground"
+                                    >
                                         {label}
                                     </span>
                                 ))}
@@ -972,7 +1433,12 @@ function ArtViewDialog({
                             <Metric label="Super Likes" value={art.super_likes_count} />
                         </div>
                         <div className="mt-6">
-                            <CommentSection targetType="art" targetId={art.id} title="Art comments" compact />
+                            <CommentSection
+                                targetType="art"
+                                targetId={art.id}
+                                title="Art comments"
+                                compact
+                            />
                         </div>
                     </aside>
                 </div>
@@ -1083,8 +1549,9 @@ function LabelBadgeInput({
 
             {filteredSuggestions.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                    {filteredSuggestions.slice(0, 8).map(
-                        (tag: { label: string; artists_count: number }) => (
+                    {filteredSuggestions
+                        .slice(0, 8)
+                        .map((tag: { label: string; artists_count: number }) => (
                             <button
                                 key={tag.label}
                                 type="button"
@@ -1093,8 +1560,7 @@ function LabelBadgeInput({
                             >
                                 {tag.label} · {tag.artists_count} artists
                             </button>
-                        )
-                    )}
+                        ))}
                 </div>
             )}
         </div>
@@ -1202,6 +1668,8 @@ function AnalyticsTable({ arts }: { arts: Art[] }) {
         </Table>
     )
 }
+
+void [ArtPostRow, BulkSelectionBar, AnalyticsTable]
 
 function TrashTable({
     arts,

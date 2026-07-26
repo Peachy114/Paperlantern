@@ -496,6 +496,8 @@ function ReviewContentSection({
     restoreSuspension,
     approveCommentImage,
     suspendCommentImage,
+    approveFeedImage,
+    suspendFeedImage,
     approveCommissionMessageImage,
     suspendCommissionMessageImage,
     approveCommissionDeliveryFile,
@@ -504,6 +506,8 @@ function ReviewContentSection({
     restoringSuspension,
     approvingCommentImage,
     suspendingCommentImage,
+    approvingFeedImage,
+    suspendingFeedImage,
     approvingCommissionMessageImage,
     suspendingCommissionMessageImage,
     approvingCommissionDeliveryFile,
@@ -515,6 +519,8 @@ function ReviewContentSection({
     | 'restoreSuspension'
     | 'approveCommentImage'
     | 'suspendCommentImage'
+    | 'approveFeedImage'
+    | 'suspendFeedImage'
     | 'approveCommissionMessageImage'
     | 'suspendCommissionMessageImage'
     | 'approveCommissionDeliveryFile'
@@ -523,6 +529,8 @@ function ReviewContentSection({
     | 'restoringSuspension'
     | 'approvingCommentImage'
     | 'suspendingCommentImage'
+    | 'approvingFeedImage'
+    | 'suspendingFeedImage'
     | 'approvingCommissionMessageImage'
     | 'suspendingCommissionMessageImage'
     | 'approvingCommissionDeliveryFile'
@@ -539,6 +547,10 @@ function ReviewContentSection({
         id: string
         label: string
     } | null>(null)
+    const [feedImageSuspend, setFeedImageSuspend] = useState<{
+        id: string
+        label: string
+    } | null>(null)
     const [commissionImageSuspend, setCommissionImageSuspend] = useState<{
         id: string
         label: string
@@ -548,6 +560,7 @@ function ReviewContentSection({
         label: string
     } | null>(null)
     const commentImages = review.comment_images ?? []
+    const feedImages = review.feed_images ?? []
     const commissionMessageImages = review.commission_message_images ?? []
     const commissionDeliveryFiles = review.commission_delivery_files ?? []
 
@@ -557,6 +570,7 @@ function ReviewContentSection({
         review.arts.length +
         review.profile_blocks.length +
         commentImages.length +
+        feedImages.length +
         commissionMessageImages.length +
         commissionDeliveryFiles.length
 
@@ -782,6 +796,49 @@ function ReviewContentSection({
                                 }
                             />
                         ))}
+                        {feedImages.map((image) => (
+                            <ReviewRow
+                                key={`feed-image-${image.id}`}
+                                image={image.image_path}
+                                title={image.feed_post?.body || 'Feed image upload'}
+                                meta={`Feed image by @${image.feed_post?.user?.username ?? 'unknown'}`}
+                                actions={
+                                    <>
+                                        <button
+                                            onClick={() => approveFeedImage(image.id)}
+                                            disabled={approvingFeedImage === image.id}
+                                            className="border-[2px] border-green-400 text-green-700 px-2 py-1 text-[10px] disabled:opacity-50"
+                                            style={{
+                                                fontFamily: "'Bebas Neue', sans-serif",
+                                                letterSpacing: '0.1em',
+                                            }}
+                                        >
+                                            {approvingFeedImage === image.id
+                                                ? 'APPROVING...'
+                                                : 'APPROVE'}
+                                        </button>
+                                        <button
+                                            onClick={() =>
+                                                setFeedImageSuspend({
+                                                    id: image.id,
+                                                    label: image.feed_post?.body || 'feed image',
+                                                })
+                                            }
+                                            disabled={suspendingFeedImage === image.id}
+                                            className="border-[2px] border-red-300 text-red-500 hover:bg-red-50 px-2 py-1 text-[10px] disabled:opacity-50"
+                                            style={{
+                                                fontFamily: "'Bebas Neue', sans-serif",
+                                                letterSpacing: '0.1em',
+                                            }}
+                                        >
+                                            {suspendingFeedImage === image.id
+                                                ? 'SUSPENDING...'
+                                                : 'SUSPEND IMAGE'}
+                                        </button>
+                                    </>
+                                }
+                            />
+                        ))}
                         {commissionMessageImages.map((message) => (
                             <ReviewRow
                                 key={`commission-message-image-${message.id}`}
@@ -912,6 +969,15 @@ function ReviewContentSection({
                         setCommentImageSuspend(null)
                     }}
                     onCancel={() => setCommentImageSuspend(null)}
+                />
+            )}
+            {feedImageSuspend && (
+                <ViolateForm
+                    onConfirm={(reason) => {
+                        suspendFeedImage(feedImageSuspend.id, reason)
+                        setFeedImageSuspend(null)
+                    }}
+                    onCancel={() => setFeedImageSuspend(null)}
                 />
             )}
             {commissionImageSuspend && (
@@ -1064,6 +1130,8 @@ function ModerationQueue() {
                             restoreSuspension={queue.restoreSuspension}
                             approveCommentImage={queue.approveCommentImage}
                             suspendCommentImage={queue.suspendCommentImage}
+                            approveFeedImage={queue.approveFeedImage}
+                            suspendFeedImage={queue.suspendFeedImage}
                             approveCommissionMessageImage={queue.approveCommissionMessageImage}
                             suspendCommissionMessageImage={queue.suspendCommissionMessageImage}
                             approveCommissionDeliveryFile={queue.approveCommissionDeliveryFile}
@@ -1072,6 +1140,8 @@ function ModerationQueue() {
                             restoringSuspension={queue.restoringSuspension}
                             approvingCommentImage={queue.approvingCommentImage}
                             suspendingCommentImage={queue.suspendingCommentImage}
+                            approvingFeedImage={queue.approvingFeedImage}
+                            suspendingFeedImage={queue.suspendingFeedImage}
                             approvingCommissionMessageImage={queue.approvingCommissionMessageImage}
                             suspendingCommissionMessageImage={queue.suspendingCommissionMessageImage}
                             approvingCommissionDeliveryFile={queue.approvingCommissionDeliveryFile}

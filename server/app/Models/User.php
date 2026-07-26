@@ -17,6 +17,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'nickname',
         'username',
         'email',
         'password',
@@ -72,6 +73,7 @@ class User extends Authenticatable
         'message_background_id',
         'payment_settings',
         'twitter_url',
+        'discord_url',
         'instagram_url',
         'tiktok_url',
     ];

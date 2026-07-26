@@ -2,88 +2,179 @@ import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useModalStore } from '@/store/modalStore'
 
-const PROTECTED = ['/become-creator', '/studio']
+const PROTECTED_ROUTES = ['/become-creator', '/studio']
 
 const NAV_LINKS = [
     { label: 'Comix', to: '/comix' },
     { label: 'Arts', to: '/explore/arts' },
     { label: 'Commission', to: '/commissions' },
-    { label: 'Become a Creator', to: '/become-creator' },
+    { label: 'Become Creator', to: '/become-creator' },
     { label: 'Studio', to: '/studio' },
     { label: 'About', to: '/about' },
     { label: 'Blog', to: '/blog' },
-]
+] as const
 
-const RIGHTS = [
+const LEGAL_LINKS = [
     { label: 'Privacy Policy', to: '/privacy-policy' },
-    { label: 'Terms of Service', to: '/terms-and-services' },
+    { label: 'Terms and Service', to: '/terms-and-services' },
     { label: 'Cookies', to: '/cookies' },
-]
+] as const
+
+const SOCIAL_LINKS = [
+    {
+        label: 'Discord',
+        href: 'https://discord.com',
+        icon: (
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                    fill="currentColor"
+                    d="M19.54 5.34A16.3 16.3 0 0 0 15.44 4l-.5 1.02a15.1 15.1 0 0 0-5.86 0L8.57 4a16.7 16.7 0 0 0-4.1 1.34C1.88 9.2 1.18 12.96 1.53 16.67a16.5 16.5 0 0 0 5.03 2.54l1.22-1.67c-.67-.25-1.31-.56-1.92-.92l.47-.37c3.7 1.72 7.73 1.72 11.38 0l.48.37c-.62.36-1.26.67-1.93.92l1.22 1.67a16.4 16.4 0 0 0 5.02-2.54c.42-4.3-.72-8.02-2.96-11.33ZM8.3 14.42c-1.12 0-2.04-1.03-2.04-2.3 0-1.26.9-2.3 2.04-2.3 1.14 0 2.06 1.04 2.04 2.3 0 1.27-.9 2.3-2.04 2.3Zm7.4 0c-1.12 0-2.04-1.03-2.04-2.3 0-1.26.9-2.3 2.04-2.3 1.14 0 2.06 1.04 2.04 2.3 0 1.27-.9 2.3-2.04 2.3Z"
+                />
+            </svg>
+        ),
+    },
+    {
+        label: 'Instagram',
+        href: 'https://instagram.com',
+        icon: (
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect
+                    x="3"
+                    y="3"
+                    width="18"
+                    height="18"
+                    rx="5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                />
+                <circle
+                    cx="12"
+                    cy="12"
+                    r="4.1"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                />
+                <circle cx="17.4" cy="6.7" r="1.1" fill="currentColor" />
+            </svg>
+        ),
+    },
+    {
+        label: 'Facebook',
+        href: 'https://facebook.com',
+        icon: (
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                    fill="currentColor"
+                    d="M14.1 8.2V6.7c0-.7.5-.9 1-.9h2.6V2.1L14.4 2c-3.6 0-4.4 2.1-4.4 4.3v1.9H7.8V12H10v10h4.1V12h3.1l.5-3.8h-3.6Z"
+                />
+            </svg>
+        ),
+    },
+] as const
 
 export default function Footer() {
-    const { token } = useAuthStore()
-    const { openLogin } = useModalStore()
+    const token = useAuthStore((state) => state.token)
+    const openLogin = useModalStore((state) => state.openLogin)
 
     return (
-        <footer className="relative w-full overflow-hidden bg-black">
-            <div className="max-w-[1390px] mx-auto px-6 pb-8 flex flex-col items-center">
-                {/* Logo stamp */}
+        <footer className="site-footer">
+            {/* ====================================================== */}
+            {/* // footer parent ---- */}
+            {/* ====================================================== */}
+
+            <div className="site-footer__inner">
+                {/* //// left character image ---- */}
                 <img
-                    src="/logo_white_nav.png"
+                    src="/new_logo.png"
                     alt=""
-                    width={240}
-                    height={120}
+                    width={180}
+                    height={180}
                     loading="lazy"
                     decoding="async"
-                    className="w-60 h-30 object-contain"
+                    style={{ borderRadius: '12px' }}
+                    className="site-footer__character site-footer__character--left"
                 />
 
-                {/* Tagline */}
-                <p className="font-sans tracking-[0.16em] text-center mb-8 leading-relaxed text-white/45 text-xs">
-                    A COZY CORNER FOR COMICS &amp; NOVELS. READ, DISCOVER, AND SUPPORT CREATORS.
-                </p>
+                {/* ====================================================== */}
+                {/* // footer center content ---- */}
+                {/* ====================================================== */}
 
-                {/* Nav links */}
-                <nav className="flex flex-wrap justify-center gap-x-8 gap-y-3 mb-10 text-comix-xs">
-                    {NAV_LINKS.map(({ label, to }) =>
-                        !token && PROTECTED.includes(to) ? (
-                            <button
-                                key={label}
-                                onClick={openLogin}
-                                className="font-sans text-comix-sm tracking-[0.16em] bg-transparent border-none cursor-pointer p-0 text-white/55 hover:text-white hover:underline transition-colors duration-100"
-                            >
-                                {label.toUpperCase()}
-                            </button>
-                        ) : (
-                            <Link
-                                key={label}
-                                to={to}
-                                className="font-sans text-comix-sm tracking-[0.16em] text-white/55 hover:text-white hover:underline transition-colors duration-100"
-                            >
-                                {label.toUpperCase()}
-                            </Link>
-                        )
-                    )}
-                </nav>
-
-                {/* Bottom row */}
-                <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-4">
-                    <p className="font-sans text-comix-xs tracking-[0.1em] text-white/30">
-                        © {new Date().getFullYear()} DEVORBITSTUDIO. ALL RIGHTS RESERVED.
+                <div className="site-footer__content">
+                    {/* //// footer description ---- */}
+                    <p className="site-footer__description">
+                        Subscribe to Comix exclusive notifications for the latest news on events,
+                        new releases, and more!
                     </p>
 
-                    <div className="flex items-center gap-1 flex-wrap justify-center">
-                        {RIGHTS.map(({ label, to }) => (
-                            <Link
-                                key={label}
-                                to={to}
-                                className="font-sans text-comix-xs tracking-[0.08em] px-2 py-0.5 border border-transparent text-white/30 hover:text-white hover:border-white/30 transition-all duration-100"
-                            >
-                                {label.toUpperCase()}
+                    {/* //// main footer navigation ---- */}
+                    <nav aria-label="Footer navigation" className="site-footer__navigation">
+                        {NAV_LINKS.map(({ label, to }) => {
+                            const isProtected = PROTECTED_ROUTES.includes(to)
+
+                            if (!token && isProtected) {
+                                return (
+                                    <button
+                                        key={to}
+                                        type="button"
+                                        onClick={openLogin}
+                                        className="site-footer__link site-footer__button"
+                                    >
+                                        {label}
+                                    </button>
+                                )
+                            }
+
+                            return (
+                                <Link key={to} to={to} className="site-footer__link">
+                                    {label}
+                                </Link>
+                            )
+                        })}
+                    </nav>
+
+                    {/* //// legal navigation ---- */}
+                    <nav aria-label="Legal navigation" className="site-footer__legal">
+                        {LEGAL_LINKS.map(({ label, to }) => (
+                            <Link key={to} to={to} className="site-footer__link">
+                                {label}
                             </Link>
                         ))}
+                    </nav>
+
+                    {/* //// social links ---- */}
+                    <div className="site-footer__socials">
+                        {SOCIAL_LINKS.map(({ label, href, icon }) => (
+                            <a
+                                key={label}
+                                href={href}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label={label}
+                                className="site-footer__social"
+                            >
+                                {icon}
+                            </a>
+                        ))}
                     </div>
+
+                    {/* //// copyright ---- */}
+                    <p className="site-footer__copyright">
+                        © {new Date().getFullYear()} Devorbitstudio. All rights reserved.
+                    </p>
                 </div>
+
+                {/* //// right character image ---- */}
+                <img
+                    src="/riri_body_1.png"
+                    alt=""
+                    width={200}
+                    height={200}
+                    loading="lazy"
+                    decoding="async"
+                    className="site-footer__character--right"
+                />
             </div>
         </footer>
     )

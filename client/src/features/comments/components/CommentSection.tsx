@@ -1,4 +1,12 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import {
+    Fragment,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FormEvent,
+    type ReactNode,
+} from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -142,7 +150,8 @@ export default function CommentSection({
 
     const likeMutation = useMutation({
         mutationFn: (commentId: string) => commentsApi.like(commentId).then((res) => res.data),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['comments', targetType, targetId] }),
+        onSuccess: () =>
+            queryClient.invalidateQueries({ queryKey: ['comments', targetType, targetId] }),
         onError: (error: any) => {
             toast.error(error.response?.data?.message ?? 'Could not like this comment.')
         },
@@ -265,15 +274,19 @@ export default function CommentSection({
                             </Button>
                         </div>
                     )}
-                    <Textarea
-                        ref={textareaRef}
-                        value={body}
-                        onChange={(event) => setBody(event.target.value)}
-                        placeholder="Add a comment. Markdown, @mentions, and ||spoilers|| are supported."
-                        className="min-h-20 resize-none rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
-                    />
-
-                    <div className="mt-2 flex flex-wrap items-center gap-1">
+                    {/* Top toolbar: heading, bold, italic, bullet and spoiler */}
+                    <div className="mb-2 flex flex-wrap items-center gap-1">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 rounded-full px-2 text-xs"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => wrapSelectedText('## ', '')}
+                            title="Turn selected text into a heading"
+                        >
+                            H
+                        </Button>
                         <Button
                             type="button"
                             size="icon-sm"
@@ -300,6 +313,17 @@ export default function CommentSection({
                             variant="ghost"
                             className="h-8 rounded-full px-2 text-xs"
                             onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => wrapSelectedText('- ', '')}
+                            title="Turn selected text into a bullet"
+                        >
+                            Bullet
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 rounded-full px-2 text-xs"
+                            onMouseDown={(event) => event.preventDefault()}
                             onClick={() => wrapSelectedText('||')}
                             title="Spoiler selected text"
                         >
@@ -307,6 +331,24 @@ export default function CommentSection({
                             Spoiler
                         </Button>
                     </div>
+
+                    {/* Middle: comment textarea and selected attachments */}
+                    <Textarea
+                        ref={textareaRef}
+                        value={body}
+                        onChange={(event) => setBody(event.target.value)}
+                        placeholder="Add a comment. Markdown, @mentions, and ||spoilers|| are supported."
+                        className="min-h-20 resize-none rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+                    />
+
+                    {body.trim() && (
+                        <div className="mt-3 rounded-lg border bg-muted/20 p-3">
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Live preview
+                            </p>
+                            <CommentComposerPreview text={body} />
+                        </div>
+                    )}
 
                     {reactionEmoji && (
                         <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm">
@@ -352,9 +394,15 @@ export default function CommentSection({
                                 <button
                                     key={emoji}
                                     type="button"
-                                    onClick={() => setReactionEmoji((current) => (current === emoji ? null : emoji))}
+                                    onClick={() =>
+                                        setReactionEmoji((current) =>
+                                            current === emoji ? null : emoji
+                                        )
+                                    }
                                     className={`flex h-9 w-9 items-center justify-center rounded-full text-xl transition hover:bg-muted ${
-                                        reactionEmoji === emoji ? 'bg-muted ring-2 ring-foreground/40' : ''
+                                        reactionEmoji === emoji
+                                            ? 'bg-muted ring-2 ring-foreground/40'
+                                            : ''
                                     }`}
                                     aria-label={`React with ${emoji}`}
                                 >
@@ -428,7 +476,11 @@ export default function CommentSection({
                             </Button>
                         </div>
 
-                        <Button type="submit" disabled={createMutation.isPending} className="self-end rounded-full">
+                        <Button
+                            type="submit"
+                            disabled={createMutation.isPending}
+                            className="self-end rounded-full"
+                        >
                             {createMutation.isPending ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
@@ -441,7 +493,9 @@ export default function CommentSection({
             </form>
 
             {isLoading ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">Loading comments...</div>
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                    Loading comments...
+                </div>
             ) : comments.length === 0 ? (
                 <div className="py-8 text-center">
                     <MessageCircle className="mx-auto mb-2 h-5 w-5 text-muted-foreground" />
@@ -455,7 +509,9 @@ export default function CommentSection({
                             comment={comment}
                             canPin={Boolean(token)}
                             pinning={pinMutation.isPending}
-                            onPin={(commentId, isPinned) => pinMutation.mutate({ commentId, isPinned })}
+                            onPin={(commentId, isPinned) =>
+                                pinMutation.mutate({ commentId, isPinned })
+                            }
                             onReply={(nextComment) => {
                                 if (!token) {
                                     openLogin()
@@ -487,8 +543,12 @@ export default function CommentSection({
                                 setReportReason('')
                                 setReportDetails('')
                             }}
-                            likingCommentId={likeMutation.isPending ? likeMutation.variables ?? null : null}
-                            removingCommentId={removeMutation.isPending ? removeMutation.variables ?? null : null}
+                            likingCommentId={
+                                likeMutation.isPending ? (likeMutation.variables ?? null) : null
+                            }
+                            removingCommentId={
+                                removeMutation.isPending ? (removeMutation.variables ?? null) : null
+                            }
                             currentUserId={user?.id ?? null}
                             currentRole={user?.role}
                         />
@@ -506,7 +566,10 @@ export default function CommentSection({
                 }}
             />
 
-            <Dialog open={Boolean(reportTarget)} onOpenChange={(open) => !open && setReportTarget(null)}>
+            <Dialog
+                open={Boolean(reportTarget)}
+                onOpenChange={(open) => !open && setReportTarget(null)}
+            >
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Report Comment</DialogTitle>
@@ -627,7 +690,9 @@ function CommentItem({
                             Pinned
                         </span>
                     )}
-                    <span className="text-xs text-muted-foreground">{formatDate(comment.created_at)}</span>
+                    <span className="text-xs text-muted-foreground">
+                        {formatDate(comment.created_at)}
+                    </span>
                 </div>
 
                 {comment.parent && (
@@ -640,7 +705,8 @@ function CommentItem({
                                 ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
                         }
                     >
-                        Replying to @{comment.parent.user?.username ?? 'unknown'}: {comment.parent.body ?? 'comment'}
+                        Replying to @{comment.parent.user?.username ?? 'unknown'}:{' '}
+                        {comment.parent.body ?? 'comment'}
                     </button>
                 )}
 
@@ -888,6 +954,71 @@ function MarkdownText({ text, spoiler }: { text: string; spoiler: boolean }) {
     )
 }
 
+function CommentComposerPreview({ text }: { text: string }) {
+    return (
+        <div className="space-y-1 text-sm leading-6">
+            {text.split('\n').map((line, index) => {
+                if (/^#{1,3}\s+/.test(line)) {
+                    return (
+                        <h3 key={index} className="text-base font-bold">
+                            {renderPreviewInline(
+                                line.replace(/^#{1,3}\s+/, ''),
+                                `preview-${index}`
+                            )}
+                        </h3>
+                    )
+                }
+
+                if (/^-\s+/.test(line)) {
+                    return (
+                        <div key={index} className="flex gap-2">
+                            <span className="text-muted-foreground">•</span>
+                            <span>
+                                {renderPreviewInline(line.replace(/^-\s+/, ''), `preview-${index}`)}
+                            </span>
+                        </div>
+                    )
+                }
+
+                return (
+                    <p key={index} className="break-words">
+                        {renderPreviewInline(line, `preview-${index}`)}
+                    </p>
+                )
+            })}
+        </div>
+    )
+}
+
+function renderPreviewInline(text: string, keyPrefix: string): ReactNode[] {
+    const nodes: ReactNode[] = []
+    let lastIndex = 0
+
+    for (const match of text.matchAll(INLINE_MARKDOWN_PATTERN)) {
+        const token = match[0]
+        const index = match.index ?? 0
+        if (index > lastIndex) nodes.push(text.slice(lastIndex, index))
+        nodes.push(renderPreviewToken(token, `${keyPrefix}-${index}`))
+        lastIndex = index + token.length
+    }
+
+    if (lastIndex < text.length) nodes.push(text.slice(lastIndex))
+
+    return nodes
+}
+
+function renderPreviewToken(token: string, key: string): ReactNode {
+    if (token.startsWith('||') && token.endsWith('||')) {
+        return (
+            <span key={key} className="rounded bg-yellow-200 px-1 text-yellow-950">
+                {token.slice(2, -2)}
+            </span>
+        )
+    }
+
+    return renderMarkdownToken(token, key)
+}
+
 const INLINE_MARKDOWN_PATTERN =
     /(\|\|[^|]+\|\||\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*|\[[^\]]+\]\(https?:\/\/[^\s)]+\)|@[A-Za-z0-9_]+)/g
 
@@ -993,7 +1124,8 @@ function StickerPickerDialog({
     })
 
     const purchaseMutation = useMutation({
-        mutationFn: (stickerId: string) => commentsApi.purchaseSticker(stickerId).then((res) => res.data),
+        mutationFn: (stickerId: string) =>
+            commentsApi.purchaseSticker(stickerId).then((res) => res.data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['comment-sticker-library'] })
             queryClient.invalidateQueries({ queryKey: ['artist-sticker-store', artistUsername] })
@@ -1006,7 +1138,8 @@ function StickerPickerDialog({
     })
 
     const subscribeMutation = useMutation({
-        mutationFn: (stickerId: string) => commentsApi.subscribeSticker(stickerId).then((res) => res.data),
+        mutationFn: (stickerId: string) =>
+            commentsApi.subscribeSticker(stickerId).then((res) => res.data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['comment-sticker-library'] })
             queryClient.invalidateQueries({ queryKey: ['artist-sticker-store', artistUsername] })

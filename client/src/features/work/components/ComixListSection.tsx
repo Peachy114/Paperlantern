@@ -1,7 +1,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useComics } from '@/features/work/hooks/useComics'
-import WorkCard from '@/features/work/components/ui/WorkCard'
+import WorkCard3 from '@/features/work/components/ui/WorkCard3'
 import ContentFilter from '../pages/ContentFilter'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -139,7 +139,7 @@ function WorkLists({ type }: { type: 'webtoon' | 'wattpad' }) {
         <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {paginated.map((work, i) => (
-                    <WorkCard
+                    <WorkCard3
                         key={work.id}
                         id={work.id}
                         slug={work.slug}
@@ -148,6 +148,7 @@ function WorkLists({ type }: { type: 'webtoon' | 'wattpad' }) {
                         genres={work.genres}
                         status={work.status}
                         likes={work.likes}
+                        views={work.views}
                         rank={isRankings ? (page - 1) * PAGE_SIZE + i + 1 : undefined}
                         boostedUntil={work.boosted_until}
                         showStats
@@ -160,13 +161,13 @@ function WorkLists({ type }: { type: 'webtoon' | 'wattpad' }) {
     )
 }
 
-export default function ComixLists() {
+export default function ComixLists({ fixedType }: { fixedType?: 'comic' | 'novel' }) {
     const [searchParams] = useSearchParams()
-    const activeType = searchParams.get('type') ?? 'comic'
+    const activeType = fixedType ?? searchParams.get('type') ?? 'comic'
 
     return (
         <div className="w-full">
-            <ContentFilter />
+            <ContentFilter contentType={fixedType} />
 
             <main className="w-full mt-6 max-w-[1360px] mx-auto px-4">
                 <Suspense fallback={<WorkListsSkeleton />}>

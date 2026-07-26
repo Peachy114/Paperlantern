@@ -6,6 +6,8 @@ use App\Models\Chapter;
 use App\Models\ChapterLike;
 use App\Models\ChapterView;
 use App\Models\FeatureBoost;
+use App\Models\Art;
+use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkFavorite;
 use App\Models\WorkLike;
@@ -19,7 +21,7 @@ class PublicWorkRepository
             ->has('chapters')
             ->orderByDesc('views')
             ->limit(5)
-            ->get(['id', 'slug', 'title', 'cover', 'banner', 'type', 'genres', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'description', 'status']);
+            ->get(['id', 'slug', 'title', 'cover', 'banner', 'type', 'genres', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'description', 'status', 'is_featured']);
     }
 
     public function getWeeklyChart(): \Illuminate\Database\Eloquent\Collection
@@ -31,7 +33,7 @@ class PublicWorkRepository
             }])
             ->orderByDesc('weekly_views')
             ->limit(10)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'language', 'views', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'is_featured']);
     }
 
     public function getFreshReleases(): \Illuminate\Database\Eloquent\Collection
@@ -41,7 +43,7 @@ class PublicWorkRepository
             ->where('created_at', '>=', now()->subMonths(3))
             ->orderByDesc('created_at')
             ->limit(24)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'is_featured']);
     }
 
     public function getDailyWorks(string $type = 'all', int $limit = 12): \Illuminate\Database\Eloquent\Collection
@@ -52,7 +54,7 @@ class PublicWorkRepository
             ->where('created_at', '>=', now()->subDay())
             ->orderByDesc('views')
             ->limit($limit)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status', 'is_featured']);
     }
 
     public function getTodayReleaseChapters(string $type = 'all', int $limit = 12): \Illuminate\Database\Eloquent\Collection
@@ -93,7 +95,7 @@ class PublicWorkRepository
             ->orderByDesc('views')
             ->orderByDesc('work_likes_count')
             ->limit($limit)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'views', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'views', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status', 'is_featured']);
     }
 
     public function getTopLikedWorks(string $type = 'all', int $limit = 10): \Illuminate\Database\Eloquent\Collection
@@ -103,7 +105,7 @@ class PublicWorkRepository
             ->when($type !== 'all', fn($query) => $query->where('type', $type))
             ->orderByRaw('(work_likes_count + likes + super_likes_count) DESC')
             ->limit($limit)
-            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'views', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status']);
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'language', 'views', 'likes', 'work_likes_count', 'comments_count', 'super_likes_count', 'super_like_credits', 'created_at', 'status', 'is_featured']);
     }
 
     public function getLatestChapters(): \Illuminate\Database\Eloquent\Collection
@@ -160,6 +162,84 @@ class PublicWorkRepository
             ->where('title', 'like', "%{$query}%")
             ->limit(8)
             ->get(['id', 'slug', 'title', 'cover', 'type']);
+    }
+
+    public function searchContent(string $query): array
+    {
+        $term = trim($query);
+
+        $works = $this->visibleWorks()
+            ->where(function ($workQuery) use ($term) {
+                $workQuery
+                    ->where('title', 'like', "%{$term}%")
+                    ->orWhere('genres', 'like', "%{$term}%");
+            })
+            ->orderByDesc('views')
+            ->limit(16)
+            ->get(['id', 'slug', 'title', 'cover', 'type', 'genres', 'views', 'likes']);
+
+        $artLabels = Art::query()
+            ->where('status', 'published')
+            ->where('moderation_status', '!=', 'violated')
+            ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'))
+            ->where('labels', 'like', "%{$term}%")
+            ->get(['labels'])
+            ->flatMap(fn(Art $art) => collect($art->labels ?? []))
+            ->filter(fn($label) => is_string($label) && str_contains(mb_strtolower($label), mb_strtolower($term)))
+            ->map(fn($label) => trim((string) $label))
+            ->filter()
+            ->countBy()
+            ->sortDesc()
+            ->take(8)
+            ->map(fn($count, $label) => [
+                'id' => md5("art-label:{$label}"),
+                'title' => $label,
+                'type' => 'art_label',
+                'count' => $count,
+                'href' => '/explore/arts?label=' . rawurlencode($label),
+            ])
+            ->values();
+
+        $artists = User::query()
+            ->whereIn('role', ['storyteller', 'super_admin'])
+            ->where(function ($artistQuery) use ($term) {
+                $artistQuery
+                    ->where('name', 'like', "%{$term}%")
+                    ->orWhere('username', 'like', "%{$term}%")
+                    ->orWhere('artist_title', 'like', "%{$term}%");
+            })
+            ->withCount(['works', 'arts'])
+            ->orderByDesc('artist_verified')
+            ->limit(8)
+            ->get(['id', 'name', 'username', 'avatar', 'artist_title', 'artist_verified'])
+            ->map(fn(User $artist) => [
+                'id' => $artist->id,
+                'title' => $artist->name,
+                'subtitle' => '@' . $artist->username . ($artist->artist_title ? " - {$artist->artist_title}" : ''),
+                'cover' => $artist->avatar,
+                'type' => 'artist',
+                'verified' => (bool) $artist->artist_verified,
+                'href' => "/artists/{$artist->username}",
+            ]);
+
+        $formatWork = fn(Work $work) => [
+            'id' => $work->id,
+            'slug' => $work->slug,
+            'title' => $work->title,
+            'cover' => $work->cover,
+            'type' => $work->type,
+            'genres' => $work->genres ?? [],
+            'views' => $work->views ?? 0,
+            'likes' => $work->likes ?? 0,
+            'href' => "/works/{$work->slug}",
+        ];
+
+        return [
+            'webcomics' => $works->where('type', 'webtoon')->take(8)->map($formatWork)->values(),
+            'novels' => $works->where('type', 'wattpad')->take(8)->map($formatWork)->values(),
+            'arts' => $artLabels,
+            'artists' => $artists,
+        ];
     }
 
     public function getComics(Request $request): \Illuminate\Contracts\Pagination\LengthAwarePaginator

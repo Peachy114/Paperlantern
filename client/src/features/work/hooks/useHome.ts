@@ -10,8 +10,8 @@ export interface WorkItem {
     cover: string | null
     banner: string | null
     description?: string
-    type: 'webtoon' | 'wattpad' | 'art'
-    content_type?: 'work' | 'chapter' | 'art'
+    type: 'webtoon' | 'wattpad' | 'art' | 'commission'
+    content_type?: 'work' | 'chapter' | 'art' | 'commission'
     chapter_slug?: string | null
     release_title?: string | null
     chapter_order?: number | null
@@ -23,6 +23,8 @@ export interface WorkItem {
     weekly_views?: number
     created_at?: string
     status?: 'draft' | 'ongoing' | 'completed' | 'hiatus' | 'published'
+    is_featured?: boolean
+    boosted_until?: string | null
 }
 
 export interface ChapterItem {

@@ -32,6 +32,8 @@ class ArtController extends Controller
             'images.*' => ['file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
             'image_descriptions' => ['nullable', 'array', 'max:10'],
             'image_descriptions.*' => ['nullable', 'string', 'max:500'],
+            'download_files' => ['nullable', 'array', 'max:10'],
+            'download_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,gif,zip', 'max:51200'],
         ]);
 
         $art = $this->service->createArt($request->user(), $validated, $request);
@@ -62,6 +64,8 @@ class ArtController extends Controller
             'images.*' => ['file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
             'image_descriptions' => ['nullable', 'array', 'max:10'],
             'image_descriptions.*' => ['nullable', 'string', 'max:500'],
+            'download_files' => ['nullable', 'array', 'max:10'],
+            'download_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,gif,zip', 'max:51200'],
         ]);
 
         return response()->json($this->service->updateArt($art, $validated, $request));

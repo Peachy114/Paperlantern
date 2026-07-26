@@ -24,6 +24,38 @@ export const publicRoutes = (
             }
         />
         <Route
+            path="/novels"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.Novels />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/daily"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.DiscoveryPage />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/rankings"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.DiscoveryPage />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/genre"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.DiscoveryPage />
+                </Suspense>
+            }
+        />
+        <Route
             path="/explore/arts"
             element={
                 <Suspense fallback={<Loading />}>
@@ -36,6 +68,14 @@ export const publicRoutes = (
             element={
                 <Suspense fallback={<Loading />}>
                     <Pages.ExploreCommissions />
+                </Suspense>
+            }
+        />
+        <Route
+            path="/shop"
+            element={
+                <Suspense fallback={<Loading />}>
+                    <Pages.Shop />
                 </Suspense>
             }
         />

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { announcementApi, type Announcement } from '@/api/announcement'
 
-type Audience = 'public' | 'studio'
+type Audience = 'public' | 'artist' | 'studio'
 
 export function useAnnouncements(audience: Audience) {
     const { data, isLoading, error } = useQuery({

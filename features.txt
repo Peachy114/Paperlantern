@@ -1,0 +1,426 @@
+Core content tables
+Feature	Table / Model	Important fields	Purpose
+All Works	works	id, title, slug, type, status, description, cover_image	Stores manga, manhwa, manhua, and novels
+Chapters	chapters	id, work_id, chapter_number, title, published_at	Stores chapters for every work
+Manga Pages	chapter_pages	chapter_id, image, page_number	Stores image pages for manga, manhwa, and manhua
+Novel Content	chapter_contents	chapter_id, content	Stores the written content of novel chapters
+Volumes	volumes	id, work_id, volume_number, title	Groups chapters into volumes
+Genres	genres	id, name, slug	Stores genres
+Work Genres	genre_work	work_id, genre_id	Connects works to multiple genres
+Tags	tags	id, name, slug	Stores specific tags such as regression or cultivation
+Work Tags	tag_work	work_id, tag_id	Connects works to multiple tags
+Authors	authors	id, name	Stores work authors
+Artists	artists	id, name	Stores artists or illustrators
+Work Creators	work_creators	work_id, creator_id, role	Connects authors, artists, translators, and illustrators
+Discovery widgets
+Widget	Table / Model	Important fields or query	Purpose
+Continue Reading	users_reading	user_id, work_id, chapter_id, page_number, scroll_position
+, progress, last_read_at	Gets the last chapter, page, or novel position read by the user
+Recently Viewed	work_views	user_id, work_id, viewed_at	Shows works recently opened by the user
+
+Recommended For You	users_reading
+, genre_work, tag_work, user_follows, user_ratings	Match frequently read genres and tags
+	Recommends works based on user activity
+
+Similar Series
+	genre_work
+, tag_work	Match genres, tags, type, author, or themes
+	Finds works similar to the currently viewed work
+
+Hidden Gems
+	works, work_statistics	High rating, lower views, minimum rating count
+	Finds quality works that are not highly popular
+
+Completed Series
+	works
+	status = completed
+	Displays completed manga, manhwa, manhua, and novels
+
+New Series
+	works
+	ORDER BY published_at DESC
+	Displays newly published works
+
+Coming Soon
+	works
+	status = coming_soon
+ or future published_at	Displays upcoming works
+
+Returning Series
+	works
+	previous_status = hiatus
+, recent returned_at	Displays works returning from hiatus
+
+Random Work
+	works
+	Random active work
+	Helps users discover something unexpected
+Main homepage widgets
+Widget	Table / Model	Important fields or query	Purpose
+Hero Banner	homepage_banners	work_id, image, position, starts_at, ends_at, is_active	Displays manually promoted works
+Featured
+	featured_works
+	work_id, position, starts_at, ends_at	Displays administrator-selected works
+
+Trending	work_activity_events or work_daily_statistics	Recent views, unique readers, likes, follows, comments	Finds works receiving strong recent activity
+Top 10	work_daily_statistics	Ranking score for a selected period	Displays the ten highest-ranking works
+New Releases	chapters	ORDER BY published_at DESC	Displays newly released chapters
+Recently Updated	works or chapters	Latest chapter publication date	Displays works that recently received a chapter
+Editor’s Picks	editor_picks	work_id, editor_id, description, position	Displays works selected by staff
+Most Popular	work_statistics	total_views, unique_readers, followers_count	Displays popular works across all time
+Weekly Ranking	work_daily_statistics	Statistics from the current week	Displays the strongest works this week
+Monthly Ranking	work_daily_statistics	Statistics from the current month	Displays the strongest works this month
+Highest Rated	work_ratings	Highest weighted average rating	Displays highly rated works
+Popular Novels	works, work_statistics	type = novel, order by ranking score	Displays popular novels only
+Popular Manga	works, work_statistics	type = manga	Displays popular Japanese manga
+Popular Manhwa	works, work_statistics	type = manhwa	Displays popular Korean comics
+Popular Manhua	works, work_statistics	type = manhua	Displays popular Chinese comics
+
+Trending system
+
+Do not rank trending using only total views. Older works will almost always win.
+
+Use recent activity from a table such as:
+
+work_activity_events
+- id
+- work_id
+- user_id
+- session_id
+- event_type
+- created_at
+
+Possible event_type values:
+
+view
+chapter_read
+like
+rating
+bookmark
+follow
+comment
+review
+share
+Suggested trending score
+trending_score =
+unique_readers_24h × 4
++ chapter_reads_24h × 2
++ likes_24h × 5
++ follows_24h × 6
++ bookmarks_24h × 4
++ comments_24h × 3
++ shares_24h × 8
+Trending type	Filter	Purpose
+Trending Today	Activity from the last 24 hours	Shows what is currently active
+Trending This Week	Activity from the current seven days	Shows weekly momentum
+Trending This Month	Activity from the current month	Shows longer-term momentum
+Trending Manga	works.type = manga	Manga-only trending
+Trending Manhwa	works.type = manhwa	Manhwa-only trending
+Trending Manhua	works.type = manhua	Manhua-only trending
+Trending Novels	works.type = novel	Novel-only trending
+Latest content widgets
+Widget	Table / Model	Important fields or query	Purpose
+Latest Chapters	chapters	published_at DESC	Shows the most recently published chapters
+Latest Volumes	volumes	published_at DESC	Shows newly added volumes
+New Uploads	works or chapters	created_at DESC	Shows content recently uploaded by staff
+Fresh Releases	chapters	Published recently and not previously shown	Highlights newly released chapters
+Recently Added	works	created_at DESC	Shows works newly added to the platform
+Latest Comments	comments	created_at DESC	Shows recent reader comments
+Latest Novel Chapters	chapters, works	works.type = novel	Shows newly published novel chapters
+Latest Comic Chapters	chapters, works	Type is manga, manhwa, or manhua	Shows newly published illustrated chapters
+Important difference
+New Series
+= newly created work
+
+New Releases
+= newly published chapter
+
+Recently Added
+= recently added to your database
+
+Recently Updated
+= an existing work received a new chapter
+Ranking widgets
+Widget	Table / Model	Important fields or query	Purpose
+Top Today	work_daily_statistics	Current date	Ranks works today
+Top This Week	work_daily_statistics	Current week	Ranks works this week
+Top This Month	work_daily_statistics	Current month	Ranks works this month
+Top This Year	work_monthly_statistics	Current year	Ranks works this year
+Most Viewed	work_statistics	total_views DESC	Finds works with the most page openings
+Most Read	work_statistics	total_chapter_reads DESC	Finds works with the most actual reading activity
+Most Bookmarked	user_bookmarks	Count by work_id	Finds the most bookmarked works
+Most Favorited	user_favorites	Count by work_id	Finds the most favorited works
+Most Followed	user_follows	Count by work_id	Finds works with the most followers
+Most Discussed	comments	Count by work_id	Finds works with the most comments
+Most Reviewed	work_reviews	Count by work_id	Finds works with the most written reviews
+Most Shared	work_shares	Count by work_id	Finds works shared the most
+Highest Rated	work_ratings	Weighted average rating	Finds the strongest-rated works
+User interaction tables
+Feature	Table	Important fields	Purpose
+Reading Progress	users_reading	user_id, work_id, chapter_id, page_number, scroll_position, progress, last_read_at	Saves where the user stopped reading
+Reading History	reading_history	user_id, work_id, chapter_id, read_at	Stores all reading history
+Work Views	work_views	user_id, work_id, session_id, viewed_at	Records when a work page is viewed
+Chapter Reads	chapter_reads	user_id, chapter_id, progress, completed, read_at	Records actual chapter reading
+Bookmarks	user_bookmarks	user_id, work_id, created_at	Saves a work for later
+Favorites	user_favorites	user_id, work_id, created_at	Marks a work as a favorite
+Follows	user_follows	user_id, work_id, notifications_enabled	Follows updates from a work
+Ratings	work_ratings	user_id, work_id, rating	Allows a numeric score
+Reviews	work_reviews	user_id, work_id, title, content, rating	Stores detailed reviews
+Likes	work_likes	user_id, work_id	Records likes
+Chapter Likes	chapter_likes	user_id, chapter_id	Records chapter-specific likes
+Shares	work_shares	user_id, work_id, platform	Tracks sharing activity
+Comments	comments	user_id, work_id, chapter_id, parent_id, content	Stores work and chapter discussions
+Status widgets
+
+Use a status field inside works.
+
+ongoing
+completed
+hiatus
+cancelled
+dropped
+coming_soon
+Widget	Query	Purpose
+Ongoing	status = ongoing	Shows currently publishing works
+Completed	status = completed	Shows finished works
+Hiatus	status = hiatus	Shows temporarily paused works
+Dropped	status = dropped	Shows works no longer translated or supported
+Cancelled	status = cancelled	Shows officially cancelled works
+Coming Soon	status = coming_soon	Shows upcoming works
+
+You may also add:
+
+publication_status
+translation_status
+
+For example:
+
+publication_status = ongoing
+translation_status = hiatus
+
+This is useful because the original work may still be ongoing while your translation is paused.
+
+Genre widgets
+Widget	Tables	Query	Purpose
+Action	genre_work, genres	Genre is Action	Shows action works
+Adventure	genre_work, genres	Genre is Adventure	Shows adventure works
+Romance	genre_work, genres	Genre is Romance	Shows romance works
+Fantasy	genre_work, genres	Genre is Fantasy	Shows fantasy works
+Comedy	genre_work, genres	Genre is Comedy	Shows comedy works
+Drama	genre_work, genres	Genre is Drama	Shows drama works
+Horror	genre_work, genres	Genre is Horror	Shows horror works
+Slice of Life	genre_work, genres	Genre is Slice of Life	Shows everyday-life stories
+Murim	tag_work, tags	Tag is Murim	Shows martial-arts-world stories
+Cultivation	tag_work, tags	Tag is Cultivation	Shows cultivation stories
+Isekai	tag_work, tags	Tag is Isekai	Shows another-world stories
+Reincarnation	tag_work, tags	Tag is Reincarnation	Shows reincarnation stories
+Regression	tag_work, tags	Tag is Regression	Shows return-to-the-past stories
+School	tag_work, tags	Tag is School Life	Shows school-based stories
+Supernatural	genre_work, genres	Genre is Supernatural	Shows supernatural works
+
+The same genre system works for novels and comics.
+
+genre_work
+- work_id
+- genre_id
+
+You do not need novel_genres, manga_genres, and manhwa_genres separately.
+
+Seasonal and collection widgets
+Widget	Table	Important fields	Purpose
+Summer Picks	collections, collection_works	Collection type is seasonal	Administrator-curated summer works
+Winter Picks	collections, collection_works	Collection type is seasonal	Administrator-curated winter works
+Halloween Specials	collections, collection_works	Horror-themed collection	Displays Halloween selections
+Valentine’s Romance	collections, collection_works	Romance collection	Displays romantic works
+Christmas Collection	collections, collection_works	Holiday collection	Displays Christmas selections
+Best Novels	collections, collection_works	Novel-only collection	Curated novel recommendations
+Beginner Manga	collections, collection_works	Manga collection	Recommended manga for new readers
+Best Murim	collections, collection_works	Murim-tagged collection	Curated murim works
+
+Suggested tables:
+
+collections
+- id
+- title
+- slug
+- description
+- image
+- collection_type
+- starts_at
+- ends_at
+- is_active
+
+collection_works
+- collection_id
+- work_id
+- position
+Community widgets
+Widget	Table / Model	Important query	Purpose
+Recently Commented	comments	Latest comment per work	Shows works with recent conversations
+Active Discussions	comments	Most comments during a recent period	Shows active community discussions
+Top Reviewers	work_reviews	Count useful reviews by user	Shows active reviewers
+Highest Reviewed	work_reviews	Works with many positive reviews	Shows highly reviewed works
+Reader Favorites	user_favorites	Favorite count	Shows community favorites
+Most Helpful Reviews	review_votes	Highest helpful vote count	Shows useful reviews
+Latest Reviews	work_reviews	created_at DESC	Shows recent reviews
+Novel-specific features
+
+Novels need several fields that image-based comics may not need.
+
+Add to works
+word_count
+language
+original_language
+reading_direction
+content_rating
+Add to chapters
+word_count
+estimated_reading_minutes
+Novel reader progress
+
+For manga, save the page:
+
+page_number
+
+For novels, save the scroll or text position:
+
+scroll_position
+paragraph_index
+character_offset
+
+Your users_reading table can support both:
+
+users_reading
+- id
+- user_id
+- work_id
+- chapter_id
+- page_number nullable
+- scroll_position nullable
+- paragraph_index nullable
+- progress_percentage
+- last_read_at
+Statistics tables
+
+Avoid recalculating millions of views every time the homepage loads.
+
+Total statistics
+work_statistics
+- work_id
+- total_views
+- unique_readers
+- total_chapter_reads
+- completed_reads
+- likes_count
+- bookmarks_count
+- favorites_count
+- followers_count
+- comments_count
+- ratings_count
+- average_rating
+- reviews_count
+- shares_count
+- updated_at
+Daily statistics
+work_daily_statistics
+- id
+- work_id
+- date
+- views_count
+- unique_readers_count
+- chapter_reads_count
+- likes_count
+- follows_count
+- bookmarks_count
+- comments_count
+- shares_count
+- trending_score
+
+This table powers:
+
+Trending Today
+Top Today
+Weekly Ranking
+Monthly Ranking
+Popular This Week
+Popular This Month
+Recommended homepage structure
+Personalized area
+Continue Reading
+Recently Viewed
+New Chapters From Following
+Recommended For You
+
+Only display these when the user is logged in.
+
+Main discovery area
+Hero Banner
+Trending Today
+New Releases
+Top 10
+Recently Updated
+Editor’s Picks
+Hidden Gems
+Completed Works
+New Series
+Content-type areas
+Popular Manhwa
+Popular Manga
+Popular Manhua
+Popular Novels
+Latest Novel Chapters
+Community area
+Latest Comments
+Active Discussions
+Reader Favorites
+Latest Reviews
+Best unified works structure
+works
+- id
+- title
+- alternative_title
+- slug
+- type
+- description
+- cover_image
+- banner_image
+- status
+- publication_status
+- translation_status
+- content_rating
+- original_language
+- language
+- release_year
+- published_at
+- last_chapter_at
+- returned_at
+- is_featured
+- created_at
+- updated_at
+
+The critical field is:
+
+type
+
+Values:
+
+manga
+manhwa
+manhua
+novel
+
+Then any widget can support everything:
+
+Trending All Works
+Trending Manga
+Trending Manhwa
+Trending Manhua
+Trending Novels
+
+The only difference is the query filter:
+
+$query->where('type', 'novel');
+
+or:
+
+$query->whereIn('type', ['manga', 'manhwa', 'manhua']);

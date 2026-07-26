@@ -11,16 +11,34 @@ const TAG_COLORS: Record<string, string> = {
 
 const AUDIENCE_COLORS: Record<string, string> = {
     public: 'bg-[#C9A7EB] text-[#1a1a1a]',
+    artist: 'bg-[#FAC775] text-[#1a1a1a]',
     studio: 'bg-[#F09595] text-[#1a1a1a]',
 }
+
+const PAGE_TARGETS = [
+    ['home', 'Home'],
+    ['comix', 'Comix'],
+    ['novels', 'Novels'],
+    ['arts', 'Arts'],
+    ['commissions', 'Commission'],
+    ['shop', 'Shop'],
+    ['daily', 'Daily'],
+    ['rankings', 'Rankings'],
+    ['genre', 'Genre'],
+] as const
 
 const EMPTY_FORM: AnnouncementPayload = {
     title: '',
     content: '',
     tag: 'update',
+    is_event: false,
     audience: 'public',
+    page_targets: [],
+    placement: 'banner',
+    is_public: true,
     image: null,
     is_pinned: false,
+    rotation_seconds: 0,
 }
 
 export default function AdminAnnouncements() {
@@ -57,9 +75,14 @@ export default function AdminAnnouncements() {
             title: a.title,
             content: a.content,
             tag: a.tag,
+            is_event: a.is_event ?? a.tag === 'event',
             audience: a.audience,
+            page_targets: a.page_targets ?? [],
+            placement: a.placement ?? 'banner',
+            is_public: a.is_public ?? true,
             image: null,
             is_pinned: a.is_pinned,
+            rotation_seconds: a.rotation_seconds ?? 0,
         })
         setImagePreview(a.image ? storageUrl(a.image) : null)
         setError(null)
@@ -70,6 +93,17 @@ export default function AdminAnnouncements() {
         const file = e.target.files?.[0] ?? null
         setForm((f) => ({ ...f, image: file }))
         setImagePreview(file ? URL.createObjectURL(file) : null)
+    }
+
+    const togglePageTarget = (page: string) => {
+        setForm((current) => {
+            const targets = current.page_targets ?? []
+            const next = targets.includes(page)
+                ? targets.filter((target) => target !== page)
+                : [...targets, page]
+
+            return { ...current, page_targets: next }
+        })
     }
 
     const handleSubmit = async () => {
@@ -165,11 +199,33 @@ export default function AdminAnnouncements() {
                                             >
                                                 {a.tag.toUpperCase()}
                                             </span>
+                                            {(a.is_event || a.tag === 'event') && (
+                                                <span className="bg-orange-100 px-2 py-0.5 text-[10px] tracking-[0.12em] text-orange-700">
+                                                    EVENT
+                                                </span>
+                                            )}
                                             <span
                                                 className={`text-[10px] tracking-[0.12em] px-2 py-0.5 ${AUDIENCE_COLORS[a.audience]}`}
                                             >
                                                 {a.audience.toUpperCase()}
                                             </span>
+                                            <span className="bg-muted px-2 py-0.5 text-[10px] tracking-[0.12em] text-muted-foreground">
+                                                {(a.placement ?? 'banner').toUpperCase()}
+                                            </span>
+                                            {a.page_targets?.length ? (
+                                                <span className="bg-muted px-2 py-0.5 text-[10px] tracking-[0.12em] text-muted-foreground">
+                                                    {a.page_targets.join(', ')}
+                                                </span>
+                                            ) : (
+                                                <span className="bg-muted px-2 py-0.5 text-[10px] tracking-[0.12em] text-muted-foreground">
+                                                    ALL PAGES
+                                                </span>
+                                            )}
+                                            {a.is_public === false && (
+                                                <span className="bg-[#F09595]/15 px-2 py-0.5 text-[10px] tracking-[0.12em] text-[#F09595]">
+                                                    HIDDEN
+                                                </span>
+                                            )}
                                         </div>
                                         <h2 className="text-[16px] tracking-[0.06em] text-foreground leading-tight">
                                             {a.title}
@@ -262,8 +318,8 @@ export default function AdminAnnouncements() {
                                 />
                             </div>
 
-                            {/* Tag + Audience */}
-                            <div className="grid grid-cols-2 gap-3">
+                            {/* Tag + Audience + Placement */}
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <div>
                                     <label
                                         className="text-[10px] tracking-[0.2em] text-muted-foreground block mb-1"
@@ -301,9 +357,128 @@ export default function AdminAnnouncements() {
                                         className="w-full border-2 border-foreground bg-transparent px-3 py-2 text-[13px] text-foreground outline-none focus:border-amber-500"
                                     >
                                         <option value="public">Public</option>
+                                        <option value="artist">Artist</option>
                                         <option value="studio">Studio</option>
                                     </select>
                                 </div>
+                                <div>
+                                    <label
+                                        className="text-[10px] tracking-[0.2em] text-muted-foreground block mb-1"
+                                        style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                                    >
+                                        PLACEMENT
+                                    </label>
+                                    <select
+                                        value={form.placement ?? 'banner'}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                placement: e.target.value as any,
+                                            }))
+                                        }
+                                        className="w-full border-2 border-foreground bg-transparent px-3 py-2 text-[13px] text-foreground outline-none focus:border-amber-500"
+                                    >
+                                        <option value="banner">Banner</option>
+                                        <option value="hero">Hero</option>
+                                        <option value="both">Banner and Hero</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={Boolean(form.is_event)}
+                                    onChange={(e) =>
+                                        setForm((f) => ({
+                                            ...f,
+                                            is_event: e.target.checked,
+                                            tag: e.target.checked ? 'event' : f.tag,
+                                        }))
+                                    }
+                                    className="w-4 h-4 border-2 border-foreground"
+                                />
+                                <span
+                                    className="text-[11px] tracking-[0.15em] text-foreground"
+                                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                                >
+                                    MARK AS EVENT
+                                </span>
+                            </label>
+
+                            <div>
+                                <label
+                                    className="text-[10px] tracking-[0.2em] text-muted-foreground block mb-2"
+                                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                                >
+                                    SHOW ON PAGES
+                                </label>
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                    {PAGE_TARGETS.map(([value, label]) => (
+                                        <label
+                                            key={value}
+                                            className="flex items-center gap-2 border border-foreground/20 px-3 py-2 text-[12px]"
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={(form.page_targets ?? []).includes(value)}
+                                                onChange={() => togglePageTarget(value)}
+                                            />
+                                            {label}
+                                        </label>
+                                    ))}
+                                </div>
+                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                    Leave every page unchecked to show everywhere for the selected
+                                    audience.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label
+                                        className="text-[10px] tracking-[0.2em] text-muted-foreground block mb-1"
+                                        style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                                    >
+                                        ROTATION TIMER
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        max={300}
+                                        value={form.rotation_seconds ?? 0}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                rotation_seconds: Number(e.target.value),
+                                            }))
+                                        }
+                                        className="w-full border-2 border-foreground bg-transparent px-3 py-2 text-[13px] text-foreground outline-none focus:border-amber-500"
+                                        placeholder="0"
+                                    />
+                                    <p className="mt-1 text-[11px] text-muted-foreground">
+                                        Seconds. Use 0 for default.
+                                    </p>
+                                </div>
+                                <label className="mt-5 flex items-center gap-2 cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.is_public !== false}
+                                        onChange={(e) =>
+                                            setForm((f) => ({
+                                                ...f,
+                                                is_public: e.target.checked,
+                                            }))
+                                        }
+                                        className="w-4 h-4 border-2 border-foreground"
+                                    />
+                                    <span
+                                        className="text-[11px] tracking-[0.15em] text-foreground"
+                                        style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                                    >
+                                        PUBLIC / VISIBLE
+                                    </span>
+                                </label>
                             </div>
 
                             {/* Image */}
