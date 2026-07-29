@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\PageLayoutController;
 use App\Http\Controllers\Api\NobleRoyaltyController;
 use App\Http\Controllers\Api\LabelingController;
 use App\Http\Controllers\Api\FeedController;
+use App\Http\Controllers\Api\NotificationController;
 
 use App\Http\Controllers\Api\Studio\WorkController; // Story teller
 use App\Http\Controllers\Api\Studio\ChapterController;
@@ -35,6 +36,7 @@ use App\Http\Controllers\Api\EarningsController;
 use App\Http\Controllers\Api\SuperAdmin\WithdrawalController;
 use App\Http\Controllers\Api\Studio\TrashController;
 use App\Http\Controllers\Api\Studio\AnalyticsController;
+use App\Http\Controllers\Api\Studio\ChapterRevisionController;
 
 
 use App\Http\Controllers\Api\SuperAdmin\SuperAdminController; //Super admin
@@ -56,6 +58,8 @@ use App\Http\Controllers\Api\SuperAdmin\TransactionController as AdminTransactio
 // ── Public Auth ───────────────────────────────────────────────────────────────
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/verify-email-code', [AuthController::class, 'verifyEmailCode']);
+    Route::post('/resend-email-code', [AuthController::class, 'resendEmailVerificationCode']);
     Route::post('/login',    [AuthController::class, 'login']);
 
     Route::get('/google/redirect',  [AuthController::class, 'googleRedirect']);
@@ -191,6 +195,11 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::get('/account/comments',           [AccountLibraryController::class, 'comments']);
     Route::patch('/account/comments/{comment}/highlight', [AccountLibraryController::class, 'toggleCommentHighlight']);
     Route::get('/account/history',            [AccountLibraryController::class, 'history']);
+    Route::get('/account/notifications',      [NotificationController::class, 'index']);
+    Route::post('/account/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::patch('/account/notifications/{notification}/read', [NotificationController::class, 'markRead']);
+    Route::get('/account/notification-preferences', [NotificationController::class, 'preferences']);
+    Route::put('/account/notification-preferences', [NotificationController::class, 'updatePreferences']);
     Route::get('/account/earnings',           [EarningsController::class, 'show']);
     Route::get('/account/earnings/history',   [EarningsController::class, 'history']);
     Route::post('/account/earnings/withdraw', [EarningsController::class, 'withdraw']);
@@ -380,6 +389,9 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
 
         Route::apiResource('works',          WorkController::class);
         Route::post('/works/{work}/chapters/{chapter}/images', [ChapterController::class, 'storeImages']);
+        Route::get('/works/{work}/chapters/{chapter}/revisions', [ChapterRevisionController::class, 'index']);
+        Route::patch('/works/{work}/chapters/{chapter}/autosave', [ChapterRevisionController::class, 'autosave']);
+        Route::post('/works/{work}/chapters/{chapter}/revisions/{revision}/restore', [ChapterRevisionController::class, 'restore']);
         Route::apiResource('works.chapters', ChapterController::class);
         Route::get('/analytics/views', [AnalyticsController::class, 'views']);
 

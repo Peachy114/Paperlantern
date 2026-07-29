@@ -1,426 +1,2869 @@
-Core content tables
-Feature	Table / Model	Important fields	Purpose
-All Works	works	id, title, slug, type, status, description, cover_image	Stores manga, manhwa, manhua, and novels
-Chapters	chapters	id, work_id, chapter_number, title, published_at	Stores chapters for every work
-Manga Pages	chapter_pages	chapter_id, image, page_number	Stores image pages for manga, manhwa, and manhua
-Novel Content	chapter_contents	chapter_id, content	Stores the written content of novel chapters
-Volumes	volumes	id, work_id, volume_number, title	Groups chapters into volumes
-Genres	genres	id, name, slug	Stores genres
-Work Genres	genre_work	work_id, genre_id	Connects works to multiple genres
-Tags	tags	id, name, slug	Stores specific tags such as regression or cultivation
-Work Tags	tag_work	work_id, tag_id	Connects works to multiple tags
-Authors	authors	id, name	Stores work authors
-Artists	artists	id, name	Stores artists or illustrators
-Work Creators	work_creators	work_id, creator_id, role	Connects authors, artists, translators, and illustrators
-Discovery widgets
-Widget	Table / Model	Important fields or query	Purpose
-Continue Reading	users_reading	user_id, work_id, chapter_id, page_number, scroll_position
-, progress, last_read_at	Gets the last chapter, page, or novel position read by the user
-Recently Viewed	work_views	user_id, work_id, viewed_at	Shows works recently opened by the user
+Best writer features for LanternPaper Novels
 
-Recommended For You	users_reading
-, genre_work, tag_work, user_follows, user_ratings	Match frequently read genres and tags
-	Recommends works based on user activity
+Yes—I researched current writing and serial-fiction platforms. The strongest approach is to combine:
 
-Similar Series
-	genre_work
-, tag_work	Match genres, tags, type, author, or themes
-	Finds works similar to the currently viewed work
+Reedsy/Campfire-style writing and planning
+Royal Road/Tapas-style serial publishing
+Wattpad-style community interaction
+Creator monetisation and analytics
 
-Hidden Gems
-	works, work_statistics	High rating, lower views, minimum rating count
-	Finds quality works that are not highly popular
+Royal Road currently provides chapter drafts, volumes, bulk chapter importing, staggered releases, EPUB export, fiction-wide find-and-replace, autosaving, traffic sources, reader retention, follower history and chapter-level analytics.
 
-Completed Series
-	works
-	status = completed
-	Displays completed manga, manhwa, manhua, and novels
+Reedsy focuses on planning, drafting, editing, collaboration and professional book formatting, while Campfire adds character profiles, relationships, timelines, fictional calendars, maps, lore and manuscript version history.
 
-New Series
-	works
-	ORDER BY published_at DESC
-	Displays newly published works
+Tapas supports scheduled episodes, tags, chapter comments and creator earnings through advertising and reader support.
 
+1. Writer dashboard
+
+The writer should immediately see:
+
+Dashboard card	Purpose
+Total novels	Number of created novel projects
+Published novels	Publicly available novels
+Draft novels	Unpublished projects
+Total chapters	Chapters across every novel
+Total words	Overall writing progress
+Total readers	Unique readers
+Total views	All novel and chapter views
+Followers	Readers following the writer
+Library additions	Readers who saved the novel
+Comments	Total and unread comments
+Earnings	Tips, paid chapters and subscriptions
+Scheduled chapters	Upcoming releases
+Writing streak	Consecutive writing days
+
+Below the cards, show:
+
+Recent novels
+Recently edited chapters
+Upcoming scheduled releases
+Latest comments and reviews
+Writing-goal progress
+Reader-retention chart
+Important notifications
+
+Royal Road’s dashboard already demonstrates the usefulness of combining project statistics, comments and reviews in one author workspace.
+
+2. Novel project manager
+
+Each novel should be its own project.
+
+Novel information
+
+Writers should be able to configure:
+
+Title
+Alternative title
+Cover image
+Banner
+Short description
+Full synopsis
+Primary genre
+Secondary genres
+Tags
+Original language
+Available translations
+Target audience
+Content rating
+Content warnings
+Copyright status
+Original work or fan fiction
+Publication status
+Release schedule
+Author and collaborator credits
+Novel statuses
+
+Use clear statuses:
+
+Idea
+Planning
+Draft
+Coming soon
+Ongoing
+Completed
+On hiatus
+Cancelled
+Rewriting
+Private
+Unlisted
+
+Readers should be able to filter novels by these statuses.
+
+3. Chapter and volume management
+
+This is one of the most important areas.
+
+Novel
+├── Volume 1
+│   ├── Chapter 1
+│   ├── Chapter 2
+│   └── Chapter 3
+├── Volume 2
+│   ├── Chapter 4
+│   └── Chapter 5
+└── Extra Stories
+    ├── Side Story 1
+    └── Character Special
+
+Writers need:
+
+Volumes
+Arcs
+Chapters
+Prologues
+Epilogues
+Side stories
+Bonus chapters
+Author announcements
+Drag-and-drop reordering
+Move chapters between volumes
+Duplicate chapter
+Split chapter
+Merge chapters
+Archive chapter
+Soft delete and restore
+Bulk chapter import
+Bulk scheduling
+Bulk status changes
+
+Royal Road uses volumes to organise chapters and supports bulk chapter importing, including importing chapters as drafts and staggering releases.
+
+4. Writing editor
+
+The editor must feel safe and reliable. Losing a chapter can make a writer leave the platform permanently.
+
+Essential editor features
+Automatic saving
+Visible saving status
+Manual save button
+Version history
+Restore previous version
+Undo and redo
+Distraction-free mode
+Full-screen writing
+Dark mode
+Mobile editor
+Word count
+Character count
+Estimated reading time
+Spell checking
+Find and replace
+Novel-wide find and replace
+Chapter navigation sidebar
+Keyboard shortcuts
+Scene separators
+Image insertion
+Footnotes
+Horizontal dividers
+Author notes
+Preview as reader
+Preview on mobile
+
+Example saving indicator:
+
+Saving...
+Saved 9:41 PM
+All changes backed up
+
+Royal Road offers automatic draft saving, fiction-wide find-and-replace and EPUB exporting, while Campfire includes manuscript version history and writing-goal tools.
+
+Recommended editor structure
+┌───────────────────────────────────────────────────────────────┐
+│ Novel / Volume 1 / Chapter 4          Saved 9:41 PM           │
+├───────────────┬───────────────────────────────┬───────────────┤
+│ Chapters      │ Writing editor                │ Story notes   │
+│               │                               │               │
+│ Prologue      │ Chapter title                 │ Characters    │
+│ Chapter 1     │                               │ Locations     │
+│ Chapter 2     │ Once upon a time...           │ Timeline      │
+│ Chapter 3     │                               │ Items         │
+│ Chapter 4     │                               │ Unresolved    │
+│               │                               │ plot points   │
+└───────────────┴───────────────────────────────┴───────────────┘
+
+The right-hand story panel is especially valuable because writers can check characters or lore without leaving the chapter.
+
+5. Story planning tools
+
+Do not make these mandatory. Some writers plan everything, while others write freely.
+
+Outline board
+
+Provide cards for:
+
+Act
+Arc
+Chapter
+Scene
+Plot event
+Conflict
+Reveal
+Foreshadowing
+Climax
+Resolution
+
+Writers should be able to drag scenes and chapters around.
+
+Plot threads
+
+Allow writers to track:
+
+Main mystery          Active       Resolves Chapter 42
+Romance subplot       Developing   Resolves Chapter 35
+Missing sword         Unresolved   Introduced Chapter 7
+King's betrayal       Hidden       Revealed Chapter 28
+Timeline
+
+The timeline should support:
+
+Story date
+Event order
+Character age
+Location
+Participating characters
+Flashbacks
+Parallel events
+Historical events
+Custom fantasy calendars
+
+Campfire specifically provides timelines, world lore, character systems and custom fictional calendars, making these useful reference points for a fantasy-focused platform.
+
+6. Character manager
+
+Each character should have a structured profile.
+
+Character details
+Name
+Aliases
+Avatar
+Age
+Birthday
+Pronouns
+Species or race
+Occupation
+Organisation
+Role in story
+First appearance
+Last appearance
+Physical description
+Personality
+Motivation
+Goal
+Fear
+Strength
+Weakness
+Secrets
+Abilities
+Relationships
+Character arc
+Status: alive, dead, missing or unknown
+Relationship map
+
+Show relationships visually:
+
+Aria ─── sibling ─── Kael
+  │                    │
+friend               enemy
+  │                    │
+Mira ─── servant ─── King Aldren
+
+Campfire currently supports detailed character profiles, relationship flowcharts, moodboards and character-arc tracking.
+
+7. Worldbuilding library
+
+This could become one of LanternPaper’s best distinguishing features.
+
+Create a private wiki for every novel:
+
+Locations
+Kingdoms
+Nations
+Organisations
+Clans
+Religions
+Languages
+Magic systems
+Power systems
+Creatures
+Items
+Weapons
+Skills
+Technology
+Historical events
+Laws
+Culture
+Currency
+Maps
+
+Writers should be able to link these entries inside a chapter.
+
+Example:
+
+The party entered [[Silverfall Kingdom]] carrying the
+[[Dragonheart Sword]].
+
+Hovering over the linked term could show the writer’s private notes.
+
+A selected set of entries could also become a public glossary for readers—but only after the writer marks them spoiler-safe.
+
+8. Drafting and publication workflow
+
+Each chapter should have one of these states:
+
+Idea
+Drafting
+First draft complete
+Editing
+Needs review
+Ready
+Scheduled
+Published
+Archived
+Publishing options
+Publish now
+Schedule date and time
+Save as draft
+Private preview
+Unlisted preview link
+Publish for beta readers
+Publish for subscribers first
+Publish for everyone later
+Send follower notification
+Do not send notification
+Enable or disable comments
+Add author note
+Add chapter-specific tags
+Mark as mature
+Mark as bonus content
+
+Tapas currently lets creators schedule releases, manage episode comments and add episode tags.
+
+Release calendar
+July 2026
+
+Mon       Tue       Wed       Thu       Fri
+                    Ch. 21              Ch. 22
+                    7:00 PM             7:00 PM
+
+August 2026
+
+Mon       Tue       Wed       Thu       Fri
+Ch. 23                                  Bonus
+7:00 PM                                 7:00 PM
+
+Also warn the writer when:
+
+Two chapters are accidentally scheduled together
+A scheduled chapter is empty
+The cover or synopsis is missing
+A previous chapter remains unpublished
+The selected time zone changed
+9. Writer analytics
+
+Do not show only total views. Writers need information that helps them improve.
+
+Core analytics
+Novel page views
+Unique readers
+Chapter views
+Reading completion
+Average reading time
+Reader retention
+Chapter-to-chapter drop-off
+New followers
+Library additions
+Unfollows
+Comments per chapter
+Reactions per chapter
+Ratings
+Review count
+Traffic sources
+Search impressions
+Click-through rate
+Release-day performance
+Reader device
+Reader language
+Earnings per novel
+Earnings per chapter
+
+Royal Road’s analytics include pageviews, chapter activity, traffic referrers, user retention, ratings, follower history and the impact of chapter releases.
+
+Most valuable funnel
+Novel shown in discovery
+        ↓
+Novel page opened
+        ↓
+Chapter 1 started
+        ↓
+Chapter 1 completed
+        ↓
+Chapter 2 opened
+        ↓
+Novel followed
+        ↓
+Reader becomes regular
+
+Show this as percentages:
+
+10,000 discovery impressions
+ 2,100 novel page visits       21%
+ 1,350 chapter-one starts      64%
+   980 chapter-one completions 73%
+   720 chapter-two starts      73%
+   340 new followers           47%
+
+This tells the writer where the problem may be:
+
+Low page visits: cover or title may need work
+Low chapter-one starts: synopsis may be weak
+Low chapter-one completion: opening may be weak
+Strong reading but low follows: follower call-to-action may be unclear
+
+These interpretations should be presented as possibilities, not automatic judgments.
+
+10. Reader feedback tools
+Comments
+
+Support:
+
+Chapter comments
+Paragraph comments
+Replies
+Author pinning
+Author heart
+Spoiler marking
+Comment reporting
+Comment filtering
+Comment deletion
+Disable comments per chapter
+Followers-only comments
+Subscriber-only comments
+
+Tapas allows episode comments to be enabled or disabled and allows creators to delete individual comments.
+
+Reactions
+
+Use quick reactions such as:
+
+❤️ Love
+😭 Emotional
+😂 Funny
+😱 Shocking
+🔥 Exciting
+🤔 Confusing
+
+These are easier for readers than writing a full comment.
+
+Structured reviews
+
+Allow readers to review:
+
+Story
+Characters
+Writing style
+Worldbuilding
+Pacing
+Grammar
+Overall experience
+
+Royal Road separates simple ratings, basic reviews and advanced reviews covering style, story, grammar and characters.
+
+11. Beta-reader system
+
+This would strongly differentiate LanternPaper.
+
+Writers could invite:
+
+Co-writers
+Editors
+Proofreaders
+Beta readers
+Translators
+Moderators
+Cover artists
+Permissions
+Permission	Co-author	Editor	Beta reader	Moderator
+View drafts	Yes	Yes	Yes	No
+Edit chapters	Yes	Yes	No	No
+Leave private notes	Yes	Yes	Yes	No
+Publish chapters	Optional	No	No	No
+View analytics	Optional	Optional	No	Optional
+Moderate comments	Optional	No	No	Yes
+Edit novel details	Optional	No	No	No
+
+Royal Road currently provides granular collaborator permissions for drafts, chapters, publishing, analytics, comments, story information, tags and volumes.
+
+Private feedback modes
+Comment on paragraph
+Suggest replacement
+General chapter feedback
+Plot-consistency issue
+Grammar issue
+Character-consistency issue
+Mark resolved
+Accept or reject suggestion
+12. Writing goals and productivity
+
+Provide optional tools, not stressful requirements.
+
+Daily word target
+Weekly word target
+Novel target
+Deadline
+Writing streak
+Progress calendar
+Writing sessions
+Words written today
+Most productive writing time
+Writing challenge events
+Personal achievements
+
+Example:
+
+Daily goal:       1,000 words
+Written today:      742 words
+Remaining:          258 words
+
+Novel goal:      80,000 words
+Current:         47,320 words
+Progress:            59%
+
+Royal Road operates writing challenges such as Writathon, while Campfire provides goal tracking in its manuscript tools.
+
+Avoid punishing writers for breaking a streak. Allow a rest day or streak freeze.
+
+13. Monetisation
+
+LanternPaper could eventually offer several choices.
+
+Reader-supported income
+One-time tips
+Monthly author memberships
+Novel subscriptions
+Early-access chapters
+Paid bonus chapters
+Paid completed volumes
+Reader gifts
+Advertising revenue
+Crowdfunding goals
+External support links
+
+Tapas currently uses advertising revenue and fan-support programmes, while Royal Road lets authors attach external PayPal and Patreon support links to their chapters.
+
+Membership example
+Supporter
+- Support the writer
+- Supporter badge
+- Private author posts
+
+Early Reader
+- Everything above
+- Read five chapters early
+
+Collector
+- Everything above
+- Downloadable EPUB
+- Bonus short stories
+- Artwork and worldbuilding extras
+Writer earnings dashboard
+Available balance
+Pending balance
+Total earned
+Platform fee
+Payment-processing fee
+Refunds
+Earnings by novel
+Earnings by chapter
+Tips
+Subscriptions
+Payout history
+Payout method
+Tax or identity-verification status
+
+Keep the revenue share extremely clear before writers publish paid content.
+
+14. Writer rights and protection
+
+This must be visible and understandable.
+
+Writers should retain ownership of their work. LanternPaper’s terms should clearly explain the limited licence needed to host, display and distribute content through the service. Have the final wording reviewed by a qualified lawyer.
+
+Provide:
+
+Copyright declaration
+Original-work verification
+Fan-fiction designation
+Translation permission records
+Plagiarism reporting
+Takedown requests
+Revision history as evidence
+Downloadable content archive
+Account data export
+Two-factor authentication
+Login history
+Watermarking for private review copies
+Disable text selection as an optional deterrent
+Rate limiting against automated scraping
+
+Royal Road requires content to be submitted by the author or someone with permission and provides a process for copyright infringement and DMCA reports.
+
+Do not promise writers that disabling copy-and-paste completely prevents piracy—it does not.
+
+15. Discovery features that help new writers
+
+Avoid making every ranking depend only on total views. That permanently favours established stories.
+
+Create discovery sections such as:
+
+New novels
+Rising novels
+Recently updated
+Consistent releases
+Hidden gems
+New writers
+Completed novels
+Short novels
+Long-running serials
+Editor’s picks
+Reader favourites
+Highly retained stories
+Trending this week
+Trending by genre
+Undiscovered novels
+Returning from hiatus
+Filipino writers
+Local-language novels
+Newly translated
+Search filters
+
+Readers should filter by:
+
+Genre
+Tag
+Language
+Completion status
+Word count
+Chapter count
+Update frequency
+Age rating
+Content warning
+Free or paid
+Original or fan fiction
+Romance pairing
+Main-character type
+Publication date
+Last update
+16. LanternPaper’s strongest unique feature
+
+Your platform already connects art, comics, creators and commissions. Use that advantage.
+
+Connected story universe
+
+A novel could connect to:
+
+Character artwork
+Cover artist
+Illustrations
+Comic adaptation
+Audio adaptation
+Character profiles
+World map
+Music playlist
+Related short stories
+Merchandise
+Artist commissions
+
+Example:
+
+The Ember Crown
+├── Original novel
+├── Comic adaptation
+├── Character artwork
+├── World map
+├── Side stories
+└── Official commissions
+Creator service marketplace
+
+Writers could hire:
+
+Cover artists
+Character artists
+Map artists
+Editors
+Proofreaders
+Translators
+Audiobook narrators
+Comic artists
+
+A completed commission could be linked directly to the novel while properly crediting the creator.
+
+This is a much stronger identity than simply cloning Wattpad.
+
+Recommended writer navigation
+Writer Studio
+├── Overview
+├── My Novels
+├── Drafts
+├── Chapters
+├── Release Calendar
+├── Story Planner
+│   ├── Outline
+│   ├── Characters
+│   ├── Relationships
+│   ├── Locations
+│   ├── Timeline
+│   ├── World Lore
+│   └── Plot Threads
+├── Comments
+├── Reviews
+├── Analytics
+├── Readers
+├── Collaborators
+├── Earnings
+├── Writing Goals
+└── Settings
+
+Inside one novel:
+
+Novel Dashboard
+├── Overview
+├── Write
+├── Chapters
+├── Volumes
+├── Planner
+├── Worldbuilding
+├── Publication
+├── Analytics
+├── Community
+├── Monetisation
+└── Novel Settings
+What to build first
+Phase 1 — Essential novel platform
+
+Build these before advanced worldbuilding:
+
+Create and edit novel
+Cover, synopsis, genres and tags
+Volume and chapter manager
+Reliable editor with autosave
+Draft, publish and schedule
+Reader view
+Reading progress and bookmarks
+Follow novel
+Chapter notifications
+Comments and moderation
+Basic views and follower analytics
+Import and export
+Content ratings and warnings
+Mobile-friendly writing
+Copyright-reporting workflow
+Phase 2 — Professional writer tools
+Version history
+Outline board
+Characters
+Locations
+Timeline
+Private story wiki
+Release calendar
+Beta readers
+Editors and collaborators
+Advanced reader retention
+Traffic sources
+Writing goals
+Bulk chapter import
+Phase 3 — Earnings and growth
+Tips
+Memberships
+Early access
+Paid chapters
+EPUB sales
+Creator marketplace
+Writing competitions
+Translation tools
+Recommendation system
+Cross-format novel/comic connections
+My strongest recommendation
+
+Do not initially create a massive Scrivener-style system with every possible planning tool.
+
+Start with this core promise:
+
+LanternPaper gives writers a safe place to write, publish chapters, build readers and earn from their stories.
+
+The first version should make these four things excellent:
+
+The writer never loses their work.
+Publishing and scheduling chapters is effortless.
+Writers understand where readers continue or stop reading.
+Readers can follow, discuss and support the story.
+
+After that, add worldbuilding, collaboration, monetisation and connections to LanternPaper’s art and commission ecosystem.
+
+How about what it needs to have like bold, italic something like that
+
+Yes. For the LanternPaper novel editor, writers need a proper rich-text toolbar—not just a plain textarea.
+
+Essential text formatting
+
+These should be included in the first version:
+
+Feature	Purpose
+Bold	Emphasis, important words
+Italic	Thoughts, titles, emphasis
+Underline	Special emphasis, though less common in novels
+Strikethrough	Editing, crossed-out dialogue, stylistic writing
+Superscript	Footnote numbers, powers
+Subscript	Scientific or special writing
+Clear formatting	Remove all styles from selected text
+Undo / Redo	Restore recent changes
+Recommended shortcuts
+Bold:          Ctrl + B
+Italic:        Ctrl + I
+Underline:     Ctrl + U
+Strikethrough: Ctrl + Shift + S
+Undo:          Ctrl + Z
+Redo:          Ctrl + Y
+Paragraph formatting
+
+Writers also need formatting for entire paragraphs:
+
+Normal paragraph
+Novel title
+Chapter title
+Heading 1
+Heading 2
+Heading 3
+Left alignment
+Centre alignment
+Right alignment
+Justify
+First-line indentation
+Increase indentation
+Decrease indentation
+Paragraph spacing
+Line-height selection
+
+For novels, first-line indentation is especially important.
+
+Example:
+
+    Aria stepped into the abandoned hall. The wooden floor
+creaked beneath her feet.
+
+    “Is anybody here?” she whispered.
+
+Do not require writers to manually insert spaces. Use proper paragraph indentation through CSS.
+
+Lists
+
+Include:
+
+Bulleted list
+Numbered list
+Checklist
+
+Lists are not common inside normal fiction chapters, but they are useful for:
+
+System messages
+Character statistics
+Quests
+Letters
+Notes
+LitRPG status screens
+Author announcements
+
+Example:
+
+Quest Requirements
+
+• Enter the ruined temple
+• Find the missing relic
+• Return before sunset
+Quotes and dialogue tools
+
+Useful formatting includes:
+
+Block quote
+Pull quote
+Dialogue paragraph
+Letter or document style
+Poetry formatting
+
+Example block quote:
+
+Never open the northern gate after midnight.
+
+A special letter style would be excellent:
+
+Dear Aria,
+
+Do not return to Silverfall.
+
+—Kael
+Scene breaks
+
+Writers need a dedicated scene-break button.
+
+It can insert:
+
+* * *
+
+Or:
+
+◇ ◇ ◇
+
+Or a styled divider.
+
+The reader view should keep the scene break centred and consistent.
+
+Links and media
+
+Include:
+
+Add link
+Remove link
+Insert image
+Image caption
+Alt text
+Horizontal divider
+Footnote
+Endnote
+
+Images should support:
+
+Centre alignment
+Adjustable width
+Captions
+Spoiler labels
+Decorative chapter illustrations
+
+Do not allow writers to freely paste unsafe HTML.
+
+Special novel formatting
+
+These would make LanternPaper better for fiction writers.
+
+Internal thoughts
+
+Writers often use italics:
+
+I should never have come here, Aria thought.
+
+You could provide an Internal Thought style that automatically uses italics.
+
+System messages
+
+Useful for LitRPG, game-system and fantasy novels:
+
+╔════════════════════════════╗
+  Skill Unlocked: Fire Blade
+  Rank: Beginner
+╚════════════════════════════╝
+
+Create a dedicated System Box button instead of forcing writers to build it manually.
+
+Text messages
+Kael
+Where are you?
+
+Aria
+Inside the northern tower.
+
+Provide a chat-message block for modern novels.
+
+Spoiler text
+
+Writers may want hidden content:
+
+[Click to reveal spoiler]
+
+This is more useful in author notes than inside normal chapters.
+
+Drop caps
+
+A drop cap enlarges the first letter of a chapter:
+
+A ria stepped into the darkness.
+
+The first A would be large and decorative.
+
+Make this optional because it may not look good on mobile.
+
+Author notes
+
+Every chapter should have two separate note areas:
+
+Author note before chapter
+Chapter content
+Author note after chapter
+
+The author notes should support:
+
+Bold
+Italic
+Links
+Images
+Polls
+Announcements
+Support buttons
+
+Keeping author notes separate prevents them from affecting the chapter’s word count.
+
+Suggested editor toolbar
+
+A clean desktop toolbar could look like this:
+
+Undo  Redo | Paragraph ▼ | B  I  U  S |
+Align ▼ | Lists ▼ | Quote | Scene Break |
+Link | Image | Footnote | More
+
+The More menu can contain:
+
+Superscript
+Subscript
+Clear formatting
+System box
+Letter style
+Poetry
+Chat message
+Spoiler
+Drop cap
+
+Do not display every button at once. Too many toolbar icons will make the editor confusing.
+
+Mobile toolbar
+
+Use a horizontally scrollable toolbar:
+
+B   I   U   Heading   Quote   List   Link   +
+
+The + button opens:
+
+Image
+Scene break
+System message
+Footnote
+Author note
+Special block
+Formatting presets
+
+Instead of allowing writers to choose any font size and colour, provide controlled presets:
+
+Normal text
+Chapter title
+Heading
+Quote
+Letter
+Poetry
+System message
+Text message
+Author note
+
+This keeps every novel readable and prevents badly formatted chapters.
+
+Font and colour controls
+
+For published chapter content, I recommend not allowing unrestricted:
+
+Font families
+Font sizes
+Text colours
+Background colours
+Animated text
+Excessive alignment changes
+
+The reader should choose their preferred:
+
+Reading font
+Font size
+Line spacing
+Page width
+Light, dark or sepia mode
+
+The writer controls meaning and structure. The reader controls reading appearance.
+
+You can still allow limited colours inside special blocks such as:
+
+System notifications
+Warning messages
+Character status boxes
+Best first-version toolbar
+
+For LanternPaper’s first release, implement:
+
+Bold
+Italic
+Underline
+Strikethrough
+Paragraph and headings
+Left, centre and right alignment
+First-line indentation
+Bulleted and numbered lists
+Block quotes
+Scene breaks
+Links
+Images and captions
+Undo and redo
+Clear formatting
+Author notes
+Preview mode
+Find and replace
+Keyboard shortcuts
+Autosave
+Version history
+
+Then add special fiction blocks later:
+
+LitRPG system box
+Letters
+Poetry
+Text messages
+Footnotes
+Drop caps
+Spoilers
+Character dialogue styles
+
+The editor should store content as structured blocks or sanitized rich text—not raw uncontrolled HTML.
+
+i want all features and esstential for Novels ALL PLEASE
+
+and for how about in Manhuwa, manhua, Manga?
+
+
+
+
+
+a
+Worked for 1m 45s
+Complete LanternPaper Feature System
+
+For LanternPaper, build one creator platform with two main creation types:
+
+Novels — text-based stories
+Comics — manga, manhwa, manhua, webtoons and western comics
+
+Do not create separate databases for manga, manhwa and manhua. They are all comics, but they can have different formats, reading directions and cultural origins.
+
+Correct spelling: manhwa, not “manhuwa.”
+
+Label	Common meaning
+Manga	Comics originating from Japan
+Manhwa	Comics originating from Korea
+Manhua	Comics originating from China
+Webtoon	A digital comic format, commonly using vertical scrolling
+Western comic	Usually page-based and read left-to-right
+Graphic novel	A longer page-based comic work
+
+Manga is commonly associated with Japanese comics, while webtoons are strongly associated with Korean digital comics.
+
+1. Recommended LanternPaper structure
+LanternPaper Creator Studio
+├── Novels
+├── Comics
+│   ├── Vertical-scroll comic
+│   ├── Page comic
+│   ├── Manga
+│   ├── Manhwa
+│   ├── Manhua
+│   └── Graphic novel
+├── Short Stories
+├── Art
+├── Commissions
+├── Messages
+├── Readers
+├── Analytics
+├── Earnings
+└── Creator Settings
+
+Internally, use:
+
+type WorkType =
+    | 'novel'
+    | 'comic'
+
+type ComicFormat =
+    | 'vertical_scroll'
+    | 'single_page'
+    | 'double_page'
+    | 'hybrid'
+
+type ReadingDirection =
+    | 'left_to_right'
+    | 'right_to_left'
+    | 'top_to_bottom'
+
+Then store cultural or publishing classification separately:
+
+type ComicClassification =
+    | 'manga'
+    | 'manhwa'
+    | 'manhua'
+    | 'webtoon'
+    | 'western_comic'
+    | 'graphic_novel'
+    | 'other'
+
+This prevents problems such as assuming that every manga must use right-to-left pages or that every manhwa must use vertical scrolling.
+
+2. Features shared by novels and comics
+
+Every work needs the following foundation.
+
+Work information
+Title
+Alternative titles
+Slug
+Cover
+Square thumbnail
+Banner
+Logo or title treatment
+Short description
+Full synopsis
+Creator notes
+Primary genre
+Secondary genres
+Tags
+Language
+Original language
+Available translations
+Country of origin
+Target audience
+Age rating
+Content warnings
+Copyright status
+Original work or fan work
+Work status
+Publication visibility
+Release schedule
+External links
+Social sharing image
+SEO title and description
+Work statuses
+Idea
+Planning
+Draft
 Coming Soon
-	works
-	status = coming_soon
- or future published_at	Displays upcoming works
+Ongoing
+Season Break
+On Hiatus
+Completed
+Cancelled
+Rewriting
+Archived
+Visibility
+Private
+Collaborators Only
+Beta Readers Only
+Unlisted
+Followers Only
+Subscribers Only
+Public
+Organisation
+Work
+├── Season / Volume
+│   ├── Arc
+│   │   ├── Chapter / Episode
+│   │   └── Chapter / Episode
+│   └── Bonus Content
+└── Extras
 
-Returning Series
-	works
-	previous_status = hiatus
-, recent returned_at	Displays works returning from hiatus
+Creators must be able to:
 
-Random Work
-	works
-	Random active work
-	Helps users discover something unexpected
-Main homepage widgets
-Widget	Table / Model	Important fields or query	Purpose
-Hero Banner	homepage_banners	work_id, image, position, starts_at, ends_at, is_active	Displays manually promoted works
-Featured
-	featured_works
-	work_id, position, starts_at, ends_at	Displays administrator-selected works
+Create volumes and seasons
+Create arcs
+Drag and reorder chapters
+Move chapters between volumes
+Duplicate chapters
+Archive chapters
+Restore deleted chapters
+Bulk select chapters
+Bulk schedule chapters
+Bulk publish or unpublish
+Add prologues and epilogues
+Add side stories
+Add bonus episodes
+Add creator announcements
 
-Trending	work_activity_events or work_daily_statistics	Recent views, unique readers, likes, follows, comments	Finds works receiving strong recent activity
-Top 10	work_daily_statistics	Ranking score for a selected period	Displays the ten highest-ranking works
-New Releases	chapters	ORDER BY published_at DESC	Displays newly released chapters
-Recently Updated	works or chapters	Latest chapter publication date	Displays works that recently received a chapter
-Editor’s Picks	editor_picks	work_id, editor_id, description, position	Displays works selected by staff
-Most Popular	work_statistics	total_views, unique_readers, followers_count	Displays popular works across all time
-Weekly Ranking	work_daily_statistics	Statistics from the current week	Displays the strongest works this week
-Monthly Ranking	work_daily_statistics	Statistics from the current month	Displays the strongest works this month
-Highest Rated	work_ratings	Highest weighted average rating	Displays highly rated works
-Popular Novels	works, work_statistics	type = novel, order by ranking score	Displays popular novels only
-Popular Manga	works, work_statistics	type = manga	Displays popular Japanese manga
-Popular Manhwa	works, work_statistics	type = manhwa	Displays popular Korean comics
-Popular Manhua	works, work_statistics	type = manhua	Displays popular Chinese comics
+Royal Road already uses volumes and chapter management for serial fiction, while Tapas separates works into novel or comic series with episodes and scheduling.
 
-Trending system
+3. Complete novel creator features
+A. Novel editor toolbar
+History controls
+Undo
+Redo
+Restore previous version
+Autosave
+Manual save
+Save as version
+Compare versions
+Basic formatting
+Bold
+Italic
+Underline
+Strikethrough
+Superscript
+Subscript
+Small caps
+Clear formatting
+Inline code for technical stories
+Highlighting for private editing
+Paragraph styles
+Normal paragraph
+Novel title
+Volume title
+Chapter title
+Heading 1
+Heading 2
+Heading 3
+Subtitle
+Caption
+Author note
+Quote
+Letter
+Poetry
+System message
+Chat message
+Diary entry
+Alignment
+Left
+Centre
+Right
+Justified
+Paragraph controls
+First-line indentation
+Hanging indentation
+Increase indentation
+Decrease indentation
+Line spacing
+Paragraph spacing before
+Paragraph spacing after
+Keep paragraph together
+Prevent awkward page breaks for exports
+Lists
+Bulleted list
+Numbered list
+Checklist
+Nested list
+Insert tools
+Link
+Remove link
+Image
+Image caption
+Image alt text
+Scene break
+Horizontal divider
+Footnote
+Endnote
+Table
+Poll
+Audio attachment
+Embedded artwork
+Character reference
+Worldbuilding reference
+Editing tools
+Find
+Replace
+Replace all
+Novel-wide find and replace
+Spellcheck
+Grammar suggestions
+Dictionary
+Thesaurus
+Word repetition detector
+Dialogue punctuation checker
+Search by chapter
+Search by character
+Search private notes
+Word-frequency report
 
-Do not rank trending using only total views. Older works will almost always win.
+Royal Road currently provides fiction-wide find-and-replace, EPUB export and detailed author analytics, demonstrating the value of manuscript-wide tools rather than chapter-only editing.
 
-Use recent activity from a table such as:
+B. Essential keyboard shortcuts
+Ctrl + B             Bold
+Ctrl + I             Italic
+Ctrl + U             Underline
+Ctrl + Shift + S     Strikethrough
+Ctrl + Z             Undo
+Ctrl + Y             Redo
+Ctrl + K             Add link
+Ctrl + F             Find
+Ctrl + H             Find and replace
+Ctrl + S             Save
+Ctrl + Enter         Insert scene break
+Ctrl + Shift + 7     Numbered list
+Ctrl + Shift + 8     Bulleted list
 
-work_activity_events
-- id
-- work_id
-- user_id
-- session_id
-- event_type
-- created_at
+Allow writers to customise shortcuts later.
 
-Possible event_type values:
+C. Fiction-specific content blocks
+Scene break
+* * *
 
-view
-chapter_read
-like
-rating
-bookmark
-follow
-comment
-review
-share
-Suggested trending score
-trending_score =
-unique_readers_24h × 4
-+ chapter_reads_24h × 2
-+ likes_24h × 5
-+ follows_24h × 6
-+ bookmarks_24h × 4
-+ comments_24h × 3
-+ shares_24h × 8
-Trending type	Filter	Purpose
-Trending Today	Activity from the last 24 hours	Shows what is currently active
-Trending This Week	Activity from the current seven days	Shows weekly momentum
-Trending This Month	Activity from the current month	Shows longer-term momentum
-Trending Manga	works.type = manga	Manga-only trending
-Trending Manhwa	works.type = manhwa	Manhwa-only trending
-Trending Manhua	works.type = manhua	Manhua-only trending
-Trending Novels	works.type = novel	Novel-only trending
-Latest content widgets
-Widget	Table / Model	Important fields or query	Purpose
-Latest Chapters	chapters	published_at DESC	Shows the most recently published chapters
-Latest Volumes	volumes	published_at DESC	Shows newly added volumes
-New Uploads	works or chapters	created_at DESC	Shows content recently uploaded by staff
-Fresh Releases	chapters	Published recently and not previously shown	Highlights newly released chapters
-Recently Added	works	created_at DESC	Shows works newly added to the platform
-Latest Comments	comments	created_at DESC	Shows recent reader comments
-Latest Novel Chapters	chapters, works	works.type = novel	Shows newly published novel chapters
-Latest Comic Chapters	chapters, works	Type is manga, manhwa, or manhua	Shows newly published illustrated chapters
-Important difference
-New Series
-= newly created work
+Allow creators to select a default divider or upload a decorative divider.
 
-New Releases
-= newly published chapter
+Internal thought
 
-Recently Added
-= recently added to your database
+Applies controlled italic styling:
 
-Recently Updated
-= an existing work received a new chapter
-Ranking widgets
-Widget	Table / Model	Important fields or query	Purpose
-Top Today	work_daily_statistics	Current date	Ranks works today
-Top This Week	work_daily_statistics	Current week	Ranks works this week
-Top This Month	work_daily_statistics	Current month	Ranks works this month
-Top This Year	work_monthly_statistics	Current year	Ranks works this year
-Most Viewed	work_statistics	total_views DESC	Finds works with the most page openings
-Most Read	work_statistics	total_chapter_reads DESC	Finds works with the most actual reading activity
-Most Bookmarked	user_bookmarks	Count by work_id	Finds the most bookmarked works
-Most Favorited	user_favorites	Count by work_id	Finds the most favorited works
-Most Followed	user_follows	Count by work_id	Finds works with the most followers
-Most Discussed	comments	Count by work_id	Finds works with the most comments
-Most Reviewed	work_reviews	Count by work_id	Finds works with the most written reviews
-Most Shared	work_shares	Count by work_id	Finds works shared the most
-Highest Rated	work_ratings	Weighted average rating	Finds the strongest-rated works
-User interaction tables
-Feature	Table	Important fields	Purpose
-Reading Progress	users_reading	user_id, work_id, chapter_id, page_number, scroll_position, progress, last_read_at	Saves where the user stopped reading
-Reading History	reading_history	user_id, work_id, chapter_id, read_at	Stores all reading history
-Work Views	work_views	user_id, work_id, session_id, viewed_at	Records when a work page is viewed
-Chapter Reads	chapter_reads	user_id, chapter_id, progress, completed, read_at	Records actual chapter reading
-Bookmarks	user_bookmarks	user_id, work_id, created_at	Saves a work for later
-Favorites	user_favorites	user_id, work_id, created_at	Marks a work as a favorite
-Follows	user_follows	user_id, work_id, notifications_enabled	Follows updates from a work
-Ratings	work_ratings	user_id, work_id, rating	Allows a numeric score
-Reviews	work_reviews	user_id, work_id, title, content, rating	Stores detailed reviews
-Likes	work_likes	user_id, work_id	Records likes
-Chapter Likes	chapter_likes	user_id, chapter_id	Records chapter-specific likes
-Shares	work_shares	user_id, work_id, platform	Tracks sharing activity
-Comments	comments	user_id, work_id, chapter_id, parent_id, content	Stores work and chapter discussions
-Status widgets
+I should not have entered this place.
+Letter block
+Dear Aria,
 
-Use a status field inside works.
+Do not return to Silverfall.
 
-ongoing
-completed
-hiatus
-cancelled
-dropped
-coming_soon
-Widget	Query	Purpose
-Ongoing	status = ongoing	Shows currently publishing works
-Completed	status = completed	Shows finished works
-Hiatus	status = hiatus	Shows temporarily paused works
-Dropped	status = dropped	Shows works no longer translated or supported
-Cancelled	status = cancelled	Shows officially cancelled works
-Coming Soon	status = coming_soon	Shows upcoming works
+—Kael
+Diary entry
+18th Day of Winter
 
-You may also add:
+The voices returned last night.
+Poetry block
 
-publication_status
-translation_status
+Preserves line breaks and spacing.
 
-For example:
+Chat conversation
+Kael
+Where are you?
 
-publication_status = ongoing
-translation_status = hiatus
+Aria
+Inside the northern tower.
+LitRPG system box
+╔══════════════════════════╗
+  Skill Unlocked
+  Flame Blade — Level 1
+╚══════════════════════════╝
 
-This is useful because the original work may still be ongoing while your translation is paused.
+Allow configurable:
 
-Genre widgets
-Widget	Tables	Query	Purpose
-Action	genre_work, genres	Genre is Action	Shows action works
-Adventure	genre_work, genres	Genre is Adventure	Shows adventure works
-Romance	genre_work, genres	Genre is Romance	Shows romance works
-Fantasy	genre_work, genres	Genre is Fantasy	Shows fantasy works
-Comedy	genre_work, genres	Genre is Comedy	Shows comedy works
-Drama	genre_work, genres	Genre is Drama	Shows drama works
-Horror	genre_work, genres	Genre is Horror	Shows horror works
-Slice of Life	genre_work, genres	Genre is Slice of Life	Shows everyday-life stories
-Murim	tag_work, tags	Tag is Murim	Shows martial-arts-world stories
-Cultivation	tag_work, tags	Tag is Cultivation	Shows cultivation stories
-Isekai	tag_work, tags	Tag is Isekai	Shows another-world stories
-Reincarnation	tag_work, tags	Tag is Reincarnation	Shows reincarnation stories
-Regression	tag_work, tags	Tag is Regression	Shows return-to-the-past stories
-School	tag_work, tags	Tag is School Life	Shows school-based stories
-Supernatural	genre_work, genres	Genre is Supernatural	Shows supernatural works
+Box title
+Icon
+Border style
+Background style
+Stats table
+Progress bar
+Quest information
+Skill information
+Inventory information
+Newspaper or document block
 
-The same genre system works for novels and comics.
+Useful for:
 
-genre_work
-- work_id
-- genre_id
+Newspaper reports
+Government notices
+Wanted posters
+Police records
+Mission documents
+Contracts
+Spoiler block
 
-You do not need novel_genres, manga_genres, and manhwa_genres separately.
+Click or tap to reveal hidden content.
 
-Seasonal and collection widgets
-Widget	Table	Important fields	Purpose
-Summer Picks	collections, collection_works	Collection type is seasonal	Administrator-curated summer works
-Winter Picks	collections, collection_works	Collection type is seasonal	Administrator-curated winter works
-Halloween Specials	collections, collection_works	Horror-themed collection	Displays Halloween selections
-Valentine’s Romance	collections, collection_works	Romance collection	Displays romantic works
-Christmas Collection	collections, collection_works	Holiday collection	Displays Christmas selections
-Best Novels	collections, collection_works	Novel-only collection	Curated novel recommendations
-Beginner Manga	collections, collection_works	Manga collection	Recommended manga for new readers
-Best Murim	collections, collection_works	Murim-tagged collection	Curated murim works
+Drop cap
 
-Suggested tables:
+Optional large first letter at the beginning of a chapter.
 
-collections
-- id
-- title
-- slug
-- description
-- image
-- collection_type
-- starts_at
-- ends_at
-- is_active
+D. Safe typography system
 
-collection_works
-- collection_id
-- work_id
-- position
-Community widgets
-Widget	Table / Model	Important query	Purpose
-Recently Commented	comments	Latest comment per work	Shows works with recent conversations
-Active Discussions	comments	Most comments during a recent period	Shows active community discussions
-Top Reviewers	work_reviews	Count useful reviews by user	Shows active reviewers
-Highest Reviewed	work_reviews	Works with many positive reviews	Shows highly reviewed works
-Reader Favorites	user_favorites	Favorite count	Shows community favorites
-Most Helpful Reviews	review_votes	Highest helpful vote count	Shows useful reviews
-Latest Reviews	work_reviews	created_at DESC	Shows recent reviews
-Novel-specific features
+The author should control the meaning and structure of the text.
 
-Novels need several fields that image-based comics may not need.
+The reader should control the reading appearance.
 
-Add to works
-word_count
-language
-original_language
-reading_direction
-content_rating
-Add to chapters
-word_count
-estimated_reading_minutes
-Novel reader progress
+Author controls
+Bold
+Italic
+Structural headings
+Quotes
+Special blocks
+Scene breaks
+Alignment when necessary
+Reader controls
+Font family
+Font size
+Text weight
+Line height
+Paragraph spacing
+Page width
+Light mode
+Dark mode
+Sepia mode
+High-contrast mode
 
-For manga, save the page:
+Avoid giving authors unrestricted access to:
 
-page_number
+Tiny font sizes
+Excessively large text
+Hard-to-read fonts
+Animated text
+Flashing text
+Arbitrary HTML
+JavaScript
+Invisible text
+Extreme colours
 
-For novels, save the scroll or text position:
+Use sanitised structured content instead of uncontrolled HTML.
 
-scroll_position
-paragraph_index
-character_offset
+4. Novel manuscript management
+Chapter sidebar
+Volume 1: The Awakening
+├── Prologue
+├── Chapter 1: The Stranger
+├── Chapter 2: Silverfall
+├── Chapter 3: The Sword
+└── Chapter 4: The Gate
 
-Your users_reading table can support both:
+Volume 2: The Northern War
+├── Chapter 5
+└── Chapter 6
 
-users_reading
-- id
-- user_id
-- work_id
-- chapter_id
-- page_number nullable
-- scroll_position nullable
-- paragraph_index nullable
-- progress_percentage
-- last_read_at
-Statistics tables
+Each chapter should show:
 
-Avoid recalculating millions of views every time the homepage loads.
+Title
+Status
+Word count
+Last edited
+Scheduled date
+Comments
+Review status
+Collaborator status
+Warning if unsaved
+Warning if unpublished
+Warning if scheduled out of order
+Chapter operations
+Create
+Rename
+Duplicate
+Split
+Merge
+Move
+Reorder
+Archive
+Delete
+Restore
+Lock editing
+Export
+Copy to another novel
+Convert to bonus chapter
+Convert to author announcement
+Draft status
+Idea
+Outline
+Writing
+First Draft
+Self-Editing
+Editor Review
+Proofreading
+Ready
+Scheduled
+Published
+Needs Revision
+Archived
+5. Novel planning tools
+Outline board
 
-Total statistics
-work_statistics
-- work_id
-- total_views
-- unique_readers
-- total_chapter_reads
-- completed_reads
-- likes_count
-- bookmarks_count
-- favorites_count
-- followers_count
-- comments_count
-- ratings_count
-- average_rating
-- reviews_count
-- shares_count
-- updated_at
-Daily statistics
-work_daily_statistics
-- id
-- work_id
-- date
-- views_count
-- unique_readers_count
-- chapter_reads_count
-- likes_count
-- follows_count
-- bookmarks_count
-- comments_count
-- shares_count
-- trending_score
+Support cards for:
 
-This table powers:
+Act
+Volume
+Arc
+Chapter
+Scene
+Conflict
+Reveal
+Climax
+Resolution
+Foreshadowing
+Flashback
+Side plot
 
-Trending Today
-Top Today
-Weekly Ranking
-Monthly Ranking
-Popular This Week
-Popular This Month
-Recommended homepage structure
-Personalized area
+Views:
+
+Board
+List
+Timeline
+Calendar
+Tree
+Chapter outline
+Scene manager
+
+Each scene can contain:
+
+Scene title
+Viewpoint character
+Location
+Story date
+Characters present
+Scene goal
+Conflict
+Outcome
+Emotional tone
+Estimated words
+Actual words
+Private notes
+Linked plot threads
+Status
+Plot-thread tracker
+Missing Crown
+Introduced: Chapter 2
+Last Mentioned: Chapter 19
+Planned Resolution: Chapter 31
+Status: Active
+
+Include:
+
+Main plot
+Subplot
+Romance
+Mystery
+Character arc
+Political conflict
+Foreshadowing
+Unresolved question
+
+Warn writers about plot threads that have not appeared for a long time.
+
+6. Character management
+
+Each character profile should support:
+
+Name
+Aliases
+Portrait
+Age
+Birthday
+Pronouns
+Species
+Race
+Nationality
+Occupation
+Organisation
+Story role
+First appearance
+Physical description
+Personality
+Speech style
+Motivation
+Goal
+Fear
+Strength
+Weakness
+Secret
+Abilities
+Inventory
+Relationships
+Character arc
+Status
+Private notes
+Spoiler-safe public profile
+Character relationship map
+
+Relationship types:
+
+Family
+Friend
+Rival
+Enemy
+Romantic
+Former romantic
+Mentor
+Student
+Employer
+Employee
+Political ally
+Secret relationship
+
+Allow directional relationships:
+
+Aria trusts Kael
+Kael distrusts Aria
+7. Novel worldbuilding
+
+Create a private wiki for each story.
+
+Worldbuilding categories
+Continents
+Countries
+Kingdoms
+Cities
+Villages
+Buildings
+Dungeons
+Organisations
+Clans
+Religions
+Cultures
+Languages
+Magic systems
+Power systems
+Creatures
+Plants
+Items
+Weapons
+Technology
+Currency
+Laws
+Historical events
+Festivals
+Food
+Clothing
+Transportation
+Timeline
+Custom calendar
+Years, months and days
+Character ages
+Historical eras
+Flashbacks
+Parallel events
+Event dependencies
+Before and after relationships
+Maps
+Upload world maps
+Add pins
+Add regions
+Link pins to locations
+Public and private maps
+Spoiler-controlled map information
+Multiple maps per world
+8. Novel collaboration
+Creator roles
+Original creator
+Writer
+Co-writer
+Editor
+Proofreader
+Beta reader
+Translator
+Illustrator
+Cover artist
+Moderator
+Permissions
+View drafts
+Edit drafts
+Comment privately
+Suggest edits
+Accept edits
+Manage chapters
+Publish chapters
+Schedule chapters
+Edit novel information
+View analytics
+Manage comments
+View earnings
+Manage collaborators
+
+Royal Road provides granular collaborator permissions for chapters, drafts, analytics, publishing and other fiction-management areas.
+
+Review features
+Inline private comments
+Paragraph comments
+Suggested replacement
+Track changes
+Accept suggestion
+Reject suggestion
+Resolve discussion
+Mention collaborator
+Assign chapter
+Set review deadline
+Approval requirement before publishing
+9. Novel import and export
+Import
+Plain text
+Markdown
+HTML
+DOCX
+EPUB
+RTF
+Copy and paste
+ZIP of chapter files
+Google Docs import later
+
+Import options:
+
+One file as one chapter
+Split using headings
+Split using page breaks
+Import into drafts
+Preserve bold and italic
+Remove unsupported formatting
+Preview before import
+Export
+TXT
+Markdown
+HTML
+DOCX
+PDF
+EPUB
+Complete backup ZIP
+Individual chapter
+Selected chapters
+Selected volume
+Entire novel
+Manuscript format
+Reader edition
+
+Export should include:
+
+Cover
+Copyright page
+Table of contents
+Chapters
+Author biography
+Endnotes
+Images
+Metadata
+10. Novel publishing features
+Publication actions
+Publish now
+Schedule
+Save as draft
+Publish privately
+Create preview link
+Release to beta readers
+Release to subscribers first
+Release publicly later
+Backdate chapter
+Unpublish
+Republish corrected version
+Scheduling
+Time-zone support
+Recurring release schedule
+Release calendar
+Bulk scheduling
+Scheduled draft validation
+Release reminders
+Missing chapter warnings
+Schedule-conflict warnings
+
+Tapas supports immediate publication or automatic scheduled publication for both comic and novel episodes.
+
+Chapter settings
+Chapter title
+Slug
+Thumbnail
+Author note before chapter
+Author note after chapter
+Content warnings
+Mature-content flag
+Comments enabled
+Reactions enabled
+Public or paid
+Subscribers-only
+Early access
+Search indexing
+Follower notification
+Custom publication message
+11. Comic, manga, manhwa and manhua creator features
+
+LanternPaper should support four comic presentation modes.
+
+A. Vertical-scroll mode
+
+Best for:
+
+Webtoons
+Many digital manhwa
+Mobile-first comics
+Vertical manhua
+
+Features:
+
+Long vertical images
+Automatic slicing
+Gap controls between images
+Panel-spacing preview
+Mobile preview
+Desktop preview
+Background colour
+Page-break markers
+Episode-end marker
+
+WEBTOON has supported automatic optimisation and slicing of long episode images into smaller upload images, while GlobalComix supports vertical-scroll publishing.
+
+B. Traditional page mode
+
+Best for:
+
+Manga
+Graphic novels
+Print-style comics
+Traditional manhua
+Western comics
+
+Features:
+
+Single-page view
+Page-by-page view
+Continuous-page view
+Fit width
+Fit height
+Zoom
+Full screen
+Page thumbnails
+Page number
+Double-page spread
+C. Right-to-left manga mode
+Right-to-left page navigation
+Correct first-page placement
+Double-page spread support
+Cover displayed separately
+Optional blank-page insertion
+Right-to-left thumbnails
+Right-to-left panel ordering
+
+MANGA Plus Creators specifically accounts for page direction and accepts page-based manga uploads. Its current FAQ lists JPG and PNG files, up to 100 pages and up to 5 MB per file.
+
+D. Panel-to-panel mode
+Creator draws panel regions
+Define panel reading order
+Tap to move between panels
+Automatic zoom
+Mobile-friendly presentation
+Optional transitions
+Fall back to full-page reading
+
+GlobalComix provides optional panel-to-panel frames designed to make small-screen reading easier.
+
+12. Comic series information
+
+In addition to shared work information, comics need:
+
+Comic format
+Reading direction
+Colour or black-and-white
+Page dimensions
+Vertical-scroll width
+Default page layout
+Double-page spreads enabled
+Panel mode enabled
+Print edition available
+Lettering language
+Translation availability
+Art style classification
+Release type
+Season number
+Episode number
+Issue number
+Release types
+Episode
+Chapter
+Issue
+Volume
+One-shot
+Special
+Preview
+Trailer
+Creator announcement
+Bonus art
+13. Comic production workflow
+
+Comic creators need a different workflow from novel writers.
+
+Script
+Storyboard
+Thumbnail
+Sketch
+Pencils
+Line Art
+Flat Colours
+Shading
+Backgrounds
+Lettering
+Translation
+Quality Check
+Ready
+Scheduled
+Published
+
+Every episode should show:
+
+Current stage
+Assigned creator
+Due date
+Progress percentage
+Missing pages
+Missing dialogue
+Quality warnings
+Approved or rejected status
+Team roles
+Writer
+Scriptwriter
+Storyboard artist
+Thumbnail artist
+Penciller
+Line artist
+Inker
+Colourist
+Background artist
+Letterer
+Editor
+Translator
+Proofreader
+Cover artist
+Production manager
+
+Credits should be displayed:
+
+Per series
+Per season
+Per episode
+14. Comic upload and page manager
+Upload tools
+Bulk image upload
+Drag-and-drop upload
+Folder upload
+ZIP upload
+Paste from clipboard
+Replace image
+Upload revised image
+Resume failed upload
+Background upload processing
+Accepted source formats
+
+Recommended:
+
+JPG/JPEG
+PNG
+WebP
+TIFF for private source storage
+PDF import for page comics
+ZIP containing images
+
+Avoid serving TIFF or huge PNG originals directly to readers. Generate optimised reading copies.
+
+Page manager
+Drag page ordering
+Automatic numbering
+Rename page
+Duplicate page
+Delete page
+Restore page
+Rotate
+Crop
+Trim whitespace
+Split image
+Merge images
+Insert blank page
+Mark as double-page spread
+Move between episodes
+Replace without losing analytics
+Compare revisions
+Vertical-scroll manager
+Automatic long-image slicing
+Rejoin preview
+Adjustable gaps
+Insert blank space
+Remove blank space
+Episode-length indicator
+Mobile-safe preview
+File-size estimation
+Compression preview
+Detect extremely small text
+
+WEBTOON’s creator flow demonstrates automatic long-image slicing, while Tapas requires creators to add episode files and thumbnails as part of publication.
+
+15. Comic image processing
+
+LanternPaper should automatically generate:
+
+Original archival copy
+Large desktop version
+Tablet version
+Mobile version
+Thumbnail
+Low-quality placeholder
+WebP version
+AVIF version when supported
+Processing options
+Preserve transparency where needed
+Convert colour profile to sRGB
+Remove unnecessary metadata
+Correct image orientation
+Smart compression
+Sharpen resized images
+Prevent extreme upscaling
+Detect corrupted files
+Detect duplicate pages
+Detect incorrect page dimensions
+Detect missing page numbers
+Suggested LanternPaper upload policy
+Traditional pages
+Recommended master: at least 1,600–2,000 pixels wide
+JPG, PNG or WebP
+Support large originals
+Generate smaller delivery versions automatically
+Configurable maximum file size
+Vertical scroll
+Let creators upload long images
+Automatically slice and optimise internally
+Preserve seamless transitions
+Keep original source
+Show the final processed preview before publishing
+
+Do not copy another platform’s exact restrictions. Store a good master and generate your own optimised variants.
+
+16. Comic lettering and accessibility
+
+Most platforms treat an entire comic page as one image. LanternPaper can improve this.
+
+Dialogue transcript
+
+Allow creators to enter:
+
+Speaker
+Dialogue
+Caption
+Sound effect
+Panel number
+Reading order
+
+Example:
+
+Panel 1
+Narrator: Silverfall had not seen daylight in twelve years.
+
+Panel 2
+Aria: Who opened the northern gate?
+
+Sound effect: BOOM
+Benefits
+Screen-reader support
+Searchable dialogue
+Translation
+Better content moderation
+Episode summaries
+Correct reading order
+Accessibility mode
+Image accessibility
+Page alt text
+Panel descriptions
+Character identification
+Decorative-image marker
+Translated sound effects
+High-contrast transcript mode
+17. Comic localisation
+
+Support translations without forcing creators to upload an entirely separate work.
+
+Original Episode
+├── English
+├── Filipino
+├── Korean
+├── Japanese
+├── Simplified Chinese
+├── Traditional Chinese
+└── Spanish
+Translation tools
+Extracted dialogue script
+Translation workspace
+Glossary
+Character-name glossary
+Place-name glossary
+Translation memory
+Assign translator
+Translation review
+Localised thumbnail
+Localised cover
+Replace text layers
+Language-specific release schedule
+Translation status
+Translation statuses
+Not Started
+Extracting Text
+Translating
+Editing
+Lettering
+Quality Review
+Ready
+Published
+
+Keep any automated translation optional and require creator review before publication.
+
+18. Comic preview modes
+
+Creators need to preview exactly what readers will see.
+
+Devices
+Small phone
+Large phone
+Tablet
+Desktop
+Landscape
+Portrait
+Reading modes
+Vertical scroll
+Single page
+Double page
+Right-to-left
+Left-to-right
+Panel-to-panel
+Full screen
+Preview warnings
+Text may be too small
+Image is blurry
+Page ratio differs
+Double spread may split incorrectly
+Wrong reading direction
+Missing episode thumbnail
+Missing accessibility text
+File exceeds recommended size
+Blank page detected
+Duplicate page detected
+19. Reader features for novels
+Reading experience
+Continue reading
+Chapter progress
+Estimated reading time
+Previous chapter
+Next chapter
+Chapter list
+Volume selector
+Full-screen reading
+Keyboard navigation
+Reading history
+Sync progress across devices
+Offline reading
+Remember reading settings
+Reader settings
+Font
+Font size
+Line spacing
+Paragraph spacing
+Page width
+Text alignment
+Light mode
+Dark mode
+Sepia mode
+High contrast
+Reduce motion
+Screen-reader compatibility
+Reader interactions
+Like chapter
+React to chapter
+Bookmark paragraph
+Save quote privately
+Comment on chapter
+Comment on paragraph
+Follow novel
+Add to library
+Rate
+Review
+Report problem
+Report content
+Support creator
+20. Reader features for comics
+Comic reader controls
+Previous and next episode
+Page slider
+Thumbnail navigator
+Zoom
+Pan
+Full screen
+Fit width
+Fit height
+Single-page mode
+Double-page mode
+Vertical-scroll mode
+Right-to-left mode
+Left-to-right mode
+Panel mode
+Background colour
+Hide interface
+Preload next pages
+Data-saving mode
+Reader progress
+Last episode
+Last page
+Last scroll position
+Reading percentage
+Continue reading
+Completed marker
+Reread marker
+Cross-device synchronisation
+Comic interaction
+Episode likes
+Page reactions
+Panel reactions
+Comments
+Spoiler comments
+Follow
+Add to library
+Rating
+Review
+Share page
+Share episode
+Creator support
+Report broken page
+Report wrong order
+Report translation issue
+21. Community features
+Comments
+Chapter or episode comments
+Paragraph comments for novels
+Page comments for comics
+Panel comments
+Replies
+Threads
+Mentions
+Creator heart
+Creator pin
+Spoiler formatting
+Edit comment
+Delete comment
+Report comment
+Block user
+Mute thread
+Sort by newest, oldest or popular
+Creator moderation
+Disable comments
+Followers-only comments
+Subscribers-only comments
+Hold comments for review
+Keyword filters
+Link filters
+Spam detection
+Blocked words
+Muted users
+Moderator roles
+Bulk moderation
+Reactions
+Like
+Love
+Funny
+Emotional
+Shocking
+Exciting
+Confusing
+Beautiful artwork
+
+Tapas currently notifies creators about likes, comments and subscriptions and provides creator monetisation through advertising and fan contributions.
+
+22. Analytics for novels and comics
+Overview
+Total views
+Unique readers
+Followers
+Library additions
+Likes
+Comments
+Ratings
+Reviews
+Shares
+Earnings
+Returning readers
+New readers
+Per-release analytics
+Chapter or episode views
+Unique readers
+Completion rate
+Average reading time
+Likes
+Comments
+New followers
+Unfollows
+Earnings
+Traffic sources
+Novel analytics
+Chapter-to-chapter retention
+Paragraph drop-off
+Average word progress
+Reading-session length
+Bookmarks
+Quote saves
+Reading-mode preferences
+Comic analytics
+Episode-to-episode retention
+Page drop-off
+Scroll depth
+Last page viewed
+Panel-mode usage
+Zoom usage
+Average page time
+Vertical-scroll completion
+Page loading failures
+Discovery funnel
+Search Impression
+      ↓
+Work Card Opened
+      ↓
+Work Page Viewed
+      ↓
+First Chapter Started
+      ↓
+First Chapter Completed
+      ↓
+Second Chapter Started
+      ↓
+Work Followed
+
+Royal Road’s current analytics include fiction views, chapter activity, referrers, retention, ratings and follower history.
+
+Analytics warnings
+
+Show useful observations such as:
+
+Many readers leave during chapter one
+Readers finish chapters but rarely follow
+This release gained more followers than usual
+Mobile readers experience slow image loading
+Page 12 has unusually high exits
+The latest release performed above average
+
+These should be suggestions, not definitive judgments about story quality.
+
+23. Creator dashboard
+Creator Studio Overview
+
+Total Works
+Published Works
+Draft Works
+Scheduled Releases
+Total Readers
+Followers
+Total Views
+Comments
+Unread Comments
+Earnings
+Writing Streak
+Upcoming Deadlines
+Dashboard areas
+Recently edited
+Scheduled releases
+Latest comments
+Recent reviews
+Earnings chart
+Reader-growth chart
+Retention chart
+Production deadlines
+Assigned collaboration tasks
+Platform announcements
+Content warnings or moderation actions
+24. Monetisation
+Free support
+Tips
+Gifts
+Creator donations
+External support links
+Memberships
+Monthly creator membership
+Novel membership
+Comic membership
+Early access
+Exclusive chapters
+Bonus episodes
+Behind-the-scenes posts
+Concept art
+High-resolution downloads
+Subscriber badge
+Subscriber Discord role later
+Paid content
+Paid chapter
+Paid episode
+Paid volume
+Completed book purchase
+Digital comic purchase
+EPUB download
+PDF comic download
+Bundles
+Season passes
+Advertising
+Creator revenue share
+Opt-in advertising
+No ads for paying readers
+Advertising controls for creators
+Earnings dashboard
+Available balance
+Pending balance
+Lifetime earnings
+Tips
+Memberships
+Paid releases
+Advertising
+Refunds
+Platform fees
+Processing fees
+Tax information
+Payout history
+Downloadable statements
+
+Tapas currently supports advertising revenue and fan-support contributions for both novel and comic creators.
+
+25. Rights, attribution and protection
+Ownership
+Creator retains copyright
+Clearly defined hosting licence
+Copyright declaration
+Original-work declaration
+Fan-work declaration
+Translation permission
+Adaptation permission
+Collaborator agreements
+Credit history
+
+Have the final legal terms reviewed by a qualified lawyer.
+
+Protection
+Revision history
+Original upload timestamps
+Watermarked review copies
+Signed download URLs
+Rate limiting
+Bot protection
+Scraping detection
+Disable public downloads
+Optional visible watermark
+Copyright-reporting workflow
+Takedown-request workflow
+Counter-notice workflow
+
+Disabling right-click or text selection is only a deterrent. It cannot guarantee that content will not be copied.
+
+26. Safety and content moderation
+Creator controls
+Age rating
+Mature-content flag
+Content warnings
+Sensitive-page warning
+Spoiler warning
+Comment moderation
+User blocking
+Platform moderation
+Report work
+Report chapter
+Report image
+Report comment
+Report plagiarism
+Report copyright infringement
+Report impersonation
+Report harassment
+Report illegal content
+Appeal moderation decision
+Content-warning examples
+Violence
+Gore
+Sexual content
+Strong language
+Abuse
+Self-harm
+Suicide
+Substance use
+Flashing images
+Disturbing imagery
+
+MANGA Plus Creators applies its submission guidelines to posted images, text and comments and may remove violating content.
+
+27. Discovery and search
+Homepage sections
 Continue Reading
 Recently Viewed
-New Chapters From Following
-Recommended For You
-
-Only display these when the user is logged in.
-
-Main discovery area
-Hero Banner
-Trending Today
+Recommended for You
+Trending
+Rising
 New Releases
-Top 10
 Recently Updated
-Editor’s Picks
-Hidden Gems
 Completed Works
-New Series
-Content-type areas
-Popular Manhwa
-Popular Manga
-Popular Manhua
+Hidden Gems
+Editor’s Picks
+New Creators
 Popular Novels
-Latest Novel Chapters
-Community area
-Latest Comments
-Active Discussions
-Reader Favorites
-Latest Reviews
-Best unified works structure
+Popular Comics
+Popular Manga
+Popular Manhwa
+Popular Manhua
+Popular Webtoons
+Local-Language Stories
+Filipino Creators
+Returning from Hiatus
+Upcoming Releases
+Search filters
+Novel or comic
+Comic format
+Reading direction
+Manga, manhwa, manhua or other
+Genre
+Tag
+Language
+Country
+Status
+Age rating
+Completion status
+Free or paid
+Chapter count
+Word count
+Page count
+Update frequency
+Last updated
+Popularity
+Rating
+Recently added
+Fair discovery
+
+Do not rank only by total views.
+
+Use separate ranking signals:
+
+Recent follower growth
+Completion rate
+Reader retention
+Consistent releases
+Positive ratings
+New creator boost
+Genre relevance
+Reader interests
+Low-exposure quality candidates
+28. Notifications
+
+Readers can choose notifications for:
+
+New chapter
+New episode
+New volume
+Return from hiatus
+Work completed
+Creator announcement
+Early-access release
+Subscription renewal
+Comment reply
+Creator liked comment
+
+Creators receive:
+
+New comment
+New review
+New follower
+New supporter
+New purchase
+Failed scheduled release
+Collaborator update
+Moderation action
+Copyright report
+Payout update
+
+Support:
+
+In-app notifications
+Email
+Push notifications
+Digest mode
+Per-work controls
+Quiet hours
+29. LanternPaper’s unique advantage
+
+Your strongest differentiator is connecting stories, artwork, comics and commissions.
+
+The Ember Crown Universe
+├── Original Novel
+├── Comic Adaptation
+├── Character Artwork
+├── World Map
+├── Side Stories
+├── Audio Adaptation
+├── Official Commissions
+└── Creator Shop
+Connected adaptation system
+
+A novel can link to:
+
+Comic adaptation
+Character artwork
+Cover commission
+Audiobook
+Translation
+Side story
+Sequel
+Prequel
+Shared universe
+
+A comic can link to:
+
+Original novel
+Script
+Character profiles
+Concept art
+Bonus illustrations
+Print edition
+Related commissions
+Creator marketplace
+
+Writers can hire:
+
+Editors
+Proofreaders
+Cover artists
+Character artists
+Comic artists
+Colourists
+Letterers
+Translators
+Map artists
+Narrators
+
+Completed commission work can be attached directly to a novel or comic with proper creator credit.
+
+30. Best database direction
+
+Use a shared works system.
+
 works
-- id
-- title
-- alternative_title
-- slug
-- type
-- description
-- cover_image
-- banner_image
-- status
-- publication_status
-- translation_status
-- content_rating
-- original_language
-- language
-- release_year
-- published_at
-- last_chapter_at
-- returned_at
-- is_featured
-- created_at
-- updated_at
+work_metadata
+work_genres
+work_tags
+work_collaborators
 
-The critical field is:
+volumes
+arcs
+releases
 
-type
+novel_chapters
+chapter_versions
+chapter_content_blocks
 
-Values:
+comic_episodes
+comic_pages
+comic_page_versions
+comic_panels
 
-manga
-manhwa
-manhua
-novel
+release_schedules
+translations
+comments
+reactions
+ratings
+reviews
+follows
+library_items
+reading_progress
+analytics_events
+creator_earnings
+Important work fields
+interface Work {
+    id: number
+    creator_id: number
+    type: 'novel' | 'comic'
+    title: string
+    slug: string
+    synopsis: string
+    language: string
+    status: WorkStatus
+    visibility: WorkVisibility
 
-Then any widget can support everything:
+    comic_format?: ComicFormat
+    comic_classification?: ComicClassification
+    reading_direction?: ReadingDirection
 
-Trending All Works
-Trending Manga
-Trending Manhwa
-Trending Manhua
-Trending Novels
+    created_at: string
+    updated_at: string
+}
 
-The only difference is the query filter:
+Do not place every novel and comic field directly in one huge table. Keep format-specific settings in separate tables.
 
-$query->where('type', 'novel');
+31. What LanternPaper must launch with
+Phase 1 — Essential shared platform
+Creator dashboard
+Novel and comic work types
+Covers, descriptions, genres and tags
+Volumes and chapters
+Drafts
+Autosave
+Version history
+Scheduling
+Reader progress
+Follows
+Library
+Likes
+Comments
+Notifications
+Basic analytics
+Content warnings
+Reporting
+Mobile reader
+Creator credits
+Phase 1 — Essential novel tools
+Rich-text editor
+Bold, italic, underline and strikethrough
+Paragraph styles
+Headings
+Alignment
+Indentation
+Lists
+Quotes
+Scene breaks
+Links
+Images
+Author notes
+Word count
+Find and replace
+Chapter reorder
+Import
+Export
+Reader preview
+Phase 1 — Essential comic tools
+Vertical-scroll upload
+Traditional-page upload
+Left-to-right and right-to-left reading
+Bulk image upload
+Drag page ordering
+Automatic image optimisation
+Automatic vertical-image slicing
+Page replacement
+Episode thumbnail
+Mobile preview
+Page and scroll progress
+Broken-image reporting
+32. Phase 2 — Professional tools
+Story planner
+Character manager
+Worldbuilding wiki
+Timeline
+Relationship map
+Plot-thread tracker
+Track changes
+Beta-reader system
+Collaborator permissions
+Comic production pipeline
+Panel-to-panel comic mode
+Dialogue transcript
+Accessibility descriptions
+Advanced analytics
+Retention funnels
+Bulk release scheduling
+Translation workflow
+33. Phase 3 — Monetisation and expansion
+Tips
+Memberships
+Early access
+Paid chapters
+Paid volumes
+EPUB and PDF sales
+Creator marketplace
+Adaptation linking
+Translation marketplace
+Writing competitions
+Comic competitions
+Recommendation system
+Print-order integrations
+Audiobook support
+Shared story universes
+Final recommendation
 
-or:
+LanternPaper should use this central structure:
 
-$query->whereIn('type', ['manga', 'manhwa', 'manhua']);
+ONE CREATOR STUDIO
+        │
+        ├── Novel Editor
+        │   ├── Rich text
+        │   ├── Planning
+        │   ├── Worldbuilding
+        │   └── Chapter publishing
+        │
+        └── Comic Studio
+            ├── Vertical scroll
+            ├── Traditional pages
+            ├── RTL / LTR reading
+            ├── Image processing
+            └── Episode publishing
+
+The four highest-priority requirements are:
+
+Creators must never lose their work.
+Both vertical comics and traditional pages must work correctly.
+Novel formatting must remain clean and readable on every device.
+The same work should connect to novels, comics, art and commissions without being uploaded as unrelated projects.
+
+That would position LanternPaper as more than another novel or webcomic website: it becomes a complete platform for creating, publishing, adapting and monetising story worlds.

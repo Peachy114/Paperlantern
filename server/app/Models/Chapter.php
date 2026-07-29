@@ -97,4 +97,9 @@ class Chapter extends Model
     {
         return $this->morphMany(Comment::class, 'commentable');
     }
+
+    public function revisions()
+    {
+        return $this->hasMany(ChapterRevision::class)->latest();
+    }
 }

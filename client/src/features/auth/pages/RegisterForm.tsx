@@ -27,7 +27,13 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 export default function RegisterForm() {
-    const { handleRegister, error, loading } = useAuth()
+    const {
+        handleRegister,
+        handleVerifyEmailCode,
+        handleResendEmailVerificationCode,
+        error,
+        loading,
+    } = useAuth()
     const [data, setData] = useState({
         name: '',
         nickname: '',
@@ -36,13 +42,84 @@ export default function RegisterForm() {
         password: '',
         password_confirmation: '',
         role: 'wanderer' as 'wanderer' | 'storyteller',
-        twitter_url: '',
-        discord_url: '',
-        instagram_url: '',
-        tiktok_url: '',
     })
+    const [pendingEmail, setPendingEmail] = useState('')
+    const [verificationCode, setVerificationCode] = useState('')
+    const [notice, setNotice] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [showConfirm, setShowConfirm] = useState(false)
+
+    const submitRegistration = async () => {
+        const result = await handleRegister(data)
+        if (result?.requires_email_verification) {
+            setPendingEmail(result.email ?? data.email)
+            setNotice(result.message ?? 'Check your email for the verification code.')
+        }
+    }
+
+    const submitVerification = async () => {
+        await handleVerifyEmailCode({ email: pendingEmail, code: verificationCode })
+    }
+
+    const resendCode = async () => {
+        const result = await handleResendEmailVerificationCode(pendingEmail || data.email)
+        if (result?.message) setNotice(result.message)
+    }
+
+    if (pendingEmail) {
+        return (
+            <div className="flex flex-col gap-4">
+                {notice && <p className="text-xs text-muted-foreground">{notice}</p>}
+                {error && <p className="text-xs text-destructive">{error}</p>}
+
+                <div className="rounded-md border border-border p-3">
+                    <p className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase">
+                        Email verification
+                    </p>
+                    <p className="mt-1 text-sm text-foreground">
+                        Enter the 6-digit code sent to {pendingEmail}.
+                    </p>
+                </div>
+
+                <div className="flex flex-col px-3 pt-2.5 pb-2 rounded-md border border-border">
+                    <label
+                        htmlFor="verification_code"
+                        className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1"
+                    >
+                        Verification Code
+                    </label>
+                    <input
+                        id="verification_code"
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="123456"
+                        value={verificationCode}
+                        onChange={(e) =>
+                            setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+                        }
+                        className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none tracking-[0.35em]"
+                    />
+                </div>
+
+                <button
+                    onClick={submitVerification}
+                    disabled={loading || verificationCode.length !== 6}
+                    className="w-full py-2.5 text-sm font-medium bg-foreground text-background rounded-md hover:opacity-80 disabled:opacity-40 transition-opacity cursor-pointer"
+                >
+                    {loading ? 'Verifying...' : 'Verify and continue'}
+                </button>
+
+                <button
+                    type="button"
+                    onClick={resendCode}
+                    disabled={loading}
+                    className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    Resend code
+                </button>
+            </div>
+        )
+    }
 
     return (
         <div className="flex flex-col gap-4">
@@ -113,65 +190,6 @@ export default function RegisterForm() {
                 </div>
             </div>
 
-            <div className="border border-border rounded-md divide-y divide-border">
-                <div className="px-3 pt-2.5 pb-2">
-                    <p className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase">
-                        Public links
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                        Optional now. If an artist requires them for a commission, they can be reused later.
-                    </p>
-                </div>
-                <div className="flex flex-col px-3 pt-2.5 pb-2">
-                    <label htmlFor="discord_url" className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1">
-                        Discord
-                    </label>
-                    <input
-                        id="discord_url"
-                        placeholder="Discord username or invite/profile link"
-                        value={data.discord_url}
-                        onChange={(e) => setData({ ...data, discord_url: e.target.value })}
-                        className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
-                    />
-                </div>
-                <div className="flex flex-col px-3 pt-2.5 pb-2">
-                    <label htmlFor="twitter_url" className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1">
-                        X / Twitter
-                    </label>
-                    <input
-                        id="twitter_url"
-                        placeholder="https://x.com/yourhandle"
-                        value={data.twitter_url}
-                        onChange={(e) => setData({ ...data, twitter_url: e.target.value })}
-                        className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
-                    />
-                </div>
-                <div className="flex flex-col px-3 pt-2.5 pb-2">
-                    <label htmlFor="instagram_url" className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1">
-                        Instagram
-                    </label>
-                    <input
-                        id="instagram_url"
-                        placeholder="https://instagram.com/yourhandle"
-                        value={data.instagram_url}
-                        onChange={(e) => setData({ ...data, instagram_url: e.target.value })}
-                        className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
-                    />
-                </div>
-                <div className="flex flex-col px-3 pt-2.5 pb-2">
-                    <label htmlFor="tiktok_url" className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1">
-                        TikTok
-                    </label>
-                    <input
-                        id="tiktok_url"
-                        placeholder="https://tiktok.com/@yourhandle"
-                        value={data.tiktok_url}
-                        onChange={(e) => setData({ ...data, tiktok_url: e.target.value })}
-                        className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
-                    />
-                </div>
-            </div>
-
             {/* Password group */}
             <div className="border border-border rounded-md divide-y divide-border">
                 <div className="flex flex-col px-3 pt-2.5 pb-2">
@@ -233,7 +251,7 @@ export default function RegisterForm() {
             </div>
 
             <button
-                onClick={() => handleRegister(data)}
+                onClick={submitRegistration}
                 disabled={loading}
                 className="w-full py-2.5 text-sm font-medium bg-foreground text-background rounded-md hover:opacity-80 disabled:opacity-40 transition-opacity cursor-pointer"
             >

@@ -1,6 +1,6 @@
-# Paperlantern
+# LaterNComix
 
-Paperlantern is a full-stack creator platform for publishing, reading, moderating, and monetizing comics, novels, and creator updates.
+LaterNComix is a full-stack creator platform for publishing, reading, moderating, and monetizing comics, novels, and creator updates.
 
 ## Stack
 
@@ -11,7 +11,7 @@ Paperlantern is a full-stack creator platform for publishing, reading, moderatin
 ## Repository Layout
 
 ```text
-Paperlantern/
+LaterNComix/
   client/                 React/Vite frontend
     src/
       api/                Axios clients and API modules

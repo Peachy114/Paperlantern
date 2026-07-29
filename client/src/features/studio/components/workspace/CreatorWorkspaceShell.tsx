@@ -81,7 +81,7 @@ export default function CreatorWorkspaceShell({
 
             <section className="overflow-hidden rounded-[28px] border border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-background to-orange-50/40 p-2.5 shadow-[0_16px_45px_rgba(15,23,42,0.06)] sm:p-3">
                 <div className="grid gap-3 lg:grid-cols-[260px_minmax(0,1fr)]">
-                    <div className="relative min-h-48 overflow-hidden rounded-2xl border border-white/80 bg-white shadow-sm">
+                    <div className="relative min-h-48 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
                         {heroAction ? <div className="absolute right-3 top-3 z-20">{heroAction}</div> : null}
                         {heroImage ? (
                             <img
@@ -100,7 +100,7 @@ export default function CreatorWorkspaceShell({
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200/80 bg-background p-4 shadow-sm sm:p-5">
+                    <div className="rounded-2xl border border-border bg-background p-4 shadow-sm sm:p-5">
                         <div className="mb-3 flex items-start justify-between gap-3">
                             <div>
                                 <p className="text-xs font-black uppercase tracking-[0.12em] text-orange-500">
@@ -121,7 +121,7 @@ export default function CreatorWorkspaceShell({
                                 {stats.map(({ label, value, icon: Icon }) => (
                                     <div
                                         key={label}
-                                        className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-sm"
+                                        className="rounded-2xl border border-border bg-card px-3 py-3 shadow-sm"
                                     >
                                         <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-muted text-foreground">
                                             {Icon ? <Icon className="h-4 w-4" /> : null}
@@ -140,7 +140,7 @@ export default function CreatorWorkspaceShell({
 
             <div className="mt-5 grid items-start gap-5 lg:grid-cols-[210px_minmax(0,1fr)]">
                 {navItems.length > 0 ? (
-                    <nav className="flex h-auto w-full flex-row items-stretch justify-start gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/70 bg-background/80 p-2 shadow-sm backdrop-blur lg:sticky lg:top-24 lg:flex-col lg:overflow-visible lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none">
+                    <nav className="flex h-auto w-full flex-row items-stretch justify-start gap-1.5 overflow-x-auto rounded-2xl border border-border bg-background/80 p-2 shadow-sm backdrop-blur lg:sticky lg:top-24 lg:flex-col lg:overflow-visible lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none">
                         {navItems.map(({ value, label, icon: Icon, count }) => {
                             const active = activeItem === value
 
@@ -180,7 +180,7 @@ export default function CreatorWorkspaceShell({
                     </nav>
                 ) : null}
 
-                <div className="min-w-0 rounded-[24px] border border-slate-200/80 bg-background/95 p-3 shadow-[0_10px_30px_rgba(15,23,42,0.035)] sm:p-4">
+                <div className="min-w-0 rounded-[24px] border border-border bg-background/95 p-3 shadow-[0_10px_30px_rgba(15,23,42,0.035)] sm:p-4">
                     {children}
                 </div>
             </div>

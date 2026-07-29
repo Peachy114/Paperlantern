@@ -1,5 +1,6 @@
 import ScrollButton from '@/components/ui/scroll'
 import { useChapterShow } from '@/features/studio/hooks/useChapterShow'
+import ChapterRichContent from '@/features/work/components/public-work-show/ChapterRichContent'
 
 export default function ChapterShow() {
     const { chapter, prevSlug, nextSlug, workSlug, navigate, goTo, imageUrl } = useChapterShow()
@@ -129,17 +130,9 @@ export default function ChapterShow() {
 
                 {/* Novel */}
                 {chapter.work_type === 'wattpad' && (
-                    <div className="bg-[#ffffff] dark:bg-[#080808] px-4 sm:px-8 py-8 sm:py-10 my-5 text-start">
+                    <div className="rounded-xl bg-background px-4 py-8 text-start ring-1 ring-border sm:px-8 sm:py-10 my-5">
                         {chapter.content ? (
-                            <p
-                                className="leading-loose text-foreground whitespace-pre-wrap break-words"
-                                style={{
-                                    fontFamily: "'Noto Serif', serif",
-                                    fontSize: 'clamp(14px, 3.5vw, 15px)',
-                                }}
-                            >
-                                {chapter.content}
-                            </p>
+                            <ChapterRichContent content={chapter.content} variant="studio" />
                         ) : (
                             <p
                                 className="text-muted-foreground italic text-center py-16"

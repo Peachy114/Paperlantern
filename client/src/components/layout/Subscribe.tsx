@@ -93,7 +93,7 @@ export default function Subscribe() {
     }
 
     return (
-        <section className="relative z-20 mt-20 w-full overflow-visible">
+        <section className="relative z-20 w-full overflow-visible">
             {/* ====================================================== */}
             {/* // subscribe parent ---- */}
             {/* ====================================================== */}
@@ -103,7 +103,7 @@ export default function Subscribe() {
 
             {/* //// subscribe content ---- */}
             <div className="relative border-y border-black/5 bg-white dark:border-white/10 dark:bg-[#171717]">
-                <div className="relative mx-auto flex min-h-[168px] w-full max-w-[1490px] flex-col gap-8 px-5 pb-10 pt-28 sm:px-8 md:px-12 lg:flex-row lg:items-center lg:justify-between lg:gap-12 lg:px-16 lg:pb-8 lg:pt-8">
+                <div className="relative mx-auto flex min-h-[168px] w-full max-w-[1480px] flex-col gap-8 px-5 pb-10 pt-28 sm:px-8 md:px-12 lg:flex-row lg:items-center lg:justify-between lg:gap-12 lg:px-16 lg:pb-8 lg:pt-8">
                     {/* ====================================================== */}
                     {/* // top button parent ---- */}
                     {/* ====================================================== */}

@@ -72,7 +72,7 @@ export default function WorkViewTable({
                     <article
                         key={work.slug}
                         className={`group overflow-hidden rounded-2xl border bg-background shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                            selected ? 'border-sky-400 ring-2 ring-sky-200' : 'border-slate-200'
+                            selected ? 'border-sky-400 ring-2 ring-sky-200' : 'border-border'
                         }`}
                     >
                         <div
@@ -87,12 +87,12 @@ export default function WorkViewTable({
                                 />
                             ) : (
                                 <div className="flex h-full items-center justify-center bg-gradient-to-br from-orange-100 via-rose-100 to-sky-100">
-                                    <BookOpen className="h-9 w-9 text-slate-400" />
+                                    <BookOpen className="h-9 w-9 text-muted-foreground" />
                                 </div>
                             )}
 
                             <div className="absolute left-2 top-2 flex flex-wrap gap-1">
-                                <span className="rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold text-slate-700 shadow-sm backdrop-blur">
+                                <span className="rounded-full bg-background/90 px-2 py-1 text-[9px] font-bold text-foreground shadow-sm backdrop-blur">
                                     {work.type === 'wattpad' ? 'Novel' : 'Comix'}
                                 </span>
                                 <span

@@ -115,4 +115,17 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Notification Email Override
+    |--------------------------------------------------------------------------
+    |
+    | When set, app notification emails are delivered to this address instead
+    | of the original user. In-app notification records still stay with the
+    | intended account, which makes this useful for local/staging testing.
+    |
+    */
+
+    'notification_override' => env('NOTIFICATION_EMAIL_OVERRIDE'),
+
 ];

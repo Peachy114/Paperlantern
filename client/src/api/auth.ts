@@ -9,11 +9,13 @@ export const authApi = {
         password: string
         password_confirmation: string
         role: 'wanderer' | 'storyteller'
-        twitter_url?: string
-        discord_url?: string
-        instagram_url?: string
-        tiktok_url?: string
     }) => api.post('/auth/register', data),
+
+    verifyEmailCode: (data: { email: string; code: string }) =>
+        api.post('/auth/verify-email-code', data),
+
+    resendEmailVerificationCode: (data: { email: string }) =>
+        api.post('/auth/resend-email-code', data),
 
     login: (data: { login: string; password: string }) => api.post('/auth/login', data),
 

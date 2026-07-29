@@ -24,13 +24,31 @@ class AuthController extends Controller
             'email'    => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
             'role'     => ['required', 'in:wanderer,storyteller'],
-            'twitter_url'   => ['nullable', 'url', 'max:255'],
-            'discord_url'   => ['nullable', 'string', 'max:255'],
-            'instagram_url' => ['nullable', 'url', 'max:255'],
-            'tiktok_url'    => ['nullable', 'url', 'max:255'],
         ]);
 
         return response()->json($this->service->register($validated), 201);
+    }
+
+    public function verifyEmailCode(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'code' => ['required', 'string', 'size:6'],
+        ]);
+
+        return response()->json($this->service->verifyEmailCode(
+            $validated['email'],
+            $validated['code']
+        ));
+    }
+
+    public function resendEmailVerificationCode(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        return response()->json($this->service->resendEmailVerificationCode($validated['email']));
     }
 
     public function login(Request $request): JsonResponse
@@ -107,6 +125,7 @@ class AuthController extends Controller
             'twitter_url'   => ['nullable', 'url', 'max:255'],
             'discord_url'   => ['nullable', 'string', 'max:255'],
             'instagram_url' => ['nullable', 'url', 'max:255'],
+            'facebook_url'  => ['nullable', 'url', 'max:255'],
             'tiktok_url'    => ['nullable', 'url', 'max:255'],
             'account_menu_style' => ['sometimes', 'string', 'in:circular,detailed'],
         ]);

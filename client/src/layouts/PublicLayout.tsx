@@ -41,7 +41,7 @@ export default function PublicLayout() {
     }
 
     return (
-        <div className="relative flex flex-col min-h-screen overflow-hidden bg-gradient-to-br from-white via-slate-100 to-slate-200 dark:from-black dark:via-zinc-900 dark:to-black">
+        <div className="relative flex flex-col min-h-screen overflow-hidden bg-background text-foreground">
             <div className="relative z-10 flex-1">
                 <NavbarWrapper />
                 <main className="overflow-hidden w-full">

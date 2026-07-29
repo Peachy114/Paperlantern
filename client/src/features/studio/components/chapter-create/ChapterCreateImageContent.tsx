@@ -1,5 +1,8 @@
-import { Move, Plus } from 'lucide-react'
+import { useState } from 'react'
+import { Monitor, Move, Plus, Smartphone } from 'lucide-react'
 import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import ChapterImagePreviewDialog from '@/features/studio/components/chapter-preview/ChapterImagePreviewDialog'
 import {
     DndContext,
     closestCenter,
@@ -95,6 +98,7 @@ export default function ChapterCreateImageContent({
     onRemoveImage,
     onReorderImages,
 }: Props) {
+    const [previewMode, setPreviewMode] = useState<'pc' | 'mobile' | null>(null)
     const sensors = useSensors(
         useSensor(PointerSensor),
         useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
@@ -119,6 +123,28 @@ export default function ChapterCreateImageContent({
                     </span>
                 )}
             </div>
+            {imagePreviews.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPreviewMode('pc')}
+                    >
+                        <Monitor className="h-4 w-4" />
+                        PC preview
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPreviewMode('mobile')}
+                    >
+                        <Smartphone className="h-4 w-4" />
+                        Mobile preview
+                    </Button>
+                </div>
+            )}
             <label className="flex items-center justify-center gap-2 h-10 rounded-lg border border-dashed border-border bg-muted/20 cursor-pointer hover:border-muted-foreground/50 hover:bg-muted/30 transition-colors text-sm text-muted-foreground hover:text-foreground">
                 <Plus className="h-4 w-4" />
                 Upload pages
@@ -151,40 +177,12 @@ export default function ChapterCreateImageContent({
                     </SortableContext>
                 </DndContext>
             )}
-            {imagePreviews.length > 0 && (
-                <div className="grid gap-4 lg:grid-cols-[1fr_260px]">
-                    <div className="rounded-lg border border-border bg-muted/20 p-3">
-                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            PC preview
-                        </p>
-                        <div className="mx-auto max-w-xl overflow-hidden rounded-md bg-background">
-                            {imagePreviews.map((src, index) => (
-                                <img
-                                    key={`pc-${src}`}
-                                    src={src}
-                                    alt={`Desktop page ${index + 1}`}
-                                    className="block w-full"
-                                />
-                            ))}
-                        </div>
-                    </div>
-                    <div className="rounded-lg border border-border bg-muted/20 p-3">
-                        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Mobile preview
-                        </p>
-                        <div className="mx-auto max-w-[210px] overflow-hidden rounded-[1.5rem] border-4 border-foreground bg-background">
-                            {imagePreviews.map((src, index) => (
-                                <img
-                                    key={`mobile-${src}`}
-                                    src={src}
-                                    alt={`Mobile page ${index + 1}`}
-                                    className="block w-full"
-                                />
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ChapterImagePreviewDialog
+                open={previewMode !== null}
+                mode={previewMode ?? 'pc'}
+                images={imagePreviews}
+                onOpenChange={(open) => !open && setPreviewMode(null)}
+            />
         </div>
     )
 }

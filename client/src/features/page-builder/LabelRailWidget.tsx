@@ -36,7 +36,7 @@ export default function LabelRailWidget({
     const activeText = cssColor(settings.label_active_text_color) ?? '#ffffff'
 
     return (
-        <section className="mx-auto w-full max-w-[1360px] px-5 py-4">
+        <section className="mx-auto w-full max-w-[1480px] px-5 py-4">
             <div className="flex flex-wrap items-center gap-2">
                 {visible.map((item) => {
                     const active = activeLabel === item.label

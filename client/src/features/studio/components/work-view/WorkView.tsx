@@ -63,9 +63,9 @@ export default function WorkView() {
             label: 'Work',
             value: works.length,
             icon: BookOpen,
-            color: 'text-slate-700',
+            color: 'text-muted-foreground',
         },
-        { label: 'Views', value: totalViews, icon: Eye, color: 'text-slate-700' },
+        { label: 'Views', value: totalViews, icon: Eye, color: 'text-muted-foreground' },
         { label: 'Likes', value: totalLikes, icon: Heart, color: 'text-rose-500' },
         {
             label: 'Favorite',
@@ -135,20 +135,20 @@ export default function WorkView() {
                 <div className="grid gap-3 lg:grid-cols-[250px_minmax(0,1fr)]">
                     <News audience="studio" variant="dashboard" />
 
-                    <div className="rounded-2xl border border-slate-200 bg-background p-4 shadow-sm">
+                    <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                         <Charts />
 
                         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
                             {dashboardStats.map(({ label, value, icon: Icon, color }) => (
                                 <div
                                     key={label}
-                                    className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
+                                    className="rounded-xl border border-border bg-card px-3 py-3 shadow-sm"
                                 >
                                     <div className={`flex items-center gap-1.5 ${color}`}>
                                         <Icon className="h-3.5 w-3.5" />
                                         <span className="text-[9px] font-bold">{label}</span>
                                     </div>
-                                    <p className="mt-2 text-lg font-black leading-none text-slate-900">
+                                    <p className="mt-2 text-lg font-black leading-none text-foreground">
                                         {value.toLocaleString()}
                                     </p>
                                 </div>

@@ -18,6 +18,7 @@ const schema = yup.object({
     twitter_url: yup.string().url('Enter a valid URL').nullable().optional(),
     discord_url: yup.string().max(255).nullable().optional(),
     instagram_url: yup.string().url('Enter a valid URL').nullable().optional(),
+    facebook_url: yup.string().url('Enter a valid URL').nullable().optional(),
     tiktok_url: yup.string().url('Enter a valid URL').nullable().optional(),
 })
 
@@ -43,6 +44,7 @@ export function useProfileForm() {
             twitter_url: user?.twitter_url ?? '',
             discord_url: user?.discord_url ?? '',
             instagram_url: user?.instagram_url ?? '',
+            facebook_url: user?.facebook_url ?? '',
             tiktok_url: user?.tiktok_url ?? '',
         },
     })
@@ -60,6 +62,7 @@ export function useProfileForm() {
             form.append('twitter_url', data.twitter_url ?? '')
             form.append('discord_url', data.discord_url ?? '')
             form.append('instagram_url', data.instagram_url ?? '')
+            form.append('facebook_url', data.facebook_url ?? '')
             form.append('tiktok_url', data.tiktok_url ?? '')
 
             return authApi.updateProfile(form)

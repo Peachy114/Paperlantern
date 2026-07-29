@@ -51,6 +51,29 @@ export interface AccountHistory {
     }
 }
 
+export interface AppNotification {
+    id: string
+    category: string
+    title: string
+    body: string | null
+    action_url: string | null
+    read_at: string | null
+    created_at: string
+}
+
+export interface NotificationPreferences {
+    reader_categories: string[]
+    creator_categories: string[]
+    in_app_enabled: boolean
+    email_enabled: boolean
+    push_enabled: boolean
+    digest_enabled: boolean
+    digest_frequency: 'daily' | 'weekly'
+    quiet_hours_start?: string | null
+    quiet_hours_end?: string | null
+    per_work_controls?: Record<string, unknown> | null
+}
+
 export interface ChapterHistoryItem {
     id: string
     type: string
@@ -82,4 +105,22 @@ export const accountApi = {
             public_highlight: publicHighlight,
         }),
     history: () => api.get<AccountHistory>('/account/history'),
+    notifications: (category?: string) =>
+        api.get<{ data: AppNotification[]; meta: { unread: number; total: number } }>(
+            '/account/notifications',
+            { params: category ? { category } : undefined }
+        ),
+    markNotificationRead: (id: string) => api.patch(`/account/notifications/${id}/read`),
+    markAllNotificationsRead: () => api.post('/account/notifications/read-all'),
+    notificationPreferences: () =>
+        api.get<{
+            preferences: NotificationPreferences
+            reader_categories: string[]
+            creator_categories: string[]
+        }>('/account/notification-preferences'),
+    updateNotificationPreferences: (payload: Partial<NotificationPreferences>) =>
+        api.put<{ preferences: NotificationPreferences }>(
+            '/account/notification-preferences',
+            payload
+        ),
 }

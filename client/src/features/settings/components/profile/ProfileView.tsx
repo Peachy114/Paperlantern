@@ -142,6 +142,20 @@ export default function ProfileView() {
                         </div>
 
                         <div className="space-y-1.5">
+                            <Label htmlFor="facebook_url">Facebook</Label>
+                            <Input
+                                id="facebook_url"
+                                {...profile.register('facebook_url')}
+                                placeholder="https://facebook.com/yourhandle"
+                            />
+                            {profile.errors.facebook_url && (
+                                <p className="text-sm text-destructive">
+                                    {profile.errors.facebook_url.message}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1.5">
                             <Label htmlFor="tiktok_url">TikTok</Label>
                             <Input
                                 id="tiktok_url"

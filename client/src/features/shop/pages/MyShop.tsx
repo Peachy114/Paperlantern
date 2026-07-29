@@ -216,7 +216,7 @@ export default function MyShop() {
                                 setForm(emptyForm)
                                 setActiveSection('shop')
                             }}
-                            className="inline-flex h-8 items-center rounded-full border border-sky-200 bg-white px-4 text-xs font-bold text-sky-600 shadow-sm transition hover:bg-sky-50"
+                            className="inline-flex h-8 items-center rounded-full border border-sky-200 bg-card px-4 text-xs font-bold text-sky-600 shadow-sm transition hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-500/10"
                         >
                             Back to Shop
                         </button>
@@ -574,7 +574,7 @@ function ShopDashboardHero({
             <section className="overflow-hidden rounded-[28px] border border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-background to-orange-50/40 p-2.5 shadow-[0_16px_45px_rgba(15,23,42,0.06)] sm:p-3">
                 <div className="grid gap-3 xl:grid-cols-[190px_minmax(0,1fr)]">
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                        <div className="relative min-h-56 overflow-hidden rounded-2xl border border-white/80 bg-white shadow-sm">
+                        <div className="relative min-h-56 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
                             {activeBannerImage ? (
                                 <img
                                     src={activeBannerImage}
@@ -584,7 +584,7 @@ function ShopDashboardHero({
                             ) : (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-orange-100 via-rose-50 to-sky-100 text-center">
                                     <Store className="h-12 w-12 text-sky-500" />
-                                    <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-slate-600">
+                                    <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
                                         Your Shop
                                     </p>
                                 </div>
@@ -601,7 +601,7 @@ function ShopDashboardHero({
                             </div>
                         </div>
 
-                        <div className="rounded-2xl border border-slate-200/80 bg-background px-4 py-3 shadow-sm">
+                        <div className="rounded-2xl border border-border bg-background px-4 py-3 shadow-sm">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">
@@ -622,7 +622,7 @@ function ShopDashboardHero({
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200/80 bg-background p-4 shadow-sm sm:p-5">
+                    <div className="rounded-2xl border border-border bg-background p-4 shadow-sm sm:p-5">
                         <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <p className="text-xs font-black uppercase tracking-[0.12em] text-orange-500">
@@ -677,7 +677,7 @@ function ShopDashboardHero({
             </section>
 
             <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-                <section className="rounded-[24px] border border-slate-200/80 bg-muted/35 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.035)]">
+                <section className="rounded-[24px] border border-border bg-muted/35 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.035)]">
                     <div className="flex items-center gap-2">
                         <Package className="h-4 w-4 text-orange-500" />
                         <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">
@@ -695,7 +695,7 @@ function ShopDashboardHero({
                     </div>
                 </section>
 
-                <section className="relative min-h-44 overflow-hidden rounded-[24px] border border-slate-200/80 bg-gradient-to-r from-rose-100 via-orange-50 to-sky-100 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+                <section className="relative min-h-44 overflow-hidden rounded-[24px] border border-border bg-gradient-to-r from-rose-100 via-orange-50 to-sky-100 shadow-[0_10px_30px_rgba(15,23,42,0.05)] dark:from-rose-500/15 dark:via-orange-500/10 dark:to-sky-500/15">
                     <div className="absolute right-3 top-3 z-20">
                         <WorkspaceBannerPicker
                             audience="studio"
@@ -766,7 +766,7 @@ function ShopPerformanceChart({ points }: { points: ShopPerformancePoint[] }) {
 
     return (
         <div className="relative h-56 overflow-hidden rounded-2xl bg-gradient-to-b from-background to-sky-50/65">
-            <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-3 rounded-full border border-slate-200/80 bg-background/90 px-2.5 py-1 text-[9px] font-bold text-muted-foreground shadow-sm backdrop-blur">
+            <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-3 rounded-full border border-border bg-background/90 px-2.5 py-1 text-[9px] font-bold text-muted-foreground shadow-sm backdrop-blur">
                 <span className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-sky-400" />
                     Downloads
@@ -779,7 +779,7 @@ function ShopPerformanceChart({ points }: { points: ShopPerformancePoint[] }) {
 
             {activePoint && activeDownload && activeLike ? (
                 <div
-                    className={`pointer-events-none absolute top-8 z-20 min-w-36 rounded-xl border border-slate-200/80 bg-background/95 px-3 py-2 text-[10px] shadow-xl backdrop-blur ${
+                    className={`pointer-events-none absolute top-8 z-20 min-w-36 rounded-xl border border-border bg-background/95 px-3 py-2 text-[10px] shadow-xl backdrop-blur ${
                         activeIndex === 0
                             ? 'translate-x-0'
                             : activeIndex === points.length - 1
@@ -961,12 +961,12 @@ function ShopDashboardStat({
     value: number
 }) {
     return (
-        <div className="rounded-2xl border border-slate-200/80 bg-white px-3 py-3 shadow-sm">
-            <div className="flex items-center gap-1.5 text-slate-700">
+        <div className="rounded-2xl border border-border bg-card px-3 py-3 shadow-sm">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
                 {icon}
                 <span className="text-[9px] font-bold">{label}</span>
             </div>
-            <p className="mt-2 text-lg font-black leading-none text-slate-900">
+            <p className="mt-2 text-lg font-black leading-none text-foreground">
                 {value.toLocaleString()}
             </p>
         </div>
@@ -1003,7 +1003,7 @@ function ShopProductCard({
     return (
         <article
             className={`group overflow-hidden rounded-2xl border bg-background shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                selected ? 'border-sky-400 ring-2 ring-sky-200' : 'border-slate-200'
+                selected ? 'border-sky-400 ring-2 ring-sky-200' : 'border-border'
             }`}
         >
             <div className="relative aspect-square overflow-hidden bg-muted">
@@ -1015,12 +1015,12 @@ function ShopProductCard({
                     />
                 ) : (
                     <div className="flex h-full items-center justify-center bg-gradient-to-br from-orange-100 via-rose-100 to-sky-100">
-                        <Package className="h-9 w-9 text-slate-400" />
+                        <Package className="h-9 w-9 text-muted-foreground" />
                     </div>
                 )}
 
                 <div className="absolute left-2 top-2 flex flex-wrap gap-1">
-                    <span className="rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold capitalize text-slate-700 shadow-sm backdrop-blur">
+                    <span className="rounded-full bg-background/90 px-2 py-1 text-[9px] font-bold capitalize text-foreground shadow-sm backdrop-blur">
                         {item.type}
                     </span>
                     <span

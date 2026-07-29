@@ -362,6 +362,14 @@
         font-family: var(--comix-font-family);
     }
 
+    /* //// app root theme inheritance ---- */
+    html,
+    body,
+    #root {
+        background: var(--background);
+        color: var(--foreground);
+    }
+
     #root {
         min-height: 100vh;
     }
@@ -1315,6 +1323,59 @@
 
 @layer utilities {
     /* ==========================================================================
+       // legacy light/dark compatibility ----
+       ========================================================================== */
+
+    /* //// dark mode legacy light surfaces ---- */
+    .dark :where(.bg-white, .bg-zinc-50, .bg-neutral-50, .bg-stone-50, .bg-slate-50):not(
+            [class*='dark:bg-']
+        ) {
+        background-color: var(--background) !important;
+    }
+
+    /* //// dark mode legacy soft surfaces ---- */
+    .dark :where(.bg-slate-100, .bg-zinc-100, .bg-neutral-100, .bg-stone-100, .bg-gray-100):not(
+            [class*='dark:bg-']
+        ) {
+        background-color: var(--surface-soft) !important;
+    }
+
+    /* //// dark mode legacy card surfaces ---- */
+    .dark :where(.bg-gray-50, .bg-orange-50, .bg-amber-50, .bg-red-50, .bg-blue-50, .bg-emerald-50):not(
+            [class*='dark:bg-']
+        ) {
+        background-color: var(--surface-muted) !important;
+    }
+
+    /* //// dark mode legacy dark text ---- */
+    .dark :where(.text-black, .text-zinc-900, .text-neutral-900, .text-slate-900, .text-gray-900):not(
+            [class*='dark:text-']
+        ) {
+        color: var(--foreground) !important;
+    }
+
+    /* //// dark mode legacy muted dark text ---- */
+    .dark :where(.text-black\/75, .text-black\/70, .text-black\/60, .text-zinc-600, .text-slate-600, .text-gray-600):not(
+            [class*='dark:text-']
+        ) {
+        color: var(--muted-foreground) !important;
+    }
+
+    /* //// dark mode legacy borders ---- */
+    .dark :where(.border-black, .border-zinc-200, .border-neutral-200, .border-slate-200, .border-gray-200):not(
+            [class*='dark:border-']
+        ) {
+        border-color: var(--border) !important;
+    }
+
+    /* //// dark mode legacy ring/divide ---- */
+    .dark :where(.divide-gray-200, .divide-zinc-200, .divide-slate-200):not(
+            [class*='dark:divide-']
+        ) > :not([hidden]) ~ :not([hidden]) {
+        border-color: var(--border) !important;
+    }
+
+    /* ==========================================================================
        // backgrounds ----
        ========================================================================== */
 
@@ -1811,7 +1872,7 @@ input::-webkit-password-auto-fill-button {
         position: relative;
         display: grid;
         width: 100%;
-        max-width: 1360px;
+        max-width: 1480px;
         min-height: 255px;
         margin-inline: auto;
         grid-template-columns: minmax(130px, 190px) minmax(0, 1fr) minmax(130px, 190px);

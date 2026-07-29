@@ -141,8 +141,8 @@ export default function MyArts() {
     const activeBannerImage = workspaceBannerImage ?? featuredImage
 
     const statCards = [
-        { label: 'Arts', value: stats.arts, icon: Images, color: 'text-slate-700' },
-        { label: 'Views', value: stats.views, icon: Eye, color: 'text-slate-700' },
+        { label: 'Arts', value: stats.arts, icon: Images, color: 'text-muted-foreground' },
+        { label: 'Views', value: stats.views, icon: Eye, color: 'text-muted-foreground' },
         { label: 'Likes', value: stats.likes, icon: Heart, color: 'text-rose-500' },
         {
             label: 'Super Likes',
@@ -317,7 +317,7 @@ export default function MyArts() {
                         <button
                             type="button"
                             onClick={() => setActiveSection('arts')}
-                            className="inline-flex h-8 items-center rounded-full border border-sky-200 bg-white px-4 text-xs font-bold text-sky-600 shadow-sm transition hover:bg-sky-50"
+                            className="inline-flex h-8 items-center rounded-full border border-sky-200 bg-card px-4 text-xs font-bold text-sky-600 shadow-sm transition hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-500/10"
                         >
                             Back to Arts
                         </button>
@@ -367,14 +367,14 @@ export default function MyArts() {
                         <div className="grid gap-3 lg:grid-cols-[250px_minmax(0,1fr)]">
                             <News audience="studio" variant="dashboard" />
 
-                            <div className="rounded-2xl border border-slate-200 bg-background p-4 shadow-sm">
+                            <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                                 <ArtsActivityChart points={viewsChart} />
 
                                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
                                     {statCards.map(({ label, value, icon: Icon, color }) => (
                                         <div
                                             key={label}
-                                            className="rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm"
+                                            className="rounded-xl border border-border bg-card px-3 py-3 shadow-sm"
                                         >
                                             <div className={`flex items-center gap-1.5 ${color}`}>
                                                 <Icon className="h-3.5 w-3.5" />
@@ -382,7 +382,7 @@ export default function MyArts() {
                                                     {label}
                                                 </span>
                                             </div>
-                                            <p className="mt-2 text-lg font-black leading-none text-slate-900">
+                                            <p className="mt-2 text-lg font-black leading-none text-foreground">
                                                 {value.toLocaleString()}
                                             </p>
                                         </div>
@@ -793,14 +793,14 @@ function ArtsActivityChart({ points }: { points: Array<{ date: string; views: nu
             </div>
 
             <div className="relative h-56 overflow-hidden rounded-2xl bg-gradient-to-b from-background to-sky-50/65">
-                <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-background/90 px-2.5 py-1 text-[9px] font-bold text-muted-foreground shadow-sm backdrop-blur">
+                <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-2.5 py-1 text-[9px] font-bold text-muted-foreground shadow-sm backdrop-blur">
                     <span className="h-2 w-2 rounded-full bg-sky-400" />
                     Views
                 </div>
 
                 {activePoint && activeCoordinate ? (
                     <div
-                        className={`pointer-events-none absolute top-8 z-20 min-w-32 rounded-xl border border-slate-200/80 bg-background/95 px-3 py-2 text-[10px] shadow-xl backdrop-blur ${
+                        className={`pointer-events-none absolute top-8 z-20 min-w-32 rounded-xl border border-border bg-background/95 px-3 py-2 text-[10px] shadow-xl backdrop-blur ${
                             activeIndex === 0
                                 ? 'translate-x-0'
                                 : activeIndex === normalizedPoints.length - 1
@@ -973,7 +973,7 @@ function ArtDashboardCard({
     return (
         <article
             className={`group overflow-hidden rounded-2xl border bg-background shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                selected ? 'border-sky-400 ring-2 ring-sky-200' : 'border-slate-200'
+                selected ? 'border-sky-400 ring-2 ring-sky-200' : 'border-border'
             }`}
         >
             <div className="relative aspect-square overflow-hidden bg-muted">
@@ -991,13 +991,13 @@ function ArtDashboardCard({
                         />
                     ) : (
                         <span className="flex h-full items-center justify-center bg-gradient-to-br from-orange-100 via-rose-100 to-sky-100">
-                            <ImageOff className="h-8 w-8 text-slate-400" />
+                            <ImageOff className="h-8 w-8 text-muted-foreground" />
                         </span>
                     )}
                 </button>
 
                 <div className="absolute left-2 top-2 flex flex-wrap gap-1">
-                    <span className="rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold capitalize text-slate-700 shadow-sm backdrop-blur">
+                    <span className="rounded-full bg-background/90 px-2 py-1 text-[9px] font-bold capitalize text-foreground shadow-sm backdrop-blur">
                         {art.status}
                     </span>
                     {art.boosted_until ? (
