@@ -104,9 +104,7 @@ export default function AnnouncementWidget({
                                         <div className="mb-2 flex flex-wrap items-center gap-2">
                                             {announcement.tag && (
                                                 <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide backdrop-blur">
-                                                    {tagLabels[announcement.tag] ??
-                                                        announcement.tag}{' '}
-                                                    "hero for announcement"
+                                                    {tagLabels[announcement.tag] ?? announcement.tag}
                                                 </span>
                                             )}
                                             {announcement.is_pinned && (

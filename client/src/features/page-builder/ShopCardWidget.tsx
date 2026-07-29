@@ -24,7 +24,7 @@ type ShopWidgetItem = {
     } | null
 }
 
-export default function ShopCardWidget({ widget }: { widget: PageWidget }) {
+export default function ShopCardWidget({ widget, preview = false }: { widget: PageWidget; preview?: boolean }) {
     const limit = widget.settings.limit ?? 10
     const shop = useQuery({
         queryKey: ['public-shop-widget', limit],
@@ -35,10 +35,8 @@ export default function ShopCardWidget({ widget }: { widget: PageWidget }) {
         },
         staleTime: 60_000,
     })
-    const items = filterShopItems((shop.data?.downloads?.data ?? []) as ShopWidgetItem[], widget).slice(
-        0,
-        limit
-    )
+    const sourceItems = (shop.data?.downloads?.data ?? []) as ShopWidgetItem[]
+    const items = filterShopItems(sourceItems.length === 0 && preview ? sampleShopItems() : sourceItems, widget).slice(0, limit)
 
     if (shop.isLoading) {
         return <ShopCardSkeleton count={limit} columns={widget.settings.columns} />
@@ -75,9 +73,68 @@ export default function ShopCardWidget({ widget }: { widget: PageWidget }) {
     )
 }
 
+const SAMPLE_SHOP_ITEMS: ShopWidgetItem[] = [
+    {
+        id: 'sample-shop-1',
+        title: 'Sample Digital Pack',
+        labels: ['Digital', 'By Artist'],
+        image_path: sampleShopImage('Shop'),
+        download_policy: 'paid',
+        credit_cost: 12,
+        files_count: 3,
+        downloads_count: 48,
+        likes: 120,
+        created_at: '2026-07-28T10:00:00.000Z',
+        source: 'artist',
+        source_label: 'By Artist',
+        artist: {
+            name: 'Preview Artist',
+            username: 'preview_artist',
+            avatar: sampleShopImage('A'),
+        },
+    },
+    {
+        id: 'sample-shop-2',
+        title: 'Sample Admin Asset',
+        labels: ['Official', 'By Admin'],
+        image_path: sampleShopImage('Admin', '#0ea5e9', '#111827'),
+        download_policy: 'free',
+        credit_cost: 0,
+        files_count: 1,
+        downloads_count: 96,
+        likes: 210,
+        created_at: '2026-07-28T10:00:00.000Z',
+        source: 'admin',
+        source_label: 'By Admin',
+        artist: null,
+    },
+]
+
+function sampleShopItems() {
+    if (SAMPLE_SHOP_ITEMS.length >= 10) return SAMPLE_SHOP_ITEMS
+
+    return Array.from({ length: 10 }, (_, index) => {
+        const source = SAMPLE_SHOP_ITEMS[index % SAMPLE_SHOP_ITEMS.length]
+        const cycle = Math.floor(index / SAMPLE_SHOP_ITEMS.length) + 1
+
+        return {
+            ...source,
+            id: index < SAMPLE_SHOP_ITEMS.length ? source.id : `${source.id}-preview-${cycle}`,
+            title: index < SAMPLE_SHOP_ITEMS.length ? source.title : `${source.title} ${cycle}`,
+            downloads_count: source.downloads_count + index * 7,
+            likes: source.likes + index * 3,
+        }
+    })
+}
+
+function sampleShopImage(label: string, from = '#ff8a00', to = '#ff477e') {
+    return `data:image/svg+xml,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="640" height="480" rx="42" fill="url(#g)"/><text x="50%" y="50%" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="56" font-weight="800" fill="white">${label}</text><text x="50%" y="60%" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="24" fill="rgba(255,255,255,.8)">Preview item</text></svg>`
+    )}`
+}
+
 function filterShopItems(items: ShopWidgetItem[], widget: PageWidget) {
     const settings = widget.settings
-    const dailyDate = settings.daily_date
     const multiSource = settings.label_filter_source ?? 'none'
     const multiValues = (settings.label_filter_values ?? [])
         .map((value) => value.toLowerCase())
@@ -86,7 +143,7 @@ function filterShopItems(items: ShopWidgetItem[], widget: PageWidget) {
     const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
 
     const filtered = items.filter((item) => {
-        if (dailyDate && !isSameDate(item.created_at, dailyDate)) return false
+        if (!matchesDateWindow(item.created_at, widget)) return false
 
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
@@ -141,9 +198,22 @@ function compareShopSort(a: ShopWidgetItem, b: ShopWidgetItem, sort: string) {
     return 0
 }
 
-function isSameDate(value: string | undefined, date: string) {
-    if (!value || !date) return false
-    return value.slice(0, 10) === date
+function matchesDateWindow(value: string | undefined, widget: PageWidget) {
+    const mode = widget.settings.date_mode ?? 'all'
+    const dateValue = widget.settings.date_value || widget.settings.daily_date
+    if (mode === 'all' || !value) return true
+
+    const date = new Date(value)
+    const base = dateValue ? new Date(dateValue) : new Date()
+    if (Number.isNaN(date.getTime()) || Number.isNaN(base.getTime())) return true
+
+    if (mode === 'daily') return date.toISOString().slice(0, 10) === base.toISOString().slice(0, 10)
+    if (mode === 'weekly') return Math.abs(date.getTime() - base.getTime()) <= 7 * 24 * 60 * 60 * 1000
+    if (mode === 'monthly') {
+        return date.getUTCFullYear() === base.getUTCFullYear() && date.getUTCMonth() === base.getUTCMonth()
+    }
+
+    return true
 }
 
 function ShopCardSkeleton({ count, columns }: { count: number; columns?: number }) {

@@ -123,6 +123,7 @@ class CommissionController extends Controller
 
         $validated = $request->validate([
             'status' => ['required', 'in:in_progress,delivered,cancelled,disputed'],
+            'board_column' => ['nullable', 'in:todo,in_progress,done'],
         ]);
 
         $updates = ['status' => $validated['status']];
@@ -143,6 +144,23 @@ class CommissionController extends Controller
         }
         if ($validated['status'] === 'disputed') {
             $updates['disputed_at'] = now();
+        }
+        if (isset($validated['board_column'])) {
+            $notes = $order->stage_notes ?? [];
+            $notes['_production_board'] = [
+                'column' => $validated['board_column'],
+                'updated_at' => now()->toISOString(),
+                'updated_by' => $request->user()->id,
+            ];
+            $updates['stage_notes'] = $notes;
+        } elseif ($validated['status'] === 'delivered') {
+            $notes = $order->stage_notes ?? [];
+            $notes['_production_board'] = [
+                'column' => 'done',
+                'updated_at' => now()->toISOString(),
+                'updated_by' => $request->user()->id,
+            ];
+            $updates['stage_notes'] = $notes;
         }
 
         $order->update($updates);
@@ -174,7 +192,7 @@ class CommissionController extends Controller
             'quote_credits' => ['required', 'integer', 'min:0', 'max:999999'],
             'quote_note' => ['nullable', 'string', 'max:2000'],
             'flow' => ['nullable', 'array', 'max:20'],
-            'flow.*.type' => ['required_with:flow', 'string', 'max:40'],
+            'flow.*.type' => ['required_with:flow', 'in:pay,sketch,revision,draft,add,done'],
             'flow.*.label' => ['required_with:flow', 'string', 'max:120'],
             'flow.*.percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'flow.*.rounds' => ['nullable', 'integer', 'min:0', 'max:50'],
@@ -383,7 +401,7 @@ class CommissionController extends Controller
             'client_fields.*.collect' => ['nullable', 'boolean'],
             'client_fields.*.required' => ['nullable', 'boolean'],
             'flow_template' => ['nullable', 'array', 'max:30'],
-            'flow_template.*.type' => ['required_with:flow_template', 'string', 'max:40'],
+            'flow_template.*.type' => ['required_with:flow_template', 'in:pay,sketch,revision,draft,add,done'],
             'flow_template.*.label' => ['required_with:flow_template', 'string', 'max:120'],
             'flow_template.*.percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'flow_template.*.rounds' => ['nullable', 'integer', 'min:0', 'max:50'],
@@ -573,7 +591,7 @@ class CommissionController extends Controller
             'setup_options.end_time' => ['nullable', 'date_format:H:i'],
             'setup_options.guaranteed_delivery_days' => ['nullable', 'integer', 'min:1', 'max:365'],
             'flow' => ['nullable', 'array', 'max:20'],
-            'flow.*.type' => ['required_with:flow', 'string', 'max:40'],
+            'flow.*.type' => ['required_with:flow', 'in:pay,sketch,revision,draft,add,done'],
             'flow.*.label' => ['required_with:flow', 'string', 'max:120'],
             'flow.*.percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'flow.*.rounds' => ['nullable', 'integer', 'min:0', 'max:50'],

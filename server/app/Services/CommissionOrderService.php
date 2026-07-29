@@ -129,20 +129,31 @@ class CommissionOrderService
     public function acceptQuote(CommissionOrder $order, User $customer): CommissionOrder
     {
         abort_unless($order->customer_id === $customer->id, 404);
-        abort_unless($order->status === 'quoted', 422, 'Only quoted commissions can be accepted.');
 
-        $wallet = $this->wallets->findOrCreateByUser($customer->id);
-        $remainingTotal = max(0, (int) $order->quote_credits - (int) $order->escrow_credits);
-        abort_if($wallet->balance < $remainingTotal, 402, 'Add enough credits for the full quoted amount before accepting.');
+        $order = DB::transaction(function () use ($order, $customer) {
+            $order = CommissionOrder::query()
+                ->whereKey($order->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $order->update([
-            'status' => 'in_progress',
-            'quote_accepted_at' => now(),
-            'accepted_at' => $order->accepted_at ?? now(),
-            'auto_pay_agreed' => true,
-        ]);
+            abort_unless($order->customer_id === $customer->id, 404);
+            abort_unless($order->status === 'quoted', 422, 'Only quoted commissions can be accepted.');
 
-        return $this->collectNextPayment($order->fresh(), $customer, true);
+            $wallet = $this->wallets->findOrCreateByUser($customer->id);
+            $remainingTotal = max(0, (int) $order->quote_credits - (int) $order->escrow_credits);
+            abort_if($wallet->balance < $remainingTotal, 402, 'Add enough credits for the full quoted amount before accepting.');
+
+            $order->update([
+                'status' => 'in_progress',
+                'quote_accepted_at' => now(),
+                'accepted_at' => $order->accepted_at ?? now(),
+                'auto_pay_agreed' => true,
+            ]);
+
+            return $order->fresh();
+        });
+
+        return $this->collectNextPayment($order, $customer, true);
     }
 
     public function collectNextPayment(CommissionOrder $order, User $customer, bool $allowNoDue = false): CommissionOrder
@@ -189,6 +200,7 @@ class CommissionOrderService
                 'status' => 'in_progress',
                 'escrow_credits' => (int) $order->escrow_credits + $amount,
                 'paid_steps' => array_values(array_unique($paidSteps)),
+                'stage_notes' => $this->withProductionBoardColumn($order->stage_notes ?? [], 'todo', false),
                 'current_step_index' => max((int) $order->current_step_index, $next['index'] + 1),
                 'payment_due_at' => null,
             ]);
@@ -302,6 +314,8 @@ class CommissionOrderService
                 ->with(['artist', 'customer'])
                 ->firstOrFail();
 
+            abort_unless($order->status === 'delivered', 422, 'Final delivery can only be paid after artist delivery.');
+
             $amount = max(0, (int) $order->quote_credits - (int) $order->escrow_credits);
             if ($amount > 0) {
                 $wallet = $this->wallets->findOrCreateByUser($customer->id);
@@ -376,6 +390,9 @@ class CommissionOrderService
             $updates['payment_due_at'] = null;
             if ($order->status === 'awaiting_payment') {
                 $updates['status'] = 'in_progress';
+            }
+            if ($this->isCreativeStage($step)) {
+                $updates['stage_notes'] = $this->withProductionBoardColumn($notes, 'in_progress');
             }
         }
 
@@ -462,7 +479,10 @@ class CommissionOrderService
     private function stepAmount(CommissionOrder $order, array $step): int
     {
         $percent = max(0, min(100, (int) ($step['percent'] ?? 0)));
-        return (int) ceil(((int) $order->quote_credits) * ($percent / 100));
+        $requestedAmount = (int) ceil(((int) $order->quote_credits) * ($percent / 100));
+        $remainingQuoteAmount = max(0, (int) $order->quote_credits - (int) $order->escrow_credits);
+
+        return min($requestedAmount, $remainingQuoteAmount);
     }
 
     private function paidSteps(CommissionOrder $order): array
@@ -475,5 +495,19 @@ class CommissionOrderService
         $paidSteps = $this->paidSteps($order);
         $paidSteps[] = $stepIndex;
         $order->update(['paid_steps' => array_values(array_unique($paidSteps))]);
+    }
+
+    private function withProductionBoardColumn(array $notes, string $column, bool $overwrite = true): array
+    {
+        if (! $overwrite && isset($notes['_production_board']['column'])) {
+            return $notes;
+        }
+
+        $notes['_production_board'] = [
+            'column' => $column,
+            'updated_at' => now()->toISOString(),
+        ];
+
+        return $notes;
     }
 }

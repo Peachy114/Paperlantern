@@ -166,6 +166,7 @@ export default function WorkView() {
                     <WorkspaceBannerPicker
                         audience="studio"
                         storageKey="workspace-banner-my-studio"
+                        pageTarget="my_studio"
                         fallbackImage={bannerImage}
                         onImageChange={setWorkspaceBannerImage}
                     />

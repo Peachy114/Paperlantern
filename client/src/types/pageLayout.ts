@@ -1,6 +1,7 @@
 export type PageKey =
     | 'home'
     | 'comix'
+    | 'novels'
     | 'arts'
     | 'commissions'
     | 'shop'
@@ -28,6 +29,14 @@ export interface PageBoardItem {
 export interface PageWidgetSettings {
     text?: string
     asset_path?: string
+    custom_css?: string
+    text_css?: string
+    image_css?: string
+    banner_image_mode?: 'side' | 'background'
+    banner_layout_mode?: 'flex' | 'grid'
+    banner_image_fit?: 'cover' | 'contain' | 'fill'
+    banner_image_position?: string
+    banner_image_width?: number
     sticker_id?: string
     sticker_image_path?: string
     font_url?: string
@@ -55,6 +64,8 @@ export interface PageWidgetSettings {
     card_show_labels?: boolean
     card_show_price?: boolean
     daily_date?: string
+    date_mode?: 'all' | 'daily' | 'weekly' | 'monthly'
+    date_value?: string
     continue_from_previous?: boolean
     show_continuation_badge?: boolean
     label_background_color?: string
@@ -87,6 +98,8 @@ export interface PageWidgetSettings {
     hero_source_announcements?: boolean
     hero_source_works?: boolean
     hero_source_commissions?: boolean
+    hero_source_novels?: boolean
+    hero_source_shop?: boolean
     hero_featured_only?: boolean
     group_hero_design?: 'default' | 'popular_arts' | 'spotlight_stack'
     group_source_arts?: boolean

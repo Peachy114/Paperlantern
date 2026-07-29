@@ -88,7 +88,7 @@ export default function ProfileIconGrid({
         return <ArtistMenu onClose={onClose} />
     }
 
-    const circularItems = [...primaryItems, ...secondaryItems]
+    const circularItems = orderCircularItems([...primaryItems, ...secondaryItems], isAdmin, isStoryteller)
 
     return (
         <div className="grid gap-2">
@@ -263,7 +263,7 @@ function ArtistMenuItem({ item, onClose }: { item: MenuItem; onClose: () => void
 
 function MenuRow({ items, onClose }: { items: MenuItem[]; onClose: () => void }) {
     return (
-        <div className={`grid gap-x-2 gap-y-3 ${items.length >= 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <div className="grid grid-cols-3 gap-x-2 gap-y-3 sm:grid-cols-4">
             {items.map(({ label, icon: Icon, to }) => (
                 <Link
                     key={label}
@@ -281,4 +281,52 @@ function MenuRow({ items, onClose }: { items: MenuItem[]; onClose: () => void })
             ))}
         </div>
     )
+}
+
+function orderCircularItems(items: MenuItem[], isAdmin: boolean, isStoryteller: boolean) {
+    const order = isAdmin
+        ? ['Admin', 'Messages', 'Arts', 'Top Up', 'Earnings', 'Expenses']
+        : isStoryteller
+          ? [
+                'My Series',
+                'My Arts',
+                'My Shop',
+                'My Commission',
+                'Messages',
+                'Favorites',
+                'Earnings',
+                'Withdrawals',
+                'Expenses',
+                'Credits',
+                'Notifications',
+                'Feeds',
+                'My Stickers',
+                'Noble Royalty',
+                'Subscription',
+                'History',
+            ]
+          : [
+                'Favorites',
+                'My Commission',
+                'Messages',
+                'My Comments',
+                'Earnings',
+                'Withdrawals',
+                'Expenses',
+                'Credits',
+                'Notifications',
+                'Feeds',
+                'My Stickers',
+                'Noble Royalty',
+                'Subscription',
+                'History',
+                'Become Storyteller',
+            ]
+    const rank = new Map(order.map((label, index) => [label, index]))
+
+    return [...items].sort((a, b) => {
+        const aRank = rank.get(a.label) ?? 999
+        const bRank = rank.get(b.label) ?? 999
+        return aRank - bRank || a.label.localeCompare(b.label)
+    })
 }

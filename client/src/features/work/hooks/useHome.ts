@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import api from '@/api/axios'
 import { storageUrl } from '@/utils/storage'
 import type { PageLayout } from '@/types/pageLayout'
+import { SAMPLE_CHAPTERS, SAMPLE_WORKS, withSampleList } from '@/features/page-builder/samplePageData'
 
 export interface WorkItem {
     id: string
@@ -43,7 +44,8 @@ export interface ChapterItem {
     }
 }
 
-export function useHome() {
+export function useHome(options: { preview?: boolean } = {}) {
+    const preview = Boolean(options.preview)
     const { data, isLoading } = useQuery({
         queryKey: ['home'],
         queryFn: async () => {
@@ -77,16 +79,20 @@ export function useHome() {
     const cover = (path: string | null, variant?: 'sm') => (path ? storageUrl(path, variant) : null)
 
     return {
-        hero: data?.hero ?? [],
-        weeklyChart: data?.weeklyChart ?? [],
-        todayReleases: data?.todayReleases ?? [],
-        todayTopViews: data?.todayTopViews ?? [],
-        todayTopLikes: data?.todayTopLikes ?? [],
-        freshReleases: data?.freshReleases ?? [],
-        latestChapters: data?.latestChapters ?? [],
-        dailyWorks: data?.dailyWorks ?? [],
-        popularWorks: data?.popularWorks ?? [],
-        topLikedWorks: data?.topLikedWorks ?? [],
+        hero: preview ? withSampleList(data?.hero, SAMPLE_WORKS) : data?.hero ?? [],
+        weeklyChart: preview ? withSampleList(data?.weeklyChart, SAMPLE_WORKS) : data?.weeklyChart ?? [],
+        todayReleases: preview
+            ? withSampleList(data?.todayReleases, SAMPLE_WORKS.slice(0, 2))
+            : data?.todayReleases ?? [],
+        todayTopViews: preview ? withSampleList(data?.todayTopViews, SAMPLE_WORKS) : data?.todayTopViews ?? [],
+        todayTopLikes: preview ? withSampleList(data?.todayTopLikes, SAMPLE_WORKS) : data?.todayTopLikes ?? [],
+        freshReleases: preview ? withSampleList(data?.freshReleases, SAMPLE_WORKS) : data?.freshReleases ?? [],
+        latestChapters: preview
+            ? withSampleList(data?.latestChapters, SAMPLE_CHAPTERS)
+            : data?.latestChapters ?? [],
+        dailyWorks: preview ? withSampleList(data?.dailyWorks, SAMPLE_WORKS) : data?.dailyWorks ?? [],
+        popularWorks: preview ? withSampleList(data?.popularWorks, SAMPLE_WORKS) : data?.popularWorks ?? [],
+        topLikedWorks: preview ? withSampleList(data?.topLikedWorks, SAMPLE_WORKS) : data?.topLikedWorks ?? [],
         layout: data?.layout,
         isLoading,
         cover,

@@ -15,6 +15,7 @@ import {
 type WorkspaceBannerPickerProps = {
     audience?: 'public' | 'artist' | 'studio'
     storageKey: string
+    pageTarget?: string
     fallbackImage?: string | null
     onImageChange: (image: string | null) => void
 }
@@ -22,6 +23,7 @@ type WorkspaceBannerPickerProps = {
 export default function WorkspaceBannerPicker({
     audience = 'studio',
     storageKey,
+    pageTarget,
     fallbackImage = null,
     onImageChange,
 }: WorkspaceBannerPickerProps) {
@@ -35,6 +37,11 @@ export default function WorkspaceBannerPicker({
                     const placement = announcement.placement ?? 'banner'
                     return placement === 'banner' || placement === 'hero' || placement === 'both'
                 })
+                .filter((announcement) => {
+                    if (!pageTarget) return true
+                    const targets = announcement.page_targets ?? []
+                    return targets.length === 0 || targets.includes(pageTarget)
+                })
                 .sort((a, b) => {
                     const aEvent = a.is_event || a.tag === 'event'
                     const bEvent = b.is_event || b.tag === 'event'
@@ -42,7 +49,7 @@ export default function WorkspaceBannerPicker({
                     if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1
                     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                 }),
-        [announcements]
+        [announcements, pageTarget]
     )
 
     useEffect(() => {

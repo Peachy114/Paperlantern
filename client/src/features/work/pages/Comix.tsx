@@ -6,6 +6,8 @@ import { useHome } from '../hooks/useHome'
 import ComixLists from '../components/ComixListSection'
 import BannerComixList from '../components/BannerComixSection'
 
+const SHOW_LEGACY_NON_PAGE_CUSTOMIZE_DEFAULTS = false
+
 export default function Comix() {
     const homeData = useHome()
     const layout = useQuery<PageLayout>({
@@ -18,8 +20,13 @@ export default function Comix() {
             {layout.data?.widgets?.length ? (
                 <DiscoveryPageWidgets widgets={layout.data.widgets} data={homeData} />
             ) : null}
-            <BannerComixList />
-            <ComixLists fixedType="comic" />
+            {SHOW_LEGACY_NON_PAGE_CUSTOMIZE_DEFAULTS ? (
+                <>
+                    {/* Old non-PageCustomize Comix defaults kept intentionally. */}
+                    <BannerComixList />
+                    <ComixLists fixedType="comic" />
+                </>
+            ) : null}
         </div>
     )
 }

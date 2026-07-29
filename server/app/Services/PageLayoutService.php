@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 class PageLayoutService
 {
-    public const PAGES = ['home', 'comix', 'arts', 'commissions', 'shop', 'daily', 'rankings', 'genre'];
+    public const PAGES = ['home', 'comix', 'novels', 'arts', 'commissions', 'shop', 'daily', 'rankings', 'genre'];
 
     public function get(string $pageKey): array
     {
@@ -52,18 +52,46 @@ class PageLayoutService
     {
         return match ($this->normalizePageKey($pageKey)) {
             'comix' => [
-                $this->widget('content_tabs', 'Browse', [
+                $this->widget('featured_hero', 'Featured Comix', [
                     'enabled' => true,
-                    'tabs_show_main' => true,
-                    'tabs_show_comix' => true,
-                    'tabs_show_novels' => true,
-                    'tabs_show_arts' => false,
-                    'tabs_show_commissions' => false,
+                    'filter_cards_data' => 'comix',
+                    'filter' => 'webtoon',
+                    'hero_source_works' => true,
+                    'hero_source_novels' => false,
+                    'hero_source_arts' => false,
+                    'hero_source_announcements' => false,
+                    'hero_source_commissions' => false,
+                    'hero_source_shop' => false,
+                    'limit' => 10,
                 ]),
-                $this->widget('featured_hero', 'Featured', ['enabled' => false, 'limit' => 10]),
-                $this->widget('fresh', 'Fresh Release', ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
-                $this->widget('latest', 'Latest Chapters', ['enabled' => true, 'limit' => 10]),
-                $this->widget('popular', 'Popular', ['enabled' => true, 'filter' => 'all', 'limit' => 10]),
+                $this->widget('labels', 'Comix Genres', [
+                    'enabled' => true,
+                    'filter_cards_data' => 'comix',
+                    'labels_display' => 'labels_cards',
+                    'label_filter_source' => 'genre',
+                    'limit' => 10,
+                ]),
+            ],
+            'novels' => [
+                $this->widget('featured_hero', 'Featured Novels', [
+                    'enabled' => true,
+                    'filter_cards_data' => 'novels',
+                    'filter' => 'novel',
+                    'hero_source_works' => false,
+                    'hero_source_novels' => true,
+                    'hero_source_arts' => false,
+                    'hero_source_announcements' => false,
+                    'hero_source_commissions' => false,
+                    'hero_source_shop' => false,
+                    'limit' => 10,
+                ]),
+                $this->widget('labels', 'Novel Genres', [
+                    'enabled' => true,
+                    'filter_cards_data' => 'novels',
+                    'labels_display' => 'labels_cards',
+                    'label_filter_source' => 'genre',
+                    'limit' => 10,
+                ]),
             ],
             'arts' => [
                 $this->widget('content_tabs', 'Browse', [
@@ -79,29 +107,42 @@ class PageLayoutService
                 $this->widget('arts_grid', 'Arts', ['enabled' => true, 'grid' => 'masonry', 'limit' => 10]),
             ],
             'commissions' => [
-                $this->widget('content_tabs', 'Browse', [
-                    'enabled' => false,
-                    'tabs_show_main' => true,
-                    'tabs_show_comix' => false,
-                    'tabs_show_novels' => false,
-                    'tabs_show_arts' => false,
-                    'tabs_show_commissions' => true,
-                ]),
-                $this->widget('commission_grid', 'Open Commissions', ['enabled' => true, 'grid' => 'masonry', 'limit' => 10]),
-            ],
-            'shop' => [
-                $this->widget('tab_cards', 'Shop Browse', [
+                $this->widget('featured_hero', 'Featured Commissions', [
                     'enabled' => true,
-                    'tabs_show_main' => false,
-                    'tabs_show_comix' => false,
-                    'tabs_show_novels' => false,
-                    'tabs_show_arts' => false,
-                    'tabs_show_commissions' => false,
-                    'tabs_show_shop' => true,
-                    'filter_cards_data' => 'mixed',
+                    'filter_cards_data' => 'commissions',
+                    'hero_source_works' => false,
+                    'hero_source_novels' => false,
+                    'hero_source_arts' => false,
+                    'hero_source_announcements' => false,
+                    'hero_source_commissions' => true,
+                    'hero_source_shop' => false,
                     'limit' => 10,
                 ]),
-                $this->widget('shop_card', 'Creator Products', ['enabled' => true, 'limit' => 10]),
+                $this->widget('labels', 'Commission Labels', [
+                    'enabled' => true,
+                    'filter_cards_data' => 'commissions',
+                    'label_filter_source' => 'commission_type',
+                    'labels_display' => 'labels',
+                    'limit' => 10,
+                ]),
+                $this->widget('commission_grid', 'Image Grid', [
+                    'enabled' => true,
+                    'grid' => 'masonry',
+                    'info_layout' => 'image_only',
+                    'limit' => 10,
+                ]),
+            ],
+            'shop' => [
+                $this->widget('shop_card', 'Creator Products', [
+                    'enabled' => true,
+                    'filter_cards_data' => 'shop',
+                    'limit' => 10,
+                ]),
+                $this->widget('sticker_shop', 'Sticker Shop', [
+                    'enabled' => true,
+                    'filter_cards_data' => 'shop',
+                    'limit' => 10,
+                ]),
             ],
             'daily' => [
                 $this->widget('content_tabs', 'Daily Tabs', [
@@ -201,6 +242,20 @@ class PageLayoutService
         return [
             'text' => Str::limit((string) ($settings['text'] ?? ''), 5000, ''),
             'asset_path' => Str::limit((string) ($settings['asset_path'] ?? ''), 500, ''),
+            'custom_css' => Str::limit((string) ($settings['custom_css'] ?? ''), 2000, ''),
+            'text_css' => Str::limit((string) ($settings['text_css'] ?? ''), 2000, ''),
+            'image_css' => Str::limit((string) ($settings['image_css'] ?? ''), 2000, ''),
+            'banner_image_mode' => in_array($settings['banner_image_mode'] ?? '', ['side', 'background'], true)
+                ? $settings['banner_image_mode']
+                : 'side',
+            'banner_layout_mode' => in_array($settings['banner_layout_mode'] ?? '', ['flex', 'grid'], true)
+                ? $settings['banner_layout_mode']
+                : 'grid',
+            'banner_image_fit' => in_array($settings['banner_image_fit'] ?? '', ['cover', 'contain', 'fill'], true)
+                ? $settings['banner_image_fit']
+                : 'cover',
+            'banner_image_position' => Str::limit((string) ($settings['banner_image_position'] ?? 'center'), 80, ''),
+            'banner_image_width' => $this->sanitizeNumber($settings['banner_image_width'] ?? 42, 20, 80, 42),
             'sticker_id' => Str::limit((string) ($settings['sticker_id'] ?? ''), 80, ''),
             'sticker_image_path' => Str::limit((string) ($settings['sticker_image_path'] ?? ''), 500, ''),
             'font_url' => Str::limit((string) ($settings['font_url'] ?? ''), 500, ''),
@@ -244,6 +299,10 @@ class PageLayoutService
             'card_show_labels' => (bool) ($settings['card_show_labels'] ?? true),
             'card_show_price' => (bool) ($settings['card_show_price'] ?? true),
             'daily_date' => $this->sanitizeDate($settings['daily_date'] ?? null),
+            'date_mode' => in_array($settings['date_mode'] ?? '', ['all', 'daily', 'weekly', 'monthly'], true)
+                ? $settings['date_mode']
+                : 'all',
+            'date_value' => $this->sanitizeDate($settings['date_value'] ?? null),
             'continue_from_previous' => (bool) ($settings['continue_from_previous'] ?? false),
             'show_continuation_badge' => (bool) ($settings['show_continuation_badge'] ?? true),
             'label_background_color' => $this->sanitizeColor($settings['label_background_color'] ?? '#ff8a00'),
@@ -290,7 +349,9 @@ class PageLayoutService
             'hero_source_arts' => (bool) ($settings['hero_source_arts'] ?? true),
             'hero_source_announcements' => (bool) ($settings['hero_source_announcements'] ?? true),
             'hero_source_works' => (bool) ($settings['hero_source_works'] ?? true),
+            'hero_source_novels' => (bool) ($settings['hero_source_novels'] ?? true),
             'hero_source_commissions' => (bool) ($settings['hero_source_commissions'] ?? true),
+            'hero_source_shop' => (bool) ($settings['hero_source_shop'] ?? false),
             'hero_featured_only' => (bool) ($settings['hero_featured_only'] ?? false),
             'group_hero_design' => in_array($settings['group_hero_design'] ?? '', ['default', 'popular_arts', 'spotlight_stack'], true)
                 ? $settings['group_hero_design']
@@ -401,6 +462,15 @@ class PageLayoutService
         return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : null;
     }
 
+    private function sanitizeNumber(mixed $value, int $min, int $max, int $default): int
+    {
+        if (! is_numeric($value)) {
+            return $default;
+        }
+
+        return max($min, min($max, (int) $value));
+    }
+
     private function sanitizeStyle(array $style): array
     {
         return [
@@ -466,9 +536,71 @@ class PageLayoutService
     // Widgets to save allowed types ----
     private function allowedType(string $type, string $pageKey): string
     {
+        $discovery = [
+            'active_discussions',
+            'beginner_manga',
+            'best_murim',
+            'best_novels',
+            'christmas_collection',
+            'coming_soon',
+            'completed_series',
+            'continue_reading',
+            'editors_picks',
+            'fresh',
+            'halloween_specials',
+            'hidden_gems',
+            'highest_rated',
+            'latest_comments',
+            'latest_comic_chapters',
+            'latest_novel_chapters',
+            'latest_reviews',
+            'monthly_ranking',
+            'most_bookmarked',
+            'most_discussed',
+            'most_favorited',
+            'most_followed',
+            'most_popular',
+            'most_read',
+            'most_reviewed',
+            'most_shared',
+            'most_viewed',
+            'new_series',
+            'new_uploads',
+            'popular_manga',
+            'popular_manhua',
+            'popular_manhwa',
+            'popular_novels',
+            'random_work',
+            'reader_favorites',
+            'recently_added',
+            'recently_commented',
+            'recently_updated',
+            'recently_viewed',
+            'recommended_for_you',
+            'returning_series',
+            'similar_series',
+            'summer_picks',
+            'top_reviewers',
+            'top_this_month',
+            'top_this_week',
+            'top_this_year',
+            'trending',
+            'trending_manga',
+            'trending_manhua',
+            'trending_manhwa',
+            'trending_novels',
+            'trending_this_month',
+            'trending_this_week',
+            'trending_today',
+            'valentines_romance',
+            'weekly_cards',
+            'weekly_hero',
+            'winter_picks',
+        ];
         $common = [
             'text',
             'image',
+            'banner',
             'sticker',
             'board',
             'spacer',
@@ -480,6 +612,7 @@ class PageLayoutService
             'grid_con',
             'cards',
             'shop_card',
+            'sticker_shop',
             'episodes',
             'top_10s',
             'labels',
@@ -487,12 +620,12 @@ class PageLayoutService
         $types = match ($pageKey) {
             'arts' => ['featured_artists', 'arts_grid', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
             'commissions' => ['commission_grid', 'boosted_commissions', 'featured_artists', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
-            'shop' => ['shop_card', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
-            'comix', 'daily', 'rankings', 'genre' => ['weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
+            'shop' => ['shop_card', 'sticker_shop', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
+            'comix', 'novels', 'daily', 'rankings', 'genre' => ['weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
             default => ['hero', 'announcement_banner', 'announcement_hero', 'weekly', 'daily', 'today_releases', 'today_top', 'fresh', 'latest', 'popular', 'top_liker'],
         };
 
-        return in_array($type, [...$types, ...$common], true) ? $type : 'text';
+        return in_array($type, [...$types, ...$common, ...$discovery], true) ? $type : 'text';
     }
 
     private function normalizePageKey(string $pageKey): string

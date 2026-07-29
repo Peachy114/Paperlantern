@@ -8,6 +8,7 @@ use App\Models\ShopItem;
 use App\Models\ShopItemPurchase;
 use App\Repositories\WalletRepository;
 use App\Services\CommissionService;
+use App\Services\PageLayoutService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,7 @@ class PublicShopController extends Controller
     public function __construct(
         private WalletRepository $wallets,
         private CommissionService $commissions,
+        private PageLayoutService $layouts,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -50,6 +52,7 @@ class PublicShopController extends Controller
         return response()->json([
             'downloads' => $downloads,
             'stickers' => $stickers,
+            'layout' => $this->layouts->get('shop'),
         ]);
     }
 

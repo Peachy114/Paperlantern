@@ -25,6 +25,10 @@ const PAGE_TARGETS = [
     ['daily', 'Daily'],
     ['rankings', 'Rankings'],
     ['genre', 'Genre'],
+    ['my_studio', 'My Studio'],
+    ['my_arts', 'My Arts'],
+    ['my_commission', 'My Commission'],
+    ['my_shop', 'My Shop'],
 ] as const
 
 const EMPTY_FORM: AnnouncementPayload = {
