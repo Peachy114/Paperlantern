@@ -10,11 +10,13 @@ use App\Models\CommissionPlatformTerm;
 use App\Models\CommissionRating;
 use App\Models\CommissionService;
 use App\Models\FeatureBoost;
+use App\Models\User;
 use App\Repositories\WalletRepository;
 use App\Services\PageLayoutService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class PublicCommissionController extends Controller
 {
@@ -149,7 +151,11 @@ class PublicCommissionController extends Controller
         );
         abort_if($commission->user_id === $request->user()->id, 403, 'You cannot request your own commission service.');
 
-        $this->ensureRequiredRequestFields($commission, $validated);
+        $validated['client_details'] = $this->resolveRequiredRequestFields(
+            $commission,
+            $validated,
+            $request->user()
+        );
 
         $flow = $this->flow($commission);
 
@@ -360,7 +366,7 @@ class PublicCommissionController extends Controller
         ];
     }
 
-    private function ensureRequiredRequestFields(CommissionService $commission, array $validated): void
+    private function resolveRequiredRequestFields(CommissionService $commission, array $validated, User $user): array
     {
         $answers = collect($validated['request_answers'] ?? [])
             ->keyBy(fn($answer) => (string) ($answer['question_id'] ?? ''));
@@ -376,13 +382,69 @@ class PublicCommissionController extends Controller
         }
 
         $details = $validated['client_details'] ?? [];
+        $profileDetails = [
+            'name' => $user->name,
+            'nickname' => $user->nickname,
+            'email' => $user->email,
+            'discord' => $user->discord_url,
+            'twitter' => $user->twitter_url,
+            'instagram' => $user->instagram_url,
+            'facebook' => $user->facebook_url,
+            'tiktok' => $user->tiktok_url,
+        ];
+        $profileRequiredFields = ['discord', 'twitter', 'instagram', 'facebook', 'tiktok'];
+
         foreach ($this->clientFields($commission) as $field => $config) {
-            if (! ($config['collect'] ?? false) || ! ($config['required'] ?? false)) {
+            if (! ($config['collect'] ?? false)) {
                 continue;
             }
 
-            abort_if(trim((string) ($details[$field] ?? '')) === '', 422, "Please provide your {$field}.");
+            if (
+                in_array($field, $profileRequiredFields, true)
+                && ($config['required'] ?? false)
+                && trim((string) ($profileDetails[$field] ?? '')) === ''
+            ) {
+                $label = $this->clientFieldLabel($field);
+
+                throw ValidationException::withMessages([
+                    "client_details.{$field}" => [
+                        "Please add your {$label} in Profile Settings before requesting this commission.",
+                    ],
+                ]);
+            }
+
+            if (trim((string) ($details[$field] ?? '')) === '' && trim((string) ($profileDetails[$field] ?? '')) !== '') {
+                $details[$field] = $profileDetails[$field];
+            }
+
+            if (! ($config['required'] ?? false) || trim((string) ($details[$field] ?? '')) !== '') {
+                continue;
+            }
+
+            $label = $this->clientFieldLabel($field);
+
+            throw ValidationException::withMessages([
+                "client_details.{$field}" => [
+                    "Please add your {$label} in Profile Settings before requesting this commission.",
+                ],
+            ]);
         }
+
+        return $details;
+    }
+
+    private function clientFieldLabel(string $field): string
+    {
+        return [
+            'name' => 'name',
+            'nickname' => 'nickname',
+            'email' => 'email',
+            'discord' => 'Discord',
+            'twitter' => 'X / Twitter',
+            'instagram' => 'Instagram',
+            'facebook' => 'Facebook',
+            'tiktok' => 'TikTok',
+        ][$field] ?? $field;
     }
 
     private function clientFields(CommissionService $service): array

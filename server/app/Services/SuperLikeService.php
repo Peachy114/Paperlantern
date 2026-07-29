@@ -74,6 +74,21 @@ class SuperLikeService
 
             $this->incrementTarget($target, $split['receiver_cut']);
 
+            // supporter notification ----
+            app(AppNotificationService::class)->notify(
+                $receiver,
+                'new_supporter',
+                'New Super Like received',
+                "{$sender->name} sent {$award->name} to your content.",
+                $this->targetUrl($target),
+                [
+                    'sender_id' => $sender->id,
+                    'award_id' => $award->id,
+                    'credits_spent' => $cost,
+                    'receiver_cut' => $split['receiver_cut'],
+                ]
+            );
+
             return [
                 'message' => 'Super Like sent.',
                 'wallet_balance' => $wallet->fresh()->balance,
@@ -104,5 +119,32 @@ class SuperLikeService
     {
         $target->increment('super_likes_count');
         $target->increment('super_like_credits', $receiverCut);
+    }
+
+    private function targetUrl(Work|Chapter|Art|Comment|FeedPost $target): ?string
+    {
+        // notification target URL ----
+        if ($target instanceof Work) {
+            return "/works/{$target->slug}";
+        }
+
+        if ($target instanceof Chapter) {
+            $target->loadMissing('work:id,slug');
+            return $target->work ? "/works/{$target->work->slug}/chapters/{$target->slug}" : null;
+        }
+
+        if ($target instanceof Art) {
+            return '/explore/arts';
+        }
+
+        if ($target instanceof FeedPost) {
+            return '/feeds';
+        }
+
+        if ($target instanceof Comment) {
+            return null;
+        }
+
+        return null;
     }
 }

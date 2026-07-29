@@ -72,21 +72,26 @@ class User extends Authenticatable
         'message_design_id',
         'message_background_id',
         'payment_settings',
+        'email_verification_code',
+        'email_verification_expires_at',
         'twitter_url',
         'discord_url',
         'instagram_url',
+        'facebook_url',
         'tiktok_url',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'email_verification_code',
     ];
 
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_expires_at' => 'datetime',
             'banned_at'         => 'datetime',
             'suspended_at'      => 'datetime',
             'password'          => 'hashed',
@@ -186,6 +191,16 @@ class User extends Authenticatable
     public function comments()
     {
         return $this->hasMany(Comment::class);
+    }
+
+    public function appNotifications()
+    {
+        return $this->hasMany(AppNotification::class);
+    }
+
+    public function notificationPreference()
+    {
+        return $this->hasOne(NotificationPreference::class);
     }
 
     public function artistProfileBlocks()

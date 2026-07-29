@@ -78,8 +78,9 @@ class ChapterController extends Controller
             'images.*'         => ['image', 'max:20480'],
         ]);
 
+        // rich novel content ----
         if (isset($validated['content'])) {
-            $validated['content'] = strip_tags($validated['content']);
+            $validated['content'] = $this->sanitizeChapterHtml($validated['content']);
         }
 
         $chapter = $this->chapterService->createChapter($work, $validated, $request);
@@ -129,8 +130,12 @@ class ChapterController extends Controller
             'existing_image_ids.*' => ['nullable', 'string'],
         ]);
 
+        // revision snapshot ----
+        app(\App\Services\ChapterRevisionService::class)->snapshot($chapter, $request->user(), 'manual');
+
+        // rich novel content ----
         if (isset($validated['content'])) {
-            $validated['content'] = strip_tags($validated['content']);
+            $validated['content'] = $this->sanitizeChapterHtml($validated['content']);
         }
 
         $chapter = $this->chapterService->updateChapter($chapter, $validated, $request);
@@ -177,5 +182,14 @@ class ChapterController extends Controller
         $chapter->delete(); // soft delete — sets deleted_at, keeps images
 
         return response()->json(['message' => 'Chapter moved to trash.']);
+    }
+
+    private function sanitizeChapterHtml(string $content): string
+    {
+        // allowed writing editor tags ----
+        $allowed = '<p><br><strong><b><em><i><u><s><strike><a><ol><ul><li><blockquote><hr><h2><h3><div><span>';
+        $clean = strip_tags($content, $allowed);
+
+        return preg_replace('/\s(on\w+|style)=("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean) ?? $clean;
     }
 }

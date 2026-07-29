@@ -510,7 +510,7 @@ export default function MyCommission() {
                 defaultValue="workflow"
                 className="mt-5 grid items-start gap-5 lg:grid-cols-[210px_minmax(0,1fr)]"
             >
-                <TabsList className="flex h-auto w-full flex-row items-stretch justify-start gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/70 bg-background/80 p-2 shadow-sm backdrop-blur lg:sticky lg:top-24 lg:flex-col lg:overflow-visible lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none">
+                <TabsList className="flex h-auto w-full flex-row items-stretch justify-start gap-1.5 overflow-x-auto rounded-2xl border border-border bg-background/80 p-2 shadow-sm backdrop-blur lg:sticky lg:top-24 lg:flex-col lg:overflow-visible lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none">
                     {COMMISSION_NAV_ITEMS.map(({ value, label, icon: Icon }) => (
                         <TabsTrigger
                             key={value}
@@ -647,7 +647,7 @@ function CommissionDashboardHero({
             <section className="overflow-hidden rounded-[28px] border border-sky-200/80 bg-gradient-to-br from-sky-50/90 via-background to-orange-50/40 p-2.5 shadow-[0_16px_45px_rgba(15,23,42,0.06)] sm:p-3">
                 <div className="grid gap-3 xl:grid-cols-[190px_minmax(0,1fr)]">
                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                        <div className="relative min-h-56 overflow-hidden rounded-2xl border border-white/80 bg-white shadow-sm">
+                        <div className="relative min-h-56 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
                             <div className="absolute right-3 top-3 z-20">
                                 <WorkspaceBannerPicker
                                     audience="studio"
@@ -666,7 +666,7 @@ function CommissionDashboardHero({
                             ) : (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-orange-100 via-rose-50 to-sky-100 text-center">
                                     <ThemedLogo width={96} height={96} className="object-contain" />
-                                    <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-slate-600">
+                                    <p className="mt-2 text-xs font-black uppercase tracking-[0.18em] text-muted-foreground">
                                         Events
                                     </p>
                                 </div>
@@ -683,7 +683,7 @@ function CommissionDashboardHero({
                             </div>
                         </div>
 
-                        <div className="rounded-2xl border border-slate-200/80 bg-background px-4 py-3 shadow-sm">
+                        <div className="rounded-2xl border border-border bg-background px-4 py-3 shadow-sm">
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">
@@ -704,7 +704,7 @@ function CommissionDashboardHero({
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200/80 bg-background p-4 shadow-sm sm:p-5">
+                    <div className="rounded-2xl border border-border bg-background p-4 shadow-sm sm:p-5">
                         <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <p className="text-xs font-black uppercase tracking-[0.12em] text-orange-500">
@@ -758,7 +758,7 @@ function CommissionDashboardHero({
             </section>
 
             <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-                <section className="rounded-[24px] border border-slate-200/80 bg-muted/35 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.035)]">
+                <section className="rounded-[24px] border border-border bg-muted/35 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.035)]">
                     <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-orange-500" />
                         <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">
@@ -775,7 +775,7 @@ function CommissionDashboardHero({
                     </div>
                 </section>
 
-                <section className="relative min-h-44 overflow-hidden rounded-[24px] border border-slate-200/80 bg-gradient-to-r from-rose-100 via-orange-50 to-sky-100 shadow-[0_10px_30px_rgba(15,23,42,0.05)]">
+                <section className="relative min-h-44 overflow-hidden rounded-[24px] border border-border bg-gradient-to-r from-rose-100 via-orange-50 to-sky-100 shadow-[0_10px_30px_rgba(15,23,42,0.05)] dark:from-rose-500/15 dark:via-orange-500/10 dark:to-sky-500/15">
                     {activeBannerImage ? (
                         <img
                             src={activeBannerImage}
@@ -834,7 +834,7 @@ function MiniAreaChart({ points }: { points: CommissionChartPoint[] }) {
 
     return (
         <div className="relative h-56 overflow-hidden rounded-2xl bg-gradient-to-b from-background to-sky-50/65">
-            <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-3 rounded-full border border-slate-200/80 bg-background/90 px-2.5 py-1 text-[9px] font-bold text-muted-foreground shadow-sm backdrop-blur">
+            <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-3 rounded-full border border-border bg-background/90 px-2.5 py-1 text-[9px] font-bold text-muted-foreground shadow-sm backdrop-blur">
                 <span className="flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-sky-400" />
                     Orders
@@ -847,7 +847,7 @@ function MiniAreaChart({ points }: { points: CommissionChartPoint[] }) {
 
             {activePoint && activeTotalCoord && activeCancelledCoord && (
                 <div
-                    className={`pointer-events-none absolute top-8 z-20 min-w-32 rounded-xl border border-slate-200/80 bg-background/95 px-3 py-2 text-[10px] shadow-xl backdrop-blur ${
+                    className={`pointer-events-none absolute top-8 z-20 min-w-32 rounded-xl border border-border bg-background/95 px-3 py-2 text-[10px] shadow-xl backdrop-blur ${
                         activeIndex === 0
                             ? 'translate-x-0'
                             : activeIndex === points.length - 1
@@ -1062,7 +1062,7 @@ function DashboardStat({
     value: number | string
 }) {
     return (
-        <div className="rounded-2xl border border-slate-200/80 bg-background px-3 py-3 shadow-[0_5px_18px_rgba(15,23,42,0.04)]">
+        <div className="rounded-2xl border border-border bg-background px-3 py-3 shadow-[0_5px_18px_rgba(15,23,42,0.04)]">
             <div className="flex items-center justify-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
                 <span className="text-foreground">{icon}</span>
                 <span>{label}</span>
@@ -1165,7 +1165,7 @@ function CommissionPoliciesSection({
         setPolicies((current) => ({ ...current, [key]: value }))
 
     return (
-        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="mb-4">
                 <h2 className="text-base font-semibold">Policies</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -1274,7 +1274,7 @@ function CommissionFormsWorkspace({
     }
 
     return (
-        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <RequestQuestionsSection
                 questions={forms}
                 onAdd={openAdd}
@@ -1408,7 +1408,7 @@ function CommissionFaqWorkspace({
     const [faqs, setFaqs] = useState<InfoQuestion[]>(profile.faqs ?? [])
 
     return (
-        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <InfoQuestionsSection
                 items={faqs}
                 onAdd={() =>
@@ -1485,7 +1485,7 @@ function CommissionDiscountWorkspace({
     }
 
     return (
-        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <DiscountsSection
                 discounts={discounts}
                 onAdd={openAdd}
@@ -1658,7 +1658,7 @@ function CommissionWorkflowSection({
                         Messages until accepted.
                     </p>
                 </div>
-                <span className="rounded-full border border-white/80 bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-600 shadow-sm">
+                <span className="rounded-full border border-border bg-background/85 px-3 py-1 text-[11px] font-bold text-muted-foreground shadow-sm">
                     {orders.filter(isProductionOrder).length} active board item
                     {orders.filter(isProductionOrder).length === 1 ? '' : 's'}
                 </span>
@@ -1689,20 +1689,20 @@ function CommissionWorkflowSection({
                                         )
                                     }
                                 }}
-                                className="min-h-[420px] rounded-2xl bg-white/15 p-1"
+                                className="min-h-[420px] rounded-2xl bg-background/25 p-1"
                             >
                                 <div className="mb-3 flex items-center justify-between px-1">
                                     <h3 className="text-[11px] font-black tracking-[0.08em] text-slate-800">
                                         {column.title}
                                     </h3>
-                                    <span className="rounded-full bg-white/75 px-2 py-0.5 text-[10px] font-bold text-slate-500">
+                                    <span className="rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
                                         {columnOrders.length}
                                     </span>
                                 </div>
 
                                 <div className="space-y-2.5">
                                     {columnOrders.length === 0 ? (
-                                        <div className="flex min-h-28 items-center justify-center rounded-2xl border border-dashed border-slate-300/80 bg-white/35 px-4 text-center text-xs text-slate-400">
+                                        <div className="flex min-h-28 items-center justify-center rounded-2xl border border-dashed border-border bg-background/50 px-4 text-center text-xs text-muted-foreground">
                                             No commissions in this column.
                                         </div>
                                     ) : (
@@ -1724,7 +1724,7 @@ function CommissionWorkflowSection({
                                                             order.id
                                                         )
                                                     }
-                                                    className={`rounded-2xl border border-slate-200/90 bg-background p-3 shadow-[0_7px_20px_rgba(15,23,42,0.055)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)] ${
+                                                    className={`rounded-2xl border border-border bg-background p-3 shadow-[0_7px_20px_rgba(15,23,42,0.055)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)] ${
                                                         canDrag
                                                             ? 'cursor-grab active:cursor-grabbing'
                                                             : 'cursor-default'
@@ -1741,7 +1741,7 @@ function CommissionWorkflowSection({
                                                                     'No request description was provided.'}
                                                             </p>
                                                         </div>
-                                                        <GripVertical className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                                        <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                                                     </div>
 
                                                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -1875,7 +1875,7 @@ function CommissionApplicationSection({
     }[profile.application_status]
 
     return (
-        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -2036,7 +2036,7 @@ function CommissionSettingsSection({
     }
 
     return (
-        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="mb-4">
                 <h2 className="text-base font-semibold">Commission settings</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -2189,7 +2189,7 @@ function CommissionServicesSection({
     }
 
     return (
-        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 className="text-base font-semibold">Commission services</h2>
@@ -2374,7 +2374,7 @@ function CommissionRequestsSection({ orders }: { orders: CommissionOrder[] }) {
     )
 
     return (
-        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="mb-4">
                 <h2 className="text-base font-semibold">Commission requests</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -2695,7 +2695,7 @@ function CommissionRatingsSectionV2({
     }
 
     return (
-        <section className="rounded-[24px] border border-slate-200/80 bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
+        <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <div className="mb-4">
                 <h2 className="text-base font-semibold">Commission ratings</h2>
                 <p className="mt-1 text-sm text-muted-foreground">

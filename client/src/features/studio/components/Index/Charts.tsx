@@ -92,15 +92,15 @@ function WorkViewsAreaChart({ points }: { points: WorkChartPoint[] }) {
     const hasViews = points.some((point) => point.views > 0)
 
     return (
-        <div className="relative h-56 overflow-hidden rounded-2xl bg-gradient-to-b from-background to-sky-50/65">
-            <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-background/90 px-2.5 py-1 text-[9px] font-bold text-muted-foreground shadow-sm backdrop-blur">
+        <div className="relative h-56 overflow-hidden rounded-2xl bg-gradient-to-b from-background to-sky-50/65 dark:to-sky-500/10">
+            <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-2.5 py-1 text-[9px] font-bold text-muted-foreground shadow-sm backdrop-blur">
                 <span className="h-2 w-2 rounded-full bg-sky-400" />
                 Views
             </div>
 
             {activePoint && activeCoord ? (
                 <div
-                    className={`pointer-events-none absolute top-8 z-20 min-w-32 rounded-xl border border-slate-200/80 bg-background/95 px-3 py-2 text-[10px] shadow-xl backdrop-blur ${
+                    className={`pointer-events-none absolute top-8 z-20 min-w-32 rounded-xl border border-border bg-background/95 px-3 py-2 text-[10px] shadow-xl backdrop-blur ${
                         activeIndex === 0
                             ? 'translate-x-0'
                             : activeIndex === points.length - 1

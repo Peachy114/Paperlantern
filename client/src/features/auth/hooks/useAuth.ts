@@ -34,17 +34,16 @@ export function useAuth() {
         password: string
         password_confirmation: string
         role: 'wanderer' | 'storyteller'
-        twitter_url?: string
-        discord_url?: string
-        instagram_url?: string
-        tiktok_url?: string
     }) => {
         setLoading(true)
         setError(null)
         try {
             const res = await authApi.register(data)
-            setAuth(res.data.user, res.data.token)
-            close()
+            if (res.data.user && res.data.token) {
+                setAuth(res.data.user, res.data.token)
+                close()
+            }
+            return res.data
         } catch (err: any) {
             const errors = err.response?.data?.errors
             if (errors) {
@@ -52,6 +51,46 @@ export function useAuth() {
                 setError(first[0])
             } else {
                 setError(err.response?.data?.message ?? 'Registration failed.')
+            }
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleVerifyEmailCode = async (data: { email: string; code: string }) => {
+        setLoading(true)
+        setError(null)
+        try {
+            const res = await authApi.verifyEmailCode(data)
+            setAuth(res.data.user, res.data.token)
+            close()
+            return res.data
+        } catch (err: any) {
+            const errors = err.response?.data?.errors
+            if (errors) {
+                const first = Object.values(errors)[0] as string[]
+                setError(first[0])
+            } else {
+                setError(err.response?.data?.message ?? 'Verification failed.')
+            }
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleResendEmailVerificationCode = async (email: string) => {
+        setLoading(true)
+        setError(null)
+        try {
+            const res = await authApi.resendEmailVerificationCode({ email })
+            return res.data
+        } catch (err: any) {
+            const errors = err.response?.data?.errors
+            if (errors) {
+                const first = Object.values(errors)[0] as string[]
+                setError(first[0])
+            } else {
+                setError(err.response?.data?.message ?? 'Could not resend verification code.')
             }
         } finally {
             setLoading(false)
@@ -67,5 +106,13 @@ export function useAuth() {
         }
     }
 
-    return { handleLogin, handleRegister, handleLogout, error, loading }
+    return {
+        handleLogin,
+        handleRegister,
+        handleVerifyEmailCode,
+        handleResendEmailVerificationCode,
+        handleLogout,
+        error,
+        loading,
+    }
 }

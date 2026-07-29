@@ -105,6 +105,15 @@ export const studioApi = {
         api.post(`/studio/works/${workSlug}/chapters/${chapterSlug}/images`, data, {
             headers: { 'Content-Type': 'multipart/form-data' },
         }),
+    getChapterRevisions: (workSlug: string, chapterSlug: string) =>
+        api.get(`/studio/works/${workSlug}/chapters/${chapterSlug}/revisions`),
+    autosaveChapter: (
+        workSlug: string,
+        chapterSlug: string,
+        data: { title?: string; content?: string; artist_note?: string }
+    ) => api.patch(`/studio/works/${workSlug}/chapters/${chapterSlug}/autosave`, data),
+    restoreChapterRevision: (workSlug: string, chapterSlug: string, revisionId: string) =>
+        api.post(`/studio/works/${workSlug}/chapters/${chapterSlug}/revisions/${revisionId}/restore`),
     trashChapter: (workSlug: string, chapterSlug: string) =>
         api.post(`/studio/works/${workSlug}/chapters/${chapterSlug}/trash`),
     deleteChapter: (workSlug: string, chapterSlug: string) =>

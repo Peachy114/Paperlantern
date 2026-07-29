@@ -13,7 +13,7 @@ export default function AuthLayout() {
     return (
         <>
             <div
-                className="relative z-10 flex flex-col min-h-screen bg-white dark:bg-black/70 overflow-hidden"
+                className="relative z-10 flex flex-col min-h-screen bg-background text-foreground overflow-hidden"
                 style={{ userSelect: 'none' }}
             >
                 <div className="relative z-10 flex flex-col flex-1 select-none">
@@ -22,7 +22,7 @@ export default function AuthLayout() {
                         className={
                             isPageCustomizer
                                 ? 'w-full flex-1 max-w-none mx-0 py-0 px-0 mb-0 select-none'
-                                : 'w-full flex-1 max-w-[1360px] mx-auto py-3 px-1 mb-32 select-none'
+                                : 'w-full flex-1 max-w-[1480px] mx-auto py-3 px-1 mb-32 select-none'
                         }
                     >
                         <Outlet />

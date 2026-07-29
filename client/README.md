@@ -1,6 +1,6 @@
-# Paperlantern Client
+# LaterNComix Client
 
-React/Vite frontend for the Paperlantern reader, studio, wallet, support, and admin experiences.
+React/Vite frontend for the LaterNComix reader, studio, wallet, support, and admin experiences.
 
 ## Source Layout
 
@@ -61,4 +61,3 @@ npm run preview
 - Use `src/components/ui` only for reusable primitives.
 - Prefer colocating feature-specific hooks and components with the feature that owns them.
 - Keep route files small; move view logic into feature components and hooks.
-

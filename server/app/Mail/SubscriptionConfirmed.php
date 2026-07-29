@@ -13,6 +13,6 @@ class SubscriptionConfirmed extends Mailable
     public function build()
     {
         return $this->subject('You are subscribed to Laterncomix!')
-            ->view('emails.subscription-confirmed');
+            ->view('emails.notifications.subscription-confirmed');
     }
 }

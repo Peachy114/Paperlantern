@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { studioApi } from '@/api/studio'
 import { useCreateChapter } from '@/features/studio/hooks/useCreateChapter'
@@ -8,12 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 import ChapterCreateHeader from './ChapterCreateHeader'
 import ChapterCreateStatus from './ChapterCreateStatus'
@@ -47,6 +42,7 @@ export default function ChapterCreate() {
 }
 
 function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
+    const formRef = useRef<HTMLFormElement>(null)
     const [scheduledOpen, setScheduledOpen] = useState(false)
     const [scheduledEpisodes, setScheduledEpisodes] = useState<
         Array<{ id: string; title: string; scheduled_at?: string }>
@@ -62,6 +58,7 @@ function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
         navigate,
         workSlug,
         handleChange,
+        handleContentChange,
         handleLockTypeChange,
         handleCoverChange,
         handleImagesChange,
@@ -82,7 +79,7 @@ function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
     if (loading && !form.title) return <LoadingState />
 
     return (
-        <form onSubmit={handleSubmit} className="max-w-6xl mx-auto px-6 py-10">
+        <form ref={formRef} onSubmit={handleSubmit} className="max-w-[1480px] mx-auto px-6 py-10">
             <div className="py-5">
                 <ChapterCreateHeader
                     workType={workType}
@@ -132,7 +129,12 @@ function ChapterCreateForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
                     </div>
 
                     {workType === 'wattpad' && (
-                        <ChapterCreateContent content={form.content} onChange={handleChange} />
+                        <ChapterCreateContent
+                            content={form.content}
+                            editorKey={`create:${workSlug ?? 'new'}`}
+                            onChange={handleContentChange}
+                            onSave={() => formRef.current?.requestSubmit()}
+                        />
                     )}
 
                     {workType === 'webtoon' && (

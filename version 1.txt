@@ -1,0 +1,1373 @@
+# LanternPaper Version 1
+
+## 1. Main goal
+
+LanternPaper Version 1 should allow creators to:
+
+* Create an account
+* Create a novel or comic
+* Upload and publish chapters or episodes
+* Schedule releases
+* View their basic statistics
+* Receive comments from readers
+
+Readers should be able to:
+
+* Discover novels and comics
+* Read chapters or episodes
+* Save reading progress
+* Follow works
+* Like and comment
+* Add works to their library
+
+Version 1 should be simple, reliable, mobile-friendly, and ready for future expansion.
+
+---
+
+# 2. Supported content types
+
+## Novels
+
+Support:
+
+* Original novels
+* Light novels
+* Web novels
+* Short stories
+* Serialized fiction
+
+## Comics
+
+Support:
+
+* Manga
+* Manhwa
+* Manhua
+* Webtoons
+* Western comics
+* Graphic novels
+
+Internally, use two primary work types:
+
+```ts
+type WorkType = 'novel' | 'comic'
+```
+
+For comics:
+
+```ts
+type ComicFormat =
+    | 'vertical_scroll'
+    | 'page_based'
+
+type ReadingDirection =
+    | 'left_to_right'
+    | 'right_to_left'
+    | 'top_to_bottom'
+```
+
+---
+
+# 3. Public website pages
+
+## Homepage
+
+The homepage should include:
+
+* Featured works
+* Trending works
+* Latest updates
+* New releases
+* Popular novels
+* Popular comics
+* Completed works
+* Recently added
+* Genre sections
+
+Recommended homepage sections:
+
+```text
+Featured
+Continue Reading
+Trending
+Latest Chapters
+Latest Comic Episodes
+Popular Novels
+Popular Comics
+Completed Works
+New Creators
+```
+
+The **Continue Reading** section only appears for logged-in readers.
+
+---
+
+## Explore page
+
+Readers can browse all public works.
+
+Filters:
+
+* Novel or comic
+* Genre
+* Tag
+* Language
+* Ongoing or completed
+* Manga, manhwa, manhua or webtoon
+* Newest
+* Most viewed
+* Most followed
+* Highest rated
+* Recently updated
+
+Search by:
+
+* Title
+* Alternative title
+* Creator name
+* Genre
+* Tag
+
+---
+
+## Work details page
+
+Every novel or comic should have:
+
+* Cover
+* Banner
+* Title
+* Alternative title
+* Creator
+* Description
+* Genres
+* Tags
+* Language
+* Status
+* Content rating
+* Content warnings
+* Total chapters or episodes
+* Total views
+* Followers
+* Rating
+* Latest update
+* Follow button
+* Add to library button
+* Start reading button
+* Continue reading button
+* Chapter or episode list
+
+Tabs:
+
+```text
+Overview
+Chapters / Episodes
+Reviews
+Details
+```
+
+---
+
+## Creator profile page
+
+Show:
+
+* Avatar
+* Banner
+* Display name
+* Username
+* Biography
+* Social links
+* Total followers
+* Published works
+* Novels
+* Comics
+* Recent updates
+
+Version 1 should not include complicated profile customisation.
+
+Allow only:
+
+* Avatar
+* Banner
+* Biography
+* Social links
+* Accent colour
+* Featured work
+
+---
+
+# 4. Authentication
+
+Support:
+
+* Register
+* Login
+* Logout
+* Email verification
+* Forgot password
+* Reset password
+* Change password
+* Remember me
+* Delete account
+
+Optional after launch:
+
+* Google login
+* Facebook login
+* Two-factor authentication
+
+Basic roles:
+
+```text
+Reader
+Creator
+Moderator
+Administrator
+```
+
+A creator can also use all reader features.
+
+---
+
+# 5. Creator Studio
+
+Main navigation:
+
+```text
+Creator Studio
+├── Overview
+├── My Works
+├── Drafts
+├── Scheduled
+├── Comments
+├── Analytics
+└── Settings
+```
+
+---
+
+## Creator overview
+
+Show cards for:
+
+* Total works
+* Published works
+* Draft works
+* Scheduled releases
+* Total views
+* Total followers
+* Total likes
+* Total comments
+
+Also show:
+
+* Recently edited works
+* Upcoming scheduled releases
+* Latest comments
+* Latest followers
+* Recent performance
+
+---
+
+# 6. Create work
+
+The creator selects:
+
+```text
+Create Novel
+Create Comic
+```
+
+Shared fields:
+
+* Title
+* Alternative title
+* Slug
+* Cover
+* Banner
+* Short description
+* Full synopsis
+* Primary genre
+* Additional genres
+* Tags
+* Original language
+* Content rating
+* Content warnings
+* Work status
+* Visibility
+* Copyright declaration
+
+Work statuses:
+
+```text
+Draft
+Coming Soon
+Ongoing
+Completed
+On Hiatus
+Cancelled
+```
+
+Visibility:
+
+```text
+Private
+Unlisted
+Public
+```
+
+Comic-only fields:
+
+* Manga, manhwa, manhua, webtoon or other
+* Vertical-scroll or page-based
+* Reading direction
+* Colour or black-and-white
+
+---
+
+# 7. Novel Version 1 features
+
+## Novel structure
+
+```text
+Novel
+├── Volume
+│   ├── Chapter
+│   ├── Chapter
+│   └── Chapter
+└── Bonus Chapters
+```
+
+Creators can:
+
+* Create volume
+* Rename volume
+* Reorder volumes
+* Create chapter
+* Reorder chapters
+* Move chapter
+* Duplicate chapter
+* Delete chapter
+* Restore deleted chapter
+* Publish chapter
+* Schedule chapter
+
+Volumes should be optional.
+
+---
+
+## Novel editor
+
+The Version 1 editor should include:
+
+### Basic formatting
+
+* Bold
+* Italic
+* Underline
+* Strikethrough
+* Clear formatting
+
+### Paragraph formatting
+
+* Normal paragraph
+* Chapter title
+* Heading 1
+* Heading 2
+* Heading 3
+* Block quote
+* Left alignment
+* Centre alignment
+* Right alignment
+* Justified alignment
+* First-line indentation
+
+### Lists
+
+* Bulleted list
+* Numbered list
+
+### Insert tools
+
+* Link
+* Image
+* Horizontal divider
+* Scene break
+
+### Essential writing tools
+
+* Undo
+* Redo
+* Autosave
+* Manual save
+* Word count
+* Character count
+* Estimated reading time
+* Find
+* Replace
+* Full-screen mode
+* Reader preview
+* Mobile preview
+
+Recommended toolbar:
+
+```text
+Undo Redo
+Paragraph
+Bold Italic Underline Strikethrough
+Alignment
+Bulleted List Numbered List
+Quote
+Scene Break
+Link
+Image
+Preview
+```
+
+---
+
+## Scene break
+
+Provide one standard scene break for Version 1:
+
+```text
+* * *
+```
+
+Custom decorative dividers can be added later.
+
+---
+
+## Author notes
+
+Each novel chapter should support:
+
+* Author note before chapter
+* Author note after chapter
+
+Author notes should not count toward the chapter word count.
+
+---
+
+## Chapter statuses
+
+```text
+Draft
+Ready
+Scheduled
+Published
+Archived
+```
+
+---
+
+# 8. Comic Version 1 features
+
+## Comic structure
+
+```text
+Comic
+├── Season / Volume
+│   ├── Episode
+│   ├── Episode
+│   └── Episode
+└── Bonus Episodes
+```
+
+Creators can:
+
+* Create season or volume
+* Create episode
+* Reorder episodes
+* Move episodes
+* Duplicate episode
+* Delete episode
+* Restore episode
+* Publish episode
+* Schedule episode
+
+Seasons and volumes should be optional.
+
+---
+
+## Comic upload formats
+
+Support:
+
+* JPG
+* JPEG
+* PNG
+* WebP
+
+For Version 1, creators should be able to upload:
+
+* Multiple images
+* Drag-and-drop images
+* Reorder images
+* Replace an image
+* Delete an image
+* Preview the episode
+
+---
+
+## Vertical-scroll comics
+
+Include:
+
+* Long-image upload
+* Automatic image optimisation
+* Automatic slicing when needed
+* Drag-and-drop image ordering
+* Adjustable spacing between images
+* Mobile preview
+* Desktop preview
+* Background colour selection
+
+Do not give creators complex panel editing in Version 1.
+
+---
+
+## Page-based comics
+
+Include:
+
+* Left-to-right mode
+* Right-to-left mode
+* Single-page reading
+* Continuous-page reading
+* Page thumbnails
+* Page numbers
+* Zoom
+* Fit width
+* Full-screen reading
+
+Double-page spreads can be added after launch.
+
+---
+
+## Comic episode settings
+
+Each episode should support:
+
+* Episode title
+* Episode number
+* Thumbnail
+* Creator note before episode
+* Creator note after episode
+* Content warning
+* Comments enabled or disabled
+* Schedule date
+* Publish status
+
+Episode statuses:
+
+```text
+Draft
+Uploading
+Ready
+Scheduled
+Published
+Archived
+```
+
+---
+
+# 9. Publishing system
+
+Creators can:
+
+* Save as draft
+* Publish immediately
+* Schedule publication
+* Unpublish
+* Edit published content
+* Send follower notification
+* Disable follower notification
+* Enable comments
+* Disable comments
+
+Before publishing, validate:
+
+* Title exists
+* Content exists
+* Cover exists
+* Content rating is selected
+* Content warning is selected when required
+* Comic episode has at least one image
+* Novel chapter has sufficient content
+
+---
+
+# 10. Release calendar
+
+Provide a simple calendar showing:
+
+* Scheduled novel chapters
+* Scheduled comic episodes
+* Publication date
+* Publication time
+* Work title
+* Release title
+* Current status
+
+Creators should be able to reschedule releases.
+
+---
+
+# 11. Novel reader
+
+The novel reader needs:
+
+* Chapter title
+* Author information
+* Previous chapter
+* Next chapter
+* Chapter list
+* Reading progress
+* Estimated reading time
+* Like button
+* Comment section
+* Follow button
+* Add to library
+* Report button
+
+Reader settings:
+
+* Font family
+* Font size
+* Line height
+* Page width
+* Light theme
+* Dark theme
+* Sepia theme
+
+Save:
+
+* Last chapter
+* Reading percentage
+* Last reading date
+
+---
+
+# 12. Comic reader
+
+The comic reader needs:
+
+* Previous episode
+* Next episode
+* Episode list
+* Full-screen mode
+* Reading progress
+* Like button
+* Comment section
+* Follow button
+* Add to library
+* Report broken image
+* Report content
+
+Vertical-scroll reader:
+
+* Smooth scrolling
+* Lazy loading
+* Save scroll position
+* Preload next images
+* Data-saving mode
+
+Page reader:
+
+* Previous page
+* Next page
+* Page thumbnails
+* Keyboard navigation
+* Zoom
+* Fit width
+* Save current page
+* Support right-to-left navigation
+
+---
+
+# 13. Reader library
+
+Library sections:
+
+```text
+Following
+Reading
+Completed
+Plan to Read
+Favourites
+Reading History
+```
+
+For Version 1, the essential sections are:
+
+* Following
+* Reading
+* Completed
+* Reading history
+
+Save:
+
+* Work
+* Last chapter or episode
+* Last page or scroll position
+* Reading percentage
+* Last opened date
+
+---
+
+# 14. Follow system
+
+Readers can follow:
+
+* Novel
+* Comic
+* Creator
+
+Following a work provides notifications for:
+
+* New chapter
+* New episode
+* Work completed
+* Return from hiatus
+
+Following a creator provides notifications for:
+
+* New work
+* Creator announcement
+
+---
+
+# 15. Likes, ratings and reviews
+
+## Likes
+
+Allow one like per reader for:
+
+* Novel chapter
+* Comic episode
+
+## Ratings
+
+Allow one rating per work:
+
+```text
+1 to 5 stars
+```
+
+## Reviews
+
+Version 1 review fields:
+
+* Rating
+* Review title
+* Review content
+* Spoiler checkbox
+
+Creators can:
+
+* Reply to review
+* Report review
+
+Creators should not be able to delete legitimate negative reviews.
+
+---
+
+# 16. Comments
+
+Support:
+
+* Chapter comments
+* Episode comments
+* Replies
+* Edit comment
+* Delete own comment
+* Like comment
+* Report comment
+* Spoiler formatting
+* Creator heart
+* Creator pin
+
+Creator controls:
+
+* Disable comments
+* Delete comments on their work
+* Report comment
+* Block commenter
+
+Administrator controls:
+
+* Remove comment
+* Warn user
+* Suspend user
+* Ban user
+
+Paragraph and panel comments should be added later.
+
+---
+
+# 17. Notifications
+
+Version 1 notifications:
+
+## Reader notifications
+
+* New chapter
+* New episode
+* Comment reply
+* Creator liked comment
+* Creator replied to comment
+* Followed work completed
+
+## Creator notifications
+
+* New follower
+* New comment
+* New review
+* New like
+* Scheduled release published
+* Scheduled release failed
+* Moderation notice
+
+Notification channels:
+
+* In-app
+* Email
+
+Push notifications can be added later.
+
+---
+
+# 18. Basic analytics
+
+Creators should see:
+
+* Total work views
+* Chapter or episode views
+* Unique readers
+* Total followers
+* New followers
+* Likes
+* Comments
+* Ratings
+* Reviews
+
+Charts:
+
+* Views over time
+* Followers over time
+* Top-performing works
+* Top-performing chapters or episodes
+
+Filters:
+
+* Last 7 days
+* Last 30 days
+* Last 90 days
+* All time
+
+Advanced reader retention should not be part of Version 1.
+
+---
+
+# 19. Content ratings and warnings
+
+Ratings:
+
+```text
+Everyone
+Teen
+Mature
+Adults Only
+```
+
+Content warnings:
+
+* Violence
+* Gore
+* Strong language
+* Sexual content
+* Abuse
+* Self-harm
+* Suicide
+* Substance use
+* Disturbing imagery
+* Flashing images
+
+Readers should receive a warning before opening mature content.
+
+---
+
+# 20. Reporting system
+
+Users can report:
+
+* Work
+* Chapter
+* Episode
+* Comment
+* Review
+* Creator profile
+* Copyright infringement
+* Plagiarism
+* Harassment
+* Illegal content
+* Broken image
+* Wrong reading order
+
+Report statuses:
+
+```text
+Submitted
+Under Review
+Action Taken
+Rejected
+Closed
+```
+
+---
+
+# 21. Administrator dashboard
+
+Administrators need:
+
+* User management
+* Creator management
+* Work management
+* Chapter management
+* Episode management
+* Comment moderation
+* Review moderation
+* Reports
+* Genres
+* Tags
+* Homepage sections
+* Featured works
+* Platform announcements
+* Site settings
+
+Admin actions:
+
+* Hide work
+* Remove work
+* Suspend creator
+* Ban account
+* Restore content
+* Mark report resolved
+* Feature work
+* Remove feature
+* Edit genres and tags
+
+---
+
+# 22. Essential database structure
+
+```text
+users
+profiles
+works
+work_settings
+work_genres
+work_tags
+work_collaborators
+
+volumes
+releases
+
+novel_chapters
+novel_chapter_versions
+
+comic_episodes
+comic_pages
+
+follows
+library_items
+reading_progress
+likes
+ratings
+reviews
+comments
+comment_likes
+notifications
+reports
+analytics_events
+```
+
+Recommended shared release structure:
+
+```text
+releases
+- id
+- work_id
+- volume_id
+- type
+- title
+- number
+- status
+- visibility
+- scheduled_at
+- published_at
+- created_at
+- updated_at
+```
+
+The `type` can be:
+
+```text
+novel_chapter
+comic_episode
+announcement
+bonus
+```
+
+---
+
+# 23. Files and storage
+
+Store:
+
+* Cover originals
+* Banner originals
+* Comic source images
+* Optimised comic images
+* Chapter images
+* Thumbnails
+
+Generate:
+
+* Small thumbnail
+* Medium thumbnail
+* Large cover
+* Mobile comic image
+* Desktop comic image
+* WebP version
+
+Use:
+
+* Private source storage
+* Public optimised storage
+* Signed URLs where necessary
+* Image compression
+* Lazy loading
+* CDN support later
+
+---
+
+# 24. Mobile requirements
+
+Every Version 1 page should work on mobile.
+
+Important mobile screens:
+
+* Homepage
+* Explore
+* Work page
+* Novel reader
+* Comic reader
+* Library
+* Notifications
+* Creator dashboard
+* Novel editor
+* Comic uploader
+* Comments
+
+The novel editor should have a horizontally scrollable toolbar.
+
+The comic uploader should allow creators to:
+
+* Upload images
+* Reorder images
+* Replace images
+* Preview episode
+
+Complex image editing is not required on mobile.
+
+---
+
+# 25. Accessibility requirements
+
+Include:
+
+* Keyboard navigation
+* Screen-reader labels
+* Image alt text
+* Visible focus states
+* Sufficient colour contrast
+* Adjustable novel font size
+* Reduced-motion support
+* Comic page descriptions
+* Proper heading structure
+* Form validation messages
+
+---
+
+# 26. Security requirements
+
+Version 1 must include:
+
+* Password hashing
+* Email verification
+* CSRF protection
+* Rate limiting
+* File validation
+* Image MIME validation
+* Sanitised rich text
+* Permission checks
+* Private draft protection
+* Secure upload names
+* Content Security Policy
+* Login activity logging
+* Soft deletion
+* Database backups
+
+Never trust HTML sent directly from the novel editor.
+
+---
+
+# 27. Features excluded from Version 1
+
+Do not build these before the core website is stable:
+
+* Paid chapters
+* Subscriptions
+* Tips
+* Creator payouts
+* Advertising revenue
+* Creator marketplace
+* Advanced story planner
+* Character manager
+* Worldbuilding wiki
+* Relationship maps
+* Timeline system
+* Beta-reader system
+* Track changes
+* Panel-to-panel comic reader
+* Automatic translation
+* Audiobooks
+* Print ordering
+* Writing competitions
+* Advanced recommendations
+* Detailed retention analytics
+* Live collaborative editing
+* Custom profile widgets
+* Custom chapter themes
+* Advanced decorative novel blocks
+
+These features belong in later versions.
+
+---
+
+# 28. Recommended Version 1 navigation
+
+## Main navigation
+
+```text
+Home
+Explore
+Novels
+Comics
+Library
+Creator Studio
+Notifications
+Profile
+```
+
+## Creator navigation
+
+```text
+Overview
+My Works
+Create Work
+Drafts
+Scheduled
+Comments
+Analytics
+Settings
+```
+
+## Administrator navigation
+
+```text
+Dashboard
+Users
+Works
+Reports
+Comments
+Reviews
+Genres
+Tags
+Homepage
+Announcements
+Settings
+```
+
+---
+
+# 29. Version 1 development order
+
+## Stage 1 — Foundation
+
+* Authentication
+* User profiles
+* Roles and permissions
+* Work database
+* Genre and tag system
+* File storage
+* Admin dashboard
+
+## Stage 2 — Novel system
+
+* Create novel
+* Volume manager
+* Chapter manager
+* Rich-text editor
+* Autosave
+* Publishing
+* Scheduling
+* Novel reader
+
+## Stage 3 — Comic system
+
+* Create comic
+* Episode manager
+* Comic image uploader
+* Vertical-scroll reader
+* Page reader
+* Reading direction
+* Image optimisation
+
+## Stage 4 — Reader system
+
+* Follow
+* Library
+* Reading progress
+* Likes
+* Ratings
+* Reviews
+* Comments
+* Notifications
+
+## Stage 5 — Discovery
+
+* Homepage
+* Explore page
+* Search
+* Filters
+* Trending
+* Latest updates
+* Popular works
+
+## Stage 6 — Creator tools
+
+* Creator overview
+* Release calendar
+* Basic analytics
+* Comment management
+* Work settings
+
+## Stage 7 — Safety and launch
+
+* Reporting
+* Moderation
+* Content warnings
+* Security testing
+* Mobile testing
+* Performance testing
+* Backup system
+* Terms and policies
+
+---
+
+# 30. Version 1 launch checklist
+
+## Accounts
+
+* Users can register and log in
+* Email verification works
+* Password reset works
+* Permissions are protected
+
+## Novels
+
+* Creator can create a novel
+* Creator can write a chapter
+* Autosave works
+* Formatting works
+* Creator can schedule a chapter
+* Reader can read a chapter
+* Reading progress is saved
+
+## Comics
+
+* Creator can create a comic
+* Creator can upload multiple pages
+* Image ordering works
+* Vertical-scroll reading works
+* Page-based reading works
+* Right-to-left reading works
+* Comic progress is saved
+
+## Community
+
+* Follow works
+* Add to library
+* Like releases
+* Rate works
+* Write reviews
+* Add comments
+* Reply to comments
+* Report content
+
+## Administration
+
+* Admin can manage users
+* Admin can remove content
+* Admin can review reports
+* Admin can manage homepage sections
+* Admin can manage genres and tags
+
+## Quality
+
+* Mobile layouts work
+* Images load quickly
+* Drafts remain private
+* Published content is publicly visible
+* Scheduled releases publish correctly
+* Deleted content can be restored
+* Database backups work
+
+---
+
+# Version 1 success standard
+
+LanternPaper Version 1 is ready when a creator can complete this full process:
+
+```text
+Register
+→ Create a novel or comic
+→ Add chapters or episodes
+→ Save drafts
+→ Preview content
+→ Publish or schedule
+→ Receive readers
+→ Receive follows, likes and comments
+→ View basic performance
+```
+
+A reader must be able to:
+
+```text
+Discover a work
+→ Open its details
+→ Start reading
+→ Save progress
+→ Follow the work
+→ Add it to the library
+→ Like and comment
+→ Return and continue reading
+```
+
+The Version 1 priority is not the number of features.
+
+The priority is making creation, publishing and reading reliable.

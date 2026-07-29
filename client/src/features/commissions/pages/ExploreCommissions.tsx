@@ -59,6 +59,8 @@ const statusClass: Record<CommissionService['status'], string> = {
     paused: 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300',
 }
 
+const PROFILE_LINK_FIELDS = new Set(['discord', 'twitter', 'instagram', 'facebook', 'tiktok'])
+
 const defaultCommissionWidgets: PageWidget[] = [
     {
         id: 'default-commission-featured-hero',
@@ -252,6 +254,7 @@ function CommissionDialog({
                 throw new Error('Please complete the required fields.')
             }
             const nextErrors: Record<string, string> = {}
+            const savedClientDetails = user ? profileClientDetails(user) : {}
             for (const question of commission.request_questions ?? []) {
                 const key = question.id || question.title
                 if (question.required && !requestAnswers[key]?.trim()) {
@@ -260,6 +263,17 @@ function CommissionDialog({
                 }
             }
             for (const [field, config] of Object.entries(commission.client_fields ?? {})) {
+                if (
+                    config.collect &&
+                    config.required &&
+                    PROFILE_LINK_FIELDS.has(field) &&
+                    !savedClientDetails[field]?.trim()
+                ) {
+                    nextErrors[`client_${field}`] =
+                        `Please add your ${clientFieldLabel(field)} in Profile Settings before requesting this commission.`
+                    continue
+                }
+
                 if (config.collect && config.required && !clientDetails[field]?.trim()) {
                     nextErrors[`client_${field}`] =
                         `Please provide your ${clientFieldLabel(field).toLowerCase()}.`
@@ -968,7 +982,7 @@ function profileClientDetails(user: User): Record<string, string> {
         discord: user.discord_url ?? '',
         twitter: user.twitter_url ?? '',
         instagram: user.instagram_url ?? '',
-        facebook: '',
+        facebook: user.facebook_url ?? '',
         tiktok: user.tiktok_url ?? '',
     }
 }

@@ -317,10 +317,10 @@ function ShopProductCard({
                 w-full
                 overflow-hidden
                 rounded-[36px]
-                bg-white
+                bg-card
                 p-3
                 text-left
-                text-[#111111]
+                text-foreground
                 shadow-[0_14px_32px_rgba(15,23,42,0.16)]
                 transition
                 duration-300
@@ -331,7 +331,7 @@ function ShopProductCard({
                 focus-visible:ring-orange-400/35
             "
         >
-            <div className="relative aspect-[9/8] overflow-hidden rounded-[26px] bg-[#f2f2f2]">
+            <div className="relative aspect-[9/8] overflow-hidden rounded-[26px] bg-muted">
                 {item.image_path ? (
                     <img
                         src={storageUrl(item.image_path)!}
@@ -361,7 +361,7 @@ function ShopProductCard({
                                 h-9
                                 items-center
                                 rounded-full
-                                bg-white
+                                bg-background
                                 px-3.5
                                 text-[13px]
                                 font-medium
@@ -440,18 +440,18 @@ function ShopProductCard({
                     </div>
                 </div>
 
-                <h3 className="mt-3 truncate text-[16px] font-medium text-[#7a7a7a]">
+                <h3 className="mt-3 truncate text-[16px] font-medium text-muted-foreground">
                     {item.title}
                 </h3>
 
                 <div className="mt-2.5 flex min-w-0 items-center gap-2 whitespace-nowrap text-[15px]">
-                    <span className="shrink-0 font-semibold text-[#111111]">{price}</span>
+                    <span className="shrink-0 font-semibold text-foreground">{price}</span>
 
-                    <span className="min-w-0 truncate text-[#858585]">
+                    <span className="min-w-0 truncate text-muted-foreground">
                         {soldCount.toLocaleString()} sold
                     </span>
 
-                    <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[#747474]">
+                    <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-muted-foreground">
                         <Star className="h-[21px] w-[21px] fill-[#ff9000] text-[#ff9000]" />
                         {rating}
                     </span>
@@ -793,7 +793,7 @@ function ShopSection({
     children,
 }: {
     title: string
-    description: string
+    description?: string
     empty: string
     loading: boolean
     count: number
@@ -804,7 +804,9 @@ function ShopSection({
             <div className="mb-4 flex items-end justify-between gap-3">
                 <div>
                     <h2 className="text-xl font-bold">{title}</h2>
-                    <p className="text-sm text-muted-foreground">{description}</p>
+                    {description ? (
+                        <p className="text-sm text-muted-foreground">{description}</p>
+                    ) : null}
                 </div>
                 <Download className="h-5 w-5 text-muted-foreground" />
             </div>

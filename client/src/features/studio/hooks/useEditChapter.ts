@@ -52,6 +52,7 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
     const [form, setForm] = useState({
         title: '',
         content: '',
+        artist_note: '',
         status: 'draft' as 'draft' | 'scheduled' | 'published',
         scheduled_at: '',
         lock_type: 'free' as 'free' | 'early_access' | 'premium',
@@ -62,6 +63,9 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
     const [cover, setCover] = useState<File | null>(null)
     const [coverPreview, setCoverPreview] = useState<string | null>(null)
     const [imageItems, setImageItems] = useState<ImageItem[]>([])
+    const [revisions, setRevisions] = useState<
+        Array<{ id: string; source: string; title: string | null; word_count: number; created_at: string }>
+    >([])
     const [loading, setLoading] = useState(false)
     const [fetching, setFetching] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -77,6 +81,7 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
             setForm({
                 title: chapter.title ?? '',
                 content: chapter.content ?? '',
+                artist_note: chapter.artist_note ?? '',
                 status: chapter.status ?? 'draft',
                 scheduled_at: chapter.scheduled_at
                     ? new Date(chapter.scheduled_at).toISOString().slice(0, 16)
@@ -95,11 +100,19 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
                     }))
                 )
             }
+            fetchRevisions()
         } catch {
             setError('Failed to load chapter.')
         } finally {
             setFetching(false)
         }
+    }
+
+    const fetchRevisions = async () => {
+        // revision history ----
+        if (!workSlug || !chapterSlug) return
+        const res = await studioApi.getChapterRevisions(workSlug, chapterSlug)
+        setRevisions(res.data.data ?? [])
     }
 
     const handleChange = (
@@ -110,6 +123,34 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
             ...prev,
             [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
         }))
+    }
+
+    const handleContentChange = (value: string) => {
+        // novel editor content ----
+        setForm((prev) => ({ ...prev, content: value }))
+    }
+
+    const handleContentAutosave = async (value: string) => {
+        // server autosave ----
+        if (!workSlug || !chapterSlug || workType !== 'wattpad') return
+        await studioApi.autosaveChapter(workSlug, chapterSlug, {
+            title: form.title,
+            content: value,
+        })
+        await fetchRevisions()
+    }
+
+    const restoreRevision = async (revisionId: string) => {
+        // restore revision ----
+        if (!workSlug || !chapterSlug) return
+        const res = await studioApi.restoreChapterRevision(workSlug, chapterSlug, revisionId)
+        setForm((prev) => ({
+            ...prev,
+            title: res.data.title ?? prev.title,
+            content: res.data.content ?? '',
+            artist_note: res.data.artist_note ?? prev.artist_note,
+        }))
+        await fetchRevisions()
     }
 
     const handleLockTypeChange = (value: 'free' | 'early_access' | 'premium') => {
@@ -172,6 +213,7 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
             formData.append('_method', 'PUT')
             formData.append('title', form.title)
             formData.append('content', form.content)
+            formData.append('artist_note', form.artist_note)
             formData.append('status', form.status)
             formData.append('lock_type', form.lock_type)
             formData.append(
@@ -220,12 +262,16 @@ export function useEditChapter(workType: 'webtoon' | 'wattpad') {
         form,
         coverPreview,
         imageItems,
+        revisions,
         loading,
         fetching,
         error,
         navigate,
         workSlug,
         handleChange,
+        handleContentChange,
+        handleContentAutosave,
+        restoreRevision,
         handleLockTypeChange,
         handleCoverChange,
         handleImagesChange,

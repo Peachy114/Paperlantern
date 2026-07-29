@@ -162,6 +162,16 @@ class FeedController extends Controller
                 'followee_id' => $target->id,
             ]);
             $following = true;
+
+            // follower notification ----
+            app(\App\Services\AppNotificationService::class)->notify(
+                $target,
+                'new_follower',
+                'New follower',
+                "{$request->user()->name} followed you.",
+                "/artists/{$target->username}",
+                ['follower_id' => $request->user()->id]
+            );
         }
 
         return response()->json([

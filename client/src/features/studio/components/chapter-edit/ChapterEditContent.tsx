@@ -1,28 +1,41 @@
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import NovelRichTextEditor from '@/features/studio/components/novel-editor/NovelRichTextEditor'
+
+interface RevisionItem {
+    id: string
+    source: string
+    title: string | null
+    word_count: number
+    created_at: string
+}
 
 interface ChapterEditContentProps {
     content: string
-    onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void
+    editorKey: string
+    revisions?: RevisionItem[]
+    onChange: (value: string) => void
+    onSave?: () => void
+    onAutosave?: (value: string) => Promise<void>
+    onRestoreRevision?: (revisionId: string) => void
 }
 
-export function ChapterEditContent({ content, onChange }: ChapterEditContentProps) {
+export function ChapterEditContent({
+    content,
+    editorKey,
+    revisions,
+    onChange,
+    onSave,
+    onAutosave,
+    onRestoreRevision,
+}: ChapterEditContentProps) {
     return (
-        <div className="flex flex-col gap-2">
-            <div className="flex items-baseline justify-between">
-                <Label className="text-sm font-medium">Story content</Label>
-                <span className="text-xs text-muted-foreground">
-                    {content.length.toLocaleString()} chars
-                </span>
-            </div>
-            <Textarea
-                name="content"
-                value={content}
-                onChange={onChange}
-                rows={20}
-                placeholder="Write your story here…"
-                className="resize-none leading-relaxed text-sm font-[Georgia,serif] placeholder:font-sans"
-            />
-        </div>
+        <NovelRichTextEditor
+            value={content}
+            editorKey={editorKey}
+            revisions={revisions}
+            onChange={onChange}
+            onSave={onSave}
+            onAutosave={onAutosave}
+            onRestoreRevision={onRestoreRevision}
+        />
     )
 }

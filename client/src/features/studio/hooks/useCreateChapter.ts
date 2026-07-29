@@ -86,6 +86,12 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
         clearFieldError(name)
     }
 
+    const handleContentChange = (value: string) => {
+        // novel editor content ----
+        setForm((prev) => ({ ...prev, content: value }))
+        clearFieldError('content')
+    }
+
     const handleLockTypeChange = (value: 'free' | 'early_access' | 'premium') => {
         setForm((prev) => ({
             ...prev,
@@ -206,6 +212,7 @@ export function useCreateChapter(workType: 'webtoon' | 'wattpad') {
         navigate,
         workSlug,
         handleChange,
+        handleContentChange,
         handleLockTypeChange,
         handleCoverChange,
         handleImagesChange,

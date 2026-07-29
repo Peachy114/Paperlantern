@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { studioApi } from '@/api/studio'
@@ -7,6 +7,8 @@ import { useEditChapter } from '@/features/studio/hooks/useEditChapter'
 import { AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 
 import { ChapterEditHeader } from './ChapterEditHeader'
 import { ChapterEditStatus } from './ChapterEditStatus'
@@ -41,16 +43,21 @@ export default function ChapterEdit() {
 }
 
 function ChapterEditForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
+    const formRef = useRef<HTMLFormElement>(null)
     const {
         form,
         coverPreview,
         imageItems,
+        revisions,
         loading,
         fetching,
         error,
         navigate,
         workSlug,
         handleChange,
+        handleContentChange,
+        handleContentAutosave,
+        restoreRevision,
         handleLockTypeChange,
         handleCoverChange,
         handleImagesChange,
@@ -62,7 +69,7 @@ function ChapterEditForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
     if (fetching) return <LoadingState />
 
     return (
-        <form onSubmit={handleSubmit} className="max-w-6xl mx-auto px-6 py-10">
+        <form ref={formRef} onSubmit={handleSubmit} className="max-w-6xl mx-auto px-6 py-10">
             {/* HEADER + BUTTON */}
             <div className="flex flex-col sm:flex-row sm:items-start w-full justify-between gap-4 py-5">
                 <ChapterEditHeader
@@ -115,7 +122,15 @@ function ChapterEditForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
                     </div>
 
                     {workType === 'wattpad' && (
-                        <ChapterEditContent content={form.content} onChange={handleChange} />
+                        <ChapterEditContent
+                            content={form.content}
+                            editorKey={`edit:${workSlug ?? ''}`}
+                            revisions={revisions}
+                            onChange={handleContentChange}
+                            onSave={() => formRef.current?.requestSubmit()}
+                            onAutosave={handleContentAutosave}
+                            onRestoreRevision={restoreRevision}
+                        />
                     )}
 
                     {workType === 'webtoon' && (
@@ -126,6 +141,19 @@ function ChapterEditForm({ workType }: { workType: 'webtoon' | 'wattpad' }) {
                             onReorderImages={reorderImages}
                         />
                     )}
+
+                    {/* chapter notes ---- */}
+                    <div className="flex flex-col gap-2">
+                        <Label htmlFor="artist_note">Artist note (optional)</Label>
+                        <Textarea
+                            id="artist_note"
+                            name="artist_note"
+                            value={form.artist_note}
+                            onChange={handleChange}
+                            placeholder="Leave a short note for readers."
+                            className="min-h-28"
+                        />
+                    </div>
 
                     {/* BUTTONS */}
                     <div className="hidden lg:flex justify-end items-center gap-2 sm:pt-2 shrink-0">

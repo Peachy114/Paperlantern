@@ -17,27 +17,13 @@ class AuthService
 
     public function register(array $data): array
     {
-        $user  = $this->repo->create($data);
-        $token = $this->repo->createToken($user);
-
-        $this->notificationEmails()->send($user, 'Welcome to LaterNComix', [
-            "Hi {$user->name},",
-            '',
-            'Your account has been created successfully.',
-            "Account type: {$user->role}",
-        ]);
-
-        $this->notificationEmails()->sendToAdmins('New LaterNComix account created', [
-            "Name: {$user->name}",
-            "Username: {$user->username}",
-            "Role: {$user->role}",
-            "Email: {$user->email}",
-        ]);
+        $user = $this->repo->create($data);
+        $this->sendEmailVerificationCode($user);
 
         return [
-            'message' => 'Registration successful.',
-            'user'    => $this->formatUser($user),
-            'token'   => $token,
+            'message' => 'Account created. Please enter the verification code sent to your email.',
+            'email' => $user->email,
+            'requires_email_verification' => true,
         ];
     }
 
@@ -54,6 +40,14 @@ class AuthService
         if ($user->is_banned) {
             throw ValidationException::withMessages([
                 'login' => ['Your account has been banned.'],
+            ]);
+        }
+
+        if (! $user->email_verified_at) {
+            $this->sendEmailVerificationCode($user);
+
+            throw ValidationException::withMessages([
+                'login' => ['Please verify your email first. A new verification code was sent to your email.'],
             ]);
         }
 
@@ -78,17 +72,93 @@ class AuthService
         $this->repo->deleteAllTokens($user);
     }
 
+    public function verifyEmailCode(string $email, string $code): array
+    {
+        $user = $this->repo->findByEmail($email);
+
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'email' => ['We could not find an account for this email.'],
+            ]);
+        }
+
+        if ($user->email_verified_at) {
+            $token = $this->repo->createToken($user);
+
+            return [
+                'message' => 'Email already verified.',
+                'user' => $this->formatUser($user),
+                'token' => $token,
+            ];
+        }
+
+        if (
+            ! $user->email_verification_code
+            || ! $user->email_verification_expires_at
+            || now()->greaterThan($user->email_verification_expires_at)
+            || ! Hash::check($code, $user->email_verification_code)
+        ) {
+            throw ValidationException::withMessages([
+                'code' => ['The verification code is invalid or expired.'],
+            ]);
+        }
+
+        $user->forceFill([
+            'email_verified_at' => now(),
+            'email_verification_code' => null,
+            'email_verification_expires_at' => null,
+        ])->save();
+
+        // welcome notification ----
+        app(AppNotificationService::class)->welcome($user);
+
+        $this->notificationEmails()->sendToAdmins('New verified LaterNComix account created', [
+            "Name: {$user->name}",
+            "Username: {$user->username}",
+            "Role: {$user->role}",
+            "Email: {$user->email}",
+        ]);
+
+        return [
+            'message' => 'Email verified. Welcome to LaternComix.',
+            'user' => $this->formatUser($user->fresh()),
+            'token' => $this->repo->createToken($user),
+        ];
+    }
+
+    public function resendEmailVerificationCode(string $email): array
+    {
+        $user = $this->repo->findByEmail($email);
+
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'email' => ['We could not find an account for this email.'],
+            ]);
+        }
+
+        if ($user->email_verified_at) {
+            return ['message' => 'This email is already verified.'];
+        }
+
+        $this->sendEmailVerificationCode($user);
+
+        return ['message' => 'A new verification code was sent to your email.'];
+    }
+
     //CREATOR
     public function becomeCreator(User $user): array
     {
         $updated = $this->repo->becomeCreator($user);
         $subscriptionNotice = $this->syncSubscriptionForCreatorRole($updated);
 
-        $this->notificationEmails()->send($updated, 'Creator access enabled', [
-            "Hi {$updated->name},",
-            '',
+        // creator upgrade notification ----
+        app(AppNotificationService::class)->notify(
+            $updated,
+            'creator_announcement',
+            'Creator access enabled',
             'Your account now has artist tools enabled.',
-        ]);
+            '/studio'
+        );
 
         $this->notificationEmails()->sendToAdmins('A wanderer became an artist', [
             "Name: {$updated->name}",
@@ -105,6 +175,24 @@ class AuthService
     private function notificationEmails(): NotificationEmailService
     {
         return app(NotificationEmailService::class);
+    }
+
+    private function sendEmailVerificationCode(User $user): void
+    {
+        $code = (string) random_int(100000, 999999);
+
+        $user->forceFill([
+            'email_verification_code' => Hash::make($code),
+            'email_verification_expires_at' => now()->addMinutes(15),
+        ])->save();
+
+        $this->notificationEmails()->send($user, 'Verify your LaternComix email', [
+            "Your verification code is {$code}.",
+            'This code expires in 15 minutes.',
+            'If you did not create this account, you can ignore this email.',
+        ], 'email-verification', [
+            'verificationCode' => $code,
+        ]);
     }
 
     private function syncSubscriptionForCreatorRole(User $user): ?string
@@ -166,6 +254,8 @@ class AuthService
             'nickname'  => $user->nickname,
             'username'  => $user->username,
             'email'     => $user->email,
+            'email_verified_at' => $user->email_verified_at?->toIso8601String(),
+            'email_verified' => (bool) $user->email_verified_at,
             'role'      => $user->role,
             'is_banned' => $user->is_banned,
             'is_suspended' => (bool) ($user->is_suspended ?? false),
@@ -211,6 +301,7 @@ class AuthService
             'twitter_url'   => $user->twitter_url,
             'discord_url'   => $user->discord_url,
             'instagram_url' => $user->instagram_url,
+            'facebook_url'  => $user->facebook_url,
             'tiktok_url'    => $user->tiktok_url,
         ];
     }
@@ -227,6 +318,14 @@ class AuthService
                 'password' => bcrypt(\Illuminate\Support\Str::random(32)),
                 'role'     => 'wanderer',
             ]);
+        }
+
+        if (! $user->email_verified_at) {
+            $user->forceFill([
+                'email_verified_at' => now(),
+                'email_verification_code' => null,
+                'email_verification_expires_at' => null,
+            ])->save();
         }
 
         if ($user->is_banned) {

@@ -7,6 +7,8 @@ export interface User {
     nickname?: string | null
     username: string
     email: string
+    email_verified_at?: string | null
+    email_verified?: boolean
     role: 'super_admin' | 'storyteller' | 'wanderer'
     is_banned: boolean
     is_suspended?: boolean
@@ -45,6 +47,7 @@ export interface User {
     twitter_url?: string | null
     discord_url?: string | null
     instagram_url?: string | null
+    facebook_url?: string | null
     tiktok_url?: string | null
 }
 

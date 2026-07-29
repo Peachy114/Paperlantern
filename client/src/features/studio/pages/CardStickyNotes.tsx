@@ -57,8 +57,8 @@ export default function CardStickyNotes() {
 
     return (
         <>
-            <div className="h-full min-h-[520px] overflow-hidden rounded-2xl border border-slate-200 bg-background shadow-sm">
-                <div className="flex items-center justify-between border-b px-4 py-3">
+            <div className="h-full min-h-[520px] overflow-hidden rounded-2xl border border-border bg-background shadow-sm">
+                <div className="flex items-center justify-between border-b px-4 py-2">
                     <span className="text-xs font-black uppercase tracking-[0.12em] text-foreground">
                         Notes
                     </span>

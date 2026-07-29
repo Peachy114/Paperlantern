@@ -106,6 +106,9 @@ class CommentService
             return $comment;
         });
 
+        // comment notifications ----
+        $this->notifyCommentActivity($user, $target, $parent, $comment);
+
         return $this->format($comment->load(['user:id,name,username,avatar,role,artist_verified', 'sticker:id,user_id,name,image_path', 'parent.user:id,name,username']));
     }
 
@@ -252,6 +255,61 @@ class CommentService
 
         return $user->purchasedArtistStickers()->where('artist_stickers.id', $sticker->id)->exists()
             || $user->subscribedArtistStickers()->where('artist_stickers.id', $sticker->id)->exists();
+    }
+
+    private function notifyCommentActivity(User $sender, Model $target, ?Comment $parent, Comment $comment): void
+    {
+        // owner comment notification ----
+        $owner = $this->resolver->owner($target);
+        $targetTitle = method_exists($target, 'getAttribute')
+            ? ($target->getAttribute('title') ?? class_basename($target))
+            : class_basename($target);
+
+        if ($owner && $owner->id !== $sender->id) {
+            app(AppNotificationService::class)->notify(
+                $owner,
+                'new_comment',
+                'New comment on your content',
+                "{$sender->name} commented on {$targetTitle}.",
+                $this->targetUrl($target),
+                ['comment_id' => $comment->id, 'target_type' => $target::class, 'target_id' => $target->getKey()]
+            );
+        }
+
+        // reply notification ----
+        if ($parent?->user && $parent->user_id !== $sender->id) {
+            app(AppNotificationService::class)->notify(
+                $parent->user,
+                'comment_reply',
+                'Someone replied to your comment',
+                "{$sender->name} replied to your comment.",
+                $this->targetUrl($target),
+                ['comment_id' => $comment->id, 'parent_id' => $parent->id]
+            );
+        }
+    }
+
+    private function targetUrl(Model $target): ?string
+    {
+        // notification target URL ----
+        if ($target instanceof \App\Models\Work) {
+            return "/works/{$target->slug}";
+        }
+
+        if ($target instanceof \App\Models\Chapter) {
+            $target->loadMissing('work:id,slug');
+            return $target->work ? "/works/{$target->work->slug}/chapters/{$target->slug}" : null;
+        }
+
+        if ($target instanceof \App\Models\Art) {
+            return '/explore/arts';
+        }
+
+        if ($target instanceof FeedPost) {
+            return '/feeds';
+        }
+
+        return null;
     }
 
     private function assertCanUseSticker(User $user, string $stickerId): ArtistSticker
