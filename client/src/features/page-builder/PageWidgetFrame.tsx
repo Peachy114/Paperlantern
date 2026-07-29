@@ -43,10 +43,32 @@ export function fontFamilyFromUrl(url?: string) {
     return decodeURIComponent(match[1].replace(/\+/g, ' '))
 }
 
+function inlineCss(value?: string): CSSProperties {
+    if (!value?.trim()) return {}
+
+    return value
+        .split(';')
+        .map((rule) => rule.trim())
+        .filter(Boolean)
+        .reduce<CSSProperties>((styles, rule) => {
+            const [property, ...rest] = rule.split(':')
+            const cssValue = rest.join(':').trim()
+            const cssProperty = property
+                ?.trim()
+                .replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase())
+
+            if (cssProperty && cssValue) {
+                ;(styles as Record<string, string>)[cssProperty] = cssValue
+            }
+
+            return styles
+        }, {})
+}
+
 export function widgetStyle(widget: PageWidget): CSSProperties {
     const style = widget.style ?? {}
     const stickerOverlay = widget.type === 'sticker' && Boolean(widget.settings?.allow_overlap)
-    const customContent = ['text', 'image', 'spacer'].includes(widget.type)
+    const customContent = ['text', 'image', 'banner', 'spacer'].includes(widget.type)
     const customOverlay = customContent && Boolean(widget.settings?.allow_overlap)
     const overlay = stickerOverlay || customOverlay
     const hasResponsiveOverlayX = overlay && Number.isFinite(style.offset_x_percent)
@@ -141,7 +163,7 @@ export function widgetStyle(widget: PageWidget): CSSProperties {
 
 export function isPageOverlayWidget(widget: PageWidget) {
     return (
-        ['sticker', 'text', 'image', 'spacer'].includes(widget.type) &&
+        ['sticker', 'text', 'image', 'banner', 'spacer'].includes(widget.type) &&
         Boolean(widget.settings?.allow_overlap)
     )
 }
@@ -235,6 +257,104 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
                         borderRadius: `${widget.style?.radius ?? 0}px`,
                     }}
                 />
+            </section>
+        )
+    }
+
+    if (widget.type === 'banner') {
+        const fontUrl = widget.settings.font_url?.trim()
+        const fontFamily = widget.style.font_family || fontFamilyFromUrl(fontUrl)
+        const text = widget.settings.text?.trim()
+        const height = widget.style?.content_height
+        const imageMode = widget.settings.banner_image_mode ?? 'side'
+        const imageFit = widget.settings.banner_image_fit ?? 'cover'
+        const imagePosition = widget.settings.banner_image_position ?? 'center'
+        const layoutMode = widget.settings.banner_layout_mode ?? 'grid'
+        const imageWidth = widget.settings.banner_image_width ?? 42
+        const vertical = widget.settings.layout === 'vertical'
+        const sideImage = imageMode === 'side' && Boolean(src)
+        const backgroundImage = imageMode === 'background' && src
+        const gridTemplateColumns = sideImage && !vertical
+            ? `minmax(180px, ${imageWidth}%) minmax(0, 1fr)`
+            : undefined
+
+        return (
+            <section className="w-full py-6">
+                {fontUrl && /^https?:\/\//i.test(fontUrl) && (
+                    <style>{`@import url('${fontUrl.replace(/'/g, '%27')}');`}</style>
+                )}
+                <div
+                    className="mx-auto overflow-hidden rounded-xl"
+                    style={{
+                        minHeight: height ? `${height}px` : '220px',
+                        backgroundColor: widget.style?.transparent
+                            ? 'transparent'
+                            : cssColor(widget.style?.background) ?? 'var(--muted, #f4f4f5)',
+                        backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
+                        backgroundSize: backgroundImage ? imageFit : undefined,
+                        backgroundPosition: backgroundImage ? imagePosition : undefined,
+                        backgroundRepeat: backgroundImage ? 'no-repeat' : undefined,
+                        border: widget.style?.border
+                            ? `1px solid ${cssColor(widget.style?.border_color) ?? 'var(--border, #d4d4d8)'}`
+                            : undefined,
+                        borderRadius: `${widget.style?.radius ?? 12}px`,
+                        display: layoutMode,
+                        gridTemplateColumns,
+                        alignItems: 'stretch',
+                        ...inlineCss(widget.settings.custom_css),
+                    }}
+                >
+                    {sideImage ? (
+                        <div
+                            className="min-h-44 overflow-hidden"
+                            style={{
+                                flex: layoutMode === 'flex' && !vertical ? `0 0 ${imageWidth}%` : undefined,
+                            }}
+                        >
+                            <img
+                                src={src ?? ''}
+                                alt={widget.title}
+                                className="h-full w-full"
+                                draggable={false}
+                                style={{
+                                    objectFit: imageFit,
+                                    objectPosition: imagePosition,
+                                    ...inlineCss(widget.settings.image_css),
+                                }}
+                            />
+                        </div>
+                    ) : null}
+                    <div
+                        className="flex min-w-0 flex-col justify-center gap-3 p-6"
+                        style={inlineCss(widget.settings.text_css)}
+                    >
+                        {widget.title ? (
+                            <h2
+                                className="text-2xl font-bold leading-tight"
+                                style={{
+                                    color: cssColor(widget.style?.text_color),
+                                    fontFamily,
+                                    textAlign: widget.style?.text_align ?? 'start',
+                                }}
+                            >
+                                {widget.title}
+                            </h2>
+                        ) : null}
+                        {text ? (
+                            <p
+                                className="whitespace-pre-line leading-6"
+                                style={{
+                                    color: cssColor(widget.style?.text_color),
+                                    fontFamily,
+                                    fontSize: `${widget.style?.font_size ?? 14}px`,
+                                    textAlign: widget.style?.text_align ?? 'start',
+                                }}
+                            >
+                                {text}
+                            </p>
+                        ) : null}
+                    </div>
+                </div>
             </section>
         )
     }

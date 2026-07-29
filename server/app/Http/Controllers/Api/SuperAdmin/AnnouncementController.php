@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 
 class AnnouncementController extends Controller
 {
+    private const PAGE_TARGETS = 'home,comix,novels,arts,commissions,shop,daily,rankings,genre,my_studio,my_arts,my_commission,my_shop';
+
     public function __construct(private AnnouncementService $service) {}
 
     // GET /api/admin/announcements
@@ -28,7 +30,7 @@ class AnnouncementController extends Controller
             'is_event' => ['boolean'],
             'audience' => ['required', 'in:public,artist,studio'],
             'page_targets' => ['nullable', 'array'],
-            'page_targets.*' => ['string', 'in:home,comix,novels,arts,commissions,shop,daily,rankings,genre'],
+            'page_targets.*' => ['string', 'in:' . self::PAGE_TARGETS],
             'placement' => ['nullable', 'in:banner,hero,both'],
             'is_public' => ['boolean'],
             'image'    => ['nullable', 'image', 'max:2048'],
@@ -55,7 +57,7 @@ class AnnouncementController extends Controller
             'is_event' => ['boolean'],
             'audience' => ['sometimes', 'in:public,artist,studio'],
             'page_targets' => ['nullable', 'array'],
-            'page_targets.*' => ['string', 'in:home,comix,novels,arts,commissions,shop,daily,rankings,genre'],
+            'page_targets.*' => ['string', 'in:' . self::PAGE_TARGETS],
             'placement' => ['nullable', 'in:banner,hero,both'],
             'is_public' => ['boolean'],
             'image'    => ['nullable', 'image', 'max:2048'],

@@ -272,13 +272,11 @@ class PublicCommissionController extends Controller
         }
 
         return [
-            ['type' => 'request', 'label' => 'Client request'],
-            ['type' => 'quote', 'label' => 'Artist quote'],
             ['type' => 'pay', 'label' => 'Pay 50%', 'percent' => 50],
-            ['type' => 'process', 'label' => 'Sketch'],
-            ['type' => 'process', 'label' => 'Revision'],
+            ['type' => 'sketch', 'label' => 'Sketch', 'rounds' => 2],
+            ['type' => 'revision', 'label' => 'Revision', 'rounds' => 1],
             ['type' => 'pay', 'label' => 'Pay 50%', 'percent' => 50],
-            ['type' => 'receipt', 'label' => 'Delivery and receipt'],
+            ['type' => 'done', 'label' => 'Delivery and receipt'],
         ];
     }
 

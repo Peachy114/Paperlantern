@@ -700,6 +700,7 @@ function ShopDashboardHero({
                         <WorkspaceBannerPicker
                             audience="studio"
                             storageKey="workspace-banner-my-shop"
+                            pageTarget="my_shop"
                             fallbackImage={featuredImage}
                             onImageChange={onWorkspaceBannerChange}
                         />

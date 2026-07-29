@@ -8,11 +8,18 @@ import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
 import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
 import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
 import ShopCardWidget from '@/features/page-builder/ShopCardWidget'
+import StickerShopWidget from '@/features/page-builder/StickerShopWidget'
 import LabelRailWidget from '@/features/page-builder/LabelRailWidget'
 import TabCardsWidget from '@/features/page-builder/TabCardsWidget'
 import EpisodesWidget from '@/features/page-builder/EpisodesWidget'
+import SharedDiscoveryWidget, {
+    isSharedDiscoveryWidget,
+} from '@/features/page-builder/SharedDiscoveryWidget'
 import { CustomPageWidget, PageWidgetFrame } from '@/features/page-builder/PageWidgetFrame'
-import { gridContinuationOffset, labelContinuationOffset } from '@/features/page-builder/continuation'
+import {
+    gridContinuationOffset,
+    labelContinuationOffset,
+} from '@/features/page-builder/continuation'
 import type { ChapterItem, WorkItem } from '@/features/work/hooks/useHome'
 import type { PageWidget } from '@/types/pageLayout'
 
@@ -50,17 +57,16 @@ export function DiscoveryPageWidgets({
 
     return (
         <Suspense fallback={null}>
-            {enabledWidgets
-                .map((widget) => (
-                    <DiscoveryWidget
-                        key={widget.id}
-                        widget={widget}
-                        data={data}
-                        contentFilter={contentFilter}
-                        widgets={enabledWidgets}
-                        labels={labelItems}
-                    />
-                ))}
+            {enabledWidgets.map((widget) => (
+                <DiscoveryWidget
+                    key={widget.id}
+                    widget={widget}
+                    data={data}
+                    contentFilter={contentFilter}
+                    widgets={enabledWidgets}
+                    labels={labelItems}
+                />
+            ))}
         </Suspense>
     )
 }
@@ -85,7 +91,7 @@ function DiscoveryWidget({
               ? 'wattpad'
               : widget.settings.filter_cards_data === 'arts'
                 ? 'art'
-                : widget.settings.filter ?? 'all')
+                : (widget.settings.filter ?? 'all'))
     const byType = (works: WorkItem[]) =>
         works
             .filter((work) => work.type !== 'commission')
@@ -206,7 +212,10 @@ function DiscoveryWidget({
         return (
             <PageWidgetFrame widget={widget}>
                 <WeeklyChartSection
-                    weeklyChart={filteredWorks(data.weeklyChart).slice(gridOffset, gridOffset + limit)}
+                    weeklyChart={filteredWorks(data.weeklyChart).slice(
+                        gridOffset,
+                        gridOffset + limit
+                    )}
                     cover={data.cover}
                 />
             </PageWidgetFrame>
@@ -217,7 +226,10 @@ function DiscoveryWidget({
         return (
             <PageWidgetFrame widget={widget}>
                 <FreshReleasesSection
-                    freshReleases={filteredWorks(data.freshReleases).slice(gridOffset, gridOffset + limit)}
+                    freshReleases={filteredWorks(data.freshReleases).slice(
+                        gridOffset,
+                        gridOffset + limit
+                    )}
                     cover={data.cover}
                 />
             </PageWidgetFrame>
@@ -228,7 +240,7 @@ function DiscoveryWidget({
         return (
             <PageWidgetFrame widget={widget}>
                 <LatestChaptersSection
-                    latestChapters={data.latestChapters.slice(0, limit)}
+                    latestChapters={filterChapters(data.latestChapters, widget).slice(0, limit)}
                     cover={data.cover}
                 />
             </PageWidgetFrame>
@@ -275,7 +287,12 @@ function DiscoveryWidget({
         )
     }
 
-    if (widget.type === 'popular' || widget.type === 'grid_image' || widget.type === 'grid_con' || widget.type === 'cards') {
+    if (
+        widget.type === 'popular' ||
+        widget.type === 'grid_image' ||
+        widget.type === 'grid_con' ||
+        widget.type === 'cards'
+    ) {
         return (
             <PageWidgetFrame widget={widget}>
                 <DiscoveryWorkGrid
@@ -297,6 +314,14 @@ function DiscoveryWidget({
         )
     }
 
+    if (widget.type === 'sticker_shop') {
+        return (
+            <PageWidgetFrame widget={widget}>
+                <StickerShopWidget widget={widget} />
+            </PageWidgetFrame>
+        )
+    }
+
     if (widget.type === 'top_liker') {
         return (
             <PageWidgetFrame widget={widget}>
@@ -309,6 +334,14 @@ function DiscoveryWidget({
                     columns={widget.settings.columns}
                     infoLayout={widget.settings.info_layout ?? 'image_title_description'}
                 />
+            </PageWidgetFrame>
+        )
+    }
+
+    if (isSharedDiscoveryWidget(widget.type)) {
+        return (
+            <PageWidgetFrame widget={widget}>
+                <SharedDiscoveryWidget widget={filteredWidget} widgets={widgets} />
             </PageWidgetFrame>
         )
     }
@@ -371,14 +404,14 @@ function sourceFilteredWorks(works: WorkItem[], widget: PageWidget) {
         if (source === 'comix') return work.type === 'webtoon'
         if (source === 'novels') return work.type === 'wattpad'
         if (source === 'arts') return work.type === 'art'
-        if (source === 'shop' || source === 'commissions' || source === 'announcements') return false
+        if (source === 'shop' || source === 'commissions' || source === 'announcements')
+            return false
         return work.type !== 'commission'
     })
 }
 
 function applyWidgetFilters(works: WorkItem[], widget: PageWidget) {
     const settings = widget.settings ?? {}
-    const dailyDate = settings.daily_date
     const multiSource = settings.label_filter_source ?? 'none'
     const multiValues = (settings.label_filter_values ?? [])
         .map((value) => value.toLowerCase())
@@ -387,7 +420,7 @@ function applyWidgetFilters(works: WorkItem[], widget: PageWidget) {
     const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
 
     const filtered = works.filter((work) => {
-        if (dailyDate && !isSameDate(work.created_at, dailyDate)) return false
+        if (!matchesDateWindow(work.created_at, widget)) return false
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
             if (source === 'status') return String(work.status ?? '').toLowerCase() === value
@@ -401,12 +434,46 @@ function applyWidgetFilters(works: WorkItem[], widget: PageWidget) {
             multiSource === 'none' || multiValues.length === 0
                 ? true
                 : multiValues.some((value) => matches(multiSource, value))
-        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+        const badgeOk =
+            badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
 
         return multiOk && badgeOk
     })
 
     return sortWidgetWorks(filtered, widget)
+}
+
+function matchesDateWindow(value: string | undefined, widget: PageWidget) {
+    const mode = widget.settings.date_mode ?? 'all'
+    const dateValue = widget.settings.date_value || widget.settings.daily_date
+    if (mode === 'all' || !value) return true
+
+    const date = new Date(value)
+    const base = dateValue ? new Date(dateValue) : new Date()
+    if (Number.isNaN(date.getTime()) || Number.isNaN(base.getTime())) return true
+
+    if (mode === 'daily') return date.toISOString().slice(0, 10) === base.toISOString().slice(0, 10)
+    if (mode === 'weekly')
+        return Math.abs(date.getTime() - base.getTime()) <= 7 * 24 * 60 * 60 * 1000
+    if (mode === 'monthly') {
+        return (
+            date.getUTCFullYear() === base.getUTCFullYear() &&
+            date.getUTCMonth() === base.getUTCMonth()
+        )
+    }
+
+    return true
+}
+
+function filterChapters(chapters: ChapterItem[], widget: PageWidget) {
+    const source = widget.settings.filter_cards_data ?? 'mixed'
+
+    return chapters.filter((chapter) => {
+        if (!matchesDateWindow(chapter.created_at, widget)) return false
+        if (source === 'comix') return chapter.work.type === 'webtoon'
+        if (source === 'novels') return chapter.work.type === 'wattpad'
+        return true
+    })
 }
 
 function sortWidgetWorks(works: WorkItem[], widget: PageWidget) {
@@ -432,11 +499,6 @@ function compareWidgetSort(a: WorkItem, b: WorkItem, sort: string) {
         return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
     }
     return 0
-}
-
-function isSameDate(value: string | undefined, date: string) {
-    if (!value || !date) return false
-    return value.slice(0, 10) === date
 }
 
 function labelItemsFromWorks(works: WorkItem[]) {
@@ -472,9 +534,11 @@ function contentFilteredWidget(widget: PageWidget, filter: string): PageWidget {
         settings: {
             ...widget.settings,
             hero_source_arts: filter === 'art',
-            hero_source_works: filter === 'webtoon' || filter === 'wattpad',
+            hero_source_works: filter === 'webtoon',
+            hero_source_novels: filter === 'wattpad',
             hero_source_commissions: filter === 'commission',
             hero_source_announcements: false,
+            hero_source_shop: false,
             group_source_arts: filter === 'art',
             group_source_comix: filter === 'webtoon',
             group_source_novels: filter === 'wattpad',
@@ -501,7 +565,7 @@ function DiscoveryWorkGrid({
     if (works.length === 0) return null
 
     return (
-        <section className="mx-auto mt-10 w-full max-w-[1360px] px-5">
+        <section className="mx-auto mt-10 w-full max-w-[1480px] px-5">
             <h2 className="py-5 text-2xl font-bold uppercase">{title}</h2>
             <div
                 style={
@@ -509,12 +573,12 @@ function DiscoveryWorkGrid({
                         ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }
                         : undefined
                 }
-                className="grid grid-cols-3 items-stretch gap-3 sm:grid-cols-4 sm:gap-4 md:grid-cols-5 lg:grid-cols-6"
+                className="grid grid-cols-2 items-stretch gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5 lg:gap-6"
             >
                 {works.map((work) => (
                     <Link key={work.id} to={hrefFor(work)} className="group block h-full">
                         <article>
-                            <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-muted">
+                            <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-muted">
                                 {cover(work.cover, work.type === 'art' ? undefined : 'sm') ? (
                                     <img
                                         src={
@@ -530,11 +594,11 @@ function DiscoveryWorkGrid({
                             </div>
                             {infoLayout !== 'image_only' && (
                                 <>
-                                    <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-snug">
+                                    <h3 className="mt-2 line-clamp-2 text-base font-semibold leading-snug">
                                         {work.title}
                                     </h3>
                                     {infoLayout === 'image_title_description' && (
-                                        <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                                        <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">
                                             {labelFor(work, metric)}
                                         </p>
                                     )}

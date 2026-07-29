@@ -21,10 +21,11 @@ import type { PageWidget } from '@/types/pageLayout'
 import type { WorkItem } from '@/features/work/hooks/useHome'
 import type { Art } from '@/types/art'
 import type { CommissionService } from '@/types/commission'
+import { SAMPLE_ARTS, SAMPLE_COMMISSIONS } from '@/features/page-builder/samplePageData'
 
 type HeroItem = {
     id: string
-    type: 'work' | 'art' | 'commission' | 'announcement'
+    type: 'work' | 'art' | 'commission' | 'announcement' | 'shop'
     title: string
     artist?: string | null
     image: string | null
@@ -36,18 +37,47 @@ type HeroItem = {
     announcement?: Announcement
 }
 
+type ShopHeroItem = {
+    id: string
+    slug?: string
+    title: string
+    labels?: string[]
+    image_path?: string | null
+    downloads_count?: number
+    likes?: number
+    is_featured?: boolean
+    source_label?: string
+    artist?: {
+        name?: string
+        username?: string
+    } | null
+}
+
 // HERO DESIGNS FOR ANNOUNCEMENTS, ARTS, WORKS, AND COMMISSIONS
 type CarouselDesign = 'default' | 'reference_1' | 'reference_2' | 'reference_3' | 'reference_4'
 
 const AUTO_ROTATE_DELAY = 5_000
 const DRAG_THRESHOLD = 55
 
+function uniqueHeroItems(items: HeroItem[]) {
+    const seen = new Set<string>()
+
+    return items.filter((item) => {
+        const key = `${item.type}-${item.href || item.id}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+    })
+}
+
 export default function FeaturedHeroWidget({
     widget,
     works,
+    preview = false,
 }: {
     widget: PageWidget
     works: WorkItem[]
+    preview?: boolean
 }) {
     const settings = widget.settings ?? {}
 
@@ -55,7 +85,9 @@ export default function FeaturedHeroWidget({
         arts: settings.hero_source_arts ?? true,
         announcements: settings.hero_source_announcements ?? true,
         works: settings.hero_source_works ?? true,
+        novels: settings.hero_source_novels ?? true,
         commissions: settings.hero_source_commissions ?? true,
+        shop: settings.hero_source_shop ?? false,
     }
 
     const limit = settings.limit ?? 10
@@ -80,11 +112,25 @@ export default function FeaturedHeroWidget({
         staleTime: 60_000,
     })
 
+    const shopQuery = useQuery({
+        queryKey: ['featured-hero-shop'],
+        enabled: sources.shop,
+        queryFn: async () => {
+            const res = await publicApi.getShop()
+            return res.data
+        },
+        staleTime: 60_000,
+    })
+
     const items = useMemo(() => {
         const nextItems: HeroItem[] = []
 
-        if (sources.works) {
+        if (sources.works || sources.novels || sources.arts) {
             works.forEach((work) => {
+                if (work.type === 'webtoon' && !sources.works) return
+                if (work.type === 'wattpad' && !sources.novels) return
+                if (work.type === 'art' && !sources.arts) return
+
                 nextItems.push({
                     id: `work-${work.id}`,
                     type: 'work',
@@ -123,7 +169,8 @@ export default function FeaturedHeroWidget({
         }
 
         if (sources.arts) {
-            const arts = (artsQuery.data?.arts?.data ?? []) as Art[]
+            const apiArts = (artsQuery.data?.arts?.data ?? []) as Art[]
+            const arts = apiArts.length || !preview ? apiArts : SAMPLE_ARTS
 
             arts.forEach((art) => {
                 nextItems.push({
@@ -144,8 +191,10 @@ export default function FeaturedHeroWidget({
         }
 
         if (sources.commissions) {
-            const commissions = (commissionsQuery.data?.commissions?.data ??
+            const apiCommissions = (commissionsQuery.data?.commissions?.data ??
                 []) as CommissionService[]
+            const commissions =
+                apiCommissions.length || !preview ? apiCommissions : SAMPLE_COMMISSIONS
 
             commissions.forEach((commission) => {
                 nextItems.push({
@@ -161,11 +210,33 @@ export default function FeaturedHeroWidget({
             })
         }
 
-        const filteredItems = nextItems.filter(
+        if (sources.shop) {
+            const apiShopItems = (shopQuery.data?.downloads?.data ?? []) as ShopHeroItem[]
+            const shopItems =
+                apiShopItems.length || !preview ? apiShopItems : SAMPLE_SHOP_HERO_ITEMS
+
+            shopItems.forEach((item) => {
+                nextItems.push({
+                    id: `shop-${item.id}`,
+                    type: 'shop',
+                    title: item.title,
+                    artist: item.artist?.name ?? item.artist?.username ?? item.source_label,
+                    image: storageUrl(item.image_path ?? null),
+                    href: `/shop?item=${encodeURIComponent(item.slug || item.id)}`,
+                    views: item.downloads_count,
+                    likes: item.likes,
+                    labels: item.labels ?? ['Shop'],
+                    featured: Boolean(item.is_featured),
+                })
+            })
+        }
+
+        const uniqueNextItems = uniqueHeroItems(nextItems)
+        const filteredItems = uniqueNextItems.filter(
             (item) => item.image && (!featuredOnly || item.featured)
         )
 
-        const fallbackItems = nextItems.filter((item) => item.image)
+        const fallbackItems = uniqueNextItems.filter((item) => item.image)
 
         return (filteredItems.length > 0 ? filteredItems : fallbackItems).slice(0, limit)
     }, [
@@ -177,14 +248,19 @@ export default function FeaturedHeroWidget({
         sources.announcements,
         sources.arts,
         sources.commissions,
+        sources.novels,
+        sources.shop,
         sources.works,
+        shopQuery.data,
         works,
+        preview,
     ])
 
     const isLoading =
         (sources.announcements && announcementsLoading) ||
         (sources.arts && artsQuery.isLoading) ||
-        (sources.commissions && commissionsQuery.isLoading)
+        (sources.commissions && commissionsQuery.isLoading) ||
+        (sources.shop && shopQuery.isLoading)
 
     const [index, setIndex] = useState(0)
     const [isHovered, setIsHovered] = useState(false)
@@ -342,6 +418,31 @@ export default function FeaturedHeroWidget({
             />
         </div>
     )
+}
+
+const SAMPLE_SHOP_HERO_ITEMS: ShopHeroItem[] = Array.from({ length: 10 }, (_, index) => ({
+    id: `sample-shop-hero-${index + 1}`,
+    slug: `sample-shop-hero-${index + 1}`,
+    title: `Sample Shop Product ${index + 1}`,
+    labels: ['Shop', index % 2 === 0 ? 'By Artist' : 'By Admin'],
+    image_path: sampleHeroImage(
+        `Shop ${index + 1}`,
+        index % 2 === 0 ? '#ff8a00' : '#56b6ff',
+        '#ff477e'
+    ),
+    downloads_count: 120 + index * 12,
+    likes: 40 + index * 8,
+    is_featured: index < 4,
+    source_label: index % 2 === 0 ? 'By Artist' : 'By Admin',
+    artist: index % 2 === 0 ? { name: 'Preview Artist', username: 'preview_artist' } : null,
+}))
+
+function sampleHeroImage(label: string, from = '#56b6ff', to = '#ff8a00') {
+    const safeLabel = label.replace(/[<>&"']/g, '')
+
+    return `data:image/svg+xml,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="1280" height="720" rx="56" fill="url(#g)"/><circle cx="1000" cy="180" r="130" fill="rgba(255,255,255,.28)"/><circle cx="210" cy="560" r="180" fill="rgba(255,255,255,.18)"/><text x="50%" y="50%" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="74" font-weight="800" fill="white">${safeLabel}</text><text x="50%" y="60%" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="30" fill="rgba(255,255,255,.82)">Preview sample</text></svg>`
+    )}`
 }
 
 type HeroLayoutProps = {
@@ -542,7 +643,7 @@ function BlurredBackgroundHero({
             <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" />
 
             <div
-                className={`relative mx-auto flex min-h-[330px] max-w-[1360px] touch-pan-y select-none items-center justify-center px-4 sm:min-h-[390px] ${
+                className={`relative mx-auto flex min-h-[330px] w-full max-w-[1920px] touch-pan-y select-none items-center justify-center px-4 sm:min-h-[390px] ${
                     isDragging ? 'cursor-grabbing' : 'cursor-grab'
                 }`}
                 onPointerDown={onPointerDown}
@@ -551,7 +652,7 @@ function BlurredBackgroundHero({
                 onPointerCancel={onPointerCancel}
             >
                 <div
-                    className="flex w-full items-center justify-center gap-3 sm:gap-5"
+                    className="flex w-max max-w-none items-center justify-center gap-[clamp(0.75rem,1.5vw,2.5rem)]"
                     style={{
                         transform: `translateX(${dragOffset * 0.25}px)`,
                         transition: isDragging ? 'none' : 'transform 300ms ease',
@@ -561,21 +662,21 @@ function BlurredBackgroundHero({
                         item={previousItem}
                         onClick={onPrev}
                         side="left"
-                        className="hidden h-[260px] w-[24%] opacity-75 md:block"
+                        className="hidden h-[260px] w-[clamp(360px,38vw,560px)] shrink-0 opacity-75 md:block"
                     />
 
                     <HeroImageCard
                         item={current}
                         widget={widget}
                         onOpenItem={onOpenItem}
-                        className="h-[300px] w-full max-w-[760px] sm:h-[350px] md:w-[54%]"
+                        className="h-[300px] w-[min(760px,calc(100vw-2rem))] shrink-0 sm:h-[350px] md:w-[clamp(620px,54vw,760px)]"
                     />
 
                     <SideImageCard
                         item={nextItem}
                         onClick={onNext}
                         side="right"
-                        className="hidden h-[260px] w-[24%] opacity-75 md:block"
+                        className="hidden h-[260px] w-[clamp(360px,38vw,560px)] shrink-0 opacity-75 md:block"
                     />
                 </div>
 
@@ -612,7 +713,7 @@ function OverlappingHero({
     return (
         <section className="relative w-full overflow-hidden bg-background py-8 sm:py-10">
             <div
-                className={`relative mx-auto h-[330px] max-w-[1360px] touch-pan-y select-none px-4 sm:h-[390px] ${
+                className={`relative mx-auto h-[330px] w-full max-w-[1920px] touch-pan-y select-none px-4 sm:h-[390px] ${
                     isDragging ? 'cursor-grabbing' : 'cursor-grab'
                 }`}
                 onPointerDown={onPointerDown}
@@ -621,14 +722,14 @@ function OverlappingHero({
                 onPointerCancel={onPointerCancel}
             >
                 <div
-                    className="relative mx-auto h-full w-full max-w-[1360px]"
+                    className="relative mx-auto h-full w-full"
                     style={{
                         transform: `translateX(${dragOffset * 0.24}px)`,
                         transition: isDragging ? 'none' : 'transform 300ms ease',
                     }}
                 >
                     {/* // previous side image ---- */}
-                    <div className="absolute left-0 top-1/2 hidden h-[82%] w-[38%] -translate-y-1/2 overflow-hidden rounded-2xl opacity-80 bg-black shadow-lg md:block">
+                    <div className="absolute left-0 top-1/2 hidden h-[82%] w-[clamp(360px,38vw,560px)] -translate-y-1/2 overflow-hidden rounded-2xl bg-black opacity-80 shadow-lg md:block">
                         <SideImageCard
                             item={previousItem}
                             onClick={onPrev}
@@ -640,7 +741,7 @@ function OverlappingHero({
                     </div>
 
                     {/* // next side image ---- */}
-                    <div className="absolute right-0 top-1/2 hidden h-[82%] w-[38%] -translate-y-1/2 overflow-hidden rounded-2xl opacity-80 shadow-lg bg-black md:block">
+                    <div className="absolute right-0 top-1/2 hidden h-[82%] w-[clamp(360px,38vw,560px)] -translate-y-1/2 overflow-hidden rounded-2xl bg-black opacity-80 shadow-lg md:block">
                         <SideImageCard
                             item={nextItem}
                             onClick={onNext}
@@ -656,7 +757,7 @@ function OverlappingHero({
                         item={current}
                         widget={widget}
                         onOpenItem={onOpenItem}
-                        className="absolute left-1/2 top-1/2 z-10 h-full w-[min(760px,88vw)] -translate-x-1/2 -translate-y-1/2 rounded-[30px] border-2 border-background shadow-2xl"
+                        className="absolute left-1/2 top-1/2 z-10 h-full w-[min(760px,88vw)] -translate-x-1/2 -translate-y-1/2 rounded-[30px] border-2 border-background shadow-2xl md:w-[clamp(640px,55vw,760px)]"
                     />
                 </div>
 
@@ -825,14 +926,13 @@ function SideImageCard({
         onClick()
     }
 
-    const borderClass =
-        side === 'left' ? 'border-r-4 border-r-white/70' : 'border-l-4 border-l-white/70'
+    const borderClass = side === 'left' ? 'rounded-e-lg' : 'rounded-s-lg'
     return (
         <button
             type="button"
             onPointerDown={handlePointerDown}
             onClick={handleClick}
-            className={`overflow-hidden bg-muted transition duration-300 hover:opacity-100 ${borderClass} ${className}`}
+            className={`overflow-hidden bg-muted transition duration-300 blur-[2px]  ${borderClass} ${className}`}
             aria-label={`Show ${item.title}`}
         >
             <img

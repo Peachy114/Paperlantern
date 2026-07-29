@@ -61,12 +61,40 @@ const statusClass: Record<CommissionService['status'], string> = {
 
 const defaultCommissionWidgets: PageWidget[] = [
     {
+        id: 'default-commission-featured-hero',
+        type: 'featured_hero',
+        title: 'Featured Commissions',
+        enabled: true,
+        settings: {
+            filter_cards_data: 'commissions',
+            hero_source_works: false,
+            hero_source_arts: false,
+            hero_source_announcements: false,
+            hero_source_commissions: true,
+            limit: 10,
+        },
+        style: { transparent: true, border: false, radius: 0, padding: 0, margin: 0, z_index: 1 },
+    },
+    {
+        id: 'default-commission-labels',
+        type: 'labels',
+        title: 'Commission Labels',
+        enabled: true,
+        settings: {
+            filter_cards_data: 'commissions',
+            label_filter_source: 'commission_type',
+            labels_display: 'labels',
+            limit: 10,
+        },
+        style: { transparent: true, border: false, radius: 0, padding: 0, margin: 0, z_index: 2 },
+    },
+    {
         id: 'default-commission-grid',
         type: 'commission_grid',
-        title: 'Open Commissions',
+        title: 'Image Grid',
         enabled: true,
-        settings: { grid: 'masonry' },
-        style: { transparent: true, border: false, radius: 0, padding: 0, margin: 0, z_index: 1 },
+        settings: { grid: 'masonry', info_layout: 'image_only', limit: 10 },
+        style: { transparent: true, border: false, radius: 0, padding: 0, margin: 0, z_index: 3 },
     },
 ]
 
@@ -113,7 +141,7 @@ export default function ExploreCommissions() {
                 widget.type === 'grid_con'
         )
 
-        return hasCommissionGrid ? widgets : [...widgets, defaultCommissionWidgets[0]]
+        return hasCommissionGrid ? widgets : [...widgets, defaultCommissionWidgets[2]]
     }, [data?.layout.widgets])
 
     const setFilter = (key: 'category', value: string) => {

@@ -1,11 +1,4 @@
-import {
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type ComponentType,
-    type PointerEvent,
-} from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentType, type PointerEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -46,8 +39,13 @@ import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
 import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
 import ShopCardWidget from '@/features/page-builder/ShopCardWidget'
 import LabelRailWidget from '@/features/page-builder/LabelRailWidget'
-import { gridContinuationOffset, labelContinuationOffset } from '@/features/page-builder/continuation'
-import SharedDiscoveryWidget, { isSharedDiscoveryWidget } from '@/features/page-builder/SharedDiscoveryWidget'
+import {
+    gridContinuationOffset,
+    labelContinuationOffset,
+} from '@/features/page-builder/continuation'
+import SharedDiscoveryWidget, {
+    isSharedDiscoveryWidget,
+} from '@/features/page-builder/SharedDiscoveryWidget'
 import type { WorkItem } from '@/features/work/hooks/useHome'
 import type { PageLayout, PageWidget } from '@/types/pageLayout'
 
@@ -134,12 +132,15 @@ export default function ExploreArts() {
         setSearchParams(next)
     }
 
-    const arts = data?.arts.data ?? []
+    const apiArts = data?.arts.data ?? []
+    const arts = apiArts
     const widgetArts = (widget: PageWidget) => applyArtWidgetFilters(arts, widget)
     const heroWorks = (items: Art[]) => items.map(artToWork)
     const tags = data?.tags ?? []
     const artists = data?.featured_artists ?? []
-    const pageWidgets = (data?.layout.widgets ?? defaultArtsWidgets).filter((widget) => widget.enabled)
+    const pageWidgets = (data?.layout.widgets ?? defaultArtsWidgets).filter(
+        (widget) => widget.enabled
+    )
     const openArt = (art: Art) => {
         const next = new URLSearchParams(searchParams)
         next.set('art', art.slug || art.id)
@@ -199,104 +200,103 @@ export default function ExploreArts() {
                 </form> */}
             </div>
 
-            {pageWidgets
-                .map((widget) => {
-                    const limit = widget.settings.limit ?? 10
-                    const gridOffset = gridContinuationOffset(pageWidgets, widget)
-                    if (widget.type === 'featured_artists') {
-                        return (
-                            <PageWidgetFrame key={widget.id} widget={widget}>
-                                <FeaturedArtistsSection artists={artists} />
-                            </PageWidgetFrame>
-                        )
-                    }
+            {pageWidgets.map((widget) => {
+                const limit = widget.settings.limit ?? 10
+                const gridOffset = gridContinuationOffset(pageWidgets, widget)
+                if (widget.type === 'featured_artists') {
+                    return (
+                        <PageWidgetFrame key={widget.id} widget={widget}>
+                            <FeaturedArtistsSection artists={artists} />
+                        </PageWidgetFrame>
+                    )
+                }
 
-                    if (widget.type === 'content_tabs') {
-                        return (
-                            <PageWidgetFrame key={widget.id} widget={widget}>
-                                <ContentTabsWidget widget={widget} />
-                            </PageWidgetFrame>
-                        )
-                    }
+                if (widget.type === 'content_tabs') {
+                    return (
+                        <PageWidgetFrame key={widget.id} widget={widget}>
+                            <ContentTabsWidget widget={widget} />
+                        </PageWidgetFrame>
+                    )
+                }
 
-                    if (widget.type === 'featured_hero') {
-                        return (
-                            <PageWidgetFrame key={widget.id} widget={widget}>
-                                <FeaturedHeroWidget
-                                    widget={widget}
-                                    works={heroWorks(widgetArts(widget)).slice(
-                                        0,
-                                        widget.settings.limit ?? 10
-                                    )}
-                                />
-                            </PageWidgetFrame>
-                        )
-                    }
+                if (widget.type === 'featured_hero') {
+                    return (
+                        <PageWidgetFrame key={widget.id} widget={widget}>
+                            <FeaturedHeroWidget
+                                widget={widget}
+                                works={heroWorks(widgetArts(widget)).slice(
+                                    0,
+                                    widget.settings.limit ?? 10
+                                )}
+                            />
+                        </PageWidgetFrame>
+                    )
+                }
 
-                    if (widget.type === 'group_hero') {
-                        return (
-                            <PageWidgetFrame key={widget.id} widget={widget}>
-                                <GroupHeroWidget
-                                    widget={widget}
-                                    works={heroWorks(widgetArts(widget)).slice(
-                                        0,
-                                        widget.settings.limit ?? 10
-                                    )}
-                                />
-                            </PageWidgetFrame>
-                        )
-                    }
+                if (widget.type === 'group_hero') {
+                    return (
+                        <PageWidgetFrame key={widget.id} widget={widget}>
+                            <GroupHeroWidget
+                                widget={widget}
+                                works={heroWorks(widgetArts(widget)).slice(
+                                    0,
+                                    widget.settings.limit ?? 10
+                                )}
+                            />
+                        </PageWidgetFrame>
+                    )
+                }
 
-                    if (widget.type === 'labels') {
-                        return (
-                            <PageWidgetFrame key={widget.id} widget={widget}>
-                                <LabelRailWidget
-                                    widget={widget}
-                                    labels={tags.map((tag) => ({
-                                        label: tag.label,
-                                        count: tag.artists_count,
-                                    }))}
-                                    activeLabel={activeLabel}
-                                    onSelect={setLabel}
-                                    offset={labelContinuationOffset(pageWidgets, widget)}
-                                />
-                            </PageWidgetFrame>
-                        )
-                    }
+                if (widget.type === 'labels') {
+                    return (
+                        <PageWidgetFrame key={widget.id} widget={widget}>
+                            <LabelRailWidget
+                                widget={widget}
+                                labels={tags.map((tag) => ({
+                                    label: tag.label,
+                                    count: tag.artists_count,
+                                }))}
+                                activeLabel={activeLabel}
+                                onSelect={setLabel}
+                                offset={labelContinuationOffset(pageWidgets, widget)}
+                            />
+                        </PageWidgetFrame>
+                    )
+                }
 
-                    if (widget.type === 'arts_grid' || widget.type === 'grid_con') {
-                        return (
-                            <PageWidgetFrame key={widget.id} widget={widget}>
-                                <ArtsGrid
-                                    arts={widgetArts(widget).slice(gridOffset, gridOffset + limit)}
-                                    isLoading={isLoading}
-                                    grid={widget.settings.grid ?? 'masonry'}
-                                    columns={widget.settings.columns}
-                                    infoLayout={widget.settings.info_layout ?? 'image_only'}
-                                    onOpen={openArt}
-                                />
-                            </PageWidgetFrame>
-                        )
-                    }
+                if (widget.type === 'arts_grid' || widget.type === 'grid_con') {
+                    return (
+                        <PageWidgetFrame key={widget.id} widget={widget}>
+                            <ArtsGrid
+                                arts={widgetArts(widget).slice(gridOffset, gridOffset + limit)}
+                                isLoading={isLoading}
+                                grid={widget.settings.grid ?? 'masonry'}
+                                columns={widget.settings.columns}
+                                infoLayout={widget.settings.info_layout ?? 'image_only'}
+                                onOpen={openArt}
+                            />
+                        </PageWidgetFrame>
+                    )
+                }
 
-                    if (widget.type === 'shop_card') {
-                        return (
-                            <PageWidgetFrame key={widget.id} widget={widget}>
-                                <ShopCardWidget widget={widget} />
-                            </PageWidgetFrame>
-                        )
-                    }
+                if (widget.type === 'shop_card') {
+                    return (
+                        <PageWidgetFrame key={widget.id} widget={widget}>
+                            <ShopCardWidget widget={widget} />
+                        </PageWidgetFrame>
+                    )
+                }
 
-                    if (isSharedDiscoveryWidget(widget.type)) {
-                        return (
-                            <PageWidgetFrame key={widget.id} widget={widget}>
-                                <SharedDiscoveryWidget widget={widget} widgets={pageWidgets} />
-                            </PageWidgetFrame>
-                        )
-                    }
+                if (isSharedDiscoveryWidget(widget.type)) {
+                    return (
+                        <PageWidgetFrame key={widget.id} widget={widget}>
+                            <SharedDiscoveryWidget widget={widget} widgets={pageWidgets} />
+                        </PageWidgetFrame>
+                    )
+                }
 
-                    return <CustomPageWidget key={widget.id} widget={widget} />
-                })}
+                return <CustomPageWidget key={widget.id} widget={widget} />
+            })}
 
             <ArtDetailDialog
                 art={selectedArt}
@@ -312,7 +312,6 @@ export default function ExploreArts() {
 
 function applyArtWidgetFilters(arts: Art[], widget: PageWidget) {
     const settings = widget.settings ?? {}
-    const dailyDate = settings.daily_date
     const multiSource = settings.label_filter_source ?? 'none'
     const multiValues = (settings.label_filter_values ?? [])
         .map((value) => value.toLowerCase())
@@ -321,7 +320,7 @@ function applyArtWidgetFilters(arts: Art[], widget: PageWidget) {
     const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
 
     const filtered = arts.filter((art) => {
-        if (dailyDate && !isSameDate(art.created_at, dailyDate)) return false
+        if (!matchesDateWindow(art.created_at, widget)) return false
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
             if (source === 'status') return String(art.status ?? '').toLowerCase() === value
@@ -334,7 +333,8 @@ function applyArtWidgetFilters(arts: Art[], widget: PageWidget) {
             multiSource === 'none' || multiValues.length === 0
                 ? true
                 : multiValues.some((value) => matches(multiSource, value))
-        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+        const badgeOk =
+            badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
         return multiOk && badgeOk
     })
 
@@ -366,9 +366,26 @@ function compareArtSort(a: Art, b: Art, sort: string) {
     return 0
 }
 
-function isSameDate(value: string | undefined, date: string) {
-    if (!value || !date) return false
-    return value.slice(0, 10) === date
+function matchesDateWindow(value: string | undefined, widget: PageWidget) {
+    const mode = widget.settings.date_mode ?? 'all'
+    const dateValue = widget.settings.date_value || widget.settings.daily_date
+    if (mode === 'all' || !value) return true
+
+    const date = new Date(value)
+    const base = dateValue ? new Date(dateValue) : new Date()
+    if (Number.isNaN(date.getTime()) || Number.isNaN(base.getTime())) return true
+
+    if (mode === 'daily') return date.toISOString().slice(0, 10) === base.toISOString().slice(0, 10)
+    if (mode === 'weekly')
+        return Math.abs(date.getTime() - base.getTime()) <= 7 * 24 * 60 * 60 * 1000
+    if (mode === 'monthly') {
+        return (
+            date.getUTCFullYear() === base.getUTCFullYear() &&
+            date.getUTCMonth() === base.getUTCMonth()
+        )
+    }
+
+    return true
 }
 
 function artToWork(art: Art): WorkItem {
@@ -787,11 +804,7 @@ function ArtDetailDialog({
                         </div>
 
                         <div className="mb-4 flex flex-wrap items-center gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => shareArt(art)}
-                            >
+                            <Button type="button" variant="outline" onClick={() => shareArt(art)}>
                                 <Share2 className="h-4 w-4" />
                                 Share
                             </Button>

@@ -326,9 +326,11 @@ class CommissionMessageController extends Controller
 
         return [
             'id' => $order->id,
+            'type' => $order->commission_service_id ? 'commission' : 'general',
             'status' => $order->status,
             'quote_credits' => (int) $order->quote_credits,
             'escrow_credits' => (int) $order->escrow_credits,
+            'archived_at' => $order->archived_at,
             'unread_count' => $this->unreadCount($order, $viewerId),
             'last_read_at' => $order->artist_id === $viewerId
                 ? $order->artist_last_read_at

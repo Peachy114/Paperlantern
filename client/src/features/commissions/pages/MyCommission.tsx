@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
+    Archive,
     BriefcaseBusiness,
     CheckCircle2,
     ChevronDown,
@@ -179,11 +180,12 @@ interface CommissionOrder {
     quote_note: string | null
     flow_snapshot: FlowStep[]
     paid_steps: number[]
-    stage_notes: Record<string, { note: string; at: string }>
+    stage_notes: Record<string, any>
     current_step_index: number
     auto_release_at: string | null
     payment_due_at: string | null
     quote_accepted_at: string | null
+    archived_at: string | null
     revision_limit: number
     revisions: CommissionRevision[]
     delivery_files: CommissionDeliveryFile[]
@@ -423,10 +425,12 @@ export default function MyCommission() {
         mutationFn: ({
             id,
             status,
+            board_column,
         }: {
             id: string
             status: 'in_progress' | 'delivered' | 'cancelled' | 'disputed'
-        }) => studioApi.updateCommissionOrder(id, { status }),
+            board_column?: 'todo' | 'in_progress' | 'done'
+        }) => studioApi.updateCommissionOrder(id, { status, board_column }),
         onSuccess: () => {
             toast.success('Commission request updated.')
             queryClient.invalidateQueries({ queryKey: QUERY_KEY })
@@ -443,6 +447,16 @@ export default function MyCommission() {
         },
         onError: (error: any) =>
             toast.error(error?.response?.data?.message ?? 'Could not update stage.'),
+    })
+
+    const archiveOrder = useMutation({
+        mutationFn: (id: string) => studioApi.archiveCommissionOrder(id).then((res) => res.data),
+        onSuccess: () => {
+            toast.success('Commission archived.')
+            queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+        },
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not archive commission.'),
     })
 
     const appealRating = useMutation({
@@ -513,8 +527,15 @@ export default function MyCommission() {
                     <TabsContent value="workflow" className="mt-0">
                         <CommissionWorkflowSection
                             orders={orders}
-                            busy={advanceStage.isPending || updateOrder.isPending}
-                            onMove={(id, status) => updateOrder.mutate({ id, status })}
+                            busy={
+                                advanceStage.isPending ||
+                                updateOrder.isPending ||
+                                archiveOrder.isPending
+                            }
+                            onMove={(id, status, board_column) =>
+                                updateOrder.mutate({ id, status, board_column })
+                            }
+                            onArchive={(id) => archiveOrder.mutate(id)}
                         />
                     </TabsContent>
 
@@ -631,6 +652,7 @@ function CommissionDashboardHero({
                                 <WorkspaceBannerPicker
                                     audience="studio"
                                     storageKey="workspace-banner-my-commission"
+                                    pageTarget="my_commission"
                                     fallbackImage={fallbackBannerImage}
                                     onImageChange={setWorkspaceBannerImage}
                                 />
@@ -1114,6 +1136,14 @@ function normalizeRequestQuestions(value?: CommissionProfile['request_forms']): 
     }))
 }
 
+function normalizePromoDiscounts(value?: CommissionProfile['discounts']): PromoDiscount[] {
+    return (value ?? []).map((discount) => ({
+        ...discount,
+        starts_at: discount.starts_at ?? '',
+        ends_at: discount.ends_at ?? '',
+    }))
+}
+
 function CommissionPoliciesSection({
     profile,
     busy,
@@ -1419,11 +1449,7 @@ function CommissionDiscountWorkspace({
     onSave: (discounts: PromoDiscount[]) => void
 }) {
     const [discounts, setDiscounts] = useState<PromoDiscount[]>(
-        (profile.discounts ?? []).map((discount) => ({
-            ...discount,
-            starts_at: discount.starts_at ?? '',
-            ends_at: discount.ends_at ?? '',
-        }))
+        normalizePromoDiscounts(profile.discounts)
     )
     const [adding, setAdding] = useState(false)
     const [draft, setDraft] = useState<PromoDiscount>({
@@ -1589,30 +1615,34 @@ function CommissionWorkflowSection({
     orders,
     busy,
     onMove,
+    onArchive,
 }: {
     orders: CommissionOrder[]
     busy: boolean
-    onMove: (id: string, status: 'in_progress' | 'delivered' | 'cancelled' | 'disputed') => void
+    onMove: (
+        id: string,
+        status: 'in_progress' | 'delivered' | 'cancelled' | 'disputed',
+        board_column: 'todo' | 'in_progress' | 'done'
+    ) => void
+    onArchive: (id: string) => void
 }) {
     const columns = [
         {
             key: 'todo',
             title: 'TODO',
-            statuses: ['requested', 'awaiting_payment'],
         },
         {
             key: 'in_progress',
             title: 'IN-PROGRESS',
-            statuses: ['in_progress', 'disputed'],
         },
         {
             key: 'done',
             title: 'DONE',
-            statuses: ['delivered', 'completed', 'cancelled'],
         },
     ]
 
     const statusForColumn = (key: string): 'in_progress' | 'delivered' | null => {
+        if (key === 'todo') return 'in_progress'
         if (key === 'in_progress') return 'in_progress'
         if (key === 'done') return 'delivered'
         return null
@@ -1624,19 +1654,21 @@ function CommissionWorkflowSection({
                 <div>
                     <h2 className="text-base font-black tracking-tight">Commissions</h2>
                     <p className="mt-1 text-xs text-muted-foreground">
-                        Drag active orders to move them through your production board.
+                        Accepted work appears here. New requests and quotes stay in Orders and
+                        Messages until accepted.
                     </p>
                 </div>
                 <span className="rounded-full border border-white/80 bg-white/80 px-3 py-1 text-[11px] font-bold text-slate-600 shadow-sm">
-                    {orders.length} order{orders.length === 1 ? '' : 's'}
+                    {orders.filter(isProductionOrder).length} active board item
+                    {orders.filter(isProductionOrder).length === 1 ? '' : 's'}
                 </span>
             </div>
 
             <div className="overflow-x-auto pb-1">
                 <div className="grid min-w-[790px] grid-cols-3 gap-3">
                     {columns.map((column) => {
-                        const columnOrders = orders.filter((order) =>
-                            column.statuses.includes(order.status)
+                        const columnOrders = orders.filter(
+                            (order) => productionColumnForOrder(order) === column.key
                         )
                         const nextStatus = statusForColumn(column.key)
 
@@ -1649,7 +1681,13 @@ function CommissionWorkflowSection({
                                 onDrop={(event) => {
                                     if (!nextStatus) return
                                     const id = event.dataTransfer.getData('text/plain')
-                                    if (id) onMove(id, nextStatus)
+                                    if (id) {
+                                        onMove(
+                                            id,
+                                            nextStatus,
+                                            column.key as 'todo' | 'in_progress' | 'done'
+                                        )
+                                    }
                                 }}
                                 className="min-h-[420px] rounded-2xl bg-white/15 p-1"
                             >
@@ -1671,7 +1709,10 @@ function CommissionWorkflowSection({
                                         columnOrders.map((order) => {
                                             const canDrag =
                                                 !busy &&
-                                                !['completed', 'cancelled'].includes(order.status)
+                                                !['completed', 'cancelled', 'delivered'].includes(
+                                                    order.status
+                                                )
+                                            const progressLabel = productionProgressLabel(order)
 
                                             return (
                                                 <article
@@ -1708,7 +1749,7 @@ function CommissionWorkflowSection({
                                                             {order.customer?.name ?? 'Wanderer'}
                                                         </span>
                                                         <span className="rounded-md bg-muted px-1.5 py-0.5 text-[9px] capitalize text-muted-foreground">
-                                                            {order.status.replace(/_/g, ' ')}
+                                                            {progressLabel}
                                                         </span>
                                                     </div>
 
@@ -1722,6 +1763,30 @@ function CommissionWorkflowSection({
                                                         )}{' '}
                                                         paid
                                                     </div>
+                                                    {column.key === 'done' && (
+                                                        <div className="mt-3 border-t border-slate-100 pt-2">
+                                                            {order.status === 'delivered' ? (
+                                                                <p className="text-[10px] font-semibold text-orange-600">
+                                                                    Waiting for wanderer acceptance
+                                                                    or final payment.
+                                                                </p>
+                                                            ) : (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    disabled={busy || Boolean(order.archived_at)}
+                                                                    onClick={() => onArchive(order.id)}
+                                                                    className="h-8 w-full text-xs"
+                                                                >
+                                                                    <Archive className="h-3.5 w-3.5" />
+                                                                    {order.archived_at
+                                                                        ? 'Archived'
+                                                                        : 'Archive'}
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </article>
                                             )
                                         })
@@ -1734,6 +1799,49 @@ function CommissionWorkflowSection({
             </div>
         </section>
     )
+}
+
+function isProductionOrder(order: CommissionOrder) {
+    return ['awaiting_payment', 'in_progress', 'delivered', 'completed', 'disputed'].includes(
+        order.status
+    )
+}
+
+function productionColumnForOrder(order: CommissionOrder): 'todo' | 'in_progress' | 'done' | null {
+    if (!isProductionOrder(order)) return null
+    if (['delivered', 'completed'].includes(order.status)) return 'done'
+    if (order.status === 'disputed') return 'in_progress'
+    const manualColumn = boardColumn(order)
+    if (manualColumn) return manualColumn
+    if (isActiveCreativeStage(order)) return 'in_progress'
+    return 'todo'
+}
+
+function isActiveCreativeStage(order: CommissionOrder) {
+    const step = order.flow_snapshot?.[order.current_step_index]
+    if (!['sketch', 'revision', 'draft', 'add'].includes(step?.type ?? '')) return false
+
+    return Boolean(order.stage_notes?.[String(order.current_step_index)])
+}
+
+function productionProgressLabel(order: CommissionOrder) {
+    if (order.status === 'delivered') return 'Waiting for acceptance'
+    if (order.status === 'completed') return 'Paid'
+    if (order.status === 'awaiting_payment') return 'Waiting for payment'
+    if (order.status === 'disputed') return 'In progress - disputed'
+
+    const step = order.flow_snapshot?.[order.current_step_index]
+    if (step?.type && ['sketch', 'revision', 'draft', 'add'].includes(step.type)) {
+        return `In progress - ${step.label || step.type}`
+    }
+
+    return 'In progress'
+}
+
+function boardColumn(order: CommissionOrder): 'todo' | 'in_progress' | 'done' | null {
+    const value = order.stage_notes?._production_board?.column
+    if (value === 'todo' || value === 'in_progress' || value === 'done') return value
+    return null
 }
 
 function CommissionApplicationSection({
@@ -2027,7 +2135,11 @@ function CommissionServicesSection({
 
     const openCreate = () => {
         setEditing(null)
-        setForm(EMPTY_SERVICE_FORM)
+        setForm({
+            ...EMPTY_SERVICE_FORM,
+            client_fields: normalizeClientFields(profile.client_fields),
+            flow: normalizeFlowTemplate(profile.flow_template),
+        })
         setOpen(true)
     }
 
@@ -2232,6 +2344,7 @@ function CommissionServicesSection({
                 setForm={setForm}
                 categories={categories}
                 savedForms={normalizeRequestQuestions(profile.request_forms)}
+                savedDiscounts={normalizePromoDiscounts(profile.discounts)}
                 editing={editing}
                 saving={saving}
                 onSubmit={submit}
@@ -2677,6 +2790,7 @@ function ServiceDialog({
     setForm,
     categories,
     savedForms,
+    savedDiscounts,
     editing,
     saving,
     onSubmit,
@@ -2687,58 +2801,13 @@ function ServiceDialog({
     setForm: React.Dispatch<React.SetStateAction<ServiceForm>>
     categories: CommissionCategory[]
     savedForms: RequestQuestion[]
+    savedDiscounts: PromoDiscount[]
     editing: CommissionService | null
     saving: boolean
     onSubmit: () => void
 }) {
     const setField = <K extends keyof ServiceForm>(key: K, value: ServiceForm[K]) => {
         setForm((current) => ({ ...current, [key]: value }))
-    }
-
-    const setFlowStep = (index: number, patch: Partial<FlowStep>) => {
-        setForm((current) => ({
-            ...current,
-            flow: current.flow.map((step, stepIndex) =>
-                stepIndex === index ? { ...step, ...patch } : step
-            ),
-        }))
-    }
-
-    const moveStep = (index: number, target: number) => {
-        setForm((current) => {
-            const next = [...current.flow]
-            if (target < 0 || target >= next.length) return current
-            const [item] = next.splice(index, 1)
-            next.splice(target, 0, item)
-            return { ...current, flow: next }
-        })
-    }
-
-    const handleDragStart = (event: DragEvent<HTMLDivElement>, index: number) => {
-        event.dataTransfer.setData('text/plain', String(index))
-        event.dataTransfer.effectAllowed = 'move'
-    }
-
-    const handleDrop = (event: DragEvent<HTMLDivElement>, targetIndex: number) => {
-        event.preventDefault()
-        const sourceIndex = Number(event.dataTransfer.getData('text/plain'))
-        if (Number.isInteger(sourceIndex) && sourceIndex !== targetIndex) {
-            moveStep(sourceIndex, targetIndex)
-        }
-    }
-
-    const addStep = () => {
-        setForm((current) => ({
-            ...current,
-            flow: [...current.flow, { type: 'add', label: 'Custom step' }],
-        }))
-    }
-
-    const removeStep = (index: number) => {
-        setForm((current) => ({
-            ...current,
-            flow: current.flow.filter((_, stepIndex) => stepIndex !== index),
-        }))
     }
 
     const addRequestQuestion = () => {
@@ -2816,19 +2885,6 @@ function ServiceDialog({
         }))
     }
 
-    const updateClientField = (
-        field: keyof ClientFields,
-        patch: Partial<ClientFields[keyof ClientFields]>
-    ) => {
-        setForm((current) => ({
-            ...current,
-            client_fields: {
-                ...current.client_fields,
-                [field]: { ...current.client_fields[field], ...patch },
-            },
-        }))
-    }
-
     const addDiscount = () => {
         setForm((current) => ({
             ...current,
@@ -2872,11 +2928,6 @@ function ServiceDialog({
         }))
     }
 
-    const applyTermFormat = (prefix: string, suffix = '') => {
-        const value = form.terms.trim()
-        setField('terms', value ? `${prefix}${value}${suffix}` : prefix)
-    }
-
     const handleImage = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null
         setForm((current) => ({
@@ -2894,8 +2945,8 @@ function ServiceDialog({
                         {editing ? 'Edit Commission Service' : 'Add Commission Service'}
                     </DialogTitle>
                     <DialogDescription>
-                        Set the public offer, quote rules, payment flow, refund policy, and required
-                        references.
+                        Set the public offer, setup style, request questions, licenses, and attached
+                        promos.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -3041,10 +3092,7 @@ function ServiceDialog({
                         <TabsList className="flex w-full flex-wrap justify-start">
                             <TabsTrigger value="setup">Setup</TabsTrigger>
                             <TabsTrigger value="questions">Questions</TabsTrigger>
-                            <TabsTrigger value="client">Client Details</TabsTrigger>
                             <TabsTrigger value="licenses">Licenses</TabsTrigger>
-                            <TabsTrigger value="terms">Terms</TabsTrigger>
-                            <TabsTrigger value="flow">Flow</TabsTrigger>
                             <TabsTrigger value="promos">Promos</TabsTrigger>
                         </TabsList>
 
@@ -3154,32 +3202,6 @@ function ServiceDialog({
                             </div>
                         </TabsContent>
 
-                        <TabsContent value="terms" className="space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <TextBlock
-                                    label="Quote rules"
-                                    value={form.quote_rules}
-                                    onChange={(value) => setField('quote_rules', value)}
-                                />
-                                <TextBlock
-                                    label="Required references"
-                                    value={form.required_references}
-                                    onChange={(value) => setField('required_references', value)}
-                                />
-                                <TextBlock
-                                    label="Refund policy"
-                                    value={form.refund_policy}
-                                    onChange={(value) => setField('refund_policy', value)}
-                                />
-                                <RichTextBlock
-                                    label="Terms of Service"
-                                    value={form.terms}
-                                    onChange={(value) => setField('terms', value)}
-                                    onFormat={applyTermFormat}
-                                />
-                            </div>
-                        </TabsContent>
-
                         <TabsContent value="questions" className="space-y-4">
                             {savedForms.length > 0 && (
                                 <div className="rounded-lg border bg-muted/20 p-3">
@@ -3230,14 +3252,55 @@ function ServiceDialog({
                             />
                         </TabsContent>
 
-                        <TabsContent value="client" className="space-y-4">
-                            <ClientFieldsSection
-                                fields={form.client_fields}
-                                onUpdate={updateClientField}
-                            />
-                        </TabsContent>
-
                         <TabsContent value="promos" className="space-y-4">
+                            {savedDiscounts.length > 0 && (
+                                <div className="rounded-lg border bg-muted/20 p-3">
+                                    <div className="mb-2">
+                                        <h3 className="text-sm font-semibold">
+                                            Saved discount promos
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            Attach reusable promos from the Promotions tab to this
+                                            service.
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {savedDiscounts.map((discount) => {
+                                            const attached = form.promo_discounts.some(
+                                                (item) => item.id === discount.id
+                                            )
+
+                                            return (
+                                                <Button
+                                                    key={discount.id}
+                                                    type="button"
+                                                    size="sm"
+                                                    variant={attached ? 'default' : 'outline'}
+                                                    disabled={attached}
+                                                    onClick={() =>
+                                                        setForm((current) => ({
+                                                            ...current,
+                                                            promo_discounts: [
+                                                                ...current.promo_discounts,
+                                                                {
+                                                                    ...discount,
+                                                                    starts_at:
+                                                                        discount.starts_at ?? '',
+                                                                    ends_at:
+                                                                        discount.ends_at ?? '',
+                                                                },
+                                                            ],
+                                                        }))
+                                                    }
+                                                >
+                                                    {attached ? 'Attached' : 'Attach'}{' '}
+                                                    {discount.label}
+                                                </Button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                             <DiscountsSection
                                 discounts={form.promo_discounts}
                                 onAdd={addDiscount}
@@ -3265,101 +3328,6 @@ function ServiceDialog({
                             />
                         </TabsContent>
 
-                        <TabsContent value="flow" className="space-y-4">
-                            <div className="rounded-lg border p-3">
-                                <div className="mb-3 flex items-center justify-between gap-3">
-                                    <div>
-                                        <h3 className="text-sm font-semibold">Commission flow</h3>
-                                        <p className="text-xs text-muted-foreground">
-                                            Add payment, sketch, revision, custom, and delivery
-                                            steps.
-                                        </p>
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={addStep}
-                                    >
-                                        Add step
-                                    </Button>
-                                </div>
-                                <div className="grid gap-2">
-                                    {form.flow.map((step, index) => (
-                                        <div
-                                            key={`${step.label}-${index}`}
-                                            draggable
-                                            onDragStart={(event) => handleDragStart(event, index)}
-                                            onDragOver={(event) => event.preventDefault()}
-                                            onDrop={(event) => handleDrop(event, index)}
-                                            className="grid cursor-grab gap-2 rounded-lg border p-2 active:cursor-grabbing md:grid-cols-[34px_110px_1fr_90px_90px_100px]"
-                                        >
-                                            <div className="flex h-9 items-center justify-center rounded-md border bg-muted text-xs text-muted-foreground">
-                                                {index + 1}
-                                            </div>
-                                            <select
-                                                value={step.type}
-                                                onChange={(event) =>
-                                                    setFlowStep(index, {
-                                                        type: event.target.value as FlowType,
-                                                    })
-                                                }
-                                                className="h-9 rounded-md border bg-background px-2 text-sm"
-                                            >
-                                                <option value="pay">Pay</option>
-                                                <option value="sketch">Sketch</option>
-                                                <option value="revision">Revision</option>
-                                                <option value="add">Add</option>
-                                                <option value="done">Done</option>
-                                            </select>
-                                            <Input
-                                                value={step.label}
-                                                onChange={(event) =>
-                                                    setFlowStep(index, {
-                                                        label: event.target.value,
-                                                    })
-                                                }
-                                                placeholder="Step label"
-                                            />
-                                            <Input
-                                                type="number"
-                                                value={step.percent ?? 0}
-                                                disabled={step.type !== 'pay'}
-                                                onChange={(event) =>
-                                                    setFlowStep(index, {
-                                                        percent: Number(event.target.value),
-                                                    })
-                                                }
-                                                placeholder="%"
-                                            />
-                                            <Input
-                                                type="number"
-                                                value={step.rounds ?? 0}
-                                                disabled={
-                                                    !['sketch', 'revision'].includes(step.type)
-                                                }
-                                                onChange={(event) =>
-                                                    setFlowStep(index, {
-                                                        rounds: Number(event.target.value),
-                                                    })
-                                                }
-                                                placeholder="Rounds"
-                                            />
-                                            <div className="flex gap-1">
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() => removeStep(index)}
-                                                >
-                                                    Remove
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </TabsContent>
                     </Tabs>
                 </div>
 
@@ -3393,27 +3361,6 @@ function NumberField({
                 min={0}
                 value={value}
                 onChange={(event) => onChange(Number(event.target.value))}
-            />
-        </div>
-    )
-}
-
-function TextBlock({
-    label,
-    value,
-    onChange,
-}: {
-    label: string
-    value: string
-    onChange: (value: string) => void
-}) {
-    return (
-        <div>
-            <Label>{label}</Label>
-            <Textarea
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="mt-1 min-h-24"
             />
         </div>
     )

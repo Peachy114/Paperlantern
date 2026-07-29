@@ -568,7 +568,9 @@ function mergedFilters(widget: PageWidget) {
         ...parseFilters(settings.group_filter_labels),
         ...((settings.label_filter_values ?? []) as string[]).map((value) => value.toLowerCase()),
     ]
-    const badge = String(settings.badge_filter_value ?? '').trim().toLowerCase()
+    const badge = String(settings.badge_filter_value ?? '')
+        .trim()
+        .toLowerCase()
     if (badge) filters.push(badge)
     return Array.from(new Set(filters.filter(Boolean)))
 }

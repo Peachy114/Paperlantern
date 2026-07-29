@@ -48,8 +48,13 @@ import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
 import LabelRailWidget from '@/features/page-builder/LabelRailWidget'
 import TabCardsWidget from '@/features/page-builder/TabCardsWidget'
 import EpisodesWidget from '@/features/page-builder/EpisodesWidget'
-import SharedDiscoveryWidget, { isSharedDiscoveryWidget } from '@/features/page-builder/SharedDiscoveryWidget'
-import { gridContinuationOffset, labelContinuationOffset } from '@/features/page-builder/continuation'
+import SharedDiscoveryWidget, {
+    isSharedDiscoveryWidget,
+} from '@/features/page-builder/SharedDiscoveryWidget'
+import {
+    gridContinuationOffset,
+    labelContinuationOffset,
+} from '@/features/page-builder/continuation'
 import AnnouncementWidget from '@/features/announcements/components/AnnouncementWidget'
 import HeroSection from '@/features/work/components/HeroSection'
 import WeeklyChartSection from '@/features/work/components/WeeklyChartSection'
@@ -138,7 +143,7 @@ function previewFrameStyle(widget: PageWidget): CSSProperties {
 
 function isEditableOverlay(widget: PageWidget) {
     return (
-        ['sticker', 'text', 'image', 'spacer'].includes(widget.type) &&
+        ['sticker', 'text', 'image', 'banner', 'spacer'].includes(widget.type) &&
         Boolean(widget.settings.allow_overlap)
     )
 }
@@ -179,6 +184,335 @@ interface CommissionPreviewData {
     commissions: { data: CommissionService[] }
 }
 
+const SAMPLE_NOW = '2026-07-28T10:00:00.000Z'
+
+function sampleImage(label: string, from = '#56b6ff', to = '#ff8a00') {
+    const safeLabel = label.replace(/[<>&"']/g, '')
+    return `data:image/svg+xml,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 860"><defs><linearGradient id="g" x1="0" x2="1" y1="0" y2="1"><stop stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient></defs><rect width="640" height="860" rx="54" fill="url(#g)"/><circle cx="500" cy="160" r="88" fill="rgba(255,255,255,.35)"/><circle cx="140" cy="700" r="120" fill="rgba(255,255,255,.22)"/><text x="50%" y="50%" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="54" font-weight="800" fill="white">${safeLabel}</text><text x="50%" y="58%" text-anchor="middle" font-family="Inter,Arial,sans-serif" font-size="24" fill="rgba(255,255,255,.82)">Preview sample</text></svg>`
+    )}`
+}
+
+function sampleUpTo<T extends { id: string; slug?: string; title?: string }>(
+    items: T[],
+    count = 10
+): T[] {
+    if (items.length >= count) return items.slice(0, count)
+
+    return Array.from({ length: count }, (_, index) => {
+        const source = items[index % Math.max(items.length, 1)]
+        const cycle = Math.floor(index / Math.max(items.length, 1)) + 1
+
+        return {
+            ...source,
+            id: index < items.length ? source.id : `${source.id}-preview-${cycle}`,
+            slug: source.slug
+                ? index < items.length
+                    ? source.slug
+                    : `${source.slug}-preview-${cycle}`
+                : source.slug,
+            title: source.title
+                ? index < items.length
+                    ? source.title
+                    : `${source.title} ${cycle}`
+                : source.title,
+        }
+    })
+}
+
+const SAMPLE_WORKS: WorkItem[] = [
+    {
+        id: 'sample-comix-1',
+        slug: 'sample-comix',
+        title: 'Sample Comix Feature',
+        cover: sampleImage('Comix', '#54b6ff', '#ff477e'),
+        banner: sampleImage('Comix Hero', '#0ea5e9', '#f97316'),
+        type: 'webtoon',
+        content_type: 'work',
+        genres: ['Action', 'Fantasy'],
+        views: 13200,
+        likes: 920,
+        period_views: 320,
+        period_likes: 52,
+        weekly_views: 1880,
+        created_at: SAMPLE_NOW,
+        status: 'ongoing',
+        is_featured: true,
+    },
+    {
+        id: 'sample-comix-2',
+        slug: 'sample-romance-comix',
+        title: 'Sample Romance Comix',
+        cover: sampleImage('Romance', '#fb7185', '#fbbf24'),
+        banner: sampleImage('Romance Hero', '#f472b6', '#38bdf8'),
+        type: 'webtoon',
+        content_type: 'work',
+        genres: ['Romance', 'Drama'],
+        views: 7600,
+        likes: 640,
+        period_views: 180,
+        period_likes: 31,
+        weekly_views: 1140,
+        created_at: SAMPLE_NOW,
+        status: 'ongoing',
+        is_featured: false,
+    },
+    {
+        id: 'sample-novel-1',
+        slug: 'sample-novel',
+        title: 'Sample Novel Spotlight',
+        cover: sampleImage('Novel', '#8b5cf6', '#06b6d4'),
+        banner: sampleImage('Novel Hero', '#6366f1', '#ec4899'),
+        type: 'wattpad',
+        content_type: 'work',
+        genres: ['Mystery', 'Sci-Fi'],
+        views: 9800,
+        likes: 810,
+        period_views: 240,
+        period_likes: 45,
+        weekly_views: 1410,
+        created_at: SAMPLE_NOW,
+        status: 'ongoing',
+        is_featured: true,
+    },
+    {
+        id: 'sample-art-1',
+        slug: 'sample-art',
+        title: 'Sample Art Preview',
+        cover: sampleImage('Art', '#22c55e', '#f97316'),
+        banner: sampleImage('Art Hero', '#14b8a6', '#f43f5e'),
+        type: 'art',
+        content_type: 'art',
+        genres: ['Fanart', 'Original'],
+        views: 5600,
+        likes: 430,
+        period_views: 95,
+        period_likes: 22,
+        created_at: SAMPLE_NOW,
+        status: 'published',
+        is_featured: true,
+    },
+]
+
+const SAMPLE_CHAPTERS: ChapterItem[] = [
+    {
+        id: 'sample-chapter-1',
+        work_id: 'sample-comix-1',
+        title: 'Chapter 1: Preview Opening',
+        cover: sampleImage('Ch. 1', '#54b6ff', '#ff477e'),
+        order: 1,
+        created_at: SAMPLE_NOW,
+        work: {
+            id: 'sample-comix-1',
+            slug: 'sample-comix',
+            title: 'Sample Comix Feature',
+            cover: sampleImage('Comix', '#54b6ff', '#ff477e'),
+            type: 'webtoon',
+        },
+    },
+    {
+        id: 'sample-chapter-2',
+        work_id: 'sample-novel-1',
+        title: 'Episode 2: The Quiet Signal',
+        cover: sampleImage('Ep. 2', '#8b5cf6', '#06b6d4'),
+        order: 2,
+        created_at: SAMPLE_NOW,
+        work: {
+            id: 'sample-novel-1',
+            slug: 'sample-novel',
+            title: 'Sample Novel Spotlight',
+            cover: sampleImage('Novel', '#8b5cf6', '#06b6d4'),
+            type: 'wattpad',
+        },
+    },
+]
+
+const SAMPLE_ARTS: Art[] = [
+    {
+        id: 'sample-art-post-1',
+        slug: 'sample-art-post',
+        title: 'Sample Character Sheet',
+        description: 'Preview art used only inside Page Customize.',
+        labels: ['Fanart', 'Character Design'],
+        image_path: sampleImage('Sheet', '#0ea5e9', '#f97316'),
+        images: [],
+        status: 'published',
+        moderation_status: 'approved',
+        download_policy: 'disabled',
+        download_credits: 0,
+        downloads_count: 0,
+        apply_watermark: false,
+        views: 4200,
+        likes: 610,
+        comments_count: 18,
+        super_likes_count: 4,
+        super_like_credits: 12,
+        is_featured: true,
+        user: {
+            id: 'sample-artist',
+            name: 'Preview Artist',
+            username: 'preview_artist',
+            role: 'storyteller',
+            avatar: sampleImage('A', '#111827', '#f59e0b'),
+            artist_verified: true,
+        },
+        created_at: SAMPLE_NOW,
+        updated_at: SAMPLE_NOW,
+    },
+    {
+        id: 'sample-art-post-2',
+        slug: 'sample-background-art',
+        title: 'Sample Background Art',
+        description: 'A second art sample for grids.',
+        labels: ['Background', 'Original'],
+        image_path: sampleImage('BG', '#22c55e', '#06b6d4'),
+        images: [],
+        status: 'published',
+        moderation_status: 'approved',
+        download_policy: 'disabled',
+        download_credits: 0,
+        downloads_count: 0,
+        apply_watermark: false,
+        views: 3100,
+        likes: 390,
+        comments_count: 9,
+        super_likes_count: 2,
+        super_like_credits: 6,
+        is_featured: false,
+        user: {
+            id: 'sample-artist',
+            name: 'Preview Artist',
+            username: 'preview_artist',
+            role: 'storyteller',
+            avatar: sampleImage('A', '#111827', '#f59e0b'),
+            artist_verified: true,
+        },
+        created_at: SAMPLE_NOW,
+        updated_at: SAMPLE_NOW,
+    },
+]
+
+const SAMPLE_COMMISSIONS: CommissionService[] = [
+    {
+        id: 'sample-commission-1',
+        title: 'Sample Character Commission',
+        slug: 'sample-character-commission',
+        description: 'Preview commission service for layout testing.',
+        image_path: sampleImage('Commission', '#fb7185', '#8b5cf6'),
+        status: 'open',
+        boosted_until: SAMPLE_NOW,
+        base_price_credits: 30,
+        min_price_credits: 30,
+        delivery_days: 14,
+        slots_available: 3,
+        is_featured: true,
+        views_count: 880,
+        likes_count: 140,
+        created_at: SAMPLE_NOW,
+        updated_at: SAMPLE_NOW,
+        flow: [
+            { type: 'quote', label: 'Artist quote' },
+            { type: 'pay', label: 'Deposit', percent: 50 },
+            { type: 'process', label: 'Sketch' },
+            { type: 'pay', label: 'Final pay', percent: 50 },
+        ],
+        terms: 'Sample terms for preview.',
+        quote_rules: 'Quote starts from 30 credits.',
+        refund_policy: 'Preview refund policy.',
+        required_references: 'Character references and notes.',
+        request_questions: [],
+        info_questions: [],
+        client_fields: {
+            name: { collect: true, required: true },
+            nickname: { collect: true, required: false },
+            email: { collect: true, required: true },
+            discord: { collect: true, required: false },
+            twitter: { collect: false, required: false },
+            instagram: { collect: false, required: false },
+            facebook: { collect: false, required: false },
+            tiktok: { collect: false, required: false },
+        },
+        promo_discounts: [],
+        setup_options: {
+            visibility: 'discoverable',
+            service_type: 'custom',
+            communication_style: 'open',
+            requesting_process: 'custom_proposal',
+            notify_followers_on_status_change: false,
+            sensitive: false,
+            display_service_stats: true,
+            guaranteed_delivery_days: 14,
+        },
+        artist_terms: 'Preview artist terms.',
+        platform_terms: ['Payments stay inside LaterNComix credits.'],
+        rating_average: 5,
+        ratings_count: 12,
+        customers_count: 24,
+        category: { id: 'sample-category', name: 'Illustration', slug: 'illustration' },
+        artist: {
+            id: 'sample-artist',
+            name: 'Preview Artist',
+            username: 'preview_artist',
+            avatar: sampleImage('A', '#111827', '#f59e0b'),
+            artist_title: 'Commission Artist',
+            artist_verified: true,
+            commission_status: 'open',
+        },
+        recent_ratings: [],
+    },
+]
+
+function withSampleHomeData(data?: HomePreviewData): HomePreviewData {
+    const sampleWorks = sampleUpTo(SAMPLE_WORKS)
+    const sampleChapters = sampleUpTo(SAMPLE_CHAPTERS)
+
+    return {
+        weeklyChart: data?.weeklyChart?.length ? data.weeklyChart : sampleWorks,
+        todayReleases: data?.todayReleases?.length ? data.todayReleases : sampleWorks,
+        todayTopViews: data?.todayTopViews?.length ? data.todayTopViews : sampleWorks,
+        todayTopLikes: data?.todayTopLikes?.length ? data.todayTopLikes : sampleWorks,
+        freshReleases: data?.freshReleases?.length ? data.freshReleases : sampleWorks,
+        latestChapters: data?.latestChapters?.length ? data.latestChapters : sampleChapters,
+        dailyWorks: data?.dailyWorks?.length ? data.dailyWorks : sampleWorks,
+        popularWorks: data?.popularWorks?.length ? data.popularWorks : sampleWorks,
+        topLikedWorks: data?.topLikedWorks?.length ? data.topLikedWorks : sampleWorks,
+    }
+}
+
+function withSampleArtsData(data?: ArtsPreviewData): ArtsPreviewData {
+    return {
+        featured_artists: data?.featured_artists?.length
+            ? data.featured_artists
+            : [
+                  {
+                      id: 'sample-artist',
+                      name: 'Preview Artist',
+                      username: 'preview_artist',
+                      avatar: sampleImage('A', '#111827', '#f59e0b'),
+                      artist_title: 'Commission Artist',
+                  },
+              ],
+        tags: data?.tags?.length
+            ? data.tags
+            : [
+                  { label: 'Fanart', artists_count: 24 },
+                  { label: 'Original', artists_count: 18 },
+                  { label: 'Character Design', artists_count: 12 },
+              ],
+        arts: { data: data?.arts?.data?.length ? data.arts.data : sampleUpTo(SAMPLE_ARTS) },
+    }
+}
+
+function withSampleCommissionData(data?: CommissionPreviewData): CommissionPreviewData {
+    return {
+        commissions: {
+            data: data?.commissions?.data?.length
+                ? data.commissions.data
+                : sampleUpTo(SAMPLE_COMMISSIONS),
+        },
+    }
+}
+
 // ============================================================================
 // SECTION 3: MAIN PAGE BUILDER STATE, QUERIES, SAVE, RESET, AND LAYOUT ----
 // ============================================================================
@@ -197,7 +531,7 @@ export default function PageCustomizer() {
 
     const homePreview = useQuery<HomePreviewData>({
         queryKey: ['page-builder-home-preview'],
-        enabled: ['home', 'comix', 'daily', 'rankings', 'genre'].includes(page),
+        enabled: ['home', 'comix', 'novels', 'daily', 'rankings', 'genre'].includes(page),
         queryFn: () => publicApi.getHome().then((res) => res.data),
         staleTime: 60_000,
     })
@@ -213,14 +547,16 @@ export default function PageCustomizer() {
         enabled: page === 'commissions',
         queryFn: async () => {
             const res = await publicApi.getCommissions()
-
-            console.log('getCommissions Response', res)
-            console.log('getCommissions Data', res.data.commissions)
-
             return res.data
         },
         staleTime: 60_000,
     })
+    const previewHomeData = useMemo(() => withSampleHomeData(homePreview.data), [homePreview.data])
+    const previewArtsData = useMemo(() => withSampleArtsData(artsPreview.data), [artsPreview.data])
+    const previewCommissionData = useMemo(
+        () => withSampleCommissionData(commissionsPreview.data),
+        [commissionsPreview.data]
+    )
     useEffect(() => {
         setWidgets(layout.data?.widgets ?? [])
         setSelectedId(null)
@@ -229,7 +565,7 @@ export default function PageCustomizer() {
     const invalidatePagePreview = () => {
         queryClient.invalidateQueries({ queryKey: ['admin-page-layout', page] })
 
-        if (['home', 'comix', 'daily', 'rankings', 'genre'].includes(page)) {
+        if (['home', 'comix', 'novels', 'daily', 'rankings', 'genre'].includes(page)) {
             queryClient.invalidateQueries({ queryKey: ['home'] })
             queryClient.invalidateQueries({
                 queryKey: ['page-builder-home-preview'],
@@ -526,9 +862,9 @@ export default function PageCustomizer() {
                                                 widget={widget}
                                                 widgets={widgets}
                                                 selected={selectedId === widget.id}
-                                                homeData={homePreview.data}
-                                                artsData={artsPreview.data}
-                                                commissionData={commissionsPreview.data}
+                                                homeData={previewHomeData}
+                                                artsData={previewArtsData}
+                                                commissionData={previewCommissionData}
                                                 onSelect={() => setSelectedId(widget.id)}
                                                 onRemove={() => removeWidget(widget.id)}
                                                 onChange={(updater) =>
@@ -653,7 +989,9 @@ function CanvasWidget({
 }) {
     const frameStyle = previewFrameStyle(widget)
     const editableOverlay = isEditableOverlay(widget)
-    const resizableCustom = ['sticker', 'text', 'image', 'board', 'spacer'].includes(widget.type)
+    const resizableCustom = ['sticker', 'text', 'image', 'banner', 'board', 'spacer'].includes(
+        widget.type
+    )
 
     const startOverlayDrag = (event: ReactPointerEvent<HTMLElement>) => {
         if (!editableOverlay) return
@@ -927,18 +1265,18 @@ function WidgetContent({
     }
 
     if (widget.type === 'tab_cards') {
-        return <TabCardsWidget widget={widget} />
+        return <TabCardsWidget widget={widget} preview />
     }
 
     if (widget.type === 'board') {
         return <EditableBoardWidget widget={widget} onChange={onChange} />
     }
 
-    if (['text', 'image', 'sticker', 'spacer'].includes(widget.type)) {
+    if (['text', 'image', 'banner', 'sticker', 'spacer'].includes(widget.type)) {
         return <CustomContentWidget widget={widget} />
     }
 
-    if (['home', 'comix', 'daily', 'rankings', 'genre'].includes(page)) {
+    if (['home', 'comix', 'novels', 'daily', 'rankings', 'genre'].includes(page)) {
         return <HomeWidget widget={widget} widgets={widgets} data={homeData} />
     }
 
@@ -966,7 +1304,7 @@ function HomeWidget({
               ? 'novel'
               : widget.settings.filter_cards_data === 'arts'
                 ? 'art'
-                : widget.settings.filter ?? 'all'
+                : (widget.settings.filter ?? 'all')
     const byType = (works: WorkItem[] = []) =>
         works
             .filter((work) => work.type !== 'commission')
@@ -999,20 +1337,14 @@ function HomeWidget({
     if (widget.type === 'featured_hero') {
         return (
             <BuilderPreviewLabel label="Featured Hero">
-                <FeaturedHeroWidget
-                    widget={widget}
-                    works={allWorks}
-                />
+                <FeaturedHeroWidget widget={widget} works={allWorks} preview />
             </BuilderPreviewLabel>
         )
     }
     if (widget.type === 'group_hero') {
         return (
             <BuilderPreviewLabel label="Group Hero">
-                <GroupHeroWidget
-                    widget={widget}
-                    works={allWorks}
-                />
+                <GroupHeroWidget widget={widget} works={allWorks} />
             </BuilderPreviewLabel>
         )
     }
@@ -1053,7 +1385,7 @@ function HomeWidget({
                         labels={labelItemsFromWorks(sourceFilteredPreviewWorks(allWorks, widget))}
                         offset={labelContinuationOffset(widgets, widget)}
                     />
-                    <TabCardsWidget widget={widget} works={allWorks} />
+                    <TabCardsWidget widget={widget} works={allWorks} preview />
                 </div>
             )
         }
@@ -1070,7 +1402,7 @@ function HomeWidget({
         return (
             <EpisodesWidget
                 widget={widget}
-                chapters={data?.latestChapters ?? []}
+                chapters={filterPreviewChapters(data?.latestChapters ?? [], widget)}
                 cover={cover}
             />
         )
@@ -1111,18 +1443,29 @@ function HomeWidget({
     if (widget.type === 'fresh')
         return (
             <FreshReleasesSection
-                freshReleases={filteredWorks(data?.freshReleases).slice(gridOffset, gridOffset + limit)}
+                freshReleases={filteredWorks(data?.freshReleases).slice(
+                    gridOffset,
+                    gridOffset + limit
+                )}
                 cover={cover}
             />
         )
     if (widget.type === 'latest')
         return (
             <LatestChaptersSection
-                latestChapters={(data?.latestChapters ?? []).slice(0, limit)}
+                latestChapters={filterPreviewChapters(data?.latestChapters ?? [], widget).slice(
+                    0,
+                    limit
+                )}
                 cover={cover}
             />
         )
-    if (widget.type === 'popular' || widget.type === 'grid_image' || widget.type === 'grid_con' || widget.type === 'cards')
+    if (
+        widget.type === 'popular' ||
+        widget.type === 'grid_image' ||
+        widget.type === 'grid_con' ||
+        widget.type === 'cards'
+    )
         return (
             <WorkGrid
                 title={widget.title}
@@ -1145,12 +1488,12 @@ function HomeWidget({
     if (widget.type === 'shop_card') {
         return (
             <BuilderPreviewLabel label="Shop Card">
-                <ShopCardWidget widget={widget} />
+                <ShopCardWidget widget={widget} preview />
             </BuilderPreviewLabel>
         )
     }
     if (isSharedDiscoveryWidget(widget.type)) {
-        return <SharedDiscoveryWidget widget={widget} widgets={widgets} />
+        return <SharedDiscoveryWidget widget={widget} widgets={widgets} preview />
     }
 
     return <EmptyWidget />
@@ -1158,7 +1501,6 @@ function HomeWidget({
 
 function applyPreviewWidgetFilters(works: WorkItem[], widget: PageWidget) {
     const settings = widget.settings ?? {}
-    const dailyDate = settings.daily_date
     const multiSource = settings.label_filter_source ?? 'none'
     const multiValues = (settings.label_filter_values ?? [])
         .map((value) => value.toLowerCase())
@@ -1167,7 +1509,7 @@ function applyPreviewWidgetFilters(works: WorkItem[], widget: PageWidget) {
     const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
 
     const filtered = works.filter((work) => {
-        if (dailyDate && !isSameDate(work.created_at, dailyDate)) return false
+        if (!matchesDateWindow(work.created_at, widget)) return false
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
             if (source === 'status') return String(work.status ?? '').toLowerCase() === value
@@ -1181,7 +1523,8 @@ function applyPreviewWidgetFilters(works: WorkItem[], widget: PageWidget) {
             multiSource === 'none' || multiValues.length === 0
                 ? true
                 : multiValues.some((value) => matches(multiSource, value))
-        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+        const badgeOk =
+            badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
 
         return multiOk && badgeOk
     })
@@ -1214,9 +1557,37 @@ function comparePreviewSort(a: WorkItem, b: WorkItem, sort: string) {
     return 0
 }
 
-function isSameDate(value: string | undefined, date: string) {
-    if (!value || !date) return false
-    return value.slice(0, 10) === date
+function matchesDateWindow(value: string | undefined, widget: PageWidget) {
+    const mode = widget.settings.date_mode ?? 'all'
+    const dateValue = widget.settings.date_value || widget.settings.daily_date
+    if (mode === 'all' || !value) return true
+
+    const date = new Date(value)
+    const base = dateValue ? new Date(dateValue) : new Date()
+    if (Number.isNaN(date.getTime()) || Number.isNaN(base.getTime())) return true
+
+    if (mode === 'daily') return date.toISOString().slice(0, 10) === base.toISOString().slice(0, 10)
+    if (mode === 'weekly')
+        return Math.abs(date.getTime() - base.getTime()) <= 7 * 24 * 60 * 60 * 1000
+    if (mode === 'monthly') {
+        return (
+            date.getUTCFullYear() === base.getUTCFullYear() &&
+            date.getUTCMonth() === base.getUTCMonth()
+        )
+    }
+
+    return true
+}
+
+function filterPreviewChapters(chapters: ChapterItem[], widget: PageWidget) {
+    const source = widget.settings.filter_cards_data ?? 'mixed'
+
+    return chapters.filter((chapter) => {
+        if (!matchesDateWindow(chapter.created_at, widget)) return false
+        if (source === 'comix') return chapter.work.type === 'webtoon'
+        if (source === 'novels') return chapter.work.type === 'wattpad'
+        return true
+    })
 }
 
 function labelItemsFromWorks(works: WorkItem[]) {
@@ -1242,11 +1613,13 @@ function sourceFilteredPreviewWorks(works: WorkItem[], widget: PageWidget) {
         if (source === 'comix') return work.type === 'webtoon'
         if (source === 'novels') return work.type === 'wattpad'
         if (source === 'arts') return work.type === 'art'
-        if (source === 'shop' || source === 'commissions' || source === 'announcements') return false
+        if (source === 'shop' || source === 'commissions' || source === 'announcements')
+            return false
         return work.type !== 'commission'
     })
 }
 
+// Widget : WorkGrid ----
 function WorkGrid({
     title,
     works,
@@ -1352,7 +1725,7 @@ function ArtsWidget({
     if (widget.type === 'featured_hero') {
         return (
             <BuilderPreviewLabel label="Featured Hero">
-                <FeaturedHeroWidget widget={widget} works={artHeroWorks} />
+                <FeaturedHeroWidget widget={widget} works={artHeroWorks} preview />
             </BuilderPreviewLabel>
         )
     }
@@ -1442,7 +1815,7 @@ function ArtsWidget({
     if (widget.type === 'shop_card') {
         return (
             <BuilderPreviewLabel label="Shop Card">
-                <ShopCardWidget widget={widget} />
+                <ShopCardWidget widget={widget} preview />
             </BuilderPreviewLabel>
         )
     }
@@ -1462,7 +1835,11 @@ function CommissionWidget({
     const filteredCommissions = applyPreviewCommissionFilters(data?.commissions.data ?? [], widget)
     const limit = widget.settings.limit ?? 10
     const gridOffset = gridContinuationOffset(widgets, widget)
-    if (widget.type === 'commission_grid' || widget.type === 'boosted_commissions' || widget.type === 'grid_con') {
+    if (
+        widget.type === 'commission_grid' ||
+        widget.type === 'boosted_commissions' ||
+        widget.type === 'grid_con'
+    ) {
         const items =
             widget.type === 'boosted_commissions'
                 ? filteredCommissions.filter((commission) => commission.boosted_until)
@@ -1487,19 +1864,19 @@ function CommissionWidget({
     if (widget.type === 'featured_hero') {
         return (
             <BuilderPreviewLabel label="Featured Hero">
-                <FeaturedHeroWidget widget={widget} works={[]} />
+                <FeaturedHeroWidget widget={widget} works={[]} preview />
             </BuilderPreviewLabel>
         )
     }
     if (widget.type === 'shop_card') {
         return (
             <BuilderPreviewLabel label="Shop Card">
-                <ShopCardWidget widget={widget} />
+                <ShopCardWidget widget={widget} preview />
             </BuilderPreviewLabel>
         )
     }
     if (isSharedDiscoveryWidget(widget.type)) {
-        return <SharedDiscoveryWidget widget={widget} widgets={widgets} />
+        return <SharedDiscoveryWidget widget={widget} widgets={widgets} preview />
     }
     return <EmptyWidget />
 }
@@ -1514,6 +1891,7 @@ function applyPreviewArtFilters(arts: Art[], widget: PageWidget) {
     const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
 
     return arts.filter((art) => {
+        if (!matchesDateWindow(art.created_at, widget)) return false
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
             if (source === 'status') return String(art.status ?? '').toLowerCase() === value
@@ -1526,7 +1904,8 @@ function applyPreviewArtFilters(arts: Art[], widget: PageWidget) {
             multiSource === 'none' || multiValues.length === 0
                 ? true
                 : multiValues.some((value) => matches(multiSource, value))
-        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+        const badgeOk =
+            badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
         return multiOk && badgeOk
     })
 }
@@ -1541,6 +1920,7 @@ function applyPreviewCommissionFilters(commissions: CommissionService[], widget:
     const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
 
     return commissions.filter((commission) => {
+        if (!matchesDateWindow(commission.created_at, widget)) return false
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
             if (source === 'status') return String(commission.status ?? '').toLowerCase() === value
@@ -1556,7 +1936,8 @@ function applyPreviewCommissionFilters(commissions: CommissionService[], widget:
             multiSource === 'none' || multiValues.length === 0
                 ? true
                 : multiValues.some((value) => matches(multiSource, value))
-        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+        const badgeOk =
+            badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
         return multiOk && badgeOk
     })
 }
@@ -2117,32 +2498,16 @@ function Inspector({
                     Enabled
                 </label>
 
-                {[
-                    'weekly',
-                    'daily',
-                    'today_releases',
-                    'today_top',
-                    'fresh',
-                    'latest',
-                    'popular',
-                    'top_liker',
-                    'episodes',
-                    'grid_image',
-                    'cards',
-                    'tab_cards',
-                    'shop_card',
-                    'top_10s',
-                    'labels',
-                    'arts_grid',
-                    'commission_grid',
-                    'boosted_commissions',
-                    'grid_con',
-                ].includes(widget.type) && (
+                {supportsDataControls(widget.type) && (
                     <FilterControls
                         widget={widget}
                         labeling={labeling.data}
                         setSetting={setSetting}
                     />
+                )}
+
+                {supportsDateControls(widget.type) && (
+                    <DateControls widget={widget} setSetting={setSetting} />
                 )}
 
                 {[
@@ -2230,8 +2595,10 @@ function Inspector({
                             {[
                                 ['hero_source_arts', 'Arts'],
                                 ['hero_source_announcements', 'Announcement'],
-                                ['hero_source_works', 'Works'],
+                                ['hero_source_works', 'Comix'],
+                                ['hero_source_novels', 'Novels'],
                                 ['hero_source_commissions', 'Commission'],
+                                ['hero_source_shop', 'Shop'],
                             ].map(([key, label]) => (
                                 <label key={key} className="flex items-center gap-2 text-sm">
                                     <input
@@ -2428,6 +2795,128 @@ function Inspector({
                                         setStyle('font_family', family)
                                 }}
                                 placeholder="https://fonts.googleapis.com/css2?family=Poppins..."
+                            />
+                        </div>
+                    </>
+                )}
+
+                {widget.type === 'banner' && (
+                    <>
+                        <div>
+                            <Label>Banner text</Label>
+                            <textarea
+                                value={widget.settings.text ?? ''}
+                                onChange={(event) => setSetting('text', event.target.value)}
+                                className="mt-1 min-h-24 w-full rounded-md border bg-background p-3 text-sm"
+                                placeholder="Write the banner message..."
+                            />
+                        </div>
+                        <div>
+                            <Label>Banner image</Label>
+                            {assetUrl && (
+                                <img
+                                    src={assetUrl}
+                                    alt=""
+                                    className="mt-2 max-h-32 rounded-md object-contain"
+                                />
+                            )}
+                            <label className="mt-2 flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground hover:bg-muted/60">
+                                <ImagePlus className="h-4 w-4" />
+                                Upload banner image
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="sr-only"
+                                    onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                                        const file = event.target.files?.[0]
+                                        if (file) upload.mutate(file)
+                                    }}
+                                />
+                            </label>
+                        </div>
+                        <SelectField
+                            label="Text/image direction"
+                            value={widget.settings.layout ?? 'horizontal'}
+                            options={['horizontal', 'vertical']}
+                            onChange={(value) => setSetting('layout', value)}
+                        />
+                        <SelectField
+                            label="CSS layout"
+                            value={widget.settings.banner_layout_mode ?? 'grid'}
+                            options={['grid', 'flex']}
+                            onChange={(value) => setSetting('banner_layout_mode', value)}
+                        />
+                        <SelectField
+                            label="Image placement"
+                            value={widget.settings.banner_image_mode ?? 'side'}
+                            options={['side', 'background']}
+                            onChange={(value) => setSetting('banner_image_mode', value)}
+                        />
+                        <SelectField
+                            label="Image fit"
+                            value={widget.settings.banner_image_fit ?? 'cover'}
+                            options={['cover', 'contain', 'fill']}
+                            onChange={(value) => setSetting('banner_image_fit', value)}
+                        />
+                        <div>
+                            <Label>Image position</Label>
+                            <Input
+                                value={widget.settings.banner_image_position ?? 'center'}
+                                onChange={(event) =>
+                                    setSetting('banner_image_position', event.target.value)
+                                }
+                                placeholder="center, top, 50% 30%"
+                            />
+                        </div>
+                        <div>
+                            <Label>Font name</Label>
+                            <Input
+                                value={widget.style.font_family ?? ''}
+                                onChange={(event) => setStyle('font_family', event.target.value)}
+                                placeholder={
+                                    fontFamilyFromUrl(widget.settings.font_url) ??
+                                    'Inter, Poppins, MyFont'
+                                }
+                            />
+                        </div>
+                        <div>
+                            <Label>Font CDN / import URL</Label>
+                            <Input
+                                value={widget.settings.font_url ?? ''}
+                                onChange={(event) => {
+                                    setSetting('font_url', event.target.value)
+                                    const family = fontFamilyFromUrl(event.target.value)
+                                    if (family && !widget.style.font_family)
+                                        setStyle('font_family', family)
+                                }}
+                                placeholder="https://fonts.googleapis.com/css2?family=Poppins..."
+                            />
+                        </div>
+                        <div>
+                            <Label>Parent CSS</Label>
+                            <textarea
+                                value={widget.settings.custom_css ?? ''}
+                                onChange={(event) => setSetting('custom_css', event.target.value)}
+                                className="mt-1 min-h-20 w-full rounded-md border bg-background p-3 text-xs"
+                                placeholder="display: grid; gap: 12px;"
+                            />
+                        </div>
+                        <div>
+                            <Label>Text CSS</Label>
+                            <textarea
+                                value={widget.settings.text_css ?? ''}
+                                onChange={(event) => setSetting('text_css', event.target.value)}
+                                className="mt-1 min-h-20 w-full rounded-md border bg-background p-3 text-xs"
+                                placeholder="justify-content: center; max-width: 620px;"
+                            />
+                        </div>
+                        <div>
+                            <Label>Image CSS</Label>
+                            <textarea
+                                value={widget.settings.image_css ?? ''}
+                                onChange={(event) => setSetting('image_css', event.target.value)}
+                                className="mt-1 min-h-20 w-full rounded-md border bg-background p-3 text-xs"
+                                placeholder="filter: saturate(1.1);"
                             />
                         </div>
                     </>
@@ -2955,7 +3444,7 @@ function Inspector({
                     </div>
                 )}
 
-                {['sticker', 'text', 'image', 'spacer'].includes(widget.type) && (
+                {['sticker', 'text', 'image', 'banner', 'spacer'].includes(widget.type) && (
                     <>
                         <SelectField
                             label="Placement"
@@ -3054,7 +3543,9 @@ function Inspector({
                     </div>
                 )}
 
-                {['arts_grid', 'commission_grid', 'boosted_commissions', 'grid_con'].includes(widget.type) && (
+                {['arts_grid', 'commission_grid', 'boosted_commissions', 'grid_con'].includes(
+                    widget.type
+                ) && (
                     <>
                         <SelectField
                             label="Grid"
@@ -3145,21 +3636,6 @@ function Inspector({
                             max={99}
                             onChange={(value) => setSetting('limit', value)}
                         />
-                        {['daily', 'today_releases', 'today_top'].includes(widget.type) && (
-                            <div>
-                                <Label>Specific date</Label>
-                                <Input
-                                    type="date"
-                                    value={widget.settings.daily_date ?? ''}
-                                    onChange={(event) =>
-                                        setSetting('daily_date', event.target.value || undefined)
-                                    }
-                                />
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                    Leave empty to use the current daily data.
-                                </p>
-                            </div>
-                        )}
                         {widget.type === 'today_top' && (
                             <SelectField
                                 label="Rank by"
@@ -3192,7 +3668,7 @@ function Inspector({
                         placeholder="F54927 or #F54927"
                     />
                 </div>
-                {widget.type === 'text' && (
+                {(widget.type === 'text' || widget.type === 'banner') && (
                     <div>
                         <Label>Text color</Label>
                         <Input
@@ -3310,6 +3786,44 @@ function Inspector({
                             min={24}
                             max={1200}
                             onChange={(value) => setStyle('content_height', value)}
+                        />
+                    </>
+                )}
+                {widget.type === 'banner' && (
+                    <>
+                        <NumberField
+                            label="Banner width"
+                            value={widget.style.content_width ?? 960}
+                            min={240}
+                            max={1360}
+                            onChange={(value) => setStyle('content_width', value)}
+                        />
+                        <NumberField
+                            label="Banner height"
+                            value={widget.style.content_height ?? 260}
+                            min={120}
+                            max={1200}
+                            onChange={(value) => setStyle('content_height', value)}
+                        />
+                        <NumberField
+                            label="Side image width %"
+                            value={widget.settings.banner_image_width ?? 42}
+                            min={20}
+                            max={80}
+                            onChange={(value) => setSetting('banner_image_width', value)}
+                        />
+                        <NumberField
+                            label="Text size"
+                            value={widget.style.font_size ?? 14}
+                            min={8}
+                            max={160}
+                            onChange={(value) => setStyle('font_size', value)}
+                        />
+                        <SelectField
+                            label="Text align"
+                            value={widget.style.text_align ?? 'start'}
+                            options={['start', 'center', 'end']}
+                            onChange={(value) => setStyle('text_align', value)}
                         />
                     </>
                 )}
@@ -3566,7 +4080,7 @@ function Inspector({
                         )}
                     </>
                 )}
-                {['sticker', 'text', 'image', 'spacer'].includes(widget.type) &&
+                {['sticker', 'text', 'image', 'banner', 'spacer'].includes(widget.type) &&
                     widget.settings.allow_overlap && (
                         <NumberField
                             label="Rotate degree"
@@ -3605,11 +4119,11 @@ function Inspector({
                             onOverlayPlacementChange(widget.id, event.target.checked)
                         }}
                     />
-                    {['sticker', 'text', 'image', 'spacer'].includes(widget.type)
+                    {['sticker', 'text', 'image', 'banner', 'spacer'].includes(widget.type)
                         ? 'Overlay other widgets'
                         : 'Allow overlap'}
                 </label>
-                {['sticker', 'text', 'image', 'spacer'].includes(widget.type) &&
+                {['sticker', 'text', 'image', 'banner', 'spacer'].includes(widget.type) &&
                 widget.settings.allow_overlap ? (
                     <p className="rounded-md bg-sky-500/10 px-3 py-2 text-xs text-sky-700 dark:text-sky-300">
                         Drag this widget directly in the preview to place it anywhere.
@@ -3733,15 +4247,23 @@ function FilterControls({
                     Data and filters
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                    Use label filtering for multiple chips. Use badge filtering when this widget should
-                    show only one selected genre/status/label.
+                    Use label filtering for multiple chips. Use badge filtering when this widget
+                    should show only one selected genre/status/label.
                 </p>
             </div>
 
             <SelectField
                 label="Cards data"
                 value={dataSource}
-                options={['mixed', 'comix', 'novels', 'arts', 'shop', 'commissions', 'announcements']}
+                options={[
+                    'mixed',
+                    'comix',
+                    'novels',
+                    'arts',
+                    'shop',
+                    'commissions',
+                    'announcements',
+                ]}
                 onChange={(value) => {
                     setSetting('filter_cards_data', value)
                     setSetting('label_filter_source', 'none')
@@ -3780,7 +4302,8 @@ function FilterControls({
                     })}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                    Click multiple sorts in the order you want. Empty uses featured, popular, then latest.
+                    Click multiple sorts in the order you want. Empty uses featured, popular, then
+                    latest.
                 </p>
             </div>
 
@@ -3874,6 +4397,74 @@ function FilterControls({
     )
 }
 
+function DateControls({
+    widget,
+    setSetting,
+}: {
+    widget: PageWidget
+    setSetting: (key: string, value: unknown) => void
+}) {
+    const mode = widget.settings.date_mode ?? 'all'
+
+    return (
+        <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Date
+            </p>
+            <SelectField
+                label="Date range"
+                value={mode}
+                options={['all', 'daily', 'weekly', 'monthly']}
+                onChange={(value) => {
+                    setSetting('date_mode', value)
+                    if (value === 'all') {
+                        setSetting('date_value', undefined)
+                        setSetting('daily_date', undefined)
+                    }
+                }}
+            />
+            {mode !== 'all' && (
+                <div>
+                    <Label>Start date</Label>
+                    <Input
+                        type="date"
+                        value={widget.settings.date_value ?? widget.settings.daily_date ?? ''}
+                        onChange={(event) => {
+                            const nextValue = event.target.value || undefined
+                            setSetting('date_value', nextValue)
+                            setSetting('daily_date', nextValue)
+                        }}
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Daily matches this day. Weekly shows the 7 days around it. Monthly matches
+                        its month.
+                    </p>
+                </div>
+            )}
+        </div>
+    )
+}
+
+function supportsDataControls(type: string) {
+    return (
+        isSharedDiscoveryWidget(type) ||
+        [
+            'featured_hero',
+            'group_hero',
+            'labels',
+            'arts_grid',
+            'commission_grid',
+            'boosted_commissions',
+            'shop_card',
+            'sticker_shop',
+        ].includes(type)
+    )
+}
+
+function supportsDateControls(type: string) {
+    return supportsDataControls(type)
+}
+
 function defaultDataSourceForWidget(type: string) {
     if (type === 'shop_card') return 'shop'
     if (type === 'commission_grid' || type === 'boosted_commissions') return 'commissions'
@@ -3895,7 +4486,8 @@ function filterSourceOptionsForData(dataSource: string) {
 
 function sortOptionsForData(dataSource: string) {
     if (dataSource === 'shop') return ['featured', 'latest', 'popular', 'likes', 'new'] as const
-    if (dataSource === 'commissions') return ['featured', 'latest', 'popular', 'views', 'new'] as const
+    if (dataSource === 'commissions')
+        return ['featured', 'latest', 'popular', 'views', 'new'] as const
     if (dataSource === 'announcements') return ['featured', 'latest', 'new'] as const
     return ['featured', 'latest', 'popular', 'views', 'likes', 'new'] as const
 }

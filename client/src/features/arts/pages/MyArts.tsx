@@ -397,6 +397,7 @@ export default function MyArts() {
                             <WorkspaceBannerPicker
                                 audience="studio"
                                 storageKey="workspace-banner-my-arts"
+                                pageTarget="my_arts"
                                 fallbackImage={featuredImage}
                                 onImageChange={setWorkspaceBannerImage}
                             />

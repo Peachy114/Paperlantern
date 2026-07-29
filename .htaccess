@@ -1,0 +1,83 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # =========================================================
+    # Preserve Laravel authentication headers
+    # =========================================================
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    RewriteCond %{HTTP:X-XSRF-TOKEN} .
+    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-TOKEN}]
+
+    # =========================================================
+    # Laravel API
+    # =========================================================
+    RewriteRule ^api(?:/.*)?$ server/public/index.php [L,QSA]
+
+    # =========================================================
+    # Laravel storage
+    # =========================================================
+    RewriteRule ^storage/(.*)$ server/public/storage/$1 [L]
+
+    # =========================================================
+    # Serve existing files and directories
+    # =========================================================
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # =========================================================
+    # Missing Vite assets must return a real 404.
+    # Never return React index.html for missing JS/CSS.
+    # =========================================================
+    RewriteRule ^assets/ - [L]
+
+    # =========================================================
+    # React Router fallback
+    # =========================================================
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+<IfModule mod_brotli.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/javascript application/javascript application/json application/xml image/svg+xml
+</IfModule>
+
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript application/javascript application/json application/xml image/svg+xml
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+
+    ExpiresByType text/html "access plus 0 seconds"
+
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType text/javascript "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/webp "access plus 30 days"
+    ExpiresByType image/gif "access plus 30 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.(?:js|css|woff2|svg)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    <FilesMatch "\.(?:png|jpe?g|webp|gif|ico)$">
+        Header set Cache-Control "public, max-age=2592000"
+    </FilesMatch>
+
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</IfModule>

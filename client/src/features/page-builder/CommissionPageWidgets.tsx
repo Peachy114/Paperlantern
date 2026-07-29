@@ -2,7 +2,9 @@ import { Suspense, type ReactNode } from 'react'
 import FeaturedHeroWidget from '@/features/page-builder/FeaturedHeroWidget'
 import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
 import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
+import LabelRailWidget from '@/features/page-builder/LabelRailWidget'
 import ShopCardWidget from '@/features/page-builder/ShopCardWidget'
+import StickerShopWidget from '@/features/page-builder/StickerShopWidget'
 import { CustomPageWidget, PageWidgetFrame } from '@/features/page-builder/PageWidgetFrame'
 import type { CommissionService } from '@/types/commission'
 import type { PageWidget } from '@/types/pageLayout'
@@ -10,6 +12,7 @@ import type { WorkItem } from '@/features/work/hooks/useHome'
 import CommissionGrid from '@/features/commissions/pages/components/commission_grid'
 import { gridContinuationOffset } from './continuation'
 import SharedDiscoveryWidget, { isSharedDiscoveryWidget } from './SharedDiscoveryWidget'
+import { SAMPLE_COMMISSIONS } from '@/features/page-builder/samplePageData'
 
 type CommissionCategory = {
     id: string
@@ -31,16 +34,24 @@ export interface CommissionWidgetData {
 export function CommissionPageWidgets({
     widgets,
     data,
+    preview = false,
 }: {
     widgets: PageWidget[]
     data: CommissionWidgetData
+    preview?: boolean
 }) {
     return (
         <Suspense fallback={null}>
             {widgets
                 .filter((widget) => widget.enabled)
                 .map((widget) => (
-                    <CommissionWidget key={widget.id} widget={widget} widgets={widgets} data={data} />
+                    <CommissionWidget
+                        key={widget.id}
+                        widget={widget}
+                        widgets={widgets}
+                        data={data}
+                        preview={preview}
+                    />
                 ))}
         </Suspense>
     )
@@ -50,14 +61,25 @@ function CommissionWidget({
     widget,
     widgets,
     data,
+    preview,
 }: {
     widget: PageWidget
     widgets: PageWidget[]
     data: CommissionWidgetData
+    preview: boolean
 }) {
     const limit = widget.settings.limit ?? 10
     const gridOffset = gridContinuationOffset(widgets, widget)
-    const filteredCommissions = applyCommissionWidgetFilters(data.commissions, widget)
+    const sourceCommissions =
+        data.commissions.length || !preview ? data.commissions : SAMPLE_COMMISSIONS
+    const categories = data.categories?.length
+        ? data.categories
+        : preview
+          ? (SAMPLE_COMMISSIONS.map((commission) => commission.category).filter(
+                Boolean
+            ) as CommissionCategory[])
+          : []
+    const filteredCommissions = applyCommissionWidgetFilters(sourceCommissions, widget)
 
     const featuredCommissions = data.featuredCommissions?.length
         ? data.featuredCommissions
@@ -67,7 +89,8 @@ function CommissionWidget({
         ? data.boostedCommissions
         : filteredCommissions.filter((commission) => Boolean(commission.boosted_until))
 
-    const heroCommissions = featuredCommissions.length > 0 ? featuredCommissions : filteredCommissions
+    const heroCommissions =
+        featuredCommissions.length > 0 ? featuredCommissions : filteredCommissions
 
     const heroWorks = heroCommissions.map(commissionToHeroWork)
 
@@ -82,7 +105,11 @@ function CommissionWidget({
     if (widget.type === 'featured_hero') {
         return (
             <PageWidgetFrame widget={widget}>
-                <FeaturedHeroWidget widget={widget} works={heroWorks.slice(0, limit)} />
+                <FeaturedHeroWidget
+                    widget={widget}
+                    works={heroWorks.slice(0, limit)}
+                    preview={preview}
+                />
             </PageWidgetFrame>
         )
     }
@@ -95,33 +122,76 @@ function CommissionWidget({
         )
     }
 
-    if (widget.type === 'commission_grid' || widget.type === 'boosted_commissions' || widget.type === 'grid_con') {
-        const source = widget.type === 'boosted_commissions' ? boostedCommissions : filteredCommissions
+    if (widget.type === 'labels') {
+        const gridOwnsCategoryFilters = widgets.some((item) =>
+            ['commission_grid', 'boosted_commissions', 'grid_con'].includes(item.type)
+        )
+        if (gridOwnsCategoryFilters) return null
 
         return (
             <PageWidgetFrame widget={widget}>
-                <CommissionGridCategoryFilters
-                    categories={data.categories ?? []}
-                    activeCategory={data.activeCategory ?? ''}
-                    onChange={data.onCategoryChange}
-                />
-
-                <CommissionGrid
-                    commissions={source.slice(gridOffset, gridOffset + limit)}
-                    isLoading={data.isLoading}
-                    grid={widget.settings.grid ?? 'masonry'}
-                    columns={widget.settings.columns}
-                    infoLayout={widget.settings.info_layout ?? 'image_only'}
-                    onOpen={data.onOpen}
+                <LabelRailWidget
+                    widget={widget}
+                    labels={categories.map((category) => ({
+                        label: category.name,
+                    }))}
+                    activeLabel={
+                        categories.find((category) => category.slug === data.activeCategory)
+                            ?.name ?? ''
+                    }
+                    onSelect={(label) => {
+                        const category = categories.find((item) => item.name === label)
+                        data.onCategoryChange?.(category?.slug ?? '')
+                    }}
                 />
             </PageWidgetFrame>
+        )
+    }
+
+    if (
+        widget.type === 'commission_grid' ||
+        widget.type === 'boosted_commissions' ||
+        widget.type === 'grid_con'
+    ) {
+        const source =
+            widget.type === 'boosted_commissions' ? boostedCommissions : filteredCommissions
+
+        return (
+            <section className="w-full overflow-hidden bg-gradient-to-br from-sky-50 via-background to-amber-50 px-3 sm:px-4  dark:from-sky-950/20 dark:via-background dark:to-amber-950/20">
+                <div className="mt-10 w-full max-w-[1360px] mx-auto">
+                    <PageWidgetFrame widget={widget}>
+                        <CommissionGridCategoryFilters
+                            categories={categories}
+                            activeCategory={data.activeCategory ?? ''}
+                            onChange={data.onCategoryChange}
+                        />
+
+                        <CommissionGrid
+                            commissions={source.slice(gridOffset, gridOffset + limit)}
+                            isLoading={data.isLoading}
+                            grid={widget.settings.grid ?? 'masonry'}
+                            columns={widget.settings.columns}
+                            infoLayout={widget.settings.info_layout ?? 'image_only'}
+                            onOpen={data.onOpen}
+                        />
+                    </PageWidgetFrame>
+                </div>
+            </section>
         )
     }
 
     if (widget.type === 'shop_card') {
         return (
             <PageWidgetFrame widget={widget}>
-                <ShopCardWidget widget={widget} />
+                <ShopCardWidget widget={widget} preview={preview} />
+            </PageWidgetFrame>
+        )
+    }
+
+    if (widget.type === 'sticker_shop') {
+        return (
+            <PageWidgetFrame widget={widget}>
+                <StickerShopWidget widget={widget} preview={preview} />
             </PageWidgetFrame>
         )
     }
@@ -129,7 +199,7 @@ function CommissionWidget({
     if (isSharedDiscoveryWidget(widget.type)) {
         return (
             <PageWidgetFrame widget={widget}>
-                <SharedDiscoveryWidget widget={widget} widgets={widgets} />
+                <SharedDiscoveryWidget widget={widget} widgets={widgets} preview={preview} />
             </PageWidgetFrame>
         )
     }
@@ -139,7 +209,6 @@ function CommissionWidget({
 
 function applyCommissionWidgetFilters(commissions: CommissionService[], widget: PageWidget) {
     const settings = widget.settings ?? {}
-    const dailyDate = settings.daily_date
     const multiSource = settings.label_filter_source ?? 'none'
     const multiValues = (settings.label_filter_values ?? [])
         .map((value) => value.toLowerCase())
@@ -148,7 +217,7 @@ function applyCommissionWidgetFilters(commissions: CommissionService[], widget: 
     const badgeValue = String(settings.badge_filter_value ?? '').toLowerCase()
 
     const filtered = commissions.filter((commission) => {
-        if (dailyDate && !isSameDate(commission.created_at, dailyDate)) return false
+        if (!matchesDateWindow(commission.created_at, widget)) return false
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
             if (source === 'status') return String(commission.status ?? '').toLowerCase() === value
@@ -164,7 +233,8 @@ function applyCommissionWidgetFilters(commissions: CommissionService[], widget: 
             multiSource === 'none' || multiValues.length === 0
                 ? true
                 : multiValues.some((value) => matches(multiSource, value))
-        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+        const badgeOk =
+            badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
         return multiOk && badgeOk
     })
 
@@ -198,9 +268,26 @@ function compareCommissionSort(a: CommissionService, b: CommissionService, sort:
     return 0
 }
 
-function isSameDate(value: string | undefined, date: string) {
-    if (!value || !date) return false
-    return value.slice(0, 10) === date
+function matchesDateWindow(value: string | undefined, widget: PageWidget) {
+    const mode = widget.settings.date_mode ?? 'all'
+    const dateValue = widget.settings.date_value || widget.settings.daily_date
+    if (mode === 'all' || !value) return true
+
+    const date = new Date(value)
+    const base = dateValue ? new Date(dateValue) : new Date()
+    if (Number.isNaN(date.getTime()) || Number.isNaN(base.getTime())) return true
+
+    if (mode === 'daily') return date.toISOString().slice(0, 10) === base.toISOString().slice(0, 10)
+    if (mode === 'weekly')
+        return Math.abs(date.getTime() - base.getTime()) <= 7 * 24 * 60 * 60 * 1000
+    if (mode === 'monthly') {
+        return (
+            date.getUTCFullYear() === base.getUTCFullYear() &&
+            date.getUTCMonth() === base.getUTCMonth()
+        )
+    }
+
+    return true
 }
 
 function CommissionGridCategoryFilters({

@@ -16,15 +16,24 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
 type UploadType = 'image' | 'sketch' | 'revision' | 'final'
+type InboxFilter = 'all' | 'commission' | 'order' | 'general' | 'archived'
 
 interface Thread {
     id: string
+    type: 'general' | 'commission' | 'order' | 'support'
     status: string
     quote_credits: number
     escrow_credits: number
+    archived_at: string | null
     unread_count: number
     service: { title: string; image_path: string | null } | null
-    other_user: { name: string; username: string; avatar: string | null; artist_verified: boolean } | null
+    other_user: {
+        id: string
+        name: string
+        username: string
+        avatar: string | null
+        artist_verified: boolean
+    } | null
     last_message: Message | null
 }
 
@@ -127,6 +136,7 @@ export default function Messages() {
     const requestedOrder = searchParams.get('order')
     const requestedArtist = searchParams.get('to')
     const [selectedId, setSelectedId] = useState<string | null>(requestedOrder)
+    const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all')
     const [body, setBody] = useState('')
     const [image, setImage] = useState<File | null>(null)
     const [uploadType, setUploadType] = useState<UploadType>('image')
@@ -159,6 +169,11 @@ export default function Messages() {
     })
 
     const threads = threadData?.threads.data ?? []
+    const filteredThreads = useMemo(
+        () => threads.filter((thread) => threadMatchesInboxFilter(thread, inboxFilter)),
+        [inboxFilter, threads]
+    )
+    const inboxCounts = useMemo(() => inboxFilterCounts(threads), [threads])
     const preferences = preferenceData?.preferences ?? threadData?.preferences ?? {
         message_read_receipts_enabled: true,
         message_design_id: null,
@@ -183,6 +198,20 @@ export default function Messages() {
     const messages = messageData?.messages ?? []
     const order = messageData?.order ?? null
     const isArtist = Boolean(order?.artist?.id && order.artist.id === user?.id)
+    const isCommissionOrder = Boolean(order?.service)
+    const relatedServiceThreads = useMemo(
+        () =>
+            threads.filter(
+                (thread) =>
+                    thread.type === 'commission' &&
+                    Boolean(thread.service) &&
+                    Boolean(thread.other_user?.id) &&
+                    thread.other_user?.id === selectedThread?.other_user?.id &&
+                    thread.status !== 'cancelled' &&
+                    !thread.archived_at
+            ),
+        [selectedThread?.other_user?.id, threads]
+    )
     const selectedBackground = preferenceData?.message_backgrounds.find((asset) => asset.id === preferences.message_background_id) ?? null
     const selectedDesign = preferenceData?.message_designs.find((asset) => asset.id === preferences.message_design_id) ?? null
     const visibleRevisions = useMemo(
@@ -225,7 +254,7 @@ export default function Messages() {
             const payload = new FormData()
             payload.append('body', body.trim())
             if (image) payload.append('image', image)
-            if (image && isArtist) payload.append('upload_type', uploadType)
+            if (image && isArtist && isCommissionOrder) payload.append('upload_type', uploadType)
             return commissionApi.sendMessage(selectedId!, payload).then((res) => res.data)
         },
         onSuccess: () => {
@@ -378,7 +407,7 @@ export default function Messages() {
     const attachImage = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null
         setImage(file)
-        if (file && isArtist) setUploadTypeOpen(true)
+        if (file && isArtist && isCommissionOrder) setUploadTypeOpen(true)
     }
 
     return (
@@ -396,15 +425,40 @@ export default function Messages() {
                 </Button>
             </div>
 
-            <div className="grid h-[72dvh] min-h-[560px] overflow-hidden rounded-xl border bg-background lg:grid-cols-[320px_minmax(0,1fr)]">
+            <div className="mb-4 flex flex-wrap gap-2">
+                {INBOX_FILTERS.map((filter) => (
+                    <Button
+                        key={filter.value}
+                        type="button"
+                        size="sm"
+                        variant={inboxFilter === filter.value ? 'default' : 'outline'}
+                        onClick={() => setInboxFilter(filter.value)}
+                    >
+                        {filter.label}
+                        <span className="ml-1 rounded-full bg-background/70 px-1.5 text-[10px] text-foreground">
+                            {inboxCounts[filter.value]}
+                        </span>
+                    </Button>
+                ))}
+            </div>
+
+            <div
+                className={`grid h-[72dvh] min-h-[560px] overflow-hidden rounded-xl border bg-background ${
+                    isCommissionOrder
+                        ? 'lg:grid-cols-[320px_minmax(0,1fr)_300px]'
+                        : 'lg:grid-cols-[320px_minmax(0,1fr)]'
+                }`}
+            >
                 <aside className="min-h-0 overflow-y-auto border-b lg:border-r lg:border-b-0">
                     {isLoading ? (
                         <div className="p-4 text-sm text-muted-foreground">Loading messages...</div>
-                    ) : threads.length === 0 ? (
-                        <div className="p-6 text-sm text-muted-foreground">No commission messages yet.</div>
+                    ) : filteredThreads.length === 0 ? (
+                        <div className="p-6 text-sm text-muted-foreground">
+                            No {INBOX_FILTER_LABELS[inboxFilter].toLowerCase()} messages yet.
+                        </div>
                     ) : (
                         <div className="divide-y">
-                            {threads.map((thread) => (
+                            {filteredThreads.map((thread) => (
                                 <button
                                     key={thread.id}
                                     type="button"
@@ -412,17 +466,23 @@ export default function Messages() {
                                     className={`flex w-full gap-3 p-3 text-left transition ${selectedId === thread.id ? 'bg-muted' : 'hover:bg-muted/60'}`}
                                 >
                                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
-                                        {thread.service?.image_path && (
+                                        {thread.service?.image_path ? (
                                             <img src={storageUrl(thread.service.image_path)!} alt="" className="h-full w-full object-cover" />
+                                        ) : thread.other_user?.avatar ? (
+                                            <img src={storageUrl(thread.other_user.avatar)!} alt="" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <div className="flex h-full w-full items-center justify-center text-xs font-bold">
+                                                {(thread.other_user?.name ?? 'U').slice(0, 1)}
+                                            </div>
                                         )}
                                         {thread.unread_count > 0 && (
                                             <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background" />
                                         )}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <div className="truncate text-sm font-semibold">{thread.service?.title ?? 'Commission'}</div>
+                                        <div className="truncate text-sm font-semibold">{threadTitle(thread)}</div>
                                         <div className="truncate text-xs text-muted-foreground">
-                                            {thread.other_user?.name ?? 'User'} · {thread.status.replace('_', ' ')}
+                                            {thread.other_user?.name ?? 'User'} - {threadTypeLabel(thread)}
                                         </div>
                                         <div className="mt-1 truncate text-xs text-muted-foreground">
                                             {thread.last_message?.body || (thread.last_message?.image_path ? 'Image' : 'No messages yet')}
@@ -461,7 +521,7 @@ export default function Messages() {
                                         </Button>
                                     </div>
                                 </div>
-                                {order && (
+                                {order && isCommissionOrder && (
                                     <div className="flex items-center justify-between gap-3 border-t px-3 py-2 text-sm">
                                         <span className="font-medium">Commission Request</span>
                                         <span className="text-muted-foreground">{stageStatus(order)}</span>
@@ -514,7 +574,7 @@ export default function Messages() {
                                 className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4"
                                 style={royaltyMessageBackgroundStyle(selectedBackground)}
                             >
-                                {order && (
+                                {order && isCommissionOrder && (
                                     <CommissionRequestBlock
                                         order={order}
                                         isArtist={isArtist}
@@ -632,10 +692,20 @@ export default function Messages() {
                         </>
                     ) : (
                         <div className="flex flex-1 items-center justify-center p-8 text-sm text-muted-foreground">
-                            Select a commission conversation.
+                            Select a conversation.
                         </div>
                     )}
                 </section>
+
+                {selectedThread && isCommissionOrder && (
+                    <ServiceHistoryPanel
+                        order={order}
+                        threads={relatedServiceThreads}
+                        selectedId={selectedId}
+                        onSelect={selectThread}
+                        onViewDetails={() => setInfoOpen(true)}
+                    />
+                )}
             </div>
 
             <MessageSettingsDialog
@@ -650,7 +720,11 @@ export default function Messages() {
 
             <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
                 <DialogContent className="flex max-h-[92dvh] flex-col overflow-hidden sm:max-w-2xl">
-                    <DialogHeader><DialogTitle>Commission info</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {isCommissionOrder ? 'Commission info' : 'Conversation info'}
+                        </DialogTitle>
+                    </DialogHeader>
                     {order && (
                         <div className="min-h-0 space-y-3 overflow-y-auto pr-2 text-sm">
                             <InfoRow label="Status" value={order.status.replace('_', ' ')} />
@@ -807,6 +881,123 @@ export default function Messages() {
                 </DialogContent>
             </Dialog>
         </div>
+    )
+}
+
+const INBOX_FILTERS: { value: InboxFilter; label: string }[] = [
+    { value: 'all', label: 'All' },
+    { value: 'commission', label: 'Commissions' },
+    { value: 'order', label: 'Shop Orders' },
+    { value: 'general', label: 'General' },
+    { value: 'archived', label: 'Archived' },
+]
+
+const INBOX_FILTER_LABELS: Record<InboxFilter, string> = {
+    all: 'All',
+    commission: 'Commission',
+    order: 'Shop order',
+    general: 'General',
+    archived: 'Archived',
+}
+
+function threadMatchesInboxFilter(thread: Thread, filter: InboxFilter) {
+    if (filter === 'all') return !thread.archived_at
+    if (filter === 'archived') return Boolean(thread.archived_at)
+    return thread.type === filter && !thread.archived_at
+}
+
+function inboxFilterCounts(threads: Thread[]): Record<InboxFilter, number> {
+    return {
+        all: threads.filter((thread) => !thread.archived_at).reduce((sum, thread) => sum + thread.unread_count, 0),
+        commission: threads
+            .filter((thread) => thread.type === 'commission' && !thread.archived_at)
+            .reduce((sum, thread) => sum + thread.unread_count, 0),
+        order: threads
+            .filter((thread) => thread.type === 'order' && !thread.archived_at)
+            .reduce((sum, thread) => sum + thread.unread_count, 0),
+        general: threads
+            .filter((thread) => thread.type === 'general' && !thread.archived_at)
+            .reduce((sum, thread) => sum + thread.unread_count, 0),
+        archived: threads
+            .filter((thread) => Boolean(thread.archived_at))
+            .reduce((sum, thread) => sum + thread.unread_count, 0),
+    }
+}
+
+function threadTitle(thread: Thread) {
+    if (thread.type === 'commission') return thread.service?.title ?? 'Commission request'
+    if (thread.type === 'order') return thread.service?.title ?? 'Shop order'
+    return thread.other_user?.name ?? 'General message'
+}
+
+function threadTypeLabel(thread: Thread) {
+    if (thread.archived_at) return 'Archived'
+    if (thread.type === 'commission') return thread.status.replace('_', ' ')
+    if (thread.type === 'order') return 'Shop order'
+    return 'General message'
+}
+
+function ServiceHistoryPanel({
+    order,
+    threads,
+    selectedId,
+    onSelect,
+    onViewDetails,
+}: {
+    order: OrderInfo | null
+    threads: Thread[]
+    selectedId: string | null
+    onSelect: (id: string) => void
+    onViewDetails: () => void
+}) {
+    return (
+        <aside className="hidden min-h-0 overflow-y-auto border-l bg-muted/20 p-4 lg:block">
+            <div className="mb-4">
+                <h2 className="text-sm font-bold">Service History</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                    Active commission threads with this person.
+                </p>
+            </div>
+
+            {order && (
+                <div className="mb-4 rounded-xl border bg-background p-3 text-xs">
+                    <div className="font-semibold">{order.service?.title ?? 'Commission'}</div>
+                    <div className="mt-2 grid gap-1 text-muted-foreground">
+                        <span>Status: {order.status.replace('_', ' ')}</span>
+                        <span>Quote: {order.quote_credits} credits</span>
+                        <span>Paid: {order.escrow_credits} credits</span>
+                        <span>Due: {Math.max(0, order.quote_credits - order.escrow_credits)} credits</span>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={onViewDetails}>
+                        View Details
+                    </Button>
+                </div>
+            )}
+
+            <div className="space-y-2">
+                {threads.length === 0 ? (
+                    <div className="rounded-xl border border-dashed bg-background/60 p-4 text-xs text-muted-foreground">
+                        No active commission history yet.
+                    </div>
+                ) : (
+                    threads.map((thread) => (
+                        <button
+                            key={thread.id}
+                            type="button"
+                            onClick={() => onSelect(thread.id)}
+                            className={`w-full rounded-xl border bg-background p-3 text-left text-xs transition hover:bg-muted ${
+                                selectedId === thread.id ? 'border-primary ring-2 ring-primary/20' : ''
+                            }`}
+                        >
+                            <div className="font-semibold">{thread.service?.title ?? 'Commission'}</div>
+                            <div className="mt-1 text-muted-foreground">
+                                {thread.status.replace('_', ' ')} - {thread.escrow_credits}/{thread.quote_credits} credits
+                            </div>
+                        </button>
+                    ))
+                )}
+            </div>
+        </aside>
     )
 }
 

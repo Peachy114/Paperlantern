@@ -124,7 +124,7 @@ export default function PublicShowView() {
                 unlocking={unlocking}
             />
 
-            <div className="max-w-3xl mx-auto px-4 py-6 sm:py-8 mt-20" ref={contentRef}>
+            <div className="max-w-[1360px] mx-auto px-4 py-6 sm:py-8" ref={contentRef}>
                 <PublicShowHeader
                     title={chapter.title}
                     order={chapter.order}
@@ -148,15 +148,17 @@ export default function PublicShowView() {
                     <PublicShowNovelContent content={chapter.content} />
                 )}
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mt-8 flex gap-3 sm:flex-row justify-between">
                     <PublicShowLikes liked={liked} likes={likes} toggleLike={toggleLike} />
-                    <SuperLikeButton
-                        targetType="chapter"
-                        targetId={chapter.id}
-                        initialCount={chapter.super_likes_count ?? 0}
-                        label="Super Like this chapter"
-                        ownerUserId={chapter.work_user_id}
-                    />
+                    <div className="flex flex-col items-center gap-1.5 py-6">
+                        <SuperLikeButton
+                            targetType="chapter"
+                            targetId={chapter.id}
+                            initialCount={chapter.super_likes_count ?? 0}
+                            label="Super Like this chapter"
+                            ownerUserId={chapter.work_user_id}
+                        />
+                    </div>
                 </div>
 
                 <div className="mt-6">

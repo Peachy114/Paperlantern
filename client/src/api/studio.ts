@@ -66,7 +66,10 @@ export const studioApi = {
     deleteCommissionService: (slug: string) => api.delete(`/studio/commissions/services/${slug}`),
     updateCommissionOrder: (
         id: string,
-        payload: { status: 'in_progress' | 'delivered' | 'cancelled' | 'disputed' }
+        payload: {
+            status: 'in_progress' | 'delivered' | 'cancelled' | 'disputed'
+            board_column?: 'todo' | 'in_progress' | 'done'
+        }
     ) => api.patch(`/studio/commissions/orders/${id}`, payload),
     archiveCommissionOrder: (id: string) => api.post(`/studio/commissions/orders/${id}/archive`),
     quoteCommissionOrder: (
