@@ -6,6 +6,7 @@ use App\Models\Announcement;
 use App\Repositories\AnnouncementRepository;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 
@@ -61,11 +62,11 @@ class AnnouncementService
         $path = $image->store('announcements', 'public');
 
         $manager = new ImageManager(new Driver());
-        $thumb = $manager->read(storage_path('app/public/' . $path));
+        $thumb = $manager->read(Storage::disk('public')->path($path));
         $thumb->scale(width: 700);
 
         $smallPath = preg_replace('/(\.[^.]+)$/', '_sm$1', $path);
-        $thumb->save(storage_path('app/public/' . $smallPath));
+        $thumb->save(Storage::disk('public')->path($smallPath));
 
         return $path;
     }

@@ -15,7 +15,7 @@ export default function Favorites() {
     const favorites = data ?? []
 
     return (
-        <main className="mx-auto max-w-[1360px] px-4 py-8">
+        <main className="mx-auto max-w-[1480px] px-4 py-8">
             <div className="mb-6">
                 <h1 className="text-2xl font-bold tracking-tight">Favorites</h1>
                 <p className="mt-1 text-sm text-muted-foreground">

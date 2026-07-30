@@ -43,7 +43,15 @@ class AuthService
             ]);
         }
 
-        if (! $user->email_verified_at) {
+        if ($user->role === 'super_admin' && ! $user->email_verified_at) {
+            $user->forceFill([
+                'email_verified_at' => now(),
+                'email_verification_code' => null,
+                'email_verification_expires_at' => null,
+            ])->save();
+        }
+
+        if ($user->role !== 'super_admin' && ! $user->email_verified_at) {
             $this->sendEmailVerificationCode($user);
 
             throw ValidationException::withMessages([

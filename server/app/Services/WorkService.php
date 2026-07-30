@@ -6,6 +6,7 @@ use App\Models\Work;
 use App\Repositories\WorkRepository;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 
@@ -106,11 +107,11 @@ class WorkService
         $path = $file->store($folder, 'public');
 
         $manager = new ImageManager(new Driver());
-        $thumb = $manager->read(storage_path('app/public/' . $path));
+        $thumb = $manager->read(Storage::disk('public')->path($path));
         $thumb->scale(width: 700);
 
         $smPath = preg_replace('/(\.[^.]+)$/', '_sm$1', $path);
-        $thumb->save(storage_path('app/public/' . $smPath));
+        $thumb->save(Storage::disk('public')->path($smPath));
 
         return $path;
     }

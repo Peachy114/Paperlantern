@@ -565,7 +565,7 @@ function DiscoveryWorkGrid({
     if (works.length === 0) return null
 
     return (
-        <section className="mx-auto mt-10 w-full max-w-[1480px] px-5">
+        <section className="mx-auto my-5 w-full max-w-[1480px] px-5">
             <h2 className="py-5 text-2xl font-bold uppercase">{title}</h2>
             <div
                 style={

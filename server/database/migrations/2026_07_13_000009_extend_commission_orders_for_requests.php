@@ -9,9 +9,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement(
-            "ALTER TABLE wallet_transactions MODIFY source ENUM('purchase', 'chapter_unlock', 'refund', 'bonus', 'art_download', 'commission_escrow', 'commission_release', 'commission_refund') NOT NULL"
-        );
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            DB::statement(
+                "ALTER TABLE wallet_transactions MODIFY source ENUM('purchase', 'chapter_unlock', 'refund', 'bonus', 'art_download', 'commission_escrow', 'commission_release', 'commission_refund') NOT NULL"
+            );
+        }
 
         if (Schema::hasTable('commission_orders')) {
             Schema::table('commission_orders', function (Blueprint $table) {
@@ -54,9 +56,11 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::statement(
-            "ALTER TABLE wallet_transactions MODIFY source ENUM('purchase', 'chapter_unlock', 'refund', 'bonus', 'art_download') NOT NULL"
-        );
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            DB::statement(
+                "ALTER TABLE wallet_transactions MODIFY source ENUM('purchase', 'chapter_unlock', 'refund', 'bonus', 'art_download') NOT NULL"
+            );
+        }
 
         if (Schema::hasTable('commission_orders')) {
             Schema::table('commission_orders', function (Blueprint $table) {

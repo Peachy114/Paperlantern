@@ -2,7 +2,7 @@ export default function ComixLists() {
     return (
         <div className="w-full px-4 py-4 sm:px-6 lg:px-8">
             {/* // reading reminder banner ---- */}
-            <main className="relative mx-auto h-[118px] w-full max-w-[1360px] overflow-hidden rounded-2xl bg-gradient-to-r from-[#55b7ff] via-[#c6c0a8] to-[#ffad3d] shadow-sm">
+            <main className="relative mx-auto h-[118px] w-full max-w-[1480px] overflow-hidden rounded-2xl bg-gradient-to-r from-[#55b7ff] via-[#c6c0a8] to-[#ffad3d] shadow-sm">
                 {/* //// mascot image ---- */}
                 <img
                     src="/riri_body_1.png"

@@ -204,7 +204,7 @@ export default function NavbarView({
                                     ref={profileButtonRef}
                                     onClick={handleProfileClick}
                                     size="sm"
-                                    className="shrink-0 rounded-md px-2.5 text-xs sm:px-3 md:text-sm"
+                                    className="shrink-0 rounded-md px-6 py-3.5 text-xs sm:px-3 md:text-sm"
                                 >
                                     Login
                                 </Button>

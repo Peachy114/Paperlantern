@@ -60,14 +60,14 @@ export default function AnnouncementWidget({
 
     if (loading) {
         return (
-            <div className="mx-auto mt-8 h-40 w-full max-w-[1360px] animate-pulse rounded-lg bg-muted" />
+            <div className="mx-auto mt-8 h-40 w-full max-w-[1480px] animate-pulse rounded-lg bg-muted" />
         )
     }
 
     if (error || slides.length === 0) return null
 
     return (
-        <section className="mx-auto mt-8 w-full max-w-[1360px] px-5">
+        <section className="mx-auto mt-8 w-full max-w-[1480px] px-5">
             <Carousel
                 setApi={setApi}
                 opts={{ loop: slides.length > 1, align: 'center' }}
@@ -104,7 +104,8 @@ export default function AnnouncementWidget({
                                         <div className="mb-2 flex flex-wrap items-center gap-2">
                                             {announcement.tag && (
                                                 <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide backdrop-blur">
-                                                    {tagLabels[announcement.tag] ?? announcement.tag}
+                                                    {tagLabels[announcement.tag] ??
+                                                        announcement.tag}
                                                 </span>
                                             )}
                                             {announcement.is_pinned && (

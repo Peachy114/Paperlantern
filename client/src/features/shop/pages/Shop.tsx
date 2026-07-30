@@ -133,7 +133,7 @@ export default function Shop() {
     }
 
     return (
-        <main className="mx-auto w-full max-w-[1360px] px-4 py-10 sm:px-6">
+        <main className="mx-auto w-full max-w-[1480px] px-4 py-10 sm:px-6">
             <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <div className="flex items-center gap-2">

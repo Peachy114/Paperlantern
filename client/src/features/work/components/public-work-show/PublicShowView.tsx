@@ -124,7 +124,7 @@ export default function PublicShowView() {
                 unlocking={unlocking}
             />
 
-            <div className="max-w-[1360px] mx-auto px-4 py-6 sm:py-8" ref={contentRef}>
+            <div className="max-w-[1480px] mx-auto px-4 py-6 sm:py-8" ref={contentRef}>
                 <PublicShowHeader
                     title={chapter.title}
                     order={chapter.order}

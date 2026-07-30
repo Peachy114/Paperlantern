@@ -1658,7 +1658,7 @@ function WorkGrid({
     }
 
     return (
-        <section className="mx-auto mt-10 w-full max-w-[1360px] px-5">
+        <section className="mx-auto my-5 w-full max-w-[1480px] px-5">
             <h2 className="py-5 text-2xl font-bold uppercase">{title}</h2>
             <div
                 style={
@@ -1743,7 +1743,7 @@ function ArtsWidget({
         if (artists.length === 0) return <EmptyWidget />
 
         return (
-            <section className="mx-auto max-w-[1360px] px-5 py-6">
+            <section className="mx-auto max-w-[1480px] px-5 py-6">
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest">
                     {widget.title}
                 </h2>
@@ -1983,7 +1983,7 @@ function ImageGrid({
     ))
 
     return (
-        <section className="mx-auto max-w-[1360px] px-5 py-6">
+        <section className="mx-auto max-w-[1480px] px-5 py-6">
             <h2 className="mb-4 text-2xl font-bold">{title}</h2>
             <div
                 style={

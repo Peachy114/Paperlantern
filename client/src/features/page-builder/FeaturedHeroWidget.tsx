@@ -500,7 +500,7 @@ function AnnouncementStyleHero({
 
                 <div className="absolute inset-0 bg-black/45" />
 
-                <div className="relative mx-auto flex h-full w-full max-w-[1360px] items-center px-4 sm:px-6">
+                <div className="relative mx-auto flex h-full w-full max-w-[1480px] items-center px-4 sm:px-6">
                     <HeroActionCard
                         item={current}
                         onOpenItem={onOpenItem}
@@ -563,7 +563,7 @@ function BlurredBackgroundHeroSameHeight({
             <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" />
 
             <div
-                className={`relative mx-auto flex min-h-[330px] max-w-[1360px] touch-pan-y select-none items-center justify-center px-4 sm:min-h-[390px] ${
+                className={`relative mx-auto flex min-h-[330px] max-w-[1480px] touch-pan-y select-none items-center justify-center px-4 sm:min-h-[390px] ${
                     isDragging ? 'cursor-grabbing' : 'cursor-grab'
                 }`}
                 onPointerDown={onPointerDown}
@@ -662,21 +662,21 @@ function BlurredBackgroundHero({
                         item={previousItem}
                         onClick={onPrev}
                         side="left"
-                        className="hidden h-[260px] w-[clamp(360px,38vw,560px)] shrink-0 opacity-75 md:block"
+                        className="hidden h-[360px] w-[clamp(360px,38vw,560px)] shrink-0 opacity-75 md:block"
                     />
 
                     <HeroImageCard
                         item={current}
                         widget={widget}
                         onOpenItem={onOpenItem}
-                        className="h-[300px] w-[min(760px,calc(100vw-2rem))] shrink-0 sm:h-[350px] md:w-[clamp(620px,54vw,760px)]"
+                        className="h-[400px] w-[min(760px,calc(100vw-2rem))] shrink-0 sm:h-[450px] md:w-[clamp(620px,54vw,760px)]"
                     />
 
                     <SideImageCard
                         item={nextItem}
                         onClick={onNext}
                         side="right"
-                        className="hidden h-[260px] w-[clamp(360px,38vw,560px)] shrink-0 opacity-75 md:block"
+                        className="hidden h-[360px] w-[clamp(360px,38vw,560px)] shrink-0 opacity-75 md:block"
                     />
                 </div>
 
@@ -794,7 +794,7 @@ function GappedHero({
     return (
         <section className="relative w-full overflow-hidden bg-background py-8 sm:py-10">
             <div
-                className={`relative mx-auto flex min-h-[320px] max-w-[1360px] touch-pan-y select-none items-center px-4 sm:min-h-[380px] ${
+                className={`relative mx-auto flex min-h-[320px] max-w-[1480px] touch-pan-y select-none items-center px-4 sm:min-h-[380px] ${
                     isDragging ? 'cursor-grabbing' : 'cursor-grab'
                 }`}
                 onPointerDown={onPointerDown}
@@ -1083,7 +1083,7 @@ function MetaOverlay({
 function FeaturedHeroSkeleton() {
     return (
         <section className="relative w-full overflow-hidden bg-background py-5 sm:py-7">
-            <div className="mx-auto flex min-h-[330px] max-w-[1360px] items-center justify-center px-4 sm:min-h-[390px]">
+            <div className="mx-auto flex min-h-[330px] max-w-[1480px] items-center justify-center px-4 sm:min-h-[390px]">
                 <div className="h-[300px] w-full max-w-[760px] animate-pulse rounded-3xl bg-muted sm:h-[350px]" />
             </div>
         </section>

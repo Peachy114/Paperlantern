@@ -181,7 +181,7 @@ function DefaultCardGrid({
 }) {
     return (
         <section className="w-full bg-background px-4 py-12 sm:py-16">
-            <div className="mx-auto w-full max-w-[1360px]">
+            <div className="mx-auto w-full max-w-[1480px]">
                 <SectionHeader title={widget.title || 'Fresh Release'} viewAllHref={viewAllHref} />
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 xl:grid-cols-5">
@@ -208,7 +208,7 @@ function PopularArtsMosaic({
 
     return (
         <section className="w-full overflow-hidden bg-gradient-to-br from-sky-50 via-background to-amber-50 px-3 py-12 sm:px-4 sm:py-16 dark:from-sky-950/20 dark:via-background dark:to-amber-950/20">
-            <div className="mx-auto w-full max-w-[1360px]">
+            <div className="mx-auto w-full max-w-[1480px]">
                 <SectionHeader
                     title={widget.title || 'Popular Arts'}
                     centered
@@ -314,7 +314,7 @@ function SpotlightStack({
 
     return (
         <section className="w-full bg-background px-4 py-12 sm:py-16">
-            <div className="mx-auto w-full max-w-[1360px]">
+            <div className="mx-auto w-full max-w-[1480px]">
                 <SectionHeader title={widget.title || 'Spotlight'} viewAllHref={viewAllHref} />
 
                 <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
@@ -636,7 +636,7 @@ function formatCount(value: number) {
 function CardGridSkeleton() {
     return (
         <section className="w-full bg-background px-4 py-14">
-            <div className="mx-auto max-w-[1360px]">
+            <div className="mx-auto max-w-[1480px]">
                 <div className="mx-auto mb-8 h-7 w-48 animate-pulse rounded bg-muted" />
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 xl:grid-cols-5">
                     {Array.from({ length: 10 }).map((_, index) => (
@@ -654,7 +654,7 @@ function CardGridSkeleton() {
 function MosaicSkeleton() {
     return (
         <section className="w-full overflow-hidden bg-gradient-to-br from-sky-50 via-background to-amber-50 px-3 py-14 sm:px-4 dark:from-sky-950/20 dark:via-background dark:to-amber-950/20">
-            <div className="mx-auto max-w-[1360px]">
+            <div className="mx-auto max-w-[1480px]">
                 <div className="mx-auto mb-8 h-7 w-48 animate-pulse rounded bg-muted" />
 
                 {/* //// mobile skeleton ---- */}

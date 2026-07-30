@@ -175,7 +175,7 @@ export default function ExploreArts() {
     }, [arts, requestedArt, requestedArtQuery.data, selectedArt])
 
     return (
-        <div className="relative mx-auto max-w-[1360px] px-4 py-8">
+        <div className="relative mx-auto max-w-[1480px] px-4 py-8">
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                     <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
