@@ -18,14 +18,15 @@ export default function Subscriptions() {
             toast.success(res.data.message)
             queryClient.invalidateQueries({ queryKey: ['noble-royalty'] })
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not start subscription.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not start subscription.'),
     })
 
     const currentPlan = royalty.data?.current_subscription?.plan
     const plans = royalty.data?.plans ?? []
 
     return (
-        <main className="mx-auto max-w-[1360px] px-4 py-8">
+        <main className="mx-auto max-w-[1480px] px-4 py-8">
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                     <div className="flex items-center gap-2">
@@ -48,7 +49,9 @@ export default function Subscriptions() {
             </div>
 
             {royalty.isLoading ? (
-                <div className="rounded-lg border p-8 text-sm text-muted-foreground">Loading subscriptions...</div>
+                <div className="rounded-lg border p-8 text-sm text-muted-foreground">
+                    Loading subscriptions...
+                </div>
             ) : (
                 <div className="grid gap-4 md:grid-cols-3">
                     {plans.map((plan) => (
@@ -83,7 +86,9 @@ function SubscriptionCard({
     onSubscribe: () => void
 }) {
     return (
-        <article className={`rounded-lg border bg-background p-4 ${plan.is_recommended ? 'ring-2 ring-amber-300' : ''}`}>
+        <article
+            className={`rounded-lg border bg-background p-4 ${plan.is_recommended ? 'ring-2 ring-amber-300' : ''}`}
+        >
             <div className="mb-3 flex items-start justify-between gap-3">
                 <div>
                     <h2 className="font-semibold">{plan.name}</h2>
@@ -96,7 +101,9 @@ function SubscriptionCard({
                     {plan.is_recommended && <Badge>Recommended</Badge>}
                 </div>
             </div>
-            {plan.description && <p className="mb-4 text-sm text-muted-foreground">{plan.description}</p>}
+            {plan.description && (
+                <p className="mb-4 text-sm text-muted-foreground">{plan.description}</p>
+            )}
             {plan.promo_active && plan.promo_credit_cost !== null && (
                 <Badge variant="secondary" className="mb-2 w-fit">
                     {plan.promo_label || 'Promo'}
@@ -105,14 +112,21 @@ function SubscriptionCard({
             <div className="flex items-end gap-2">
                 <p className="text-2xl font-bold">{plan.effective_credit_cost} credits</p>
                 {plan.promo_active && (
-                    <p className="pb-1 text-sm text-muted-foreground line-through">{plan.monthly_credit_cost}</p>
+                    <p className="pb-1 text-sm text-muted-foreground line-through">
+                        {plan.monthly_credit_cost}
+                    </p>
                 )}
             </div>
             <p className="text-xs text-muted-foreground">per 30 days</p>
             <div className="mt-4 grid gap-1.5 text-sm">
-                <p>{plan.unlimited_board ? 'Unlimited My Board pieces' : `${plan.board_limit} My Board pieces`}</p>
                 <p>
-                    {plan.free_boost_days} free boost day{plan.free_boost_days === 1 ? '' : 's'} monthly
+                    {plan.unlimited_board
+                        ? 'Unlimited My Board pieces'
+                        : `${plan.board_limit} My Board pieces`}
+                </p>
+                <p>
+                    {plan.free_boost_days} free boost day{plan.free_boost_days === 1 ? '' : 's'}{' '}
+                    monthly
                 </p>
                 {plan.early_access && <p>Early access enabled</p>}
                 {plan.perks.slice(0, 5).map((perk) => (

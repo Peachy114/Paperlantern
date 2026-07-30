@@ -1061,7 +1061,7 @@ export default function ArtistProfile() {
                         className={
                             desktopManageMode
                                 ? 'w-full px-4 py-8 md:px-6'
-                                : 'max-w-[1360px] mx-auto px-4 py-8'
+                                : 'max-w-[1480px] mx-auto px-4 py-8'
                         }
                     >
                         <div>
@@ -2545,7 +2545,7 @@ function ArtistHeader({
             </div>
 
             <div
-                className="pointer-events-none absolute inset-x-0 top-0 z-[1000] mx-auto max-w-[1360px]"
+                className="pointer-events-none absolute inset-x-0 top-0 z-[1000] mx-auto max-w-[1480px]"
                 style={{ height: headerVisualHeight }}
             >
                 <div
@@ -2688,7 +2688,7 @@ function ArtistHeader({
                 </div>
             </div>
 
-            <div className="max-w-[1360px] mx-auto px-4 pb-6 pt-16 text-center">
+            <div className="max-w-[1480px] mx-auto px-4 pb-6 pt-16 text-center">
                 <h1 className="mt-3 inline-flex items-center justify-center gap-2 text-2xl font-bold">
                     {artist.name}
                     {artist.artist_verified && (
@@ -2709,7 +2709,10 @@ function ArtistHeader({
                         </Button>
                     </div>
                 )}
-                <div className="mt-2 grid justify-center gap-1 text-xs text-muted-foreground" style={profileTextStyle}>
+                <div
+                    className="mt-2 grid justify-center gap-1 text-xs text-muted-foreground"
+                    style={profileTextStyle}
+                >
                     <p>
                         {(
                             profile.stats?.followers_count ??
@@ -4662,7 +4665,8 @@ function BoardBlock({
     ) => void
 }) {
     const imageSrc = blockImageSrc(block)
-    const objectFit = block.fit_mode === 'stretch' ? 'fill' : block.fit_mode === 'stay' ? 'none' : block.fit_mode
+    const objectFit =
+        block.fit_mode === 'stretch' ? 'fill' : block.fit_mode === 'stay' ? 'none' : block.fit_mode
     const showBorder =
         editMode || (block.type === 'image' && !block.is_sticker)
             ? (block.show_border ?? (!block.is_sticker && !block.transparent_background))

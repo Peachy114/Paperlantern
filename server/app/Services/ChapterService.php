@@ -8,6 +8,7 @@ use App\Repositories\ChapterRepository;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 
@@ -116,11 +117,11 @@ class ChapterService
         $path = $cover->store('chapter-covers', 'public');
 
         $manager = new ImageManager(new Driver());
-        $thumb = $manager->read(storage_path('app/public/' . $path));
+        $thumb = $manager->read(Storage::disk('public')->path($path));
         $thumb->scale(width: 700);
 
         $smPath = preg_replace('/(\.[^.]+)$/', '_sm$1', $path);
-        $thumb->save(storage_path('app/public/' . $smPath));
+        $thumb->save(Storage::disk('public')->path($smPath));
 
         return $path;
     }

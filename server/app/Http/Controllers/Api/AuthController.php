@@ -73,6 +73,13 @@ class AuthController extends Controller
         ]);
     }
 
+    public function profile(Request $request): JsonResponse
+    {
+        return response()->json([
+            'user' => $this->service->formatUser($request->user()),
+        ]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $this->service->logout($request->user());

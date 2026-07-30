@@ -10,7 +10,11 @@ export function cssColor(value?: string) {
 
 export function widgetTransform(
     widget: PageWidget,
-    options: { includeRotate?: boolean; includeTranslateX?: boolean; includeTranslateY?: boolean } = {}
+    options: {
+        includeRotate?: boolean
+        includeTranslateX?: boolean
+        includeTranslateY?: boolean
+    } = {}
 ) {
     const style = widget.style ?? {}
     const includeRotate = options.includeRotate ?? true
@@ -18,8 +22,8 @@ export function widgetTransform(
     const includeTranslateY = options.includeTranslateY ?? true
     const transforms: string[] = []
     if ((style.offset_x || style.offset_y) && (includeTranslateX || includeTranslateY)) {
-        const x = includeTranslateX ? style.offset_x ?? 0 : 0
-        const y = includeTranslateY ? style.offset_y ?? 0 : 0
+        const x = includeTranslateX ? (style.offset_x ?? 0) : 0
+        const y = includeTranslateY ? (style.offset_y ?? 0) : 0
         transforms.push(`translate(${x}px, ${y}px)`)
     }
     if (includeRotate && style.rotate) {
@@ -75,7 +79,7 @@ export function widgetStyle(widget: PageWidget): CSSProperties {
     const hasResponsiveOverlayY = false
     const align = widget.settings?.align ?? 'auto'
     const inlineDisplay = widget.settings?.display === 'inline'
-    const contentRailStart = 'max(20px, calc((100% - 1360px) / 2 + 20px))'
+    const contentRailStart = 'max(20px, calc((100% - 1480px) / 2 + 20px))'
     const contentRailWidth = 'min(calc(100% - 40px), 1320px)'
     const paddingBlock = style.padding_block ?? style.padding ?? 0
     const paddingInline = style.padding_inline ?? style.padding ?? 0
@@ -88,10 +92,8 @@ export function widgetStyle(widget: PageWidget): CSSProperties {
     const customContentWidth = contentWidth
         ? `min(${contentWidth}px, calc(100% - ${horizontalInset} - ${horizontalInset}))`
         : `calc(100% - ${horizontalInset} - ${horizontalInset})`
-    const customMarginLeft =
-        align === 'center' || align === 'end' ? 'auto' : horizontalInset
-    const customMarginRight =
-        align === 'center' || align === 'start' ? 'auto' : horizontalInset
+    const customMarginLeft = align === 'center' || align === 'end' ? 'auto' : horizontalInset
+    const customMarginRight = align === 'center' || align === 'start' ? 'auto' : horizontalInset
     const customWidth =
         align === 'stretch' || align === 'justify' || align === 'auto' || !contentWidth
             ? customContentWidth
@@ -105,29 +107,25 @@ export function widgetStyle(widget: PageWidget): CSSProperties {
                 ? customContentWidth
                 : `${contentWidth}px`
             : undefined
-    const frameMarginLeft =
-        alignedFrame
-            ? customMarginLeft
-            : inlineFrame
-              ? horizontalInset
-              : undefined
-    const frameMarginRight =
-        alignedFrame
-            ? customMarginRight
-            : inlineFrame
-              ? 0
-              : undefined
+    const frameMarginLeft = alignedFrame
+        ? customMarginLeft
+        : inlineFrame
+          ? horizontalInset
+          : undefined
+    const frameMarginRight = alignedFrame ? customMarginRight : inlineFrame ? 0 : undefined
 
     return {
         background: style.transparent ? 'transparent' : cssColor(style.background),
-        border: style.border ? `1px solid ${cssColor(style.border_color) ?? 'var(--border, #d4d4d8)'}` : undefined,
+        border: style.border
+            ? `1px solid ${cssColor(style.border_color) ?? 'var(--border, #d4d4d8)'}`
+            : undefined,
         borderRadius: `${style.radius ?? 0}px`,
         padding: `${paddingBlock}px ${paddingInline}px`,
         margin: overlay
             ? 0
             : customContent || alignedFrame || inlineFrame
-            ? `${marginBlock}px 0`
-            : `${marginBlock}px ${marginInline}px`,
+              ? `${marginBlock}px 0`
+              : `${marginBlock}px ${marginInline}px`,
         zIndex: style.z_index ?? 1,
         position: overlay
             ? 'absolute'
@@ -141,11 +139,7 @@ export function widgetStyle(widget: PageWidget): CSSProperties {
             : undefined,
         top: overlay ? (hasResponsiveOverlayY ? `${style.offset_y_percent}%` : 0) : undefined,
         display: stickerOverlay || inlineDisplay ? 'inline-block' : undefined,
-        width: stickerOverlay
-            ? 'max-content'
-            : customContent
-              ? customWidth
-              : frameWidth,
+        width: stickerOverlay ? 'max-content' : customContent ? customWidth : frameWidth,
         maxWidth: stickerOverlay ? '100%' : customContent ? undefined : undefined,
         minHeight: widget.type === 'spacer' ? `${style.content_height ?? 120}px` : undefined,
         marginLeft: overlay ? undefined : customContent ? customMarginLeft : frameMarginLeft,
@@ -192,9 +186,10 @@ export function PageWidgetFrame({
 }
 
 export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
-    const imagePath = widget.type === 'sticker'
-        ? widget.settings.sticker_image_path || widget.settings.asset_path
-        : widget.settings.asset_path
+    const imagePath =
+        widget.type === 'sticker'
+            ? widget.settings.sticker_image_path || widget.settings.asset_path
+            : widget.settings.asset_path
     const src = imagePath ? storageUrl(imagePath) : null
 
     if (widget.type === 'text') {
@@ -228,11 +223,21 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
         const stickerSize = widget.style?.sticker_size ?? 160
 
         return (
-            <section className={widget.settings.allow_overlap ? 'inline-flex items-center justify-center px-2 py-1' : 'w-full py-1'}>
+            <section
+                className={
+                    widget.settings.allow_overlap
+                        ? 'inline-flex items-center justify-center px-2 py-1'
+                        : 'w-full py-1'
+                }
+            >
                 <img
                     src={src}
                     alt={widget.title}
-                    className={widget.settings.allow_overlap ? 'h-auto max-w-none object-contain' : 'h-auto max-w-full object-contain'}
+                    className={
+                        widget.settings.allow_overlap
+                            ? 'h-auto max-w-none object-contain'
+                            : 'h-auto max-w-full object-contain'
+                    }
                     draggable={false}
                     style={stickerImageStyle(widget, stickerSize)}
                 />
@@ -274,9 +279,8 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
         const vertical = widget.settings.layout === 'vertical'
         const sideImage = imageMode === 'side' && Boolean(src)
         const backgroundImage = imageMode === 'background' && src
-        const gridTemplateColumns = sideImage && !vertical
-            ? `minmax(180px, ${imageWidth}%) minmax(0, 1fr)`
-            : undefined
+        const gridTemplateColumns =
+            sideImage && !vertical ? `minmax(180px, ${imageWidth}%) minmax(0, 1fr)` : undefined
 
         return (
             <section className="w-full py-6">
@@ -289,7 +293,7 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
                         minHeight: height ? `${height}px` : '220px',
                         backgroundColor: widget.style?.transparent
                             ? 'transparent'
-                            : cssColor(widget.style?.background) ?? 'var(--muted, #f4f4f5)',
+                            : (cssColor(widget.style?.background) ?? 'var(--muted, #f4f4f5)'),
                         backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
                         backgroundSize: backgroundImage ? imageFit : undefined,
                         backgroundPosition: backgroundImage ? imagePosition : undefined,
@@ -308,7 +312,10 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
                         <div
                             className="min-h-44 overflow-hidden"
                             style={{
-                                flex: layoutMode === 'flex' && !vertical ? `0 0 ${imageWidth}%` : undefined,
+                                flex:
+                                    layoutMode === 'flex' && !vertical
+                                        ? `0 0 ${imageWidth}%`
+                                        : undefined,
                             }}
                         >
                             <img
@@ -376,7 +383,7 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
                         height: `${height}px`,
                         background: widget.style?.transparent
                             ? 'transparent'
-                            : cssColor(widget.style?.background) ?? 'transparent',
+                            : (cssColor(widget.style?.background) ?? 'transparent'),
                         border: widget.style?.border
                             ? `1px solid ${cssColor(widget.style?.border_color) ?? 'var(--border, #d4d4d8)'}`
                             : undefined,
@@ -390,7 +397,9 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
                                 ? item.sticker_image_path || item.asset_path
                                 : item.asset_path
                         const itemSrc = itemImagePath ? storageUrl(itemImagePath) : null
-                        const transform = itemStyle.rotate ? `rotate(${itemStyle.rotate}deg)` : undefined
+                        const transform = itemStyle.rotate
+                            ? `rotate(${itemStyle.rotate}deg)`
+                            : undefined
 
                         return (
                             <div
@@ -403,7 +412,7 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
                                     height: `${item.h}px`,
                                     background: itemStyle.transparent
                                         ? 'transparent'
-                                        : cssColor(itemStyle.background) ?? 'transparent',
+                                        : (cssColor(itemStyle.background) ?? 'transparent'),
                                     border: itemStyle.border
                                         ? `1px solid ${cssColor(itemStyle.border_color) ?? 'var(--border, #d4d4d8)'}`
                                         : undefined,
@@ -420,7 +429,9 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
                                         className="h-full w-full whitespace-pre-line break-words"
                                         style={{
                                             color: cssColor(itemStyle.text_color),
-                                            fontFamily: itemStyle.font_family || fontFamilyFromUrl(item.font_url),
+                                            fontFamily:
+                                                itemStyle.font_family ||
+                                                fontFamilyFromUrl(item.font_url),
                                             fontSize: `${itemStyle.font_size ?? 16}px`,
                                             textAlign: itemStyle.text_align ?? 'start',
                                         }}
@@ -449,7 +460,11 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
 export function CustomPageWidget({ widget }: { widget: PageWidget }) {
     if (!widget.enabled) return null
 
-    return <PageWidgetFrame widget={widget}><CustomPageWidgetContent widget={widget} /></PageWidgetFrame>
+    return (
+        <PageWidgetFrame widget={widget}>
+            <CustomPageWidgetContent widget={widget} />
+        </PageWidgetFrame>
+    )
 }
 
 export function AnchoredCustomPageWidget({ widget }: { widget: PageWidget }) {

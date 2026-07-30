@@ -90,7 +90,11 @@ export default function MyStickers() {
             setOpen(false)
             toast.success(uploads.length === 1 ? 'Sticker added.' : 'Sticker bundle added.')
         } catch {
-            toast.error(publishPublic ? 'Could not add and publish sticker. Check your credits.' : 'Could not add sticker.')
+            toast.error(
+                publishPublic
+                    ? 'Could not add and publish sticker. Check your credits.'
+                    : 'Could not add sticker.'
+            )
         }
     }
 
@@ -114,7 +118,7 @@ export default function MyStickers() {
     const busy = createSticker.isPending || deleteSticker.isPending
 
     return (
-        <main className="mx-auto max-w-[1360px] px-4 py-8">
+        <main className="mx-auto max-w-[1480px] px-4 py-8">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">My Stickers</h1>
@@ -128,7 +132,8 @@ export default function MyStickers() {
                         <DialogHeader>
                             <DialogTitle>Add Sticker</DialogTitle>
                             <DialogDescription>
-                                Upload solo stickers or create a bundle. Names are optional and default to the file name.
+                                Upload solo stickers or create a bundle. Names are optional and
+                                default to the file name.
                             </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={submit} className="grid gap-4">
@@ -149,7 +154,11 @@ export default function MyStickers() {
                                     value={bundleName}
                                     disabled={!isBundle}
                                     onChange={(event) => setBundleName(event.target.value)}
-                                    placeholder={isBundle ? 'Bundle name' : 'Solo stickers do not need a bundle'}
+                                    placeholder={
+                                        isBundle
+                                            ? 'Bundle name'
+                                            : 'Solo stickers do not need a bundle'
+                                    }
                                 />
                             </div>
                             <div className="grid gap-1">
@@ -171,7 +180,8 @@ export default function MyStickers() {
                                 </select>
                                 {publishPublic && (
                                     <p className="text-xs text-muted-foreground">
-                                        Public publishing is free with an active subscription, otherwise it costs 20 credits.
+                                        Public publishing is free with an active subscription,
+                                        otherwise it costs 20 credits.
                                     </p>
                                 )}
                             </div>
@@ -184,7 +194,10 @@ export default function MyStickers() {
                                             onChange={(event) => {
                                                 setIsFree(event.target.checked)
                                                 if (event.target.checked) setCreditCost(0)
-                                                else setCreditCost((current) => Math.max(1, current || 1))
+                                                else
+                                                    setCreditCost((current) =>
+                                                        Math.max(1, current || 1)
+                                                    )
                                             }}
                                         />
                                         Free sticker
@@ -193,13 +206,17 @@ export default function MyStickers() {
                                         <input
                                             type="checkbox"
                                             checked={subscriptionFree}
-                                            onChange={(event) => setSubscriptionFree(event.target.checked)}
+                                            onChange={(event) =>
+                                                setSubscriptionFree(event.target.checked)
+                                            }
                                         />
                                         Free for active subscriptions
                                     </label>
                                     <div className="grid gap-1">
                                         <Label htmlFor="sticker-credit-cost">
-                                            {isBundle ? 'Bundle credit cost' : 'Credit cost per sticker'}
+                                            {isBundle
+                                                ? 'Bundle credit cost'
+                                                : 'Credit cost per sticker'}
                                         </Label>
                                         <Input
                                             id="sticker-credit-cost"
@@ -208,7 +225,9 @@ export default function MyStickers() {
                                             max={1000}
                                             value={creditCost}
                                             disabled={isFree}
-                                            onChange={(event) => setCreditCost(Number(event.target.value) || 0)}
+                                            onChange={(event) =>
+                                                setCreditCost(Number(event.target.value) || 0)
+                                            }
                                         />
                                     </div>
                                 </>
@@ -223,18 +242,23 @@ export default function MyStickers() {
                                     multiple
                                     onChange={(event: ChangeEvent<HTMLInputElement>) =>
                                         setUploads((current) => {
-                                            current.forEach((upload) => URL.revokeObjectURL(upload.previewUrl))
-                                            return Array.from(event.target.files ?? []).map((file) => ({
-                                                file,
-                                                name: stickerNameFromFile(file),
-                                                previewUrl: URL.createObjectURL(file),
-                                            }))
+                                            current.forEach((upload) =>
+                                                URL.revokeObjectURL(upload.previewUrl)
+                                            )
+                                            return Array.from(event.target.files ?? []).map(
+                                                (file) => ({
+                                                    file,
+                                                    name: stickerNameFromFile(file),
+                                                    previewUrl: URL.createObjectURL(file),
+                                                })
+                                            )
                                         })
                                     }
                                 />
                                 {uploads.length > 0 && (
                                     <p className="text-xs text-muted-foreground">
-                                        {uploads.length} file{uploads.length === 1 ? '' : 's'} selected
+                                        {uploads.length} file{uploads.length === 1 ? '' : 's'}{' '}
+                                        selected
                                     </p>
                                 )}
                             </div>
@@ -263,7 +287,10 @@ export default function MyStickers() {
                                                         setUploads((current) =>
                                                             current.map((item, itemIndex) =>
                                                                 itemIndex === index
-                                                                    ? { ...item, name: event.target.value }
+                                                                    ? {
+                                                                          ...item,
+                                                                          name: event.target.value,
+                                                                      }
                                                                     : item
                                                             )
                                                         )
@@ -328,7 +355,10 @@ export default function MyStickers() {
 }
 
 function stickerNameFromFile(file: File) {
-    return file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim()
+    return file.name
+        .replace(/\.[^/.]+$/, '')
+        .replace(/[_-]+/g, ' ')
+        .trim()
 }
 
 function StickerStat({
@@ -379,7 +409,7 @@ function StickerShelf({
                 return (
                     <div
                         key={`${sticker.library_status ?? 'created'}-${sticker.id}`}
-                            className="group rounded-lg border bg-background p-2 transition-colors hover:bg-muted/30"
+                        className="group rounded-lg border bg-background p-2 transition-colors hover:bg-muted/30"
                     >
                         <div className="relative h-[150px] overflow-hidden rounded-md border bg-[linear-gradient(45deg,var(--muted)_25%,transparent_25%),linear-gradient(-45deg,var(--muted)_25%,transparent_25%),linear-gradient(45deg,transparent_75%,var(--muted)_75%),linear-gradient(-45deg,transparent_75%,var(--muted)_75%)] bg-[length:16px_16px] bg-[position:0_0,0_8px,8px_-8px,-8px_0] p-3">
                             <img
@@ -411,7 +441,9 @@ function StickerShelf({
                                     </span>
                                 )}
                                 <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-700 dark:text-amber-300">
-                                    {sticker.is_free ? 'Free' : `${sticker.credit_cost ?? sticker.purchase_cost ?? 1} credits`}
+                                    {sticker.is_free
+                                        ? 'Free'
+                                        : `${sticker.credit_cost ?? sticker.purchase_cost ?? 1} credits`}
                                 </span>
                             </div>
                         </div>

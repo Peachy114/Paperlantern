@@ -9,7 +9,7 @@ export default function HeroSkeleton() {
             className="w-full pt-30 sm:pt-40 py-6 sm:py-10 px-3 sm:px-4 select-none"
             style={{ background: 'var(--comix-void)' }}
         >
-            <div className="flex gap-4 justify-center max-w-[1360px] mx-auto">
+            <div className="flex gap-4 justify-center max-w-[1480px] mx-auto">
                 <div className="hidden md:block basis-[50%] lg:basis-[40%] scale-90 opacity-40">
                     <Skeleton className="w-full aspect-square" style={{ clipPath: notch(10) }} />
                 </div>

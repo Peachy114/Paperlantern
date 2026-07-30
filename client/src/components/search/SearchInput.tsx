@@ -4,7 +4,7 @@ import { Search, X, ArrowLeft } from 'lucide-react'
 
 interface Props {
     query: string
-    onSearch: (val: string) => void
+    onSearch: (value: string) => void
     onReset: () => void
     onBack?: () => void
     onFocus?: () => void
@@ -19,30 +19,43 @@ export default function SearchInput({
     onBack,
     onFocus,
     onBlur,
-    mobile,
+    mobile = false,
 }: Props) {
     if (mobile) {
         return (
             <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={onBack}>
-                    <ArrowLeft className="w-5 h-5" />
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={onBack}
+                    aria-label="Go back"
+                >
+                    <ArrowLeft className="h-5 w-5" />
                 </Button>
+
                 <div className="relative flex-1">
                     <Input
                         autoFocus
-                        type="search"
+                        type="text"
+                        inputMode="search"
+                        enterKeyHint="search"
                         value={query}
-                        onChange={(e) => onSearch(e.target.value)}
+                        onChange={(event) => onSearch(event.target.value)}
                         placeholder="Search..."
+                        className="pr-9"
                     />
+
                     {query && (
                         <Button
+                            type="button"
                             variant="ghost"
                             size="icon"
-                            className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                            className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2"
                             onClick={onReset}
+                            aria-label="Clear search"
                         >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="h-3.5 w-3.5" />
                         </Button>
                     )}
                 </div>
@@ -52,24 +65,30 @@ export default function SearchInput({
 
     return (
         <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
             <Input
                 type="text"
-                className="pl-9 pr-8"
+                inputMode="search"
+                enterKeyHint="search"
+                className="pl-9 pr-9"
                 value={query}
-                onChange={(e) => onSearch(e.target.value)}
+                onChange={(event) => onSearch(event.target.value)}
                 onFocus={onFocus}
                 onBlur={onBlur}
                 placeholder="Search..."
             />
+
             {query && (
                 <Button
+                    type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                    className="absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2"
                     onClick={onReset}
+                    aria-label="Clear search"
                 >
-                    <X className="w-4 h-4" />
+                    <X className="h-3.5 w-3.5" />
                 </Button>
             )}
         </div>

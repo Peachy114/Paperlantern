@@ -5,7 +5,12 @@ import { toast } from 'sonner'
 import { nobleRoyaltyApi } from '@/api/nobleRoyalty'
 import { stickersApi } from '@/api/stickers'
 import { useAuthStore } from '@/store/authStore'
-import type { ArtistSticker, ProfileBorder, RoyaltyDesignAsset, RoyaltyDesignType } from '@/types/artistProfile'
+import type {
+    ArtistSticker,
+    ProfileBorder,
+    RoyaltyDesignAsset,
+    RoyaltyDesignType,
+} from '@/types/artistProfile'
 import { storageUrl } from '@/utils/storage'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -25,7 +30,14 @@ import { Textarea } from '@/components/ui/textarea'
 type Tab = 'stickers' | 'borders' | RoyaltyDesignType
 type StickerUpload = { file: File; name: string; previewUrl: string }
 
-const TABS: Tab[] = ['stickers', 'borders', 'message_design', 'message_background', 'comment_border', 'board_button']
+const TABS: Tab[] = [
+    'stickers',
+    'borders',
+    'message_design',
+    'message_background',
+    'comment_border',
+    'board_button',
+]
 const TAB_LABELS: Record<Tab, string> = {
     stickers: 'Stickers',
     borders: 'Borders',
@@ -55,7 +67,8 @@ export default function NobleRoyaltyBrowse() {
             queryClient.invalidateQueries({ queryKey: ['noble-royalty'] })
             queryClient.invalidateQueries({ queryKey: ['my-stickers'] })
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not publish sticker.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not publish sticker.'),
     })
 
     const publishBorder = useMutation({
@@ -65,7 +78,8 @@ export default function NobleRoyaltyBrowse() {
             queryClient.invalidateQueries({ queryKey: ['noble-royalty'] })
             queryClient.invalidateQueries({ queryKey: ['artist-profile'] })
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not publish border.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not publish border.'),
     })
 
     const purchaseSticker = useMutation({
@@ -75,7 +89,8 @@ export default function NobleRoyaltyBrowse() {
             queryClient.invalidateQueries({ queryKey: ['noble-royalty'] })
             queryClient.invalidateQueries({ queryKey: ['my-stickers'] })
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not buy sticker.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not buy sticker.'),
     })
 
     const busy = publishSticker.isPending || publishBorder.isPending || purchaseSticker.isPending
@@ -85,9 +100,12 @@ export default function NobleRoyaltyBrowse() {
         () => ({
             stickers: data?.stickers.length ?? 0,
             borders: data?.borders.length ?? 0,
-            message_design: data?.designs.filter((item) => item.type === 'message_design').length ?? 0,
-            message_background: data?.designs.filter((item) => item.type === 'message_background').length ?? 0,
-            comment_border: data?.designs.filter((item) => item.type === 'comment_border').length ?? 0,
+            message_design:
+                data?.designs.filter((item) => item.type === 'message_design').length ?? 0,
+            message_background:
+                data?.designs.filter((item) => item.type === 'message_background').length ?? 0,
+            comment_border:
+                data?.designs.filter((item) => item.type === 'comment_border').length ?? 0,
             board_button: data?.designs.filter((item) => item.type === 'board_button').length ?? 0,
         }),
         [data]
@@ -99,7 +117,7 @@ export default function NobleRoyaltyBrowse() {
     )
 
     return (
-        <main className="mx-auto max-w-[1360px] px-4 py-8">
+        <main className="mx-auto max-w-[1480px] px-4 py-8">
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                     <div className="flex items-center gap-2">
@@ -114,7 +132,10 @@ export default function NobleRoyaltyBrowse() {
                     <div className="flex flex-wrap gap-2">
                         <StickerUploadDialog open={stickerOpen} onOpenChange={setStickerOpen} />
                         <BorderUploadDialog open={borderOpen} onOpenChange={setBorderOpen} />
-                        <MessageBackgroundUploadDialog open={backgroundOpen} onOpenChange={setBackgroundOpen} />
+                        <MessageBackgroundUploadDialog
+                            open={backgroundOpen}
+                            onOpenChange={setBackgroundOpen}
+                        />
                     </div>
                 )}
             </div>
@@ -135,7 +156,9 @@ export default function NobleRoyaltyBrowse() {
             </div>
 
             {royalty.isLoading ? (
-                <div className="rounded-lg border p-8 text-sm text-muted-foreground">Loading Noble Royalty...</div>
+                <div className="rounded-lg border p-8 text-sm text-muted-foreground">
+                    Loading Noble Royalty...
+                </div>
             ) : tab === 'stickers' ? (
                 <AssetGrid
                     items={data?.stickers ?? []}
@@ -154,7 +177,10 @@ export default function NobleRoyaltyBrowse() {
                     onPublish={(item) => publishBorder.mutate(item.id)}
                 />
             ) : (
-                <DesignGrid items={currentDesignItems} empty={`No ${TAB_LABELS[tab].toLowerCase()} assets are available yet.`} />
+                <DesignGrid
+                    items={currentDesignItems}
+                    empty={`No ${TAB_LABELS[tab].toLowerCase()} assets are available yet.`}
+                />
             )}
         </main>
     )
@@ -187,7 +213,12 @@ function StickerUploadDialog({
             onOpenChange(false)
         },
         onError: (error: any) =>
-            toast.error(error?.response?.data?.message ?? (publishPublic ? 'Could not add and publish sticker. Check your credits.' : 'Could not add sticker.')),
+            toast.error(
+                error?.response?.data?.message ??
+                    (publishPublic
+                        ? 'Could not add and publish sticker. Check your credits.'
+                        : 'Could not add sticker.')
+            ),
     })
 
     const reset = () => {
@@ -229,7 +260,10 @@ function StickerUploadDialog({
         payload.append('subscription_free', subscriptionFree ? '1' : '0')
         uploads.forEach((upload) => {
             payload.append('images[]', upload.file)
-            payload.append('sticker_names[]', upload.name.trim() || stickerNameFromFile(upload.file))
+            payload.append(
+                'sticker_names[]',
+                upload.name.trim() || stickerNameFromFile(upload.file)
+            )
         })
 
         createSticker.mutate(payload)
@@ -256,7 +290,8 @@ function StickerUploadDialog({
                     <DialogHeader>
                         <DialogTitle>Add Stickers</DialogTitle>
                         <DialogDescription>
-                            Upload private stickers or publish public Noble Royalty stickers. Names are optional.
+                            Upload private stickers or publish public Noble Royalty stickers. Names
+                            are optional.
                         </DialogDescription>
                     </DialogHeader>
                     <label className="flex items-center gap-2 text-sm">
@@ -273,7 +308,9 @@ function StickerUploadDialog({
                             value={bundleName}
                             disabled={!isBundle}
                             onChange={(event) => setBundleName(event.target.value)}
-                            placeholder={isBundle ? 'Bundle name' : 'Solo stickers do not need a bundle'}
+                            placeholder={
+                                isBundle ? 'Bundle name' : 'Solo stickers do not need a bundle'
+                            }
                         />
                     </div>
                     <div className="grid gap-1">
@@ -292,7 +329,8 @@ function StickerUploadDialog({
                         </select>
                         {publishPublic && (
                             <p className="text-xs text-muted-foreground">
-                                Public publishing is free with an active subscription, otherwise it costs 20 credits.
+                                Public publishing is free with an active subscription, otherwise it
+                                costs 20 credits.
                             </p>
                         )}
                     </div>
@@ -319,14 +357,18 @@ function StickerUploadDialog({
                                 Free for active subscriptions
                             </label>
                             <div className="grid gap-1">
-                                <Label>{isBundle ? 'Bundle credit cost' : 'Credit cost per sticker'}</Label>
+                                <Label>
+                                    {isBundle ? 'Bundle credit cost' : 'Credit cost per sticker'}
+                                </Label>
                                 <Input
                                     type="number"
                                     min={0}
                                     max={1000}
                                     value={creditCost}
                                     disabled={isFree}
-                                    onChange={(event) => setCreditCost(Number(event.target.value) || 0)}
+                                    onChange={(event) =>
+                                        setCreditCost(Number(event.target.value) || 0)
+                                    }
                                 />
                             </div>
                         </>
@@ -340,7 +382,9 @@ function StickerUploadDialog({
                             multiple
                             onChange={(event: ChangeEvent<HTMLInputElement>) =>
                                 setUploads((current) => {
-                                    current.forEach((upload) => URL.revokeObjectURL(upload.previewUrl))
+                                    current.forEach((upload) =>
+                                        URL.revokeObjectURL(upload.previewUrl)
+                                    )
                                     return Array.from(event.target.files ?? []).map((file) => ({
                                         file,
                                         name: stickerNameFromFile(file),
@@ -358,7 +402,11 @@ function StickerUploadDialog({
                                     className="grid grid-cols-[64px_1fr_auto] items-end gap-3 rounded-md bg-muted/30 p-2"
                                 >
                                     <div className="h-16 w-16 overflow-hidden rounded-md border bg-muted/40 p-1">
-                                        <img src={upload.previewUrl} alt="" className="h-full w-full object-contain" />
+                                        <img
+                                            src={upload.previewUrl}
+                                            alt=""
+                                            className="h-full w-full object-contain"
+                                        />
                                     </div>
                                     <div className="grid gap-1">
                                         <Label>Sticker {index + 1} name, optional</Label>
@@ -367,7 +415,9 @@ function StickerUploadDialog({
                                             onChange={(event) =>
                                                 setUploads((current) =>
                                                     current.map((item, itemIndex) =>
-                                                        itemIndex === index ? { ...item, name: event.target.value } : item
+                                                        itemIndex === index
+                                                            ? { ...item, name: event.target.value }
+                                                            : item
                                                     )
                                                 )
                                             }
@@ -422,18 +472,32 @@ function AssetGrid<T extends ArtistSticker | ProfileBorder>({
             {items.map((item) => (
                 <article key={item.id} className="rounded-lg border bg-background p-3">
                     <div className="flex h-[170px] items-center justify-center overflow-hidden rounded-md bg-muted/30 p-3">
-                        <img src={storageUrl(item.image_path)!} alt={item.name} className="max-h-full max-w-full object-contain" />
+                        <img
+                            src={storageUrl(item.image_path)!}
+                            alt={item.name}
+                            className="max-h-full max-w-full object-contain"
+                        />
                     </div>
                     <div className="mt-3 min-w-0">
                         <h2 className="truncate text-sm font-semibold">{item.name}</h2>
                         <p className="truncate text-xs text-muted-foreground">
-                            {item.owner?.username ? `@${item.owner.username}` : item.user_id ? 'Artist asset' : 'Admin asset'}
+                            {item.owner?.username
+                                ? `@${item.owner.username}`
+                                : item.user_id
+                                  ? 'Artist asset'
+                                  : 'Admin asset'}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-1">
                             {item.can_use && <Badge variant="secondary">Usable</Badge>}
                             {item.gifted && <Badge variant="outline">Gifted</Badge>}
-                            {item.subscription_free && <Badge variant="outline">Subscription</Badge>}
-                            {item.is_public ? <Badge variant="outline">Public</Badge> : <Badge variant="secondary">Private</Badge>}
+                            {item.subscription_free && (
+                                <Badge variant="outline">Subscription</Badge>
+                            )}
+                            {item.is_public ? (
+                                <Badge variant="outline">Public</Badge>
+                            ) : (
+                                <Badge variant="secondary">Private</Badge>
+                            )}
                             {item.is_public && 'purchase_cost' in item && (
                                 <Badge variant="outline">
                                     {(item.purchase_cost ?? item.credit_cost ?? 0) <= 0
@@ -453,18 +517,22 @@ function AssetGrid<T extends ArtistSticker | ProfileBorder>({
                                 Publish {publishCost} credits
                             </Button>
                         )}
-                        {onPurchase && item.is_public && !item.can_use && !item.owned && 'purchase_cost' in item && (
-                            <Button
-                                className="mt-3 w-full"
-                                size="sm"
-                                disabled={busy}
-                                onClick={() => onPurchase(item)}
-                            >
-                                {(item.purchase_cost ?? item.credit_cost ?? 0) <= 0
-                                    ? 'Get Free Sticker'
-                                    : `Buy for ${item.purchase_cost ?? item.credit_cost} credits`}
-                            </Button>
-                        )}
+                        {onPurchase &&
+                            item.is_public &&
+                            !item.can_use &&
+                            !item.owned &&
+                            'purchase_cost' in item && (
+                                <Button
+                                    className="mt-3 w-full"
+                                    size="sm"
+                                    disabled={busy}
+                                    onClick={() => onPurchase(item)}
+                                >
+                                    {(item.purchase_cost ?? item.credit_cost ?? 0) <= 0
+                                        ? 'Get Free Sticker'
+                                        : `Buy for ${item.purchase_cost ?? item.credit_cost} credits`}
+                                </Button>
+                            )}
                     </div>
                 </article>
             ))}
@@ -482,17 +550,29 @@ function DesignGrid({ items, empty }: { items: RoyaltyDesignAsset[]; empty: stri
             {items.map((item) => (
                 <article key={item.id} className="rounded-lg border bg-background p-3">
                     <div className="flex h-[180px] items-center justify-center overflow-hidden rounded-md bg-muted/30 p-3">
-                        <img src={storageUrl(item.image_path)!} alt={item.name} className="max-h-full max-w-full object-contain" />
+                        <img
+                            src={storageUrl(item.image_path)!}
+                            alt={item.name}
+                            className="max-h-full max-w-full object-contain"
+                        />
                     </div>
                     <div className="mt-3">
                         <div className="flex items-center justify-between gap-2">
                             <h2 className="truncate text-sm font-semibold">{item.name}</h2>
                             {item.gifted && <Gift className="h-4 w-4 text-amber-500" />}
                         </div>
-                        <p className="mt-1 text-xs capitalize text-muted-foreground">{item.type.replaceAll('_', ' ')}</p>
+                        <p className="mt-1 text-xs capitalize text-muted-foreground">
+                            {item.type.replaceAll('_', ' ')}
+                        </p>
                         <div className="mt-2 flex flex-wrap gap-1">
-                            {item.subscription_free && <Badge variant="outline">Subscription</Badge>}
-                            {item.is_public === false ? <Badge variant="secondary">Private</Badge> : <Badge variant="outline">Public</Badge>}
+                            {item.subscription_free && (
+                                <Badge variant="outline">Subscription</Badge>
+                            )}
+                            {item.is_public === false ? (
+                                <Badge variant="secondary">Private</Badge>
+                            ) : (
+                                <Badge variant="outline">Public</Badge>
+                            )}
                         </div>
                     </div>
                 </article>
@@ -502,7 +582,10 @@ function DesignGrid({ items, empty }: { items: RoyaltyDesignAsset[]; empty: stri
 }
 
 function stickerNameFromFile(file: File) {
-    return file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim()
+    return file.name
+        .replace(/\.[^/.]+$/, '')
+        .replace(/[_-]+/g, ' ')
+        .trim()
 }
 
 function BorderUploadDialog({
@@ -531,7 +614,8 @@ function BorderUploadDialog({
             setSubscriptionFree(false)
             onOpenChange(false)
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not add border.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not add border.'),
     })
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -565,7 +649,8 @@ function BorderUploadDialog({
                     <DialogHeader>
                         <DialogTitle>Add Border</DialogTitle>
                         <DialogDescription>
-                            Keep it private for yourself, or publish publicly now for 20 credits unless you have an active subscription.
+                            Keep it private for yourself, or publish publicly now for 20 credits
+                            unless you have an active subscription.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -575,14 +660,19 @@ function BorderUploadDialog({
                         </div>
                         <div className="grid gap-2">
                             <Label>Description</Label>
-                            <Textarea value={description} onChange={(event) => setDescription(event.target.value)} />
+                            <Textarea
+                                value={description}
+                                onChange={(event) => setDescription(event.target.value)}
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label>Border PNG or GIF</Label>
                             <Input
                                 type="file"
                                 accept="image/png,image/webp,image/gif"
-                                onChange={(event: ChangeEvent<HTMLInputElement>) => setFile(event.target.files?.[0] ?? null)}
+                                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                                    setFile(event.target.files?.[0] ?? null)
+                                }
                             />
                         </div>
                         <div className="grid gap-2">
@@ -601,7 +691,8 @@ function BorderUploadDialog({
                             </select>
                             {publishPublic && (
                                 <p className="text-xs text-muted-foreground">
-                                    Public publishing is free with an active subscription, otherwise it costs 20 credits.
+                                    Public publishing is free with an active subscription, otherwise
+                                    it costs 20 credits.
                                 </p>
                             )}
                         </div>
@@ -654,7 +745,8 @@ function MessageBackgroundUploadDialog({
             setSubscriptionFree(false)
             onOpenChange(false)
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not add message background.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not add message background.'),
     })
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -686,7 +778,8 @@ function MessageBackgroundUploadDialog({
                     <DialogHeader>
                         <DialogTitle>Add Message Background</DialogTitle>
                         <DialogDescription>
-                            Artists can create message backgrounds privately or publish them publicly for 20 credits unless subscribed.
+                            Artists can create message backgrounds privately or publish them
+                            publicly for 20 credits unless subscribed.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -696,14 +789,19 @@ function MessageBackgroundUploadDialog({
                         </div>
                         <div className="grid gap-2">
                             <Label>Description</Label>
-                            <Textarea value={description} onChange={(event) => setDescription(event.target.value)} />
+                            <Textarea
+                                value={description}
+                                onChange={(event) => setDescription(event.target.value)}
+                            />
                         </div>
                         <div className="grid gap-2">
                             <Label>Image or GIF</Label>
                             <Input
                                 type="file"
                                 accept="image/png,image/webp,image/gif,image/jpeg"
-                                onChange={(event: ChangeEvent<HTMLInputElement>) => setFile(event.target.files?.[0] ?? null)}
+                                onChange={(event: ChangeEvent<HTMLInputElement>) =>
+                                    setFile(event.target.files?.[0] ?? null)
+                                }
                             />
                         </div>
                         <div className="grid gap-2">
@@ -722,7 +820,8 @@ function MessageBackgroundUploadDialog({
                             </select>
                             {publishPublic && (
                                 <p className="text-xs text-muted-foreground">
-                                    Public publishing is free with an active subscription, otherwise it costs 20 credits.
+                                    Public publishing is free with an active subscription, otherwise
+                                    it costs 20 credits.
                                 </p>
                             )}
                         </div>

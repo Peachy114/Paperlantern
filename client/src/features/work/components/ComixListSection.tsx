@@ -137,7 +137,7 @@ function WorkLists({ type }: { type: 'webtoon' | 'wattpad' }) {
 
     return (
         <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 items-stretch gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-5">
                 {paginated.map((work, i) => (
                     <WorkCard3
                         key={work.id}
@@ -168,8 +168,8 @@ export default function ComixLists({ fixedType }: { fixedType?: 'comic' | 'novel
     return (
         <div className="w-full">
             <ContentFilter contentType={fixedType} />
-
-            <main className="w-full mt-6 max-w-[1360px] mx-auto px-4">
+            {/*
+            <main className="w-full my-5 max-w-[1460px] mx-auto px-4">
                 <Suspense fallback={<WorkListsSkeleton />}>
                     {activeType === 'novel' ? (
                         <WorkLists key="novel" type="wattpad" />
@@ -177,7 +177,7 @@ export default function ComixLists({ fixedType }: { fixedType?: 'comic' | 'novel
                         <WorkLists key="comic" type="webtoon" />
                     )}
                 </Suspense>
-            </main>
+            </main> */}
         </div>
     )
 }

@@ -22,7 +22,13 @@ type StickerShopItem = {
     }
 }
 
-export default function StickerShopWidget({ widget, preview = false }: { widget: PageWidget; preview?: boolean }) {
+export default function StickerShopWidget({
+    widget,
+    preview = false,
+}: {
+    widget: PageWidget
+    preview?: boolean
+}) {
     const limit = widget.settings.limit ?? 10
     const shop = useQuery({
         queryKey: ['public-shop-sticker-widget', limit],
@@ -34,7 +40,10 @@ export default function StickerShopWidget({ widget, preview = false }: { widget:
         staleTime: 60_000,
     })
     const sourceItems = (shop.data?.stickers ?? []) as StickerShopItem[]
-    const items = filterStickerItems(sourceItems.length === 0 && preview ? sampleStickerItems() : sourceItems, widget).slice(0, limit)
+    const items = filterStickerItems(
+        sourceItems.length === 0 && preview ? sampleStickerItems() : sourceItems,
+        widget
+    ).slice(0, limit)
 
     if (shop.isLoading) {
         return <StickerShopSkeleton count={limit} columns={widget.settings.columns} />
@@ -43,7 +52,7 @@ export default function StickerShopWidget({ widget, preview = false }: { widget:
     if (items.length === 0) return null
 
     return (
-        <section className="mx-auto mt-10 w-full max-w-[1360px] px-5">
+        <section className="mx-auto my-5 w-full max-w-[1480px] px-5">
             <div className="mb-5 flex items-center justify-between gap-3">
                 <h2 className="text-2xl font-bold">{widget.title || 'Sticker Shop'}</h2>
                 <a
@@ -144,10 +153,16 @@ function filterStickerItems(items: StickerShopItem[], widget: PageWidget) {
         const matches = (source: string, value: string) => {
             if (!value || source === 'none') return true
             if (source === 'source' || source === 'status') {
-                return item.source_label?.toLowerCase() === value || item.source?.toLowerCase() === value
+                return (
+                    item.source_label?.toLowerCase() === value ||
+                    item.source?.toLowerCase() === value
+                )
             }
             if (source === 'artist') {
-                return item.artist?.name.toLowerCase() === value || item.artist?.username.toLowerCase() === value
+                return (
+                    item.artist?.name.toLowerCase() === value ||
+                    item.artist?.username.toLowerCase() === value
+                )
             }
             if (source === 'label' || source === 'genre') {
                 return String(item.bundle_name ?? '').toLowerCase() === value
@@ -159,7 +174,8 @@ function filterStickerItems(items: StickerShopItem[], widget: PageWidget) {
             multiSource === 'none' || multiValues.length === 0
                 ? true
                 : multiValues.some((value) => matches(multiSource, value))
-        const badgeOk = badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
+        const badgeOk =
+            badgeSource === 'none' || !badgeValue ? true : matches(badgeSource, badgeValue)
 
         return multiOk && badgeOk
     })
@@ -177,9 +193,13 @@ function matchesDateWindow(value: string | undefined, widget: PageWidget) {
     if (Number.isNaN(date.getTime()) || Number.isNaN(base.getTime())) return true
 
     if (mode === 'daily') return date.toISOString().slice(0, 10) === base.toISOString().slice(0, 10)
-    if (mode === 'weekly') return Math.abs(date.getTime() - base.getTime()) <= 7 * 24 * 60 * 60 * 1000
+    if (mode === 'weekly')
+        return Math.abs(date.getTime() - base.getTime()) <= 7 * 24 * 60 * 60 * 1000
     if (mode === 'monthly') {
-        return date.getUTCFullYear() === base.getUTCFullYear() && date.getUTCMonth() === base.getUTCMonth()
+        return (
+            date.getUTCFullYear() === base.getUTCFullYear() &&
+            date.getUTCMonth() === base.getUTCMonth()
+        )
     }
 
     return true
@@ -210,7 +230,7 @@ function compareStickerSort(a: StickerShopItem, b: StickerShopItem, sort: string
 
 function StickerShopSkeleton({ count, columns }: { count: number; columns?: number }) {
     return (
-        <section className="mx-auto mt-10 w-full max-w-[1360px] px-5">
+        <section className="mx-auto my-5 w-full max-w-[1480px] px-5">
             <div className="mb-5 h-8 w-44 animate-pulse rounded bg-muted" />
             <div
                 className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6"

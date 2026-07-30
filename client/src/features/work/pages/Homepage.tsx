@@ -527,7 +527,7 @@ function HomeWorkGrid({
 
     return (
         <section className="w-full overflow-hidden bg-gradient-to-br from-sky-50 via-background to-amber-50 px-3 py-12 sm:px-4 sm:py-16 dark:from-sky-950/20 dark:via-background dark:to-amber-950/20">
-            <div className="mt-10 w-full max-w-[1360px] mx-auto">
+            <div className="my-5 w-full max-w-[1480px] mx-auto">
                 <h2 className="text-2xl font-bold uppercase py-5">{title}</h2>
                 <div
                     style={

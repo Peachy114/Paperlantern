@@ -63,7 +63,10 @@ export default function SearchBarView() {
     const searchRef = useRef<HTMLDivElement>(null)
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const resultCount =
-        results.webcomics.length + results.novels.length + results.arts.length + results.artists.length
+        results.webcomics.length +
+        results.novels.length +
+        results.arts.length +
+        results.artists.length
 
     const [recentSearches, setRecentSearches] = useState<string[]>(() => {
         try {
@@ -148,7 +151,7 @@ export default function SearchBarView() {
     }
 
     return (
-        <div ref={searchRef} className="relative ml-2">
+        <div ref={searchRef} className="relative flex justify-end">
             <div className="md:hidden">
                 <Button
                     variant="ghost"
@@ -187,9 +190,7 @@ export default function SearchBarView() {
                                     onSelect={(item) =>
                                         handleSelect(item, () => setMobileSearchOpen(false))
                                     }
-                                    onSeeAll={() =>
-                                        handleSeeAll(() => setMobileSearchOpen(false))
-                                    }
+                                    onSeeAll={() => handleSeeAll(() => setMobileSearchOpen(false))}
                                 />
                             )}
                         </div>
@@ -197,7 +198,7 @@ export default function SearchBarView() {
                 )}
             </div>
 
-            <div className="relative hidden w-[280px] md:block">
+            <div className="relative hidden w-[280px] md:block  justify-end">
                 <SearchInput
                     query={query}
                     onSearch={handleSearch}

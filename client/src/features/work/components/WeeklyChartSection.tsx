@@ -66,7 +66,7 @@ export default function WeeklyChartSection({
             </AnimatePresence>
 
             {/* Content */}
-            <div className="relative h-full max-w-[1360px] mx-auto px-5 flex items-center gap-5">
+            <div className="relative h-full max-w-[1480px] mx-auto px-5 flex items-center gap-5">
                 <img
                     src={weeklyChartLogo}
                     alt="Weekly Chart"

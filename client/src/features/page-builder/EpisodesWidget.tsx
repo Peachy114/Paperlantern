@@ -37,7 +37,7 @@ export default function EpisodesWidget({
     const sideEpisodes = filtered.slice(0, 5)
 
     return (
-        <section className="mx-auto w-full max-w-[1360px] px-5 py-8">
+        <section className="mx-auto w-full max-w-[1480px] my-5">
             <div className="mb-5 flex items-center justify-between gap-4">
                 <h2 className="text-center text-2xl font-black uppercase tracking-tight sm:text-3xl">
                     {title}
@@ -90,10 +90,10 @@ export default function EpisodesWidget({
                 ))}
             </div>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(260px,0.85fr)_minmax(0,1.15fr)]">
+            <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(260px,0.85fr)_minmax(0,2.15fr)]">
                 <Link
                     to={`/works/${active.work.slug}`}
-                    className="group relative min-h-[420px] overflow-hidden rounded-2xl bg-muted shadow-lg"
+                    className="group relative min-h-[500px] overflow-hidden rounded-2xl bg-muted shadow-lg"
                 >
                     {activeImage && (
                         <img
@@ -127,7 +127,12 @@ export default function EpisodesWidget({
                                 <div className="h-16 w-16 overflow-hidden rounded-xl bg-muted">
                                     {cover(chapter.cover ?? chapter.work?.cover ?? null, 'sm') && (
                                         <img
-                                            src={cover(chapter.cover ?? chapter.work?.cover ?? null, 'sm')!}
+                                            src={
+                                                cover(
+                                                    chapter.cover ?? chapter.work?.cover ?? null,
+                                                    'sm'
+                                                )!
+                                            }
                                             alt=""
                                             className="h-full w-full object-cover"
                                             loading="lazy"

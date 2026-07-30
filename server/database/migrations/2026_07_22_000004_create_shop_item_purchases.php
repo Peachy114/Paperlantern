@@ -21,13 +21,17 @@ return new class extends Migration
             });
         }
 
-        DB::statement("ALTER TABLE wallet_transactions MODIFY source ENUM('purchase', 'chapter_unlock', 'refund', 'bonus', 'art_download', 'commission_escrow', 'commission_release', 'commission_refund', 'noble_publish', 'subscription_purchase', 'shop_download') NOT NULL");
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE wallet_transactions MODIFY source ENUM('purchase', 'chapter_unlock', 'refund', 'bonus', 'art_download', 'commission_escrow', 'commission_release', 'commission_refund', 'noble_publish', 'subscription_purchase', 'shop_download') NOT NULL");
+        }
     }
 
     public function down(): void
     {
         Schema::dropIfExists('shop_item_purchases');
 
-        DB::statement("ALTER TABLE wallet_transactions MODIFY source ENUM('purchase', 'chapter_unlock', 'refund', 'bonus', 'art_download', 'commission_escrow', 'commission_release', 'commission_refund', 'noble_publish', 'subscription_purchase') NOT NULL");
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE wallet_transactions MODIFY source ENUM('purchase', 'chapter_unlock', 'refund', 'bonus', 'art_download', 'commission_escrow', 'commission_release', 'commission_refund', 'noble_publish', 'subscription_purchase') NOT NULL");
+        }
     }
 };

@@ -22,7 +22,7 @@ export default function DiscoveryPage() {
 
     return (
         <div>
-            {/* <div className="mx-auto max-w-[1360px] px-5 pt-8">
+            {/* <div className="mx-auto max-w-[1480px] px-5 pt-8">
                 <h1 className="text-3xl font-bold tracking-tight">{PAGE_TITLES[page]}</h1>
             </div> */}
             {layout.data?.widgets?.length ? (

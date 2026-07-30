@@ -35,7 +35,7 @@ export default function FreshReleasesSection({
     return (
         // Fresh Releases Section ----
         <section className="w-full overflow-hidden bg-gradient-to-br from-sky-50 via-background to-amber-50 px-3 py-12 sm:px-4 sm:py-16 dark:from-sky-950/20 dark:via-background dark:to-amber-950/20">
-            <div className="mx-auto mt-10 w-full max-w-[1360px] sm:mt-5">
+            <div className="mx-auto my-5 w-full max-w-[1480px] sm:mt-5">
                 <h2 className="py-5 text-2xl font-bold">FRESH RELEASES</h2>
 
                 <div
@@ -49,6 +49,7 @@ export default function FreshReleasesSection({
                     md:grid-cols-4
                     lg:grid-cols-5
                     lg:gap-6
+                    mt-5
                 "
                 >
                     {fresh.paginated.map((work, index) => {
