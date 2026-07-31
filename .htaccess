@@ -1,42 +1,59 @@
+DirectoryIndex index.html
+
 <IfModule mod_rewrite.c>
+    Options -Indexes -MultiViews
+
     RewriteEngine On
     RewriteBase /
 
-    # =========================================================
+    # ======================================================
     # Preserve Laravel authentication headers
-    # =========================================================
+    # ======================================================
+
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
     RewriteCond %{HTTP:X-XSRF-TOKEN} .
     RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-TOKEN}]
 
-    # =========================================================
+    # ======================================================
+    # Block direct browser access to Laravel source
+    # Internal API rewrites will still work
+    # ======================================================
+
+    RewriteCond %{THE_REQUEST} \s/+server(?:/|[\s?]) [NC]
+    RewriteRule ^server(?:/.*)?$ - [F,L]
+
+    # ======================================================
     # Laravel API
-    # =========================================================
+    # ======================================================
+
     RewriteRule ^api(?:/.*)?$ server/public/index.php [L,QSA]
 
-    # =========================================================
-    # Laravel storage
-    # =========================================================
+    # ======================================================
+    # Laravel Sanctum
+    # ======================================================
+
+    RewriteRule ^sanctum(?:/.*)?$ server/public/index.php [L,QSA]
+
+    # ======================================================
+    # Laravel public storage
+    # ======================================================
+
     RewriteRule ^storage/(.*)$ server/public/storage/$1 [L]
 
-    # =========================================================
-    # Serve existing files and directories
-    # =========================================================
+    # ======================================================
+    # Existing React files and assets
+    # ======================================================
+
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # =========================================================
-    # Missing Vite assets must return a real 404.
-    # Never return React index.html for missing JS/CSS.
-    # =========================================================
-    RewriteRule ^assets/ - [L]
-
-    # =========================================================
+    # ======================================================
     # React Router fallback
-    # =========================================================
+    # ======================================================
+
     RewriteRule ^ index.html [L]
 </IfModule>
 
@@ -52,18 +69,16 @@
     ExpiresActive On
 
     ExpiresByType text/html "access plus 0 seconds"
-
     ExpiresByType text/css "access plus 1 year"
-    ExpiresByType text/javascript "access plus 1 year"
     ExpiresByType application/javascript "access plus 1 year"
-    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType text/javascript "access plus 1 year"
     ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
 
     ExpiresByType image/png "access plus 30 days"
     ExpiresByType image/jpeg "access plus 30 days"
     ExpiresByType image/webp "access plus 30 days"
     ExpiresByType image/gif "access plus 30 days"
-    ExpiresByType image/x-icon "access plus 30 days"
 </IfModule>
 
 <IfModule mod_headers.c>
@@ -81,3 +96,7 @@
         Header set Expires "0"
     </FilesMatch>
 </IfModule>
+
+<FilesMatch "^(\.env|composer\.(json|lock)|artisan|package(-lock)?\.json)$">
+    Require all denied
+</FilesMatch>

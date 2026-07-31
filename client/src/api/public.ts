@@ -1,14 +1,45 @@
 import api from './axios'
 
+function logStickerOwnership(responseData: any): void {
+    const stickers = Array.isArray(responseData?.stickers)
+        ? responseData.stickers
+        : Array.isArray(responseData?.stickers?.data)
+          ? responseData.stickers.data
+          : []
+
+    console.group('[Public Shop] Sticker ownership')
+    console.log('Full shop response:', responseData)
+
+    if (stickers.length === 0) {
+        console.warn('No stickers found in the shop response.')
+        console.groupEnd()
+        return
+    }
+
+    console.table(
+        stickers.map((sticker: any) => ({
+            id: sticker.id,
+            name: sticker.name,
+            owned: Boolean(sticker.owned),
+            can_use: Boolean(sticker.can_use),
+            is_free: Boolean(sticker.is_free),
+            credit_cost: sticker.credit_cost,
+            owner_user_id: sticker.user_id,
+        }))
+    )
+
+    console.groupEnd()
+}
+
 export const publicApi = {
     // ======================================================
-    // // Homepage ----
+    // Homepage
     // ======================================================
 
     getHome: () => api.get('/public/home'),
 
     // ======================================================
-    // // Works / Comics / Novels ----
+    // Works / Comics / Novels
     // ======================================================
 
     getWork: (slug: string) => api.get(`/public/works/${slug}`),
@@ -20,6 +51,7 @@ export const publicApi = {
     toggleWorkFavorite: (slug: string) => api.post(`/public/works/${slug}/favorite`),
 
     getChapters: (slug: string) => api.get(`/public/works/${slug}/chapters`),
+
     getChapter: (slug: string, chapterSlug: string) =>
         api.get(`/public/works/${slug}/chapters/${chapterSlug}`),
 
@@ -33,7 +65,7 @@ export const publicApi = {
         api.post(`/public/works/${slug}/chapters/${chapterSlug}/view`),
 
     // ======================================================
-    // // Arts ----
+    // Arts / Shop
     // ======================================================
 
     getArts: (params?: URLSearchParams) =>
@@ -43,8 +75,13 @@ export const publicApi = {
 
     getArtTags: (q = '') => api.get(`/public/arts/tags${q ? `?q=${encodeURIComponent(q)}` : ''}`),
 
-    getShop: (params?: URLSearchParams) =>
-        api.get(`/public/shop${params ? `?${params.toString()}` : ''}`),
+    getShop: async (params?: URLSearchParams) => {
+        const response = await api.get(`/public/shop${params ? `?${params.toString()}` : ''}`)
+
+        logStickerOwnership(response.data)
+
+        return response
+    },
 
     purchaseShopDownload: (shopItemId: string) => api.post(`/public/shop/${shopItemId}/purchase`),
 
@@ -66,7 +103,7 @@ export const publicApi = {
         }),
 
     // ======================================================
-    // // Commissions ----
+    // Commissions
     // ======================================================
 
     getCommissions: (params?: URLSearchParams) =>
@@ -78,13 +115,21 @@ export const publicApi = {
         slug: string,
         payload:
             | FormData
-            | { request_message: string; reference_notes?: string; agree_to_flow: boolean }
+            | {
+                  request_message: string
+                  reference_notes?: string
+                  agree_to_flow: boolean
+              }
     ) =>
         api.post(
             `/public/commissions/${slug}/request`,
             payload,
             payload instanceof FormData
-                ? { headers: { 'Content-Type': 'multipart/form-data' } }
+                ? {
+                      headers: {
+                          'Content-Type': 'multipart/form-data',
+                      },
+                  }
                 : undefined
         ),
 }

@@ -206,7 +206,14 @@ class ArtController extends Controller
         $stickers = collect($files)
             ->filter()
             ->values()
-            ->map(function ($file, int $index) use ($request, $validated, $stickerNames, $isFree, &$sortOrder) {
+            ->map(function ($file, int $index) use (
+                $request,
+                $validated,
+                $stickerNames,
+                $isFree,
+                $publishPublic,
+                &$sortOrder
+            ) {
                 $sortOrder++;
                 $name = trim((string) ($stickerNames[$index] ?? $validated['name'] ?? ''))
                     ?: pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
