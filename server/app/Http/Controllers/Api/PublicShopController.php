@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ArtistSticker;
+use App\Models\ArtistStickerPurchase;
 use App\Models\ShopItem;
 use App\Models\ShopItemPurchase;
 use App\Repositories\WalletRepository;
@@ -28,6 +29,14 @@ class PublicShopController extends Controller
     public function index(Request $request): JsonResponse
     {
         $limit = max(1, min(30, (int) $request->query('limit', 20)));
+        $user = $request->user('sanctum');
+
+        $ownedStickerIds = $user
+            ? ArtistStickerPurchase::query()
+            ->where('user_id', $user->id)
+            ->pluck('artist_sticker_id')
+            ->flip()
+            : collect();
 
         $downloads = ShopItem::query()
             ->where('status', 'published')
@@ -37,7 +46,7 @@ class PublicShopController extends Controller
             ])
             ->latest()
             ->paginate($limit)
-            ->through(fn(ShopItem $item) => $this->formatShopItem($item));
+            ->through(fn(ShopItem $item) => $this->formatShopItem($item, $user));
 
         $stickers = ArtistSticker::query()
             ->with('user:id,name,username,avatar,role')
@@ -46,7 +55,11 @@ class PublicShopController extends Controller
             ->latest()
             ->limit($limit)
             ->get()
-            ->map(fn(ArtistSticker $sticker) => $this->formatSticker($sticker))
+            ->map(fn(ArtistSticker $sticker) => $this->formatSticker(
+                $sticker,
+                $user,
+                $ownedStickerIds->has($sticker->id),
+            ))
             ->values();
 
         return response()->json([
@@ -56,7 +69,7 @@ class PublicShopController extends Controller
         ]);
     }
 
-    private function formatShopItem(ShopItem $item): array
+    private function formatShopItem(ShopItem $item, $user): array
     {
         return [
             'id' => $item->id,
@@ -68,7 +81,7 @@ class PublicShopController extends Controller
             'image_path' => $item->image_path,
             'download_policy' => $item->download_policy,
             'credit_cost' => $item->download_policy === 'paid' ? (int) $item->credit_cost : 0,
-            'download_unlocked' => $this->unlockedFor($item, request()->user()),
+            'download_unlocked' => $this->unlockedFor($item, $user),
             'downloads_count' => (int) $item->downloads_count,
             'likes' => (int) $item->likes_count,
             'comments_count' => 0,
@@ -238,8 +251,11 @@ class PublicShopController extends Controller
         return "{$base}.{$extension}";
     }
 
-    private function formatSticker(ArtistSticker $sticker): array
+    private function formatSticker(ArtistSticker $sticker, $user, bool $purchased): array
     {
+        $isCreator = $user && $sticker->user_id === $user->id;
+        $owned = (bool) ($isCreator || $purchased);
+
         return [
             'id' => $sticker->id,
             'type' => 'sticker',
@@ -249,6 +265,8 @@ class PublicShopController extends Controller
             'is_free' => (bool) $sticker->is_free,
             'credit_cost' => (int) ($sticker->is_free ? 0 : max(1, $sticker->credit_cost ?? 1)),
             'subscription_free' => (bool) $sticker->subscription_free,
+            'owned' => $owned,
+            'can_use' => $owned,
             'usage' => [
                 'comments' => true,
                 'profile' => true,

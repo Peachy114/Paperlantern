@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
     AlertCircle,
@@ -12,7 +12,7 @@ import {
     RotateCw,
     XCircle,
 } from 'lucide-react'
-import { getCreditPayment, simulateCreditPayment } from '@/hooks/useWallet'
+import { getCreditPayment } from '@/hooks/useWallet'
 import type { CreditPayment, CreditPaymentStatus } from '@/types/wallet'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -40,19 +40,19 @@ export default function CreditPaymentPage() {
         refetchInterval: (query) => (query.state.data?.status === 'pending' ? 5000 : false),
     })
 
-    const simulateMutation = useMutation({
-        mutationFn: (status: CreditPaymentStatus | 'success') =>
-            simulateCreditPayment(paymentId!, status),
-        onSuccess: ({ payment: updatedPayment }) => {
-            queryClient.setQueryData(['credit-payment', paymentId], updatedPayment)
-            queryClient.invalidateQueries({ queryKey: ['wallet'] })
-            queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] })
-            announcePayment(updatedPayment, announcedRef, true)
-        },
-        onError: () => {
-            toast.error('Could not simulate this payment.')
-        },
-    })
+    // const simulateMutation = useMutation({
+    //     mutationFn: (status: CreditPaymentStatus | 'success') =>
+    //         simulateCreditPayment(paymentId!, status),
+    //     onSuccess: ({ payment: updatedPayment }) => {
+    //         queryClient.setQueryData(['credit-payment', paymentId], updatedPayment)
+    //         queryClient.invalidateQueries({ queryKey: ['wallet'] })
+    //         queryClient.invalidateQueries({ queryKey: ['wallet-transactions'] })
+    //         announcePayment(updatedPayment, announcedRef, true)
+    //     },
+    //     onError: () => {
+    //         toast.error('Could not simulate this payment.')
+    //     },
+    // })
 
     useEffect(() => {
         if (!payment) return
@@ -185,7 +185,7 @@ export default function CreditPaymentPage() {
                 </div>
             </section>
 
-            {payment.can_simulate && payment.status !== 'paid' && (
+            {/* {payment.can_simulate && payment.status !== 'paid' && (
                 <section className="mt-5 rounded-xl border border-dashed bg-muted/10 p-5">
                     <div className="mb-4">
                         <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
@@ -227,7 +227,7 @@ export default function CreditPaymentPage() {
                         </Button>
                     </div>
                 </section>
-            )}
+            )} */}
         </div>
     )
 }
@@ -246,7 +246,8 @@ function getStatusView(status: CreditPaymentStatus) {
         return {
             icon: CheckCircle2,
             variant: 'default' as const,
-            className: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200',
+            className:
+                'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200',
             message: 'Payment confirmed. Your credits were added to your wallet.',
         }
     }
@@ -255,7 +256,8 @@ function getStatusView(status: CreditPaymentStatus) {
         return {
             icon: XCircle,
             variant: 'destructive' as const,
-            className: 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200',
+            className:
+                'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200',
             message: 'Payment failed. No credits were added.',
         }
     }
@@ -264,7 +266,8 @@ function getStatusView(status: CreditPaymentStatus) {
         return {
             icon: Clock3,
             variant: 'secondary' as const,
-            className: 'border-zinc-200 bg-zinc-50 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-950/30 dark:text-zinc-200',
+            className:
+                'border-zinc-200 bg-zinc-50 text-zinc-800 dark:border-zinc-800 dark:bg-zinc-950/30 dark:text-zinc-200',
             message: 'Payment expired. Start a new top up when you are ready.',
         }
     }
@@ -272,7 +275,8 @@ function getStatusView(status: CreditPaymentStatus) {
     return {
         icon: Clock3,
         variant: 'outline' as const,
-        className: 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200',
+        className:
+            'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200',
         message: 'Waiting for payment confirmation. Credits will be added after confirmation.',
     }
 }

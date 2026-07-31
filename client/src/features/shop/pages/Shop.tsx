@@ -86,6 +86,8 @@ type ShopSticker = {
     artist?: { name: string; username: string; avatar?: string | null } | null
     source?: 'admin' | 'artist'
     source_label?: string
+    owned?: boolean
+    can_use?: boolean
 }
 
 export default function Shop() {
@@ -99,8 +101,22 @@ export default function Shop() {
     })
     const purchaseSticker = useMutation({
         mutationFn: (id: string) => nobleRoyaltyApi.purchaseSticker(id),
-        onSuccess: () => {
+        onSuccess: (_response, stickerId) => {
             toast.success('Sticker added to your library.')
+
+            queryClient.setQueryData(['public-shop'], (current: any) => {
+                if (!current) return current
+
+                return {
+                    ...current,
+                    stickers: (current.stickers ?? []).map((sticker: ShopSticker) =>
+                        sticker.id === stickerId
+                            ? { ...sticker, owned: true, can_use: true }
+                            : sticker
+                    ),
+                }
+            })
+
             queryClient.invalidateQueries({ queryKey: ['public-shop'] })
             queryClient.invalidateQueries({ queryKey: ['noble-royalty'] })
             queryClient.invalidateQueries({ queryKey: ['artist-sticker-library'] })
@@ -216,16 +232,33 @@ export default function Shop() {
                             <div className="mt-2 text-xs font-semibold">
                                 {item.is_free ? 'Free' : `${item.credit_cost} credits`}
                             </div>
-                            <Button
-                                type="button"
-                                size="sm"
-                                className="mt-3 w-full"
-                                variant={item.is_free ? 'secondary' : 'default'}
-                                onClick={() => purchaseSticker.mutate(item.id)}
-                                disabled={purchaseSticker.isPending}
-                            >
-                                {item.is_free ? 'Add to library' : 'Buy sticker'}
-                            </Button>
+                            {(() => {
+                                const isOwned = Boolean(item.owned || item.can_use)
+                                const isPurchasingThisSticker =
+                                    purchaseSticker.isPending &&
+                                    purchaseSticker.variables === item.id
+
+                                return (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        className="mt-3 w-full"
+                                        variant={isOwned || item.is_free ? 'secondary' : 'default'}
+                                        onClick={() => {
+                                            if (!isOwned) purchaseSticker.mutate(item.id)
+                                        }}
+                                        disabled={isOwned || purchaseSticker.isPending}
+                                    >
+                                        {isOwned
+                                            ? 'Owned'
+                                            : isPurchasingThisSticker
+                                              ? 'Adding...'
+                                              : item.is_free
+                                                ? 'Add to library'
+                                                : 'Buy sticker'}
+                                    </Button>
+                                )
+                            })()}
                         </article>
                     ))}
                 </div>
