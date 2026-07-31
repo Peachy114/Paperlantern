@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ComponentType, type PointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
     CalendarDays,
     ChevronLeft,
     ChevronRight,
-    Eye,
-    Gift,
     Heart,
     ImageOff,
     MessageCircle,
@@ -651,9 +649,9 @@ function ArtDetailDialog({
     const [isPanning, setIsPanning] = useState(false)
     const [liked, setLiked] = useState(false)
     const [likes, setLikes] = useState(0)
-    const [views, setViews] = useState(0)
     const recordedViewRef = useRef<string | null>(null)
     const imageScrollerRef = useRef<HTMLDivElement | null>(null)
+    const commentsSectionRef = useRef<HTMLDivElement | null>(null)
     const queryClient = useQueryClient()
     const { token } = useAuthStore()
     const { openLogin } = useModalStore()
@@ -673,7 +671,6 @@ function ArtDetailDialog({
         setIsPanning(false)
         setLiked(Boolean(art?.liked_by_me))
         setLikes(art?.likes ?? 0)
-        setViews(art?.views ?? 0)
     }, [art?.id])
 
     useEffect(() => {
@@ -687,8 +684,7 @@ function ArtDetailDialog({
         recordedViewRef.current = art.id
         publicApi
             .recordArtView(art.id)
-            .then((res) => {
-                setViews(res.data.views)
+            .then(() => {
                 queryClient.invalidateQueries({ queryKey: ['public-arts'] })
                 queryClient.invalidateQueries({ queryKey: ['studio-arts'] })
             })
@@ -761,6 +757,10 @@ function ArtDetailDialog({
     if (!art) return null
 
     const isAdmin = art.user?.role === 'super_admin'
+    const artistName = isAdmin ? 'Admin' : (art.user?.name ?? 'Unknown')
+    const artistUsername = isAdmin ? null : (art.user?.username ?? null)
+    const artistAvatar = (art.user as { avatar?: string | null } | null | undefined)?.avatar ?? null
+    const artistInitial = artistName.trim().charAt(0).toUpperCase() || 'A'
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="h-[96dvh] !w-[calc(100vw-0.75rem)] !max-w-none overflow-hidden p-0 sm:!max-w-none lg:!w-[min(99vw,1540px)]">
@@ -771,30 +771,67 @@ function ArtDetailDialog({
 
                 <div className="grid h-full min-h-0 grid-rows-[minmax(280px,46dvh)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(320px,440px)] lg:grid-rows-1">
                     <aside className="order-2 min-h-0 overflow-y-auto bg-background p-4 sm:p-5 lg:order-2 lg:border-l">
-                        <div className="mb-4 flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <h2 className="text-xl font-semibold leading-tight">{art.title}</h2>
-                                <div className="mt-2">
-                                    {isAdmin ? (
-                                        <p className="text-sm text-muted-foreground">
-                                            By{' '}
-                                            <span className="font-medium text-foreground">
-                                                Admin
+                        {/* ==================== CREATOR: AVATAR + NAME ==================== */}
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                                {artistUsername ? (
+                                    <Link
+                                        to={`/artists/${artistUsername}`}
+                                        onClick={() => onOpenChange(false)}
+                                        className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-primary text-primary-foreground ring-1 ring-border"
+                                        aria-label={`Open ${artistName}'s profile`}
+                                    >
+                                        {artistAvatar ? (
+                                            <img
+                                                src={storageUrl(artistAvatar)!}
+                                                alt={artistName}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <span className="flex h-full w-full items-center justify-center text-sm font-bold">
+                                                {artistInitial}
                                             </span>
-                                        </p>
-                                    ) : art.user?.username ? (
+                                        )}
+                                    </Link>
+                                ) : (
+                                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-primary text-primary-foreground ring-1 ring-border">
+                                        {artistAvatar ? (
+                                            <img
+                                                src={storageUrl(artistAvatar)!}
+                                                alt={artistName}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <span className="flex h-full w-full items-center justify-center text-sm font-bold">
+                                                {artistInitial}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div className="min-w-0">
+                                    {artistUsername ? (
                                         <Link
-                                            to={`/artists/${art.user.username}`}
-                                            className="text-sm font-medium hover:underline"
+                                            to={`/artists/${artistUsername}`}
                                             onClick={() => onOpenChange(false)}
+                                            className="block truncate text-sm font-semibold hover:underline"
                                         >
-                                            {art.user.name}
+                                            {artistName}
                                         </Link>
                                     ) : (
-                                        <p className="text-sm text-muted-foreground">By Unknown</p>
+                                        <p className="truncate text-sm font-semibold">
+                                            {artistName}
+                                        </p>
+                                    )}
+
+                                    {artistUsername && (
+                                        <p className="truncate text-xs text-muted-foreground">
+                                            @{artistUsername}
+                                        </p>
                                     )}
                                 </div>
                             </div>
+
                             {art.boosted_until && (
                                 <Badge className="shrink-0 bg-amber-500 text-black">
                                     <Sparkles className="h-3 w-3" />
@@ -803,33 +840,127 @@ function ArtDetailDialog({
                             )}
                         </div>
 
-                        <div className="mb-4 flex flex-wrap items-center gap-2">
-                            <Button type="button" variant="outline" onClick={() => shareArt(art)}>
-                                <Share2 className="h-4 w-4" />
-                                Share
-                            </Button>
-                            <Button
-                                type="button"
-                                variant={liked ? 'secondary' : 'outline'}
-                                onClick={() => {
-                                    if (!token) {
-                                        openLogin()
-                                        return
-                                    }
-                                    likeMutation.mutate()
-                                }}
-                                disabled={likeMutation.isPending}
+                        <Separator className="my-5" />
+
+                        {/* ==================== DESCRIPTION ==================== */}
+                        <section aria-labelledby="art-description-heading">
+                            <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                                Description
+                            </p>
+                            <h2
+                                id="art-description-heading"
+                                className="mt-2 text-lg font-semibold leading-tight"
                             >
-                                <Heart
-                                    className={
-                                        liked ? 'h-4 w-4 fill-current text-red-500' : 'h-4 w-4'
+                                {art.title}
+                            </h2>
+
+                            {art.description ? (
+                                <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                                    {art.description}
+                                </p>
+                            ) : (
+                                <p className="mt-3 text-sm text-muted-foreground">
+                                    No description added.
+                                </p>
+                            )}
+
+                            {activeImage?.description && (
+                                <div className="mt-4 rounded-lg border bg-muted/20 p-3">
+                                    <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                                        Image note
+                                    </p>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        {activeImage.description}
+                                    </p>
+                                </div>
+                            )}
+                        </section>
+
+                        {/* ==================== LABELS ==================== */}
+                        <section className="mt-5" aria-labelledby="art-labels-heading">
+                            {/* <p
+                                id="art-labels-heading"
+                                className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground"
+                            >
+                                Labels
+                            </p> */}
+
+                            {art.labels && art.labels.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {art.labels.map((label) => (
+                                        <button
+                                            key={label}
+                                            type="button"
+                                            onClick={() => onLabelClick(label)}
+                                            className="rounded-full border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">No labels added.</p>
+                            )}
+                        </section>
+
+                        <Separator className="my-5" />
+
+                        {/* ==================== LIKES + COMMENT + SHARE | SUPER LIKES ==================== */}
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-1">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant={liked ? 'secondary' : 'ghost'}
+                                    onClick={() => {
+                                        if (!token) {
+                                            openLogin()
+                                            return
+                                        }
+                                        likeMutation.mutate()
+                                    }}
+                                    disabled={likeMutation.isPending}
+                                >
+                                    <Heart
+                                        className={
+                                            liked ? 'h-4 w-4 fill-current text-red-500' : 'h-4 w-4'
+                                        }
+                                    />
+                                    <span>Like</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {likes.toLocaleString()}
+                                    </span>
+                                </Button>
+
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() =>
+                                        commentsSectionRef.current?.scrollIntoView({
+                                            behavior: 'smooth',
+                                            block: 'start',
+                                        })
                                     }
-                                />
-                                Like
-                                <span className="text-xs text-muted-foreground">
-                                    {likes.toLocaleString()}
-                                </span>
-                            </Button>
+                                >
+                                    <MessageCircle className="h-4 w-4" />
+                                    <span>Comment</span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {(art.comments_count ?? 0).toLocaleString()}
+                                    </span>
+                                </Button>
+
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => shareArt(art)}
+                                >
+                                    <Share2 className="h-4 w-4" />
+                                    Share
+                                </Button>
+                            </div>
+
                             <SuperLikeButton
                                 targetType="art"
                                 targetId={art.id}
@@ -838,71 +969,23 @@ function ArtDetailDialog({
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                            <Stat icon={Heart} label="Likes" value={likes} />
-                            <Stat icon={Eye} label="Views" value={views} />
-                            <Stat
-                                icon={MessageCircle}
-                                label="Comments"
-                                value={art.comments_count}
-                            />
-                            <Stat icon={Gift} label="Super likes" value={art.super_likes_count} />
-                        </div>
-
                         <Separator className="my-5" />
 
-                        {art.description ? (
-                            <p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                                {art.description}
-                            </p>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">No description added.</p>
-                        )}
-
-                        {activeImage?.description && (
-                            <div className="mt-4 rounded-lg border bg-muted/20 p-3">
-                                <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                                    Image note
-                                </p>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    {activeImage.description}
-                                </p>
-                            </div>
-                        )}
-
-                        {art.labels && art.labels.length > 0 && (
-                            <div className="mt-5">
-                                <p className="mb-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                                    Labels
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {art.labels.map((label) => (
-                                        <button
-                                            key={label}
-                                            type="button"
-                                            onClick={() => onLabelClick(label)}
-                                            className="rounded-md border px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        <Separator className="my-5" />
-
+                        {/* ==================== POSTED DATE ==================== */}
                         <p className="flex items-center gap-2 text-xs text-muted-foreground">
                             <CalendarDays className="h-3.5 w-3.5" />
                             Posted {formatDate(art.created_at)}
                         </p>
 
-                        <div className="mt-6">
+                        <Separator className="my-5" />
+
+                        {/* ==================== COMMENTS ==================== */}
+                        <div ref={commentsSectionRef} className="scroll-mt-4">
                             <CommentSection
                                 targetType="art"
                                 targetId={art.id}
                                 artistUsername={isAdmin ? null : art.user?.username}
-                                title="Art comments"
+                                title="Comments"
                                 compact
                             />
                         </div>
@@ -1061,26 +1144,6 @@ async function shareArt(art: Art) {
     } catch {
         toast.error('Could not share this art.')
     }
-}
-
-function Stat({
-    icon: Icon,
-    label,
-    value,
-}: {
-    icon: ComponentType<{ className?: string }>
-    label: string
-    value: number
-}) {
-    return (
-        <div className="rounded-lg border bg-muted/20 p-3">
-            <div className="flex items-center gap-2 text-muted-foreground">
-                <Icon className="h-3.5 w-3.5" />
-                <span className="text-xs">{label}</span>
-            </div>
-            <p className="mt-1 text-sm font-semibold">{value.toLocaleString()}</p>
-        </div>
-    )
 }
 
 function getArtImages(art: Art): ArtImage[] {

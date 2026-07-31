@@ -13,8 +13,8 @@ import PublicShowWebtoonContent from './PublicShowWebtoonContent'
 import PublicShowNovelContent from './PublicShowNovelContent'
 import PublicShowLikes from './PublicShowLikes'
 import PublicShowNavButtons from './PublicShowNavButtons'
-import CommentSection from '@/features/comments/components/CommentSection'
 import SuperLikeButton from '@/features/comments/components/SuperLikeButton'
+import CommentSection2 from '@/features/comments/components/CommentSection2'
 
 export default function PublicShowView() {
     const {
@@ -162,7 +162,7 @@ export default function PublicShowView() {
                 </div>
 
                 <div className="mt-6">
-                    <CommentSection
+                    <CommentSection2
                         targetType="chapter"
                         targetId={chapter.id}
                         artistUsername={chapter.artist_username}

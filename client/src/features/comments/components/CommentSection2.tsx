@@ -7,6 +7,7 @@ import {
     type FormEvent,
     type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -60,6 +61,10 @@ const COMMENT_SORTS: Array<{ value: CommentSort; label: string }> = [
     { value: 'popular', label: 'Popular' },
 ]
 
+function normalizeUsername(value?: string | null): string {
+    return value?.trim().replace(/^@/, '').toLowerCase() ?? ''
+}
+
 interface CommentSectionProps {
     targetType: CommentTargetType
     targetId: string
@@ -89,13 +94,21 @@ export default function CommentSection2({
     const [reportDetails, setReportDetails] = useState('')
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
+    const [replyPortalTarget, setReplyPortalTarget] = useState<HTMLElement | null>(null)
     const textareaRef = useRef<HTMLTextAreaElement | null>(null)
     const imageInputRef = useRef<HTMLInputElement | null>(null)
     const { token, user } = useAuthStore()
     const { openLogin } = useModalStore()
     const queryClient = useQueryClient()
 
+    const postArtistUsername = normalizeUsername(artistUsername)
+    const currentUsername = normalizeUsername(user?.username)
+    const isArtistOwnedPost = postArtistUsername.length > 0
+    const canPinComments =
+        Boolean(token) && isArtistOwnedPost && currentUsername === postArtistUsername
+
     const commentsKey = ['comments', targetType, targetId, sort]
+    const replyingToId = replyingTo?.id ?? null
 
     const { data, isLoading } = useQuery({
         queryKey: commentsKey,
@@ -113,6 +126,29 @@ export default function CommentSection2({
 
         return () => URL.revokeObjectURL(nextPreview)
     }, [imageFile])
+
+    useEffect(() => {
+        if (!replyingToId) {
+            setReplyPortalTarget(null)
+            return
+        }
+
+        let focusFrame: number | null = null
+        const mountFrame = window.requestAnimationFrame(() => {
+            const target = document.getElementById(`reply-composer-slot-${replyingToId}`)
+            setReplyPortalTarget(target)
+
+            focusFrame = window.requestAnimationFrame(() => {
+                target?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                textareaRef.current?.focus()
+            })
+        })
+
+        return () => {
+            window.cancelAnimationFrame(mountFrame)
+            if (focusFrame !== null) window.cancelAnimationFrame(focusFrame)
+        }
+    }, [replyingToId])
 
     const createMutation = useMutation({
         mutationFn: () => {
@@ -140,13 +176,20 @@ export default function CommentSection2({
     })
 
     const pinMutation = useMutation({
-        mutationFn: ({ commentId, isPinned }: { commentId: string; isPinned: boolean }) =>
-            commentsApi.pin(commentId, isPinned).then((res) => res.data),
+        mutationFn: ({ commentId, isPinned }: { commentId: string; isPinned: boolean }) => {
+            if (!canPinComments) {
+                throw new Error('Only the artist who owns this post can pin comments.')
+            }
+
+            return commentsApi.pin(commentId, isPinned).then((res) => res.data)
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['comments', targetType, targetId] })
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.message ?? 'You cannot pin this comment.')
+            toast.error(
+                error.response?.data?.message ?? error.message ?? 'You cannot pin this comment.'
+            )
         },
     })
 
@@ -189,12 +232,23 @@ export default function CommentSection2({
         },
     })
 
-    const comments = data?.data ?? []
+    const comments = useMemo(() => {
+        const items = [...(data?.data ?? [])]
+
+        return items.sort((a, b) => {
+            const aPinned = Boolean(a.is_pinned)
+            const bPinned = Boolean(b.is_pinned)
+
+            if (aPinned === bPinned) {
+                return 0
+            }
+
+            return aPinned ? -1 : 1
+        })
+    }, [data?.data])
     const [expandedComments, setExpandedComments] = useState(false)
     const visibleComments =
-        initialVisibleCount && !expandedComments
-            ? comments.slice(0, initialVisibleCount)
-            : comments
+        initialVisibleCount && !expandedComments ? comments.slice(0, initialVisibleCount) : comments
     const hiddenCommentCount =
         initialVisibleCount && comments.length > initialVisibleCount
             ? comments.length - initialVisibleCount
@@ -237,6 +291,370 @@ export default function CommentSection2({
             textarea?.setSelectionRange(nextSelectionStart, nextSelectionEnd)
         })
     }
+
+    const commentComposer = (
+        <form onSubmit={submit} className="mb-5">
+            {replyingTo && (
+                <div
+                    className="
+                            mb-2
+                            flex
+                            items-center
+                            justify-between
+                            gap-3
+                            rounded-[8px]
+                            border
+                            border-orange-300
+                            bg-orange-50
+                            px-3
+                            py-2
+                            text-[11px]
+                            text-orange-700
+                            dark:border-orange-800
+                            dark:bg-orange-950/20
+                            dark:text-orange-300
+                        "
+                >
+                    <span className="min-w-0 truncate">
+                        Replying to @
+                        {replyingTo.user?.username ?? replyingTo.user?.name ?? 'unknown'}
+                    </span>
+
+                    <Button
+                        type="button"
+                        size="icon-xs"
+                        variant="ghost"
+                        onClick={() => setReplyingTo(null)}
+                        title="Cancel reply"
+                        className="h-6 w-6 rounded-full"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+            )}
+
+            {/* Always-visible text formatting tools */}
+            <div
+                className="
+                        mb-2
+                        flex
+                        flex-wrap
+                        items-center
+                        gap-1
+                        rounded-[10px]
+                        border
+                        border-border
+                        bg-muted/20
+                        p-2
+                    "
+            >
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 rounded-[6px] px-2 text-[10px]"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => wrapSelectedText('## ', '')}
+                    title="Heading"
+                >
+                    H
+                </Button>
+
+                <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="h-7 w-7 rounded-[6px]"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => wrapSelectedText('**')}
+                    title="Bold"
+                >
+                    <Bold className="h-3.5 w-3.5" />
+                </Button>
+
+                <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="h-7 w-7 rounded-[6px]"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => wrapSelectedText('*')}
+                    title="Italic"
+                >
+                    <Italic className="h-3.5 w-3.5" />
+                </Button>
+
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 rounded-[6px] px-2 text-[10px]"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => wrapSelectedText('- ', '')}
+                    title="Bullet"
+                >
+                    Bullet
+                </Button>
+
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 rounded-[6px] px-2 text-[10px]"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => wrapSelectedText('||')}
+                    title="Spoiler"
+                >
+                    <EyeOff className="h-3.5 w-3.5" />
+                    Spoiler
+                </Button>
+            </div>
+
+            <div
+                className="
+                        overflow-hidden
+                        rounded-[14px]
+                        border
+                        border-border
+                        bg-background
+                        transition
+                        focus-within:border-foreground/30
+                        focus-within:ring-2
+                        focus-within:ring-sky-200/50
+                    "
+            >
+                <Textarea
+                    ref={textareaRef}
+                    value={body}
+                    onChange={(event) => setBody(event.target.value)}
+                    placeholder="Add comment ..."
+                    className="
+                            min-h-[108px]
+                            resize-none
+                            rounded-none
+                            border-0
+                            bg-transparent
+                            px-4
+                            py-3
+                            text-[11px]
+                            shadow-none
+                            placeholder:text-muted-foreground
+                            focus-visible:ring-0
+                        "
+                />
+
+                {imagePreview && (
+                    <div className="px-4 pb-3">
+                        <div className="relative inline-block overflow-hidden rounded-[10px] border bg-muted">
+                            <img
+                                src={imagePreview}
+                                alt="Comment upload preview"
+                                className="max-h-48 max-w-[280px] object-contain"
+                            />
+
+                            <Button
+                                type="button"
+                                size="icon-xs"
+                                variant="secondary"
+                                className="absolute right-2 top-2 rounded-full shadow-sm"
+                                onClick={() => {
+                                    setImageFile(null)
+
+                                    if (imageInputRef.current) {
+                                        imageInputRef.current.value = ''
+                                    }
+                                }}
+                                title="Remove uploaded image"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {selectedSticker && (
+                    <div className="px-4 pb-3">
+                        <div className="relative inline-flex h-[150px] w-[150px] items-center justify-center bg-transparent p-1">
+                            <img
+                                src={storageUrl(selectedSticker.image_path)!}
+                                alt={selectedSticker.name}
+                                draggable={false}
+                                onContextMenu={(event) => event.preventDefault()}
+                                className="h-full w-full select-none object-contain"
+                            />
+
+                            <Button
+                                type="button"
+                                size="icon-xs"
+                                variant="secondary"
+                                className="absolute -right-2 -top-2 rounded-full shadow-sm"
+                                onClick={() => setSelectedSticker(null)}
+                                title="Remove sticker"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {reactionEmoji && (
+                    <div className="px-4 pb-3">
+                        <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm">
+                            <span className="text-lg">{reactionEmoji}</span>
+
+                            <Button
+                                type="button"
+                                size="icon-xs"
+                                variant="ghost"
+                                className="h-5 w-5 rounded-full"
+                                onClick={() => setReactionEmoji(null)}
+                                title="Remove reaction"
+                            >
+                                <X className="h-3 w-3" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Always-visible media tools and send button */}
+            <div className="mt-2 flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1">
+                    <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        className={`
+                                h-7
+                                w-7
+                                rounded-[6px]
+                                ${emojiOpen ? 'bg-muted text-orange-500' : ''}
+                            `}
+                        onClick={() => setEmojiOpen((open) => !open)}
+                        title="Reaction emoji"
+                    >
+                        <Smile className="h-3.5 w-3.5" />
+                    </Button>
+
+                    <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        className="h-7 w-7 rounded-[6px]"
+                        onClick={() => {
+                            if (!token) {
+                                openLogin()
+                            } else {
+                                setStickerOpen(true)
+                            }
+                        }}
+                        title="Stickers"
+                    >
+                        <Sticker className="h-3.5 w-3.5" />
+                    </Button>
+
+                    <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        className="hidden"
+                        onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
+                    />
+
+                    <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        className="h-7 w-7 rounded-[6px]"
+                        onClick={() => imageInputRef.current?.click()}
+                        title="Upload image"
+                    >
+                        <ImageIcon className="h-3.5 w-3.5" />
+                    </Button>
+                </div>
+
+                <Button
+                    type="submit"
+                    disabled={createMutation.isPending}
+                    className="
+                            h-7
+                            rounded-[7px]
+                            bg-orange-400
+                            px-5
+                            text-[11px]
+                            font-semibold
+                            text-white
+                            shadow-none
+                            hover:bg-orange-500
+                        "
+                >
+                    {createMutation.isPending ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                        <Send className="h-3.5 w-3.5" />
+                    )}
+                    Send
+                </Button>
+            </div>
+
+            {emojiOpen && (
+                <div
+                    className="
+                            mt-2
+                            flex
+                            flex-wrap
+                            gap-1
+                            rounded-[10px]
+                            border
+                            border-border
+                            bg-muted/20
+                            p-2
+                        "
+                >
+                    {REACTION_EMOJIS.map((emoji) => (
+                        <button
+                            key={emoji}
+                            type="button"
+                            onClick={() =>
+                                setReactionEmoji((current) => (current === emoji ? null : emoji))
+                            }
+                            className={`
+                                    flex
+                                    h-8
+                                    w-8
+                                    items-center
+                                    justify-center
+                                    rounded-full
+                                    text-lg
+                                    transition
+                                    hover:bg-muted
+                                    ${
+                                        reactionEmoji === emoji
+                                            ? 'bg-muted ring-2 ring-foreground/30'
+                                            : ''
+                                    }
+                                `}
+                            aria-label={`React with ${emoji}`}
+                        >
+                            {emoji}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            <div
+                className="
+                        mt-4
+                        h-px
+                        w-full
+                        bg-gradient-to-r
+                        from-orange-400
+                        via-yellow-300
+                        to-sky-400
+                    "
+            />
+        </form>
+    )
 
     return (
         <section className={compact ? 'w-full space-y-5' : 'w-full bg-background'}>
@@ -285,8 +703,8 @@ export default function CommentSection2({
                                     [&:not(:first-child)]:-ml-px
                                     ${
                                         active
-                                            ? 'relative z-10 border-[#ff5f8f] bg-[#ff5f8f] text-white'
-                                            : 'border-foreground/70 bg-background text-foreground hover:bg-muted'
+                                            ? 'relative z-10 border-(--comix-accent) bg-banner text-white'
+                                            : 'border-foreground/20 bg-background text-foreground hover:bg-muted'
                                     }
                                 `}
                             >
@@ -300,369 +718,11 @@ export default function CommentSection2({
             {/* ================================================================
                 COMMENT COMPOSER
             ================================================================ */}
-            <form onSubmit={submit} className="mb-5">
-                {replyingTo && (
-                    <div
-                        className="
-                            mb-2
-                            flex
-                            items-center
-                            justify-between
-                            gap-3
-                            rounded-[8px]
-                            border
-                            border-orange-300
-                            bg-orange-50
-                            px-3
-                            py-2
-                            text-[11px]
-                            text-orange-700
-                            dark:border-orange-800
-                            dark:bg-orange-950/20
-                            dark:text-orange-300
-                        "
-                    >
-                        <span className="min-w-0 truncate">
-                            Replying to @
-                            {replyingTo.user?.username ?? replyingTo.user?.name ?? 'unknown'}
-                        </span>
-
-                        <Button
-                            type="button"
-                            size="icon-xs"
-                            variant="ghost"
-                            onClick={() => setReplyingTo(null)}
-                            title="Cancel reply"
-                            className="h-6 w-6 rounded-full"
-                        >
-                            <X className="h-3.5 w-3.5" />
-                        </Button>
-                    </div>
-                )}
-
-                {/* Always-visible text formatting tools */}
-                <div
-                    className="
-                        mb-2
-                        flex
-                        flex-wrap
-                        items-center
-                        gap-1
-                        rounded-[10px]
-                        border
-                        border-border
-                        bg-muted/20
-                        p-2
-                    "
-                >
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 rounded-[6px] px-2 text-[10px]"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('## ', '')}
-                        title="Heading"
-                    >
-                        H
-                    </Button>
-
-                    <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        className="h-7 w-7 rounded-[6px]"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('**')}
-                        title="Bold"
-                    >
-                        <Bold className="h-3.5 w-3.5" />
-                    </Button>
-
-                    <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        className="h-7 w-7 rounded-[6px]"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('*')}
-                        title="Italic"
-                    >
-                        <Italic className="h-3.5 w-3.5" />
-                    </Button>
-
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 rounded-[6px] px-2 text-[10px]"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('- ', '')}
-                        title="Bullet"
-                    >
-                        Bullet
-                    </Button>
-
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 rounded-[6px] px-2 text-[10px]"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('||')}
-                        title="Spoiler"
-                    >
-                        <EyeOff className="h-3.5 w-3.5" />
-                        Spoiler
-                    </Button>
-                </div>
-
-                <div
-                    className="
-                        overflow-hidden
-                        rounded-[14px]
-                        border
-                        border-border
-                        bg-background
-                        transition
-                        focus-within:border-foreground/30
-                        focus-within:ring-2
-                        focus-within:ring-sky-200/50
-                    "
-                >
-                    <Textarea
-                        ref={textareaRef}
-                        value={body}
-                        onChange={(event) => setBody(event.target.value)}
-                        placeholder="Add comment ..."
-                        className="
-                            min-h-[108px]
-                            resize-none
-                            rounded-none
-                            border-0
-                            bg-transparent
-                            px-4
-                            py-3
-                            text-[11px]
-                            shadow-none
-                            placeholder:text-muted-foreground
-                            focus-visible:ring-0
-                        "
-                    />
-
-                    {imagePreview && (
-                        <div className="px-4 pb-3">
-                            <div className="relative inline-block overflow-hidden rounded-[10px] border bg-muted">
-                                <img
-                                    src={imagePreview}
-                                    alt="Comment upload preview"
-                                    className="max-h-48 max-w-[280px] object-contain"
-                                />
-
-                                <Button
-                                    type="button"
-                                    size="icon-xs"
-                                    variant="secondary"
-                                    className="absolute right-2 top-2 rounded-full shadow-sm"
-                                    onClick={() => {
-                                        setImageFile(null)
-
-                                        if (imageInputRef.current) {
-                                            imageInputRef.current.value = ''
-                                        }
-                                    }}
-                                    title="Remove uploaded image"
-                                >
-                                    <X className="h-3 w-3" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {selectedSticker && (
-                        <div className="px-4 pb-3">
-                            <div className="relative inline-flex h-[150px] w-[150px] items-center justify-center bg-transparent p-1">
-                                <img
-                                    src={storageUrl(selectedSticker.image_path)!}
-                                    alt={selectedSticker.name}
-                                    draggable={false}
-                                    onContextMenu={(event) => event.preventDefault()}
-                                    className="h-full w-full select-none object-contain"
-                                />
-
-                                <Button
-                                    type="button"
-                                    size="icon-xs"
-                                    variant="secondary"
-                                    className="absolute -right-2 -top-2 rounded-full shadow-sm"
-                                    onClick={() => setSelectedSticker(null)}
-                                    title="Remove sticker"
-                                >
-                                    <X className="h-3 w-3" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {reactionEmoji && (
-                        <div className="px-4 pb-3">
-                            <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm">
-                                <span className="text-lg">{reactionEmoji}</span>
-
-                                <Button
-                                    type="button"
-                                    size="icon-xs"
-                                    variant="ghost"
-                                    className="h-5 w-5 rounded-full"
-                                    onClick={() => setReactionEmoji(null)}
-                                    title="Remove reaction"
-                                >
-                                    <X className="h-3 w-3" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Always-visible media tools and send button */}
-                <div className="mt-2 flex items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-1">
-                        <Button
-                            type="button"
-                            size="icon-sm"
-                            variant="ghost"
-                            className={`
-                                h-7
-                                w-7
-                                rounded-[6px]
-                                ${emojiOpen ? 'bg-muted text-orange-500' : ''}
-                            `}
-                            onClick={() => setEmojiOpen((open) => !open)}
-                            title="Reaction emoji"
-                        >
-                            <Smile className="h-3.5 w-3.5" />
-                        </Button>
-
-                        <Button
-                            type="button"
-                            size="icon-sm"
-                            variant="ghost"
-                            className="h-7 w-7 rounded-[6px]"
-                            onClick={() => {
-                                if (!token) {
-                                    openLogin()
-                                } else {
-                                    setStickerOpen(true)
-                                }
-                            }}
-                            title="Stickers"
-                        >
-                            <Sticker className="h-3.5 w-3.5" />
-                        </Button>
-
-                        <input
-                            ref={imageInputRef}
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,image/gif"
-                            className="hidden"
-                            onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
-                        />
-
-                        <Button
-                            type="button"
-                            size="icon-sm"
-                            variant="ghost"
-                            className="h-7 w-7 rounded-[6px]"
-                            onClick={() => imageInputRef.current?.click()}
-                            title="Upload image"
-                        >
-                            <ImageIcon className="h-3.5 w-3.5" />
-                        </Button>
-                    </div>
-
-                    <Button
-                        type="submit"
-                        disabled={createMutation.isPending}
-                        className="
-                            h-7
-                            rounded-[7px]
-                            bg-orange-400
-                            px-5
-                            text-[11px]
-                            font-semibold
-                            text-white
-                            shadow-none
-                            hover:bg-orange-500
-                        "
-                    >
-                        {createMutation.isPending ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                            <Send className="h-3.5 w-3.5" />
-                        )}
-                        Send
-                    </Button>
-                </div>
-
-                {emojiOpen && (
-                    <div
-                        className="
-                            mt-2
-                            flex
-                            flex-wrap
-                            gap-1
-                            rounded-[10px]
-                            border
-                            border-border
-                            bg-muted/20
-                            p-2
-                        "
-                    >
-                        {REACTION_EMOJIS.map((emoji) => (
-                            <button
-                                key={emoji}
-                                type="button"
-                                onClick={() =>
-                                    setReactionEmoji((current) =>
-                                        current === emoji ? null : emoji
-                                    )
-                                }
-                                className={`
-                                    flex
-                                    h-8
-                                    w-8
-                                    items-center
-                                    justify-center
-                                    rounded-full
-                                    text-lg
-                                    transition
-                                    hover:bg-muted
-                                    ${
-                                        reactionEmoji === emoji
-                                            ? 'bg-muted ring-2 ring-foreground/30'
-                                            : ''
-                                    }
-                                `}
-                                aria-label={`React with ${emoji}`}
-                            >
-                                {emoji}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-                <div
-                    className="
-                        mt-4
-                        h-px
-                        w-full
-                        bg-gradient-to-r
-                        from-orange-400
-                        via-yellow-300
-                        to-sky-400
-                    "
-                />
-            </form>
+            {replyingToId
+                ? replyPortalTarget
+                    ? createPortal(commentComposer, replyPortalTarget)
+                    : null
+                : commentComposer}
 
             {/* ================================================================
                 COMMENT LIST
@@ -682,7 +742,8 @@ export default function CommentSection2({
                         <CommentItem
                             key={comment.id}
                             comment={comment}
-                            canPin={Boolean(token)}
+                            replyingToId={replyingToId}
+                            canPin={canPinComments}
                             pinning={pinMutation.isPending}
                             onPin={(commentId, isPinned) =>
                                 pinMutation.mutate({
@@ -696,9 +757,8 @@ export default function CommentSection2({
                                     return
                                 }
 
+                                setReplyPortalTarget(null)
                                 setReplyingTo(nextComment)
-
-                                requestAnimationFrame(() => textareaRef.current?.focus())
                             }}
                             onLike={(commentId) => {
                                 if (!token) {
@@ -824,6 +884,7 @@ export default function CommentSection2({
 
 function CommentItem({
     comment,
+    replyingToId,
     canPin,
     pinning,
     onPin,
@@ -838,6 +899,7 @@ function CommentItem({
     depth = 0,
 }: {
     comment: PublicComment
+    replyingToId: string | null
     canPin: boolean
     pinning: boolean
     onPin: (commentId: string, isPinned: boolean) => void
@@ -1175,6 +1237,13 @@ function CommentItem({
                 </article>
             </CommentFrame>
 
+            {replyingToId === comment.id && (
+                <div
+                    id={`reply-composer-slot-${comment.id}`}
+                    className="ml-4 mt-3 border-l-2 border-orange-300 pl-4 dark:border-orange-700"
+                />
+            )}
+
             {replies.length > 0 && (
                 <div
                     className="
@@ -1209,6 +1278,7 @@ function CommentItem({
                         >
                             <CommentItem
                                 comment={reply}
+                                replyingToId={replyingToId}
                                 canPin={canPin}
                                 pinning={pinning}
                                 onPin={onPin}
