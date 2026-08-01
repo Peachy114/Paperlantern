@@ -11,6 +11,9 @@ return new class extends Migration
 
         // ── Finish WORKS -> chapters.work_id swap ──────────────────
         // works.id is already UUID. work_id_uuid on chapters is already populated.
+        DB::statement('ALTER TABLE chapters ADD COLUMN work_id_uuid CHAR(36) NULL AFTER work_id');
+        DB::statement('UPDATE chapters SET work_id_uuid = work_id');
+        DB::statement('ALTER TABLE chapters DROP FOREIGN KEY chapters_work_id_foreign');
         DB::statement('ALTER TABLE chapters DROP INDEX chapters_work_id_slug_unique');
         DB::statement('ALTER TABLE chapters DROP COLUMN work_id');
         DB::statement('ALTER TABLE chapters CHANGE work_id_uuid work_id CHAR(36) NOT NULL');

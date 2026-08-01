@@ -67,10 +67,10 @@ export default function ContentTabsWidget({ widget }: { widget: PageWidget }) {
                         aria-current={
                             filtersInPlace && activeContent === tab.content ? 'page' : undefined
                         }
-                        className={`rounded-full border px-4 py-2 text-sm font-medium transition hover:bg-muted ${
+                        className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
                             filtersInPlace && activeContent === tab.content
-                                ? 'bg-foreground text-background'
-                                : 'bg-background'
+                                ? 'bg-banner text-backgroun'
+                                : 'bg-background hover:bg-muted '
                         }`}
                     >
                         {tab.label}

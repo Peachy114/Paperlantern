@@ -7,6 +7,7 @@ import {
     type FormEvent,
     type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -60,6 +61,10 @@ const COMMENT_SORTS: Array<{ value: CommentSort; label: string }> = [
     { value: 'popular', label: 'Popular' },
 ]
 
+function normalizeUsername(value?: string | null): string {
+    return value?.trim().replace(/^@/, '').toLowerCase() ?? ''
+}
+
 interface CommentSectionProps {
     targetType: CommentTargetType
     targetId: string
@@ -87,13 +92,21 @@ export default function CommentSection({
     const [reportDetails, setReportDetails] = useState('')
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
+    const [replyPortalTarget, setReplyPortalTarget] = useState<HTMLElement | null>(null)
     const textareaRef = useRef<HTMLTextAreaElement | null>(null)
     const imageInputRef = useRef<HTMLInputElement | null>(null)
     const { token, user } = useAuthStore()
     const { openLogin } = useModalStore()
     const queryClient = useQueryClient()
 
+    const postArtistUsername = normalizeUsername(artistUsername)
+    const currentUsername = normalizeUsername(user?.username)
+    const isArtistOwnedPost = postArtistUsername.length > 0
+    const canPinComments =
+        Boolean(token) && isArtistOwnedPost && currentUsername === postArtistUsername
+
     const commentsKey = ['comments', targetType, targetId, sort]
+    const replyingToId = replyingTo?.id ?? null
 
     const { data, isLoading } = useQuery({
         queryKey: commentsKey,
@@ -111,6 +124,29 @@ export default function CommentSection({
 
         return () => URL.revokeObjectURL(nextPreview)
     }, [imageFile])
+
+    useEffect(() => {
+        if (!replyingToId) {
+            setReplyPortalTarget(null)
+            return
+        }
+
+        let focusFrame: number | null = null
+        const mountFrame = window.requestAnimationFrame(() => {
+            const target = document.getElementById(`reply-composer-slot-${replyingToId}`)
+            setReplyPortalTarget(target)
+
+            focusFrame = window.requestAnimationFrame(() => {
+                target?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                textareaRef.current?.focus()
+            })
+        })
+
+        return () => {
+            window.cancelAnimationFrame(mountFrame)
+            if (focusFrame !== null) window.cancelAnimationFrame(focusFrame)
+        }
+    }, [replyingToId])
 
     const createMutation = useMutation({
         mutationFn: () => {
@@ -138,13 +174,20 @@ export default function CommentSection({
     })
 
     const pinMutation = useMutation({
-        mutationFn: ({ commentId, isPinned }: { commentId: string; isPinned: boolean }) =>
-            commentsApi.pin(commentId, isPinned).then((res) => res.data),
+        mutationFn: ({ commentId, isPinned }: { commentId: string; isPinned: boolean }) => {
+            if (!canPinComments) {
+                throw new Error('Only the artist who owns this post can pin comments.')
+            }
+
+            return commentsApi.pin(commentId, isPinned).then((res) => res.data)
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['comments', targetType, targetId] })
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.message ?? 'You cannot pin this comment.')
+            toast.error(
+                error.response?.data?.message ?? error.message ?? 'You cannot pin this comment.'
+            )
         },
     })
 
@@ -187,7 +230,20 @@ export default function CommentSection({
         },
     })
 
-    const comments = data?.data ?? []
+    const comments = useMemo(() => {
+        const items = [...(data?.data ?? [])]
+
+        return items.sort((a, b) => {
+            const aPinned = Boolean(a.is_pinned)
+            const bPinned = Boolean(b.is_pinned)
+
+            if (aPinned === bPinned) {
+                return 0
+            }
+
+            return aPinned ? -1 : 1
+        })
+    }, [data?.data])
     const hasDraft =
         Boolean(body.trim()) ||
         Boolean(selectedSticker) ||
@@ -226,6 +282,240 @@ export default function CommentSection({
         })
     }
 
+    const commentComposer = (
+        <form onSubmit={submit} className="mb-5 flex gap-3 border-b pb-4">
+            <CommentAvatar
+                name={user?.name ?? 'Guest'}
+                avatar={user?.avatar ?? null}
+                role={user?.role}
+            />
+            <div className="min-w-0 flex-1">
+                {replyingTo && (
+                    <div className="mb-2 flex items-center justify-between gap-3 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+                        <span className="min-w-0 truncate">
+                            Replying to @{replyingTo.user?.username ?? 'unknown'}
+                        </span>
+                        <Button
+                            type="button"
+                            size="icon-xs"
+                            variant="ghost"
+                            onClick={() => setReplyingTo(null)}
+                            title="Cancel reply"
+                        >
+                            <X className="h-3 w-3" />
+                        </Button>
+                    </div>
+                )}
+                {/* Top toolbar: heading, bold, italic, bullet and spoiler */}
+                <div className="mb-2 flex flex-wrap items-center gap-1">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 rounded-full px-2 text-xs"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => wrapSelectedText('## ', '')}
+                        title="Turn selected text into a heading"
+                    >
+                        H
+                    </Button>
+                    <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => wrapSelectedText('**')}
+                        title="Bold selected text"
+                    >
+                        <Bold className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => wrapSelectedText('*')}
+                        title="Italic selected text"
+                    >
+                        <Italic className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 rounded-full px-2 text-xs"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => wrapSelectedText('- ', '')}
+                        title="Turn selected text into a bullet"
+                    >
+                        Bullet
+                    </Button>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 rounded-full px-2 text-xs"
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => wrapSelectedText('||')}
+                        title="Spoiler selected text"
+                    >
+                        <EyeOff className="h-4 w-4" />
+                        Spoiler
+                    </Button>
+                </div>
+
+                {/* Middle: comment textarea and selected attachments */}
+                <Textarea
+                    ref={textareaRef}
+                    value={body}
+                    onChange={(event) => setBody(event.target.value)}
+                    placeholder="Add a comment. Markdown, @mentions, and ||spoilers|| are supported."
+                    className="min-h-20 resize-none rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
+                />
+
+                {reactionEmoji && (
+                    <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm">
+                        <span className="text-lg">{reactionEmoji}</span>
+                        <Button
+                            type="button"
+                            size="icon-xs"
+                            variant="ghost"
+                            className="h-5 w-5 rounded-full"
+                            onClick={() => setReactionEmoji(null)}
+                            title="Remove reaction"
+                        >
+                            <X className="h-3 w-3" />
+                        </Button>
+                    </div>
+                )}
+
+                {selectedSticker && (
+                    <div className="relative mt-3 inline-flex h-[150px] w-[150px] items-center justify-center bg-transparent p-1">
+                        <img
+                            src={storageUrl(selectedSticker.image_path)!}
+                            alt={selectedSticker.name}
+                            draggable={false}
+                            onContextMenu={(event) => event.preventDefault()}
+                            className="h-full w-full select-none object-contain"
+                        />
+                        <Button
+                            type="button"
+                            size="icon-xs"
+                            variant="secondary"
+                            className="absolute -right-2 -top-2 rounded-full shadow-sm"
+                            onClick={() => setSelectedSticker(null)}
+                            title="Remove sticker"
+                        >
+                            <X className="h-3 w-3" />
+                        </Button>
+                    </div>
+                )}
+
+                {emojiOpen && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {REACTION_EMOJIS.map((emoji) => (
+                            <button
+                                key={emoji}
+                                type="button"
+                                onClick={() =>
+                                    setReactionEmoji((current) =>
+                                        current === emoji ? null : emoji
+                                    )
+                                }
+                                className={`flex h-9 w-9 items-center justify-center rounded-full text-xl transition hover:bg-muted ${
+                                    reactionEmoji === emoji
+                                        ? 'bg-muted ring-2 ring-foreground/40'
+                                        : ''
+                                }`}
+                                aria-label={`React with ${emoji}`}
+                            >
+                                {emoji}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {imagePreview && (
+                    <div className="relative mt-3 inline-block overflow-hidden rounded-lg bg-muted">
+                        <img
+                            src={imagePreview}
+                            alt="Comment upload preview"
+                            className="max-h-48 max-w-[280px] object-contain"
+                        />
+                        <Button
+                            type="button"
+                            size="icon-xs"
+                            variant="secondary"
+                            className="absolute right-2 top-2 rounded-full shadow-sm"
+                            onClick={() => {
+                                setImageFile(null)
+                                if (imageInputRef.current) imageInputRef.current.value = ''
+                            }}
+                            title="Remove uploaded image"
+                        >
+                            <X className="h-3 w-3" />
+                        </Button>
+                    </div>
+                )}
+
+                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-wrap items-center gap-1">
+                        <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            onClick={() => setEmojiOpen((open) => !open)}
+                            title="Reaction emoji"
+                        >
+                            <Smile className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            onClick={() => {
+                                if (!token) openLogin()
+                                else setStickerOpen(true)
+                            }}
+                            title="Stickers"
+                        >
+                            <Sticker className="h-4 w-4" />
+                        </Button>
+                        <input
+                            ref={imageInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif"
+                            className="hidden"
+                            onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
+                        />
+                        <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="ghost"
+                            onClick={() => imageInputRef.current?.click()}
+                            title="Upload image"
+                        >
+                            <ImageIcon className="h-4 w-4" />
+                        </Button>
+                    </div>
+
+                    <Button
+                        type="submit"
+                        disabled={createMutation.isPending}
+                        className="self-end rounded-full"
+                    >
+                        {createMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <Send className="h-4 w-4" />
+                        )}
+                        Send
+                    </Button>
+                </div>
+            </div>
+        </form>
+    )
+
     return (
         <section className={compact ? 'space-y-4' : 'rounded-xl bg-background p-4 shadow-sm'}>
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -251,246 +541,11 @@ export default function CommentSection({
                 </div>
             </div>
 
-            <form onSubmit={submit} className="mb-5 flex gap-3 border-b pb-4">
-                <CommentAvatar
-                    name={user?.name ?? 'Guest'}
-                    avatar={user?.avatar ?? null}
-                    role={user?.role}
-                />
-                <div className="min-w-0 flex-1">
-                    {replyingTo && (
-                        <div className="mb-2 flex items-center justify-between gap-3 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-                            <span className="min-w-0 truncate">
-                                Replying to @{replyingTo.user?.username ?? 'unknown'}
-                            </span>
-                            <Button
-                                type="button"
-                                size="icon-xs"
-                                variant="ghost"
-                                onClick={() => setReplyingTo(null)}
-                                title="Cancel reply"
-                            >
-                                <X className="h-3 w-3" />
-                            </Button>
-                        </div>
-                    )}
-                    {/* Top toolbar: heading, bold, italic, bullet and spoiler */}
-                    <div className="mb-2 flex flex-wrap items-center gap-1">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 rounded-full px-2 text-xs"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => wrapSelectedText('## ', '')}
-                            title="Turn selected text into a heading"
-                        >
-                            H
-                        </Button>
-                        <Button
-                            type="button"
-                            size="icon-sm"
-                            variant="ghost"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => wrapSelectedText('**')}
-                            title="Bold selected text"
-                        >
-                            <Bold className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            type="button"
-                            size="icon-sm"
-                            variant="ghost"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => wrapSelectedText('*')}
-                            title="Italic selected text"
-                        >
-                            <Italic className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 rounded-full px-2 text-xs"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => wrapSelectedText('- ', '')}
-                            title="Turn selected text into a bullet"
-                        >
-                            Bullet
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 rounded-full px-2 text-xs"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => wrapSelectedText('||')}
-                            title="Spoiler selected text"
-                        >
-                            <EyeOff className="h-4 w-4" />
-                            Spoiler
-                        </Button>
-                    </div>
-
-                    {/* Middle: comment textarea and selected attachments */}
-                    <Textarea
-                        ref={textareaRef}
-                        value={body}
-                        onChange={(event) => setBody(event.target.value)}
-                        placeholder="Add a comment. Markdown, @mentions, and ||spoilers|| are supported."
-                        className="min-h-20 resize-none rounded-none border-0 border-b bg-transparent px-0 shadow-none focus-visible:ring-0"
-                    />
-
-                    {body.trim() && (
-                        <div className="mt-3 rounded-lg border bg-muted/20 p-3">
-                            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                Live preview
-                            </p>
-                            <CommentComposerPreview text={body} />
-                        </div>
-                    )}
-
-                    {reactionEmoji && (
-                        <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-sm">
-                            <span className="text-lg">{reactionEmoji}</span>
-                            <Button
-                                type="button"
-                                size="icon-xs"
-                                variant="ghost"
-                                className="h-5 w-5 rounded-full"
-                                onClick={() => setReactionEmoji(null)}
-                                title="Remove reaction"
-                            >
-                                <X className="h-3 w-3" />
-                            </Button>
-                        </div>
-                    )}
-
-                    {selectedSticker && (
-                        <div className="relative mt-3 inline-flex h-[150px] w-[150px] items-center justify-center bg-transparent p-1">
-                            <img
-                                src={storageUrl(selectedSticker.image_path)!}
-                                alt={selectedSticker.name}
-                                draggable={false}
-                                onContextMenu={(event) => event.preventDefault()}
-                                className="h-full w-full select-none object-contain"
-                            />
-                            <Button
-                                type="button"
-                                size="icon-xs"
-                                variant="secondary"
-                                className="absolute -right-2 -top-2 rounded-full shadow-sm"
-                                onClick={() => setSelectedSticker(null)}
-                                title="Remove sticker"
-                            >
-                                <X className="h-3 w-3" />
-                            </Button>
-                        </div>
-                    )}
-
-                    {emojiOpen && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            {REACTION_EMOJIS.map((emoji) => (
-                                <button
-                                    key={emoji}
-                                    type="button"
-                                    onClick={() =>
-                                        setReactionEmoji((current) =>
-                                            current === emoji ? null : emoji
-                                        )
-                                    }
-                                    className={`flex h-9 w-9 items-center justify-center rounded-full text-xl transition hover:bg-muted ${
-                                        reactionEmoji === emoji
-                                            ? 'bg-muted ring-2 ring-foreground/40'
-                                            : ''
-                                    }`}
-                                    aria-label={`React with ${emoji}`}
-                                >
-                                    {emoji}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {imagePreview && (
-                        <div className="relative mt-3 inline-block overflow-hidden rounded-lg bg-muted">
-                            <img
-                                src={imagePreview}
-                                alt="Comment upload preview"
-                                className="max-h-48 max-w-[280px] object-contain"
-                            />
-                            <Button
-                                type="button"
-                                size="icon-xs"
-                                variant="secondary"
-                                className="absolute right-2 top-2 rounded-full shadow-sm"
-                                onClick={() => {
-                                    setImageFile(null)
-                                    if (imageInputRef.current) imageInputRef.current.value = ''
-                                }}
-                                title="Remove uploaded image"
-                            >
-                                <X className="h-3 w-3" />
-                            </Button>
-                        </div>
-                    )}
-
-                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex flex-wrap items-center gap-1">
-                            <Button
-                                type="button"
-                                size="icon-sm"
-                                variant="ghost"
-                                onClick={() => setEmojiOpen((open) => !open)}
-                                title="Reaction emoji"
-                            >
-                                <Smile className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                type="button"
-                                size="icon-sm"
-                                variant="ghost"
-                                onClick={() => {
-                                    if (!token) openLogin()
-                                    else setStickerOpen(true)
-                                }}
-                                title="Stickers"
-                            >
-                                <Sticker className="h-4 w-4" />
-                            </Button>
-                            <input
-                                ref={imageInputRef}
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp,image/gif"
-                                className="hidden"
-                                onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
-                            />
-                            <Button
-                                type="button"
-                                size="icon-sm"
-                                variant="ghost"
-                                onClick={() => imageInputRef.current?.click()}
-                                title="Upload image"
-                            >
-                                <ImageIcon className="h-4 w-4" />
-                            </Button>
-                        </div>
-
-                        <Button
-                            type="submit"
-                            disabled={createMutation.isPending}
-                            className="self-end rounded-full"
-                        >
-                            {createMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Send className="h-4 w-4" />
-                            )}
-                            Send
-                        </Button>
-                    </div>
-                </div>
-            </form>
+            {replyingToId
+                ? replyPortalTarget
+                    ? createPortal(commentComposer, replyPortalTarget)
+                    : null
+                : commentComposer}
 
             {isLoading ? (
                 <div className="py-6 text-center text-sm text-muted-foreground">
@@ -507,7 +562,8 @@ export default function CommentSection({
                         <CommentItem
                             key={comment.id}
                             comment={comment}
-                            canPin={Boolean(token)}
+                            replyingToId={replyingToId}
+                            canPin={canPinComments}
                             pinning={pinMutation.isPending}
                             onPin={(commentId, isPinned) =>
                                 pinMutation.mutate({ commentId, isPinned })
@@ -517,8 +573,8 @@ export default function CommentSection({
                                     openLogin()
                                     return
                                 }
+                                setReplyPortalTarget(null)
                                 setReplyingTo(nextComment)
-                                requestAnimationFrame(() => textareaRef.current?.focus())
                             }}
                             onLike={(commentId) => {
                                 if (!token) {
@@ -622,6 +678,7 @@ export default function CommentSection({
 
 function CommentItem({
     comment,
+    replyingToId,
     canPin,
     pinning,
     onPin,
@@ -636,6 +693,7 @@ function CommentItem({
     depth = 0,
 }: {
     comment: PublicComment
+    replyingToId: string | null
     canPin: boolean
     pinning: boolean
     onPin: (commentId: string, isPinned: boolean) => void
@@ -805,12 +863,20 @@ function CommentItem({
                     </Button>
                 </div>
 
+                {replyingToId === comment.id && (
+                    <div
+                        id={`reply-composer-slot-${comment.id}`}
+                        className="mt-4 border-l-2 border-primary/30 pl-3"
+                    />
+                )}
+
                 {replies.length > 0 && (
                     <div className="mt-3 divide-y">
                         {replies.map((reply) => (
                             <CommentItem
                                 key={reply.id}
                                 comment={reply}
+                                replyingToId={replyingToId}
                                 canPin={canPin}
                                 pinning={pinning}
                                 onPin={onPin}

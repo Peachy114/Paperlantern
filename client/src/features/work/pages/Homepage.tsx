@@ -13,7 +13,7 @@ import SharedDiscoveryWidget, {
     isSharedDiscoveryWidget,
 } from '@/features/page-builder/SharedDiscoveryWidget'
 import LabelRailWidget from '@/features/page-builder/LabelRailWidget'
-import TabCardsWidget from '@/features/page-builder/TabCardsWidget'
+import TabCardsWidget from '@/features/page-builder/TabsCardsWidgets/TabCardsWidget'
 import {
     gridContinuationOffset,
     labelContinuationOffset,
