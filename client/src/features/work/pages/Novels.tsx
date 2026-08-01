@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { pageLayoutApi } from '@/api/pageLayouts'
-import { DiscoveryPageWidgets } from '@/features/page-builder/DiscoveryPageWidgets'
+import  DiscoveryPageWidgets from '@/features/page-builder/DiscoveryPageWidgets'
 import type { PageLayout } from '@/types/pageLayout'
 import { useHome } from '../hooks/useHome'
 import ComixLists from '../components/ComixListSection'

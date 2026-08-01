@@ -98,7 +98,8 @@ export default function ContentFilter({ contentType }: { contentType?: 'comic' |
 
     return (
         <section className="w-full font-[var(--comix-font-family)]">
-            <div className="mx-auto w-full max-w-[1390px] px-4 py-3 sm:px-6 md:px-8">
+
+            <div className="mx-auto w-full max-w-[1390px] px-4 py-3 sm:px-6 md:px-8 ">
                 {/* // content filter parent ---- */}
                 <nav
                     aria-label="Content filters"

@@ -46,7 +46,7 @@ import GroupHeroWidget from '@/features/page-builder/GroupHeroWidget'
 import ShopCardWidget from '@/features/page-builder/ShopCardWidget'
 import ContentTabsWidget from '@/features/page-builder/ContentTabsWidget'
 import LabelRailWidget from '@/features/page-builder/LabelRailWidget'
-import TabCardsWidget from '@/features/page-builder/TabCardsWidget'
+import TabCardsWidget from '@/features/page-builder/TabsCardsWidgets/TabCardsWidget'
 import EpisodesWidget from '@/features/page-builder/EpisodesWidget'
 import SharedDiscoveryWidget, {
     isSharedDiscoveryWidget,
@@ -784,8 +784,8 @@ export default function PageCustomizer() {
                 </div>
             </div>
 
-            <div className="grid w-full gap-0 xl:grid-cols-[260px_minmax(0,1fr)_340px]">
-                <aside className="h-fit border-r bg-background p-4 xl:sticky xl:top-[73px]">
+            <div className="grid w-full h-[200px]  gap-0 xl:grid-cols-[260px_minmax(0,1fr)_340px]">
+                <aside className="border-r bg-background p-4 xl:sticky xl:top-[73px] overflow-auto">
                     <h2 className="text-sm font-semibold">Blocks</h2>
                     <p className="mt-1 text-xs text-muted-foreground">
                         Drag blocks into the page. {enabledCount} enabled.
@@ -903,7 +903,7 @@ export default function PageCustomizer() {
                     </div>
                 </main>
 
-                <aside className="h-fit bg-background p-4 xl:sticky xl:top-[73px]">
+                <aside className="overflow-auto bg-background p-4 xl:sticky xl:top-[73px]">
                     <Inspector
                         page={page}
                         widget={selectedWidget}
@@ -1176,6 +1176,8 @@ function CanvasWidget({
                     className="rounded-md bg-background/95 p-2 text-foreground shadow ring-1 ring-border"
                     title="Widget settings"
                 >
+
+                    askdjalskjd
                     <Settings2 className="h-4 w-4" />
                 </button>
                 {!editableOverlay && (

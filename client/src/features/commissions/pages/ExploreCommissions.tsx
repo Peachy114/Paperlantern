@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import { CommissionPageWidgets } from '@/features/page-builder/CommissionPageWidgets'
+import CommissionPageWidgets  from '@/features/page-builder/CommissionPageWidgets'
 
 const statusLabel: Record<CommissionService['status'], string> = {
     open: 'Open',

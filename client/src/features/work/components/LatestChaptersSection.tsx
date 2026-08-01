@@ -35,7 +35,7 @@ export default function LatestChaptersSection({
     if (latest.paginated.length === 0) return null
 
     return (
-        <section className="my-5 w-full max-w-[1480px] mx-auto px-5">
+        <section className="my-5 w-full max-w-[1480px] mx-auto px-5 my-5">
             <h2 className="text-2xl font-bold uppercase py-5">LATEST CHAPTER</h2>
 
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4">
