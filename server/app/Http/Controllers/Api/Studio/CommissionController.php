@@ -39,7 +39,7 @@ class CommissionController extends Controller
                 ->select('commission_services.*')
                 ->selectSub($this->activeServiceBoostSubquery(), 'boosted_until')
                 ->where('user_id', $user->id)
-                ->with('category:id,name,slug')
+                ->with(['category:id,name,slug', 'user.commissionArtistProfile:id,user_id,client_fields'])
                 ->latest()
                 ->get()
                 ->map(fn(CommissionService $service) => $this->formatService($service))
@@ -80,7 +80,7 @@ class CommissionController extends Controller
 
         $service = CommissionService::create($validated);
 
-        return response()->json($this->formatService($service->load('category')), 201);
+        return response()->json($this->formatService($service->load(['category', 'user.commissionArtistProfile:id,user_id,client_fields'])), 201);
     }
 
     public function updateService(Request $request, CommissionService $service): JsonResponse
@@ -106,7 +106,7 @@ class CommissionController extends Controller
 
         $service->update($validated);
 
-        return response()->json($this->formatService($service->fresh()->load('category')));
+        return response()->json($this->formatService($service->fresh()->load(['category', 'user.commissionArtistProfile:id,user_id,client_fields'])));
     }
 
     public function destroyService(Request $request, CommissionService $service): JsonResponse
@@ -417,6 +417,7 @@ class CommissionController extends Controller
 
         if (isset($validated['client_fields']) && is_array($validated['client_fields'])) {
             unset($validated['client_fields']['nickname']);
+            $validated['client_fields'] = self::normalizeClientFieldFlags($validated['client_fields']);
         }
 
         $profile->update($validated);
@@ -513,7 +514,54 @@ class CommissionController extends Controller
         $normalized = array_replace_recursive(self::defaultClientFields(), $fields);
         unset($normalized['nickname']);
 
-        return $normalized;
+        return self::normalizeClientFieldFlags($normalized);
+    }
+
+    private static function normalizeClientFieldFlags(array $fields): array
+    {
+        foreach ($fields as $field => $config) {
+            if (! is_array($config)) {
+                unset($fields[$field]);
+
+                continue;
+            }
+
+            $fields[$field] = [
+                'collect' => self::booleanFlag($config['collect'] ?? null),
+                'required' => self::booleanFlag($config['required'] ?? null),
+            ];
+        }
+
+        return $fields;
+    }
+
+    private static function booleanFlag(mixed $value, bool $fallback = false): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+
+            if (in_array($normalized, ['1', 'true', 'on', 'yes'], true)) {
+                return true;
+            }
+
+            if (in_array($normalized, ['0', 'false', 'off', 'no', ''], true)) {
+                return false;
+            }
+        }
+
+        if ($value === 1) {
+            return true;
+        }
+
+        if ($value === 0 || $value === null) {
+            return false;
+        }
+
+        return $fallback;
     }
 
     private static function defaultFlowTemplate(): array
@@ -613,6 +661,7 @@ class CommissionController extends Controller
 
         if (isset($validated['client_fields']) && is_array($validated['client_fields'])) {
             unset($validated['client_fields']['nickname']);
+            $validated['client_fields'] = self::normalizeClientFieldFlags($validated['client_fields']);
         }
 
         return $validated;
@@ -751,6 +800,14 @@ class CommissionController extends Controller
 
     private function clientFields(CommissionService $service): array
     {
+        $profileFields = $service->user?->commissionArtistProfile?->client_fields;
+        if ($profileFields === null) {
+            $profileFields = CommissionArtistProfile::query()
+                ->where('user_id', $service->user_id)
+                ->first(['client_fields'])
+                ?->client_fields;
+        }
+
         $fields = array_replace_recursive([
             'name' => ['collect' => true, 'required' => false],
             'username' => ['collect' => true, 'required' => false],
@@ -760,11 +817,11 @@ class CommissionController extends Controller
             'instagram' => ['collect' => false, 'required' => false],
             'facebook' => ['collect' => false, 'required' => false],
             'tiktok' => ['collect' => false, 'required' => false],
-        ], $service->client_fields ?? []);
+        ], is_array($profileFields) ? $profileFields : []);
 
         unset($fields['nickname']);
 
-        return $fields;
+        return self::normalizeClientFieldFlags($fields);
     }
 
     private function setupOptions(CommissionService $service): array

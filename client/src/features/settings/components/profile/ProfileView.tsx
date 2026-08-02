@@ -95,7 +95,7 @@ export default function ProfileView() {
                         </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div id="public-links" className="scroll-mt-24 space-y-4">
                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                             Public Links
                         </h3>

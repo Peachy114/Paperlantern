@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CommissionCategory;
 use App\Models\CommissionMessage;
 use App\Models\CommissionOrder;
+use App\Models\CommissionArtistProfile;
 use App\Models\CommissionPlatformTerm;
 use App\Models\CommissionRating;
 use App\Models\CommissionService;
@@ -45,7 +46,7 @@ class PublicCommissionController extends Controller
             ->with([
                 'category:id,name,slug',
                 'user:id,name,username,avatar,artist_title,artist_verified',
-                'user.commissionArtistProfile:id,user_id,commission_status,terms,terms_moderation_status,customers_count,average_rating,ratings_count',
+                'user.commissionArtistProfile:id,user_id,commission_status,terms,terms_moderation_status,client_fields,customers_count,average_rating,ratings_count',
             ])
             ->withCount([
                 'ratings as published_ratings_count' => fn($q) => $q->where('status', 'published'),
@@ -114,7 +115,7 @@ class PublicCommissionController extends Controller
         $commission->loadMissing([
             'category:id,name,slug',
             'user:id,name,username,avatar,artist_title,artist_verified',
-            'user.commissionArtistProfile:id,user_id,commission_status,terms,terms_moderation_status,customers_count,average_rating,ratings_count',
+            'user.commissionArtistProfile:id,user_id,commission_status,terms,terms_moderation_status,client_fields,customers_count,average_rating,ratings_count',
         ]);
 
         return response()->json($this->formatService($commission));
@@ -449,6 +450,14 @@ class PublicCommissionController extends Controller
 
     private function clientFields(CommissionService $service): array
     {
+        $profileFields = $service->user?->commissionArtistProfile?->client_fields;
+        if ($profileFields === null) {
+            $profileFields = CommissionArtistProfile::query()
+                ->where('user_id', $service->user_id)
+                ->first(['client_fields'])
+                ?->client_fields;
+        }
+
         $fields = array_replace_recursive([
             'name' => ['collect' => true, 'required' => false],
             'username' => ['collect' => true, 'required' => false],
@@ -458,11 +467,58 @@ class PublicCommissionController extends Controller
             'instagram' => ['collect' => false, 'required' => false],
             'facebook' => ['collect' => false, 'required' => false],
             'tiktok' => ['collect' => false, 'required' => false],
-        ], $service->client_fields ?? []);
+        ], is_array($profileFields) ? $profileFields : []);
 
         unset($fields['nickname']);
 
+        return $this->normalizeClientFieldFlags($fields);
+    }
+
+    private function normalizeClientFieldFlags(array $fields): array
+    {
+        foreach ($fields as $field => $config) {
+            if (! is_array($config)) {
+                unset($fields[$field]);
+
+                continue;
+            }
+
+            $fields[$field] = [
+                'collect' => $this->booleanFlag($config['collect'] ?? null),
+                'required' => $this->booleanFlag($config['required'] ?? null),
+            ];
+        }
+
         return $fields;
+    }
+
+    private function booleanFlag(mixed $value, bool $fallback = false): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+
+            if (in_array($normalized, ['1', 'true', 'on', 'yes'], true)) {
+                return true;
+            }
+
+            if (in_array($normalized, ['0', 'false', 'off', 'no', ''], true)) {
+                return false;
+            }
+        }
+
+        if ($value === 1) {
+            return true;
+        }
+
+        if ($value === 0 || $value === null) {
+            return false;
+        }
+
+        return $fallback;
     }
 
     private function setupOptions(CommissionService $service): array

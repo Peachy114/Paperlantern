@@ -369,10 +369,6 @@ function CommissionDialog({
         .filter(([field]) => PROFILE_LINK_FIELDS.has(field))
         .filter(([field]) => !clientDetails[field]?.trim())
         .map(([field]) => field)
-    const missingOptionalProfileLinks = socialClientFields
-        .filter(([, config]) => !config.required)
-        .filter(([field]) => !clientDetails[field]?.trim())
-        .map(([field]) => field)
     const attachReferenceImage = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null
         if (!file) {
@@ -692,25 +688,12 @@ function CommissionDialog({
                                             </p>
                                         </div>
                                         <Button asChild size="sm" variant="outline">
-                                            <Link to="/settings/profile">Add in Profile Settings</Link>
+                                            <Link to="/settings/profile#public-links">
+                                                Add in Profile Settings
+                                            </Link>
                                         </Button>
                                     </div>
                                 )}
-
-                                {missingRequiredProfileLinks.length === 0 &&
-                                    missingOptionalProfileLinks.length > 0 && (
-                                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
-                                            <p className="text-xs text-muted-foreground">
-                                                Optional public link requested:{' '}
-                                                {formatFieldList(missingOptionalProfileLinks)}.
-                                            </p>
-                                            <Button asChild size="sm" variant="outline">
-                                                <Link to="/settings/profile">
-                                                    Add in Profile Settings
-                                                </Link>
-                                            </Button>
-                                        </div>
-                                    )}
 
                                 {baseClientFields.length > 0 && (
                                     <ClientDetailList
@@ -727,6 +710,13 @@ function CommissionDialog({
                                         fields={socialClientFields}
                                         values={clientDetails}
                                         errors={requestErrors}
+                                        action={
+                                            <Button asChild size="sm" variant="outline">
+                                                <Link to="/settings/profile#public-links">
+                                                    Edit public links
+                                                </Link>
+                                            </Button>
+                                        }
                                     />
                                 )}
                             </div>
@@ -875,17 +865,22 @@ function ClientDetailList({
     fields,
     values,
     errors,
+    action,
 }: {
     title: string
     fields: ClientFieldEntry[]
     values: Record<string, string>
     errors: Record<string, string>
+    action?: ReactNode
 }) {
     return (
         <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {title}
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {title}
+                </p>
+                {action}
+            </div>
             <div className="space-y-3">
                 {fields.map(([field, config]) => {
                     const value = values[field]?.trim() ?? ''
@@ -896,16 +891,33 @@ function ClientDetailList({
                                 <LabelText>{clientFieldLabel(field)}</LabelText>
                                 <span
                                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                                        value
-                                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                                            : config.required
-                                              ? 'bg-destructive/10 text-destructive'
+                                        config.required
+                                            ? value
+                                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                                : 'bg-destructive/10 text-destructive'
+                                            : value
+                                              ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
                                               : 'bg-muted text-muted-foreground'
                                     }`}
                                 >
-                                    {config.required ? 'Required' : 'Optional'}
+                                    {config.required ? 'Required' : 'Collect if available'}
                                 </span>
                             </div>
+                            {PROFILE_LINK_FIELDS.has(field) && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    <span
+                                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                                            value
+                                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                                : config.required
+                                                  ? 'bg-destructive/10 text-destructive'
+                                                  : 'bg-muted text-muted-foreground'
+                                        }`}
+                                    >
+                                        {value ? 'Saved in public links' : 'Not saved'}
+                                    </span>
+                                </div>
+                            )}
                             <p className="mt-1 text-xs text-muted-foreground">
                                 {PROFILE_LINK_FIELDS.has(field)
                                     ? 'The artist will use the saved public link from your profile.'
@@ -919,7 +931,7 @@ function ClientDetailList({
                                 {value ||
                                     (config.required
                                         ? 'Required in Profile Settings'
-                                        : 'Optional, not saved')}
+                                        : 'Not saved, will not be sent')}
                             </p>
                             {errors[`client_${field}`] && (
                                 <p className="mt-1 text-xs text-destructive">
@@ -1053,23 +1065,52 @@ function collectedCommissionClientFields(
     const order = ['name', 'username', 'email', 'discord', 'twitter', 'instagram', 'facebook', 'tiktok']
     const normalized = { ...(fields ?? {}) } as Record<string, ClientFieldEntry[1]>
 
-    normalized.name = { ...(normalized.name ?? {}), collect: true, required: normalized.name?.required ?? false }
+    normalized.name = {
+        ...(normalized.name ?? {}),
+        collect: true,
+        required: booleanFieldValue(normalized.name?.required, false),
+    }
     normalized.username = {
         ...(normalized.username ?? {}),
         collect: true,
-        required: normalized.username?.required ?? false,
+        required: booleanFieldValue(normalized.username?.required, false),
     }
-    normalized.email = { ...(normalized.email ?? {}), collect: true, required: normalized.email?.required ?? true }
+    normalized.email = {
+        ...(normalized.email ?? {}),
+        collect: true,
+        required: booleanFieldValue(normalized.email?.required, true),
+    }
 
     delete (normalized as Record<string, unknown>).nickname
 
-    return Object.entries(normalized)
+    const entries: ClientFieldEntry[] = Object.entries(normalized).map(([field, config]) => [
+            field,
+            {
+                collect: booleanFieldValue(config?.collect, false),
+                required: booleanFieldValue(config?.required, false),
+            },
+        ])
+
+    return entries
         .filter(([, config]) => config.collect)
         .sort(([fieldA], [fieldB]) => {
             const indexA = order.indexOf(fieldA)
             const indexB = order.indexOf(fieldB)
             return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB)
-        }) as ClientFieldEntry[]
+        })
+}
+
+function booleanFieldValue(value: unknown, fallback = false) {
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase()
+        if (['1', 'true', 'on', 'yes'].includes(normalized)) return true
+        if (['0', 'false', 'off', 'no', ''].includes(normalized)) return false
+    }
+
+    if (value === true || value === 1) return true
+    if (value === false || value === 0 || value === null) return false
+
+    return fallback
 }
 
 function formatFieldList(fields: string[]) {

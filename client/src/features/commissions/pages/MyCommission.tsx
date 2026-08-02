@@ -1210,36 +1210,40 @@ function normalizeClientFields(value?: CommissionProfile['client_fields']): Clie
     return {
         ...DEFAULT_CLIENT_FIELDS,
         ...fields,
-        name: { ...DEFAULT_CLIENT_FIELDS.name, ...((fields.name as Partial<ClientFields['name']>) ?? {}) },
-        username: {
-            ...DEFAULT_CLIENT_FIELDS.username,
-            ...((fields.username as Partial<ClientFields['username']>) ?? {}),
-        },
-        email: {
-            ...DEFAULT_CLIENT_FIELDS.email,
-            ...((fields.email as Partial<ClientFields['email']>) ?? {}),
-        },
-        discord: {
-            ...DEFAULT_CLIENT_FIELDS.discord,
-            ...((fields.discord as Partial<ClientFields['discord']>) ?? {}),
-        },
-        twitter: {
-            ...DEFAULT_CLIENT_FIELDS.twitter,
-            ...((fields.twitter as Partial<ClientFields['twitter']>) ?? {}),
-        },
-        instagram: {
-            ...DEFAULT_CLIENT_FIELDS.instagram,
-            ...((fields.instagram as Partial<ClientFields['instagram']>) ?? {}),
-        },
-        facebook: {
-            ...DEFAULT_CLIENT_FIELDS.facebook,
-            ...((fields.facebook as Partial<ClientFields['facebook']>) ?? {}),
-        },
-        tiktok: {
-            ...DEFAULT_CLIENT_FIELDS.tiktok,
-            ...((fields.tiktok as Partial<ClientFields['tiktok']>) ?? {}),
-        },
+        name: normalizeClientField(DEFAULT_CLIENT_FIELDS.name, fields.name),
+        username: normalizeClientField(DEFAULT_CLIENT_FIELDS.username, fields.username),
+        email: normalizeClientField(DEFAULT_CLIENT_FIELDS.email, fields.email),
+        discord: normalizeClientField(DEFAULT_CLIENT_FIELDS.discord, fields.discord),
+        twitter: normalizeClientField(DEFAULT_CLIENT_FIELDS.twitter, fields.twitter),
+        instagram: normalizeClientField(DEFAULT_CLIENT_FIELDS.instagram, fields.instagram),
+        facebook: normalizeClientField(DEFAULT_CLIENT_FIELDS.facebook, fields.facebook),
+        tiktok: normalizeClientField(DEFAULT_CLIENT_FIELDS.tiktok, fields.tiktok),
     }
+}
+
+function normalizeClientField(
+    fallback: { collect: boolean; required: boolean },
+    value: unknown
+): { collect: boolean; required: boolean } {
+    const field = (value ?? {}) as Partial<{ collect: unknown; required: unknown }>
+
+    return {
+        collect: booleanFieldValue(field.collect, fallback.collect),
+        required: booleanFieldValue(field.required, fallback.required),
+    }
+}
+
+function booleanFieldValue(value: unknown, fallback = false) {
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase()
+        if (['1', 'true', 'on', 'yes'].includes(normalized)) return true
+        if (['0', 'false', 'off', 'no', ''].includes(normalized)) return false
+    }
+
+    if (value === true || value === 1) return true
+    if (value === false || value === 0 || value === null) return false
+
+    return fallback
 }
 
 function normalizeFlowTemplate(value?: CommissionProfile['flow_template']): FlowStep[] {
@@ -2351,10 +2355,7 @@ function CommissionServicesSection({
             required_references: service.required_references ?? '',
             request_questions: service.request_questions ?? [],
             info_questions: service.info_questions ?? [],
-            client_fields: {
-                ...DEFAULT_CLIENT_FIELDS,
-                ...(service.client_fields ?? {}),
-            },
+            client_fields: normalizeClientFields(service.client_fields),
             promo_discounts: service.promo_discounts ?? [],
             setup_options: {
                 ...DEFAULT_SETUP_OPTIONS,
@@ -4513,7 +4514,7 @@ function ClientFieldsSection({
                         Required for wanderers
                     </label>
                 </div>
-                {(['discord', 'twitter', 'instagram', 'facebook'] as Array<keyof ClientFields>).map(
+                {(['discord', 'twitter', 'instagram', 'facebook', 'tiktok'] as Array<keyof ClientFields>).map(
                     (field) => (
                         <div
                             key={field}
