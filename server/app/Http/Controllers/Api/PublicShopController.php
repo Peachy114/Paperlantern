@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ArtistSticker;
 use App\Models\ArtistStickerPurchase;
+use App\Models\Comment;
 use App\Models\ShopItem;
 use App\Models\ShopItemPurchase;
+use App\Models\ShopItemRating;
 use App\Repositories\WalletRepository;
 use App\Services\CommissionService;
 use App\Services\PageLayoutService;
@@ -84,7 +86,18 @@ class PublicShopController extends Controller
             'download_unlocked' => $this->unlockedFor($item, $user),
             'downloads_count' => (int) $item->downloads_count,
             'likes' => (int) $item->likes_count,
-            'comments_count' => 0,
+            'comments_count' => Comment::query()
+                ->where('commentable_type', ShopItem::class)
+                ->where('commentable_id', $item->id)
+                ->where('status', 'visible')
+                ->count(),
+            'rating' => round((float) ShopItemRating::where('shop_item_id', $item->id)->avg('rating'), 1),
+            'ratings_count' => ShopItemRating::where('shop_item_id', $item->id)->count(),
+            'user_rating' => $user
+                ? ShopItemRating::where('shop_item_id', $item->id)
+                    ->where('user_id', $user->id)
+                    ->value('rating')
+                : null,
             'files_count' => $item->files->count(),
             'usage' => $item->usage ?? [],
             'created_at' => $item->created_at,
@@ -183,6 +196,47 @@ class PublicShopController extends Controller
         return response()->json($result, $result['success'] ? 200 : 402);
     }
 
+    public function rate(Request $request, ShopItem $shopItem): JsonResponse
+    {
+        abort_unless($shopItem->status === 'published', 404);
+        $user = $request->user();
+
+        if ($shopItem->user_id === $user->id) {
+            return response()->json(['message' => 'You cannot rate your own shop product.'], 422);
+        }
+
+        if (! $this->unlockedFor($shopItem, $user)) {
+            return response()->json([
+                'message' => 'Unlock this shop product before rating it.',
+                'requires_purchase' => true,
+                'credit_cost' => (int) $shopItem->credit_cost,
+            ], 402);
+        }
+
+        $validated = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $rating = ShopItemRating::updateOrCreate(
+            [
+                'shop_item_id' => $shopItem->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'rating' => $validated['rating'],
+                'comment' => $validated['comment'] ?? null,
+            ]
+        );
+
+        return response()->json([
+            'message' => 'Shop rating saved.',
+            'rating' => $rating,
+            'average_rating' => round((float) ShopItemRating::where('shop_item_id', $shopItem->id)->avg('rating'), 1),
+            'ratings_count' => ShopItemRating::where('shop_item_id', $shopItem->id)->count(),
+        ]);
+    }
+
     public function download(Request $request, ShopItem $shopItem): StreamedResponse|JsonResponse
     {
         abort_unless($shopItem->status === 'published', 404);
@@ -268,10 +322,11 @@ class PublicShopController extends Controller
             'owned' => $owned,
             'can_use' => $owned,
             'usage' => [
-                'comments' => true,
-                'profile' => true,
-                'backgrounds' => true,
-                'messages' => true,
+                'stickers' => true,
+                'comments' => false,
+                'profile' => false,
+                'backgrounds' => false,
+                'messages' => false,
             ],
             'href' => '/noble-royalty',
             'source' => $sticker->user?->role === 'super_admin' ? 'admin' : 'artist',

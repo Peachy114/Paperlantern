@@ -28,7 +28,6 @@ export function useAuth() {
 
     const handleRegister = async (data: {
         name: string
-        nickname?: string
         username: string
         email: string
         password: string

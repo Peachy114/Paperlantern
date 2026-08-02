@@ -60,6 +60,11 @@ class ShopItem extends Model
         return $this->hasMany(ShopItemPurchase::class);
     }
 
+    public function ratings()
+    {
+        return $this->hasMany(ShopItemRating::class);
+    }
+
     public static function generateSlug(string $title, string $userId, ?string $excludeId = null): string
     {
         $base = Str::slug($title) ?: 'shop-item';

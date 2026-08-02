@@ -3,7 +3,6 @@ import api from './axios'
 export const authApi = {
     register: (data: {
         name: string
-        nickname?: string
         username: string
         email: string
         password: string

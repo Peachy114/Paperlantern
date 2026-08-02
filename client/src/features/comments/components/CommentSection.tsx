@@ -54,7 +54,53 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import SuperLikeButton from './SuperLikeButton'
 
-const REACTION_EMOJIS = ['😀', '😂', '😭', '🔥', '❤️']
+const COMMENT_REACTION_EMOJIS = [
+    '😀',
+    '😂',
+    '😭',
+    '🔥',
+    '❤️',
+    '😍',
+    '🥰',
+    '😮',
+    '😆',
+    '👏',
+    '👍',
+    '✨',
+    '💯',
+    '🤔',
+    '😎',
+    '🥹',
+    '😅',
+    '🙌',
+    '🎉',
+    '⭐',
+]
+COMMENT_REACTION_EMOJIS.splice(
+    0,
+    COMMENT_REACTION_EMOJIS.length,
+    '\uD83D\uDE00',
+    '\uD83D\uDE02',
+    '\uD83D\uDE2D',
+    '\uD83D\uDD25',
+    '\u2764\uFE0F',
+    '\uD83D\uDE0D',
+    '\uD83E\uDD70',
+    '\uD83D\uDE2E',
+    '\uD83D\uDE06',
+    '\uD83D\uDC4F',
+    '\uD83D\uDC4D',
+    '\u2728',
+    '\uD83D\uDCAF',
+    '\uD83E\uDD14',
+    '\uD83D\uDE0E',
+    '\uD83E\uDD79',
+    '\uD83D\uDE05',
+    '\uD83D\uDE4C',
+    '\uD83C\uDF89',
+    '\u2B50'
+)
+
 const COMMENT_SORTS: Array<{ value: CommentSort; label: string }> = [
     { value: 'all', label: 'All' },
     { value: 'latest', label: 'Latest' },
@@ -153,7 +199,10 @@ export default function CommentSection({
             const payload = new FormData()
             if (body.trim()) payload.append('body', body.trim())
             if (selectedSticker?.id) payload.append('artist_sticker_id', selectedSticker.id)
-            if (replyingTo?.id) payload.append('parent_id', replyingTo.id)
+            if (replyingTo?.id) {
+                payload.append('parent_id', replyingTo.parent_id ?? replyingTo.id)
+                payload.append('reply_to_id', replyingTo.id)
+            }
             if (reactionEmoji) payload.append('reaction_emoji', reactionEmoji)
             if (imageFile) payload.append('image', imageFile)
 
@@ -306,63 +355,6 @@ export default function CommentSection({
                         </Button>
                     </div>
                 )}
-                {/* Top toolbar: heading, bold, italic, bullet and spoiler */}
-                <div className="mb-2 flex flex-wrap items-center gap-1">
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 rounded-full px-2 text-xs"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('## ', '')}
-                        title="Turn selected text into a heading"
-                    >
-                        H
-                    </Button>
-                    <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('**')}
-                        title="Bold selected text"
-                    >
-                        <Bold className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('*')}
-                        title="Italic selected text"
-                    >
-                        <Italic className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 rounded-full px-2 text-xs"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('- ', '')}
-                        title="Turn selected text into a bullet"
-                    >
-                        Bullet
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 rounded-full px-2 text-xs"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('||')}
-                        title="Spoiler selected text"
-                    >
-                        <EyeOff className="h-4 w-4" />
-                        Spoiler
-                    </Button>
-                </div>
 
                 {/* Middle: comment textarea and selected attachments */}
                 <Textarea
@@ -413,7 +405,7 @@ export default function CommentSection({
 
                 {emojiOpen && (
                     <div className="mt-3 flex flex-wrap gap-2">
-                        {REACTION_EMOJIS.map((emoji) => (
+                        {COMMENT_REACTION_EMOJIS.map((emoji) => (
                             <button
                                 key={emoji}
                                 type="button"
@@ -753,18 +745,21 @@ function CommentItem({
                     </span>
                 </div>
 
-                {comment.parent && (
+                {(comment.reply_to ?? comment.parent) && (
                     <button
                         type="button"
                         className="mt-2 rounded-md bg-muted px-2 py-1 text-left text-xs text-muted-foreground hover:text-foreground"
                         onClick={() =>
                             document
-                                .getElementById(`comment-${comment.parent?.id}`)
+                                .getElementById(
+                                    `comment-${(comment.reply_to ?? comment.parent)?.id}`
+                                )
                                 ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
                         }
                     >
-                        Replying to @{comment.parent.user?.username ?? 'unknown'}:{' '}
-                        {comment.parent.body ?? 'comment'}
+                        Replying to @
+                        {(comment.reply_to ?? comment.parent)?.user?.username ?? 'unknown'}:{' '}
+                        {(comment.reply_to ?? comment.parent)?.body ?? 'comment'}
                     </button>
                 )}
 

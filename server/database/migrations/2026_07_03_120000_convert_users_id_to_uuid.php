@@ -31,6 +31,10 @@ return new class extends Migration
 
     public function up(): void
     {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
         // --- chapter_likes: composite unique index (chapter_id, user_id) ---

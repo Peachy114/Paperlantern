@@ -131,7 +131,7 @@ class PublicCommissionController extends Controller
             'request_answers.*.answer' => ['nullable', 'string', 'max:5000'],
             'client_details' => ['nullable', 'array'],
             'client_details.name' => ['nullable', 'string', 'max:120'],
-            'client_details.nickname' => ['nullable', 'string', 'max:120'],
+            'client_details.username' => ['nullable', 'string', 'max:120'],
             'client_details.email' => ['nullable', 'email', 'max:180'],
             'client_details.discord' => ['nullable', 'string', 'max:120'],
             'client_details.twitter' => ['nullable', 'string', 'max:180'],
@@ -384,7 +384,7 @@ class PublicCommissionController extends Controller
         $details = $validated['client_details'] ?? [];
         $profileDetails = [
             'name' => $user->name,
-            'nickname' => $user->nickname,
+            'username' => $user->username,
             'email' => $user->email,
             'discord' => $user->discord_url,
             'twitter' => $user->twitter_url,
@@ -437,7 +437,7 @@ class PublicCommissionController extends Controller
     {
         return [
             'name' => 'name',
-            'nickname' => 'nickname',
+            'username' => 'username',
             'email' => 'email',
             'discord' => 'Discord',
             'twitter' => 'X / Twitter',
@@ -449,16 +449,20 @@ class PublicCommissionController extends Controller
 
     private function clientFields(CommissionService $service): array
     {
-        return array_replace_recursive([
+        $fields = array_replace_recursive([
             'name' => ['collect' => true, 'required' => false],
-            'nickname' => ['collect' => true, 'required' => false],
-            'email' => ['collect' => false, 'required' => false],
+            'username' => ['collect' => true, 'required' => false],
+            'email' => ['collect' => true, 'required' => true],
             'discord' => ['collect' => false, 'required' => false],
             'twitter' => ['collect' => false, 'required' => false],
             'instagram' => ['collect' => false, 'required' => false],
             'facebook' => ['collect' => false, 'required' => false],
             'tiktok' => ['collect' => false, 'required' => false],
         ], $service->client_fields ?? []);
+
+        unset($fields['nickname']);
+
+        return $fields;
     }
 
     private function setupOptions(CommissionService $service): array

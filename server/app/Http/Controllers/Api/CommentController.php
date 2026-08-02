@@ -28,6 +28,7 @@ class CommentController extends Controller
             'body' => ['nullable', 'string', 'max:2000'],
             'artist_sticker_id' => ['nullable', 'string', 'exists:artist_stickers,id'],
             'parent_id' => ['nullable', 'string', 'exists:comments,id'],
+            'reply_to_id' => ['nullable', 'string', 'exists:comments,id'],
             'reaction_emoji' => ['nullable', 'string', 'max:16'],
             'gif_url' => ['nullable', 'url', 'max:2048'],
             'image_url' => ['nullable', 'url', 'max:2048'],

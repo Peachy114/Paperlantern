@@ -2,13 +2,33 @@ import type { ShopSticker } from "../types"
 
 export function stickerShopCategories(items: ShopSticker[]) {
     const categories = new Set<string>()
+    const usageLabels: Record<keyof ShopSticker['usage'], string> = {
+        stickers: 'Stickers',
+        backgrounds: 'Backgrounds',
+        comments: 'Comments',
+        profile: 'Profile',
+        messages: 'Messages',
+    }
+
+    if (items.length > 0) {
+        categories.add('Stickers')
+    }
+
     items.forEach((item) => {
-        if (item.source_label) categories.add(item.source_label)
-        if (item.bundle_name) categories.add(item.bundle_name)
         Object.entries(item.usage).forEach(([key, value]) => {
-            if (value) categories.add(key.charAt(0).toUpperCase() + key.slice(1))
+            if (value) categories.add(usageLabels[key as keyof ShopSticker['usage']] ?? key)
         })
     })
 
-    return Array.from(categories).sort((a, b) => a.localeCompare(b))
+    const preferredOrder = ['Stickers', 'Backgrounds', 'Comments', 'Profile', 'Messages']
+
+    return Array.from(categories).sort((a, b) => {
+        const aOrder = preferredOrder.indexOf(a)
+        const bOrder = preferredOrder.indexOf(b)
+        if (aOrder !== -1 || bOrder !== -1) {
+            return (aOrder === -1 ? 999 : aOrder) - (bOrder === -1 ? 999 : bOrder)
+        }
+
+        return a.localeCompare(b)
+    })
 }

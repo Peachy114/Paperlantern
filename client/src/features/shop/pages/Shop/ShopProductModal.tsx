@@ -1,12 +1,14 @@
 import { publicApi } from "@/api/public"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { storageUrl } from "@/utils/storage"
 import { useQueryClient, useMutation } from "@tanstack/react-query"
-import { ShoppingBag, X, Star, Heart, Download } from "lucide-react"
+import { ShoppingBag, Star, Heart, Download } from "lucide-react"
 import { toast } from "sonner"
 import { ArtistAvatar } from "./ArtistAvatar"
+import CommentSection2 from "@/features/comments/components/CommentSection2"
 // import { SourceBadge } from "./SourceBadge"
 import type { ShopDownload } from "./types"
 import { responseFileName } from "./utils/responseFileName"
@@ -22,6 +24,8 @@ export function ShopProductModal({
     onOpenChange: (open: boolean) => void
 }) {
     const queryClient = useQueryClient()
+    const [ratingValue, setRatingValue] = useState(5)
+    const [ratingComment, setRatingComment] = useState('')
     const purchaseMutation = useMutation({
         mutationFn: () => publicApi.purchaseShopDownload(item!.id).then((res) => res.data),
         onSuccess: () => {
@@ -33,10 +37,29 @@ export function ShopProductModal({
             toast.error(error?.response?.data?.message ?? 'Could not buy this product.')
         },
     })
+    const rateMutation = useMutation({
+        mutationFn: () =>
+            publicApi
+                .rateShopItem(item!.id, {
+                    rating: ratingValue,
+                    comment: ratingComment.trim() || undefined,
+                })
+                .then((res) => res.data),
+        onSuccess: () => {
+            toast.success('Shop rating saved.')
+            queryClient.invalidateQueries({ queryKey: ['public-shop'] })
+            queryClient.invalidateQueries({ queryKey: ['public-shop-widget'] })
+        },
+        onError: (error: any) => {
+            toast.error(error?.response?.data?.message ?? 'Could not save this rating.')
+        },
+    })
 
     if (!item) return null
 
     const price = item.download_policy === 'free' ? 'Free' : `${item.credit_cost} credits`
+    const protectPreview = item.download_policy === 'paid' && !item.download_unlocked
+    const canRate = item.download_policy === 'free' || item.download_unlocked
     const handleDownload = async () => {
         try {
             if (item.download_policy === 'paid' && !item.download_unlocked) {
@@ -64,16 +87,23 @@ export function ShopProductModal({
                 </DialogHeader>
                 <div className="grid h-full min-h-0 lg:grid-cols-[minmax(0,1fr)_minmax(360px,460px)]">
                     <div className="min-h-0 bg-muted/40 p-3 lg:p-4">
-                        <div className="h-full overflow-hidden rounded-[22px] bg-background">
+                        <div className="relative h-full overflow-hidden rounded-[22px] bg-background">
                             {item.image_path ? (
                                 <img
                                     src={storageUrl(item.image_path)!}
                                     alt={item.title}
-                                    className="h-full w-full object-contain"
+                                    className={`h-full w-full object-contain ${protectPreview ? 'blur-[2px] saturate-75' : ''}`}
                                 />
                             ) : (
                                 <div className="flex h-full items-center justify-center text-muted-foreground">
                                     <ShoppingBag className="h-10 w-10" />
+                                </div>
+                            )}
+                            {protectPreview && (
+                                <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle,rgba(255,255,255,0.20)_1px,transparent_1px)] [background-size:8px_8px]">
+                                    <span className="-rotate-12 rounded-full bg-black/55 px-5 py-2 text-xs font-bold uppercase tracking-[0.24em] text-white">
+                                        LaternComix Preview
+                                    </span>
                                 </div>
                             )}
                         </div>
@@ -101,7 +131,10 @@ export function ShopProductModal({
                             </span>
                             <span className="inline-flex items-center gap-1">
                                 <Star className="h-4 w-4 fill-orange-400 text-orange-400" />
-                                5.0
+                                {Number(item.rating ?? 0) > 0
+                                    ? Number(item.rating).toFixed(1)
+                                    : 'New'}
+                                {item.ratings_count ? ` (${item.ratings_count})` : ''}
                             </span>
                             <span className="inline-flex items-center gap-1 text-muted-foreground">
                                 <Heart className="h-4 w-4" />
@@ -169,16 +202,63 @@ export function ShopProductModal({
                         </div>
 
                         <div className="mt-6">
+                            <div className="mb-5 rounded-xl border bg-muted/20 p-4">
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <div>
+                                        <h3 className="font-semibold">Rate this product</h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            {canRate
+                                                ? 'Ratings are available after you own or unlock the product.'
+                                                : 'Buy this product first to leave a rating.'}
+                                        </p>
+                                    </div>
+                                    {item.user_rating && (
+                                        <Badge variant="secondary">Your rating: {item.user_rating}/5</Badge>
+                                    )}
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {[1, 2, 3, 4, 5].map((value) => (
+                                        <Button
+                                            key={value}
+                                            type="button"
+                                            size="sm"
+                                            variant={ratingValue === value ? 'default' : 'outline'}
+                                            onClick={() => setRatingValue(value)}
+                                            disabled={!canRate || rateMutation.isPending}
+                                        >
+                                            <Star className="h-3.5 w-3.5" />
+                                            {value}
+                                        </Button>
+                                    ))}
+                                </div>
+                                <textarea
+                                    value={ratingComment}
+                                    onChange={(event) => setRatingComment(event.target.value)}
+                                    disabled={!canRate || rateMutation.isPending}
+                                    placeholder="Optional rating comment"
+                                    className="mt-3 min-h-20 w-full resize-y rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                                />
+                                <Button
+                                    type="button"
+                                    className="mt-3"
+                                    onClick={() => rateMutation.mutate()}
+                                    disabled={!canRate || rateMutation.isPending}
+                                >
+                                    {rateMutation.isPending ? 'Saving...' : 'Save rating'}
+                                </Button>
+                            </div>
                             <div className="mb-3 flex items-center justify-between">
                                 <h3 className="font-semibold">Comments</h3>
                                 <span className="text-xs text-muted-foreground">
                                     {item.comments_count} comments
                                 </span>
                             </div>
-                            <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                                Product comments will use the same comment design system after the
-                                shop checkout flow is connected.
-                            </div>
+                            <CommentSection2
+                                targetType="shop"
+                                targetId={item.id}
+                                artistUsername={item.artist?.username}
+                                compact
+                            />
                         </div>
                     </aside>
                 </div>

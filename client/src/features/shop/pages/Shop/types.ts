@@ -10,6 +10,8 @@ export type ShopDownload = {
     price?: number | string | null
     currency?: string | null
     rating?: number | null
+    ratings_count?: number
+    user_rating?: number | null
     sold_count?: number | null
     is_popular?: boolean
     is_new?: boolean
@@ -41,6 +43,7 @@ export type ShopSticker = {
     credit_cost: number
     href: string
     usage: {
+        stickers?: boolean
         comments: boolean
         profile: boolean
         backgrounds: boolean

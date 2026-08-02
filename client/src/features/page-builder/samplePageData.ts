@@ -292,7 +292,7 @@ export const SAMPLE_COMMISSIONS: CommissionService[] = [
         info_questions: [],
         client_fields: {
             name: { collect: true, required: true },
-            nickname: { collect: true, required: false },
+            username: { collect: true, required: false },
             email: { collect: true, required: true },
             discord: { collect: true, required: false },
             twitter: { collect: false, required: false },
@@ -359,7 +359,7 @@ export const SAMPLE_COMMISSIONS: CommissionService[] = [
         info_questions: [],
         client_fields: {
             name: { collect: true, required: true },
-            nickname: { collect: true, required: false },
+            username: { collect: true, required: false },
             email: { collect: true, required: true },
             discord: { collect: true, required: false },
             twitter: { collect: false, required: false },

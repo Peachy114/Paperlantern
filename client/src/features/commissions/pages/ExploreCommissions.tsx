@@ -60,6 +60,7 @@ const statusClass: Record<CommissionService['status'], string> = {
 }
 
 const PROFILE_LINK_FIELDS = new Set(['discord', 'twitter', 'instagram', 'facebook', 'tiktok'])
+const BASE_CLIENT_FIELDS = new Set(['name', 'username', 'email'])
 
 const defaultCommissionWidgets: PageWidget[] = [
     {
@@ -262,7 +263,9 @@ function CommissionDialog({
                         `Please answer: ${question.title || 'Required question'}`
                 }
             }
-            for (const [field, config] of Object.entries(commission.client_fields ?? {})) {
+            for (const [field, config] of collectedCommissionClientFields(
+                commission.client_fields
+            )) {
                 if (
                     config.collect &&
                     config.required &&
@@ -274,9 +277,9 @@ function CommissionDialog({
                     continue
                 }
 
-                if (config.collect && config.required && !clientDetails[field]?.trim()) {
+                if (config.collect && config.required && !savedClientDetails[field]?.trim()) {
                     nextErrors[`client_${field}`] =
-                        `Please provide your ${clientFieldLabel(field).toLowerCase()}.`
+                        `Please add your ${clientFieldLabel(field)} in Profile Settings before requesting this commission.`
                 }
             }
             if (Object.keys(nextErrors).length > 0) {
@@ -308,9 +311,10 @@ function CommissionDialog({
                     requestAnswers[key]?.trim() ?? ''
                 )
             })
-            Object.entries(commission.client_fields ?? {}).forEach(([field, config]) => {
-                if (config.collect && clientDetails[field]?.trim()) {
-                    payload.append(`client_details[${field}]`, clientDetails[field].trim())
+            collectedCommissionClientFields(commission.client_fields).forEach(([field, config]) => {
+                const value = savedClientDetails[field]?.trim() ?? clientDetails[field]?.trim() ?? ''
+                if (config.collect && value) {
+                    payload.append(`client_details[${field}]`, value)
                 }
             })
             return publicApi.requestCommission(identifier, payload)
@@ -355,6 +359,20 @@ function CommissionDialog({
     if (!commission) return null
 
     const image = commission.image_path
+    const collectedClientFields = collectedCommissionClientFields(commission.client_fields)
+    const baseClientFields = collectedClientFields.filter(([field]) => BASE_CLIENT_FIELDS.has(field))
+    const socialClientFields = collectedClientFields.filter(([field]) =>
+        PROFILE_LINK_FIELDS.has(field)
+    )
+    const missingRequiredProfileLinks = socialClientFields
+        .filter(([, config]) => config.required)
+        .filter(([field]) => PROFILE_LINK_FIELDS.has(field))
+        .filter(([field]) => !clientDetails[field]?.trim())
+        .map(([field]) => field)
+    const missingOptionalProfileLinks = socialClientFields
+        .filter(([, config]) => !config.required)
+        .filter(([field]) => !clientDetails[field]?.trim())
+        .map(([field]) => field)
     const attachReferenceImage = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null
         if (!file) {
@@ -649,44 +667,68 @@ function CommissionDialog({
                                 })}
                             </div>
                         )}
-                        {hasCollectedClientFields(commission.client_fields) && (
-                            <div className="space-y-3 rounded-lg border p-3">
-                                <p className="text-sm font-semibold">Wanderer details</p>
-                                <p className="text-xs text-muted-foreground">
-                                    The artist can see only the fields requested here.
-                                </p>
-                                {Object.entries(commission.client_fields)
-                                    .filter(([, config]) => config.collect)
-                                    .map(([field, config]) => (
-                                        <div key={field}>
-                                            <LabelText>
-                                                {clientFieldLabel(field)}
-                                                {config.required ? ' *' : ''}
-                                            </LabelText>
-                                            <Input
-                                                type={field === 'email' ? 'email' : 'text'}
-                                                value={clientDetails[field] ?? ''}
-                                                onChange={(event) => {
-                                                    setClientDetails((current) => ({
-                                                        ...current,
-                                                        [field]: event.target.value,
-                                                    }))
-                                                    setRequestErrors((current) => {
-                                                        const next = { ...current }
-                                                        delete next[`client_${field}`]
-                                                        return next
-                                                    })
-                                                }}
-                                                placeholder={clientFieldPlaceholder(field)}
-                                                className="mt-1"
-                                            />
-                                            {requestErrors[`client_${field}`] && (
-                                                <p className="mt-1 text-xs text-destructive">
-                                                    {requestErrors[`client_${field}`]}
-                                                </p>
-                                            )}
+                        {collectedClientFields.length > 0 && (
+                            <div className="space-y-4 rounded-lg border p-3">
+                                <div>
+                                    <p className="text-sm font-semibold">Wanderer details</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Artist request to get your info. The artist can only see the
+                                        details listed here.
+                                    </p>
+                                </div>
+
+                                {missingRequiredProfileLinks.length > 0 && (
+                                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                                        <div>
+                                            <p className="text-sm font-medium text-destructive">
+                                                Need {missingRequiredProfileLinks.length}{' '}
+                                                {missingRequiredProfileLinks.length === 1
+                                                    ? 'public link'
+                                                    : 'public links'}
+                                            </p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Add {formatFieldList(missingRequiredProfileLinks)} in
+                                                Profile Settings before requesting.
+                                            </p>
                                         </div>
-                                    ))}
+                                        <Button asChild size="sm" variant="outline">
+                                            <Link to="/settings/profile">Add in Profile Settings</Link>
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {missingRequiredProfileLinks.length === 0 &&
+                                    missingOptionalProfileLinks.length > 0 && (
+                                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
+                                            <p className="text-xs text-muted-foreground">
+                                                Optional public link requested:{' '}
+                                                {formatFieldList(missingOptionalProfileLinks)}.
+                                            </p>
+                                            <Button asChild size="sm" variant="outline">
+                                                <Link to="/settings/profile">
+                                                    Add in Profile Settings
+                                                </Link>
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                {baseClientFields.length > 0 && (
+                                    <ClientDetailList
+                                        title="Artist will get info"
+                                        fields={baseClientFields}
+                                        values={clientDetails}
+                                        errors={requestErrors}
+                                    />
+                                )}
+
+                                {socialClientFields.length > 0 && (
+                                    <ClientDetailList
+                                        title="Social media"
+                                        fields={socialClientFields}
+                                        values={clientDetails}
+                                        errors={requestErrors}
+                                    />
+                                )}
                             </div>
                         )}
                         <div>
@@ -823,6 +865,75 @@ function LabelText({ children }: { children: ReactNode }) {
     return <div className="text-sm font-medium">{children}</div>
 }
 
+type ClientFieldEntry = [
+    string,
+    CommissionService['client_fields'][keyof CommissionService['client_fields']],
+]
+
+function ClientDetailList({
+    title,
+    fields,
+    values,
+    errors,
+}: {
+    title: string
+    fields: ClientFieldEntry[]
+    values: Record<string, string>
+    errors: Record<string, string>
+}) {
+    return (
+        <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {title}
+            </p>
+            <div className="space-y-3">
+                {fields.map(([field, config]) => {
+                    const value = values[field]?.trim() ?? ''
+
+                    return (
+                        <div key={field} className="rounded-lg border bg-muted/20 p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <LabelText>{clientFieldLabel(field)}</LabelText>
+                                <span
+                                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                        value
+                                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                            : config.required
+                                              ? 'bg-destructive/10 text-destructive'
+                                              : 'bg-muted text-muted-foreground'
+                                    }`}
+                                >
+                                    {config.required ? 'Required' : 'Optional'}
+                                </span>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {PROFILE_LINK_FIELDS.has(field)
+                                    ? 'The artist will use the saved public link from your profile.'
+                                    : 'This comes from your account profile.'}
+                            </p>
+                            <p
+                                className={`mt-2 break-all rounded-md bg-background px-3 py-2 text-xs ${
+                                    value ? '' : 'text-muted-foreground'
+                                }`}
+                            >
+                                {value ||
+                                    (config.required
+                                        ? 'Required in Profile Settings'
+                                        : 'Optional, not saved')}
+                            </p>
+                            {errors[`client_${field}`] && (
+                                <p className="mt-1 text-xs text-destructive">
+                                    {errors[`client_${field}`]}
+                                </p>
+                            )}
+                        </div>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
 function RequestQuestionInput({
     question,
     value,
@@ -936,8 +1047,37 @@ function licenseOptionDescription(option: string) {
     return description ?? option
 }
 
-function hasCollectedClientFields(fields: CommissionService['client_fields']) {
-    return Object.values(fields ?? {}).some((config) => config.collect)
+function collectedCommissionClientFields(
+    fields: CommissionService['client_fields']
+): ClientFieldEntry[] {
+    const order = ['name', 'username', 'email', 'discord', 'twitter', 'instagram', 'facebook', 'tiktok']
+    const normalized = { ...(fields ?? {}) } as Record<string, ClientFieldEntry[1]>
+
+    normalized.name = { ...(normalized.name ?? {}), collect: true, required: normalized.name?.required ?? false }
+    normalized.username = {
+        ...(normalized.username ?? {}),
+        collect: true,
+        required: normalized.username?.required ?? false,
+    }
+    normalized.email = { ...(normalized.email ?? {}), collect: true, required: normalized.email?.required ?? true }
+
+    delete (normalized as Record<string, unknown>).nickname
+
+    return Object.entries(normalized)
+        .filter(([, config]) => config.collect)
+        .sort(([fieldA], [fieldB]) => {
+            const indexA = order.indexOf(fieldA)
+            const indexB = order.indexOf(fieldB)
+            return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB)
+        }) as ClientFieldEntry[]
+}
+
+function formatFieldList(fields: string[]) {
+    const labels = fields.map(clientFieldLabel)
+    if (labels.length <= 1) return labels[0] ?? ''
+    if (labels.length === 2) return `${labels[0]} and ${labels[1]}`
+
+    return `${labels.slice(0, -1).join(', ')}, and ${labels.at(-1)}`
 }
 
 function clientFieldLabel(field: string) {
@@ -945,7 +1085,7 @@ function clientFieldLabel(field: string) {
         (
             {
                 name: 'Name',
-                nickname: 'Nickname',
+                username: 'Username',
                 email: 'Email',
                 discord: 'Discord',
                 twitter: 'Twitter / X',
@@ -957,27 +1097,10 @@ function clientFieldLabel(field: string) {
     )
 }
 
-function clientFieldPlaceholder(field: string) {
-    return (
-        (
-            {
-                name: 'Name or nickname',
-                nickname: 'Display nickname',
-                email: 'you@example.com',
-                discord: 'Discord username or link',
-                twitter: 'https://x.com/username',
-                instagram: 'https://instagram.com/username',
-                facebook: 'https://facebook.com/username',
-                tiktok: 'https://tiktok.com/@username',
-            } as Record<string, string>
-        )[field] ?? ''
-    )
-}
-
 function profileClientDetails(user: User): Record<string, string> {
     return {
         name: user.name ?? '',
-        nickname: user.nickname ?? '',
+        username: user.username ?? '',
         email: user.email ?? '',
         discord: user.discord_url ?? '',
         twitter: user.twitter_url ?? '',

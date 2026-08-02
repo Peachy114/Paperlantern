@@ -19,6 +19,7 @@ export const commentsApi = {
             body?: string
             artist_sticker_id?: string | null
             parent_id?: string | null
+            reply_to_id?: string | null
             reaction_emoji?: string | null
             gif_url?: string | null
             image_url?: string | null

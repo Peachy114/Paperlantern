@@ -136,6 +136,7 @@ Route::prefix('public')->group(function () {
     Route::get('/arts/{art}', [PublicArtController::class, 'show']);
     Route::get('/shop', [PublicShopController::class, 'index']);
     Route::post('/shop/{shopItem}/purchase', [PublicShopController::class, 'purchase'])->middleware('auth:sanctum');
+    Route::post('/shop/{shopItem}/rating', [PublicShopController::class, 'rate'])->middleware('auth:sanctum');
     Route::get('/shop/{shopItem}/download', [PublicShopController::class, 'download']);
     Route::post('/arts/{art}/view', [PublicArtController::class, 'recordView']);
     Route::get('/arts/{art}/download', [PublicArtController::class, 'download']);

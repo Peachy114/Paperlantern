@@ -755,11 +755,11 @@ export default function Messages() {
                                     </div>
                                 </div>
                             )}
-                            {order.client_details && Object.values(order.client_details).some(Boolean) && (
+                            {order.client_details && Object.entries(order.client_details).some(([field, value]) => field !== 'nickname' && Boolean(value)) && (
                                 <div>
                                     <div className="font-medium">Wanderer details</div>
                                     <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                        {Object.entries(order.client_details).filter(([, value]) => Boolean(value)).map(([field, value]) => (
+                                        {Object.entries(order.client_details).filter(([field, value]) => field !== 'nickname' && Boolean(value)).map(([field, value]) => (
                                             <InfoRow key={field} label={clientDetailLabel(field)} value={value} />
                                         ))}
                                     </div>
@@ -1319,9 +1319,12 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 function clientDetailLabel(field: string) {
     return ({
         name: 'Name',
+        username: 'Username',
         email: 'Email',
         discord: 'Discord',
         twitter: 'Twitter / X',
         instagram: 'Instagram',
+        facebook: 'Facebook',
+        tiktok: 'TikTok',
     } as Record<string, string>)[field] ?? field
 }

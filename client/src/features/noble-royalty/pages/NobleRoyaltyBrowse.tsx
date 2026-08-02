@@ -27,30 +27,29 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 
-type Tab = 'stickers' | 'borders' | RoyaltyDesignType
+type RoyaltyCategory = 'stickers' | 'backgrounds' | 'comments' | 'profile' | 'messages'
 type StickerUpload = { file: File; name: string; previewUrl: string }
 
-const TABS: Tab[] = [
-    'stickers',
-    'borders',
-    'message_design',
-    'message_background',
-    'comment_border',
-    'board_button',
-]
-const TAB_LABELS: Record<Tab, string> = {
+const CATEGORIES: RoyaltyCategory[] = ['stickers', 'backgrounds', 'comments', 'profile', 'messages']
+
+const CATEGORY_LABELS: Record<RoyaltyCategory, string> = {
     stickers: 'Stickers',
-    borders: 'Borders',
-    message_design: 'Messages',
-    message_background: 'Message Background',
-    comment_border: 'Comment Border',
-    board_button: 'Board Buttons',
+    backgrounds: 'Backgrounds',
+    comments: 'Comments',
+    profile: 'Profile',
+    messages: 'Messages',
+}
+
+const CATEGORY_DESIGNS: Partial<Record<RoyaltyCategory, RoyaltyDesignType[]>> = {
+    backgrounds: ['message_background'],
+    comments: ['comment_border'],
+    messages: ['message_background', 'message_design'],
 }
 
 export default function NobleRoyaltyBrowse() {
     const queryClient = useQueryClient()
     const user = useAuthStore((state) => state.user)
-    const [tab, setTab] = useState<Tab>('stickers')
+    const [category, setCategory] = useState<RoyaltyCategory>('stickers')
     const [stickerOpen, setStickerOpen] = useState(false)
     const [borderOpen, setBorderOpen] = useState(false)
     const [backgroundOpen, setBackgroundOpen] = useState(false)
@@ -96,24 +95,24 @@ export default function NobleRoyaltyBrowse() {
     const busy = publishSticker.isPending || publishBorder.isPending || purchaseSticker.isPending
     const data = royalty.data
 
+    const categoryDesigns = useMemo(() => {
+        const types = CATEGORY_DESIGNS[category] ?? []
+        return data?.designs.filter((item) => types.includes(item.type)) ?? []
+    }, [category, data?.designs])
+
     const counts = useMemo(
         () => ({
             stickers: data?.stickers.length ?? 0,
-            borders: data?.borders.length ?? 0,
-            message_design:
-                data?.designs.filter((item) => item.type === 'message_design').length ?? 0,
-            message_background:
+            backgrounds:
                 data?.designs.filter((item) => item.type === 'message_background').length ?? 0,
-            comment_border:
-                data?.designs.filter((item) => item.type === 'comment_border').length ?? 0,
-            board_button: data?.designs.filter((item) => item.type === 'board_button').length ?? 0,
+            comments: data?.designs.filter((item) => item.type === 'comment_border').length ?? 0,
+            profile: data?.borders.length ?? 0,
+            messages:
+                data?.designs.filter((item) =>
+                    ['message_background', 'message_design'].includes(item.type)
+                ).length ?? 0,
         }),
         [data]
-    )
-
-    const currentDesignItems = useMemo(
-        () => data?.designs.filter((item) => item.type === tab) ?? [],
-        [data?.designs, tab]
     )
 
     return (
@@ -141,16 +140,16 @@ export default function NobleRoyaltyBrowse() {
             </div>
 
             <div className="mb-5 flex flex-wrap gap-2">
-                {TABS.map((item) => (
+                {CATEGORIES.map((item) => (
                     <button
                         key={item}
                         type="button"
-                        onClick={() => setTab(item)}
+                        onClick={() => setCategory(item)}
                         className={`rounded-lg border px-4 py-2 text-sm capitalize ${
-                            tab === item ? 'bg-foreground text-background' : 'bg-background'
+                            category === item ? 'bg-foreground text-background' : 'bg-background'
                         }`}
                     >
-                        {TAB_LABELS[item]} ({counts[item]})
+                        {CATEGORY_LABELS[item]} ({counts[item]})
                     </button>
                 ))}
             </div>
@@ -159,7 +158,7 @@ export default function NobleRoyaltyBrowse() {
                 <div className="rounded-lg border p-8 text-sm text-muted-foreground">
                     Loading Noble Royalty...
                 </div>
-            ) : tab === 'stickers' ? (
+            ) : category === 'stickers' ? (
                 <AssetGrid
                     items={data?.stickers ?? []}
                     empty="No stickers are available yet."
@@ -168,18 +167,18 @@ export default function NobleRoyaltyBrowse() {
                     onPublish={(item) => publishSticker.mutate(item.id)}
                     onPurchase={(item) => purchaseSticker.mutate(item.id)}
                 />
-            ) : tab === 'borders' ? (
+            ) : category === 'profile' ? (
                 <AssetGrid
                     items={data?.borders ?? []}
-                    empty="No borders are available yet."
+                    empty="No profile borders are available yet."
                     publishCost={data?.publish_cost ?? 20}
                     busy={busy}
                     onPublish={(item) => publishBorder.mutate(item.id)}
                 />
             ) : (
                 <DesignGrid
-                    items={currentDesignItems}
-                    empty={`No ${TAB_LABELS[tab].toLowerCase()} assets are available yet.`}
+                    items={categoryDesigns}
+                    empty={`No ${CATEGORY_LABELS[category].toLowerCase()} assets are available yet.`}
                 />
             )}
         </main>

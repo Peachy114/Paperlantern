@@ -415,6 +415,10 @@ class CommissionController extends Controller
             $validated['commissions_enabled'] = $validated['commission_status'] === 'open';
         }
 
+        if (isset($validated['client_fields']) && is_array($validated['client_fields'])) {
+            unset($validated['client_fields']['nickname']);
+        }
+
         $profile->update($validated);
 
         return response()->json([
@@ -457,7 +461,7 @@ class CommissionController extends Controller
             'request_forms' => $profile->request_forms ?? self::defaultRequestForms(),
             'faqs' => $profile->faqs ?? [],
             'discounts' => $profile->discounts ?? [],
-            'client_fields' => array_replace_recursive(self::defaultClientFields(), $profile->client_fields ?? []),
+            'client_fields' => self::profileClientFields($profile->client_fields ?? []),
             'flow_template' => $profile->flow_template ?? self::defaultFlowTemplate(),
             'customers_count' => (int) $profile->customers_count,
             'average_rating' => (float) $profile->average_rating,
@@ -494,12 +498,22 @@ class CommissionController extends Controller
     {
         return [
             'name' => ['collect' => true, 'required' => false],
-            'email' => ['collect' => false, 'required' => false],
+            'username' => ['collect' => true, 'required' => false],
+            'email' => ['collect' => true, 'required' => true],
             'discord' => ['collect' => false, 'required' => false],
             'twitter' => ['collect' => false, 'required' => false],
             'instagram' => ['collect' => false, 'required' => false],
             'facebook' => ['collect' => false, 'required' => false],
+            'tiktok' => ['collect' => false, 'required' => false],
         ];
+    }
+
+    private static function profileClientFields(array $fields): array
+    {
+        $normalized = array_replace_recursive(self::defaultClientFields(), $fields);
+        unset($normalized['nickname']);
+
+        return $normalized;
     }
 
     private static function defaultFlowTemplate(): array
@@ -526,7 +540,7 @@ class CommissionController extends Controller
 
     private function validateService(Request $request, bool $creating = true): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'title' => [$creating ? 'required' : 'sometimes', 'string', 'max:255'],
             'commission_category_id' => ['nullable', 'exists:commission_categories,id'],
             'description' => ['nullable', 'string', 'max:3000'],
@@ -556,8 +570,8 @@ class CommissionController extends Controller
             'client_fields' => ['nullable', 'array'],
             'client_fields.name.collect' => ['nullable', 'boolean'],
             'client_fields.name.required' => ['nullable', 'boolean'],
-            'client_fields.nickname.collect' => ['nullable', 'boolean'],
-            'client_fields.nickname.required' => ['nullable', 'boolean'],
+            'client_fields.username.collect' => ['nullable', 'boolean'],
+            'client_fields.username.required' => ['nullable', 'boolean'],
             'client_fields.email.collect' => ['nullable', 'boolean'],
             'client_fields.email.required' => ['nullable', 'boolean'],
             'client_fields.discord.collect' => ['nullable', 'boolean'],
@@ -596,6 +610,12 @@ class CommissionController extends Controller
             'flow.*.percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'flow.*.rounds' => ['nullable', 'integer', 'min:0', 'max:50'],
         ]);
+
+        if (isset($validated['client_fields']) && is_array($validated['client_fields'])) {
+            unset($validated['client_fields']['nickname']);
+        }
+
+        return $validated;
     }
 
     private function storeImage(Request $request): ?string
@@ -731,16 +751,20 @@ class CommissionController extends Controller
 
     private function clientFields(CommissionService $service): array
     {
-        return array_replace_recursive([
+        $fields = array_replace_recursive([
             'name' => ['collect' => true, 'required' => false],
-            'nickname' => ['collect' => true, 'required' => false],
-            'email' => ['collect' => false, 'required' => false],
+            'username' => ['collect' => true, 'required' => false],
+            'email' => ['collect' => true, 'required' => true],
             'discord' => ['collect' => false, 'required' => false],
             'twitter' => ['collect' => false, 'required' => false],
             'instagram' => ['collect' => false, 'required' => false],
             'facebook' => ['collect' => false, 'required' => false],
             'tiktok' => ['collect' => false, 'required' => false],
         ], $service->client_fields ?? []);
+
+        unset($fields['nickname']);
+
+        return $fields;
     }
 
     private function setupOptions(CommissionService $service): array

@@ -85,6 +85,9 @@ export const publicApi = {
 
     purchaseShopDownload: (shopItemId: string) => api.post(`/public/shop/${shopItemId}/purchase`),
 
+    rateShopItem: (shopItemId: string, data: { rating: number; comment?: string }) =>
+        api.post(`/public/shop/${shopItemId}/rating`, data),
+
     downloadShopItem: (shopItemId: string) =>
         api.get(`/public/shop/${shopItemId}/download`, {
             responseType: 'blob',

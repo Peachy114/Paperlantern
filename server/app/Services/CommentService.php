@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class CommentService
 {
@@ -31,7 +32,7 @@ class CommentService
                 'replies' => fn($query) => $query
                     ->where('status', 'visible')
                     ->oldest()
-                    ->with(['user:id,name,username,avatar,role,artist_verified', 'sticker:id,user_id,name,image_path']),
+                    ->with($this->commentRelations(includeReplyTo: $this->supportsReplyTo())),
             ]);
 
         $query->orderByDesc('is_pinned');
@@ -52,6 +53,7 @@ class CommentService
         $body = trim((string) ($data['body'] ?? ''));
         $stickerId = $data['artist_sticker_id'] ?? null;
         $parentId = $data['parent_id'] ?? null;
+        $replyToId = $data['reply_to_id'] ?? null;
         $reactionEmoji = trim((string) ($data['reaction_emoji'] ?? ''));
         $gifUrl = trim((string) ($data['gif_url'] ?? ''));
         $imageUrl = trim((string) ($data['image_url'] ?? ''));
@@ -69,17 +71,24 @@ class CommentService
         }
 
         $parent = null;
-        if ($parentId) {
-            $parent = Comment::where('status', 'visible')->findOrFail($parentId);
+        $replyTo = null;
+        $replyTargetId = $replyToId ?: $parentId;
+
+        if ($replyTargetId) {
+            $replyTo = Comment::where('status', 'visible')->findOrFail($replyTargetId);
             abort_unless(
-                $parent->commentable_type === $target::class && $parent->commentable_id === $target->getKey(),
+                $replyTo->commentable_type === $target::class && $replyTo->commentable_id === $target->getKey(),
                 422,
                 'Reply target does not belong to this comment thread.'
             );
+
+            $parent = $replyTo->parent_id
+                ? Comment::where('status', 'visible')->findOrFail($replyTo->parent_id)
+                : $replyTo;
         }
 
-        $comment = DB::transaction(function () use ($user, $target, $parent, $body, $stickerId, $reactionEmoji, $gifUrl, $imageUrl, $imagePath, $isSpoiler) {
-            $comment = Comment::create([
+        $comment = DB::transaction(function () use ($user, $target, $parent, $replyTo, $body, $stickerId, $reactionEmoji, $gifUrl, $imageUrl, $imagePath, $isSpoiler) {
+            $commentData = [
                 'user_id' => $user->id,
                 'parent_id' => $parent?->id,
                 'commentable_type' => $target::class,
@@ -93,7 +102,13 @@ class CommentService
                 'image_moderation_status' => $imagePath ? 'pending' : null,
                 'is_spoiler' => $isSpoiler,
                 'status' => 'visible',
-            ]);
+            ];
+
+            if ($this->supportsReplyTo()) {
+                $commentData['reply_to_id'] = $replyTo && $replyTo->id !== $parent?->id ? $replyTo->id : null;
+            }
+
+            $comment = Comment::create($commentData);
 
             if ($parent) {
                 $parent->increment('replies_count');
@@ -107,9 +122,9 @@ class CommentService
         });
 
         // comment notifications ----
-        $this->notifyCommentActivity($user, $target, $parent, $comment);
+        $this->notifyCommentActivity($user, $target, $replyTo ?: $parent, $comment);
 
-        return $this->format($comment->load(['user:id,name,username,avatar,role,artist_verified', 'sticker:id,user_id,name,image_path', 'parent.user:id,name,username']));
+        return $this->format($comment->load($this->commentRelations(includeParent: true, includeReplyTo: $this->supportsReplyTo())));
     }
 
     public function toggleLike(User $user, Comment $comment): array
@@ -205,6 +220,7 @@ class CommentService
         return [
             'id' => $comment->id,
             'parent_id' => $comment->parent_id,
+            'reply_to_id' => $this->supportsReplyTo() ? $comment->reply_to_id : null,
             'body' => $comment->body,
             'reaction_emoji' => $comment->reaction_emoji,
             'gif_url' => $comment->gif_url,
@@ -236,6 +252,14 @@ class CommentService
                     'username' => $comment->parent->user->username,
                 ] : null,
             ] : null,
+            'reply_to' => $this->supportsReplyTo() && $comment->replyTo ? [
+                'id' => $comment->replyTo->id,
+                'body' => $comment->replyTo->body,
+                'user' => $comment->replyTo->user ? [
+                    'name' => $comment->replyTo->user->name,
+                    'username' => $comment->replyTo->user->username,
+                ] : null,
+            ] : null,
             'replies' => $comment->relationLoaded('replies')
                 ? $comment->replies->map(fn(Comment $reply) => $this->format($reply))->values()
                 : [],
@@ -245,6 +269,37 @@ class CommentService
                 'image_path' => $comment->sticker->image_path,
             ] : null,
         ];
+    }
+
+    private function commentRelations(bool $includeParent = false, bool $includeReplyTo = false): array
+    {
+        // comment relations ----
+        $relations = [
+            'user:id,name,username,avatar,role,artist_verified',
+            'sticker:id,user_id,name,image_path',
+        ];
+
+        if ($includeParent) {
+            $relations[] = 'parent.user:id,name,username';
+        }
+
+        if ($includeReplyTo) {
+            $relations[] = 'replyTo.user:id,name,username';
+        }
+
+        return $relations;
+    }
+
+    private function supportsReplyTo(): bool
+    {
+        // reply-to compatibility ----
+        static $supportsReplyTo = null;
+
+        if ($supportsReplyTo === null) {
+            $supportsReplyTo = Schema::hasColumn('comments', 'reply_to_id');
+        }
+
+        return $supportsReplyTo;
     }
 
     public function canUseSticker(User $user, ArtistSticker $sticker): bool

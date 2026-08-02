@@ -54,7 +54,53 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import SuperLikeButton from './SuperLikeButton'
 
-const REACTION_EMOJIS = ['😀', '😂', '😭', '🔥', '❤️']
+const COMMENT_REACTION_EMOJIS = [
+    '😀',
+    '😂',
+    '😭',
+    '🔥',
+    '❤️',
+    '😍',
+    '🥰',
+    '😮',
+    '😆',
+    '👏',
+    '👍',
+    '✨',
+    '💯',
+    '🤔',
+    '😎',
+    '🥹',
+    '😅',
+    '🙌',
+    '🎉',
+    '⭐',
+]
+COMMENT_REACTION_EMOJIS.splice(
+    0,
+    COMMENT_REACTION_EMOJIS.length,
+    '\uD83D\uDE00',
+    '\uD83D\uDE02',
+    '\uD83D\uDE2D',
+    '\uD83D\uDD25',
+    '\u2764\uFE0F',
+    '\uD83D\uDE0D',
+    '\uD83E\uDD70',
+    '\uD83D\uDE2E',
+    '\uD83D\uDE06',
+    '\uD83D\uDC4F',
+    '\uD83D\uDC4D',
+    '\u2728',
+    '\uD83D\uDCAF',
+    '\uD83E\uDD14',
+    '\uD83D\uDE0E',
+    '\uD83E\uDD79',
+    '\uD83D\uDE05',
+    '\uD83D\uDE4C',
+    '\uD83C\uDF89',
+    '\u2B50'
+)
+
 const COMMENT_SORTS: Array<{ value: CommentSort; label: string }> = [
     { value: 'all', label: 'All' },
     { value: 'latest', label: 'Latest' },
@@ -155,7 +201,10 @@ export default function CommentSection2({
             const payload = new FormData()
             if (body.trim()) payload.append('body', body.trim())
             if (selectedSticker?.id) payload.append('artist_sticker_id', selectedSticker.id)
-            if (replyingTo?.id) payload.append('parent_id', replyingTo.id)
+            if (replyingTo?.id) {
+                payload.append('parent_id', replyingTo.parent_id ?? replyingTo.id)
+                payload.append('reply_to_id', replyingTo.id)
+            }
             if (reactionEmoji) payload.append('reaction_emoji', reactionEmoji)
             if (imageFile) payload.append('image', imageFile)
 
@@ -611,7 +660,7 @@ export default function CommentSection2({
                             p-2
                         "
                 >
-                    {REACTION_EMOJIS.map((emoji) => (
+                    {COMMENT_REACTION_EMOJIS.map((emoji) => (
                         <button
                             key={emoji}
                             type="button"
@@ -1048,7 +1097,7 @@ function CommentItem({
                                     />
                                 )}
 
-                                {comment.parent && (
+                                {(comment.reply_to ?? comment.parent) && (
                                     <button
                                         type="button"
                                         className="
@@ -1061,7 +1110,7 @@ function CommentItem({
                                         "
                                         onClick={() =>
                                             document
-                                                .getElementById(`comment-${comment.parent?.id}`)
+                                                .getElementById(`comment-${(comment.reply_to ?? comment.parent)?.id}`)
                                                 ?.scrollIntoView({
                                                     behavior: 'smooth',
                                                     block: 'center',
@@ -1069,8 +1118,8 @@ function CommentItem({
                                         }
                                     >
                                         replied to{' '}
-                                        {comment.parent.user?.name ??
-                                            comment.parent.user?.username ??
+                                        {(comment.reply_to ?? comment.parent)?.user?.name ??
+                                            (comment.reply_to ?? comment.parent)?.user?.username ??
                                             'comment'}
                                     </button>
                                 )}

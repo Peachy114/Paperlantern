@@ -54,7 +54,7 @@ export default function StickerShopWidget({
     return (
         <section className="mx-auto my-5 w-full max-w-[1480px] px-5">
             <div className="mb-5 flex items-center justify-between gap-3">
-                <h2 className="text-2xl font-bold">{widget.title || 'Sticker Shop'}</h2>
+                <h2 className="text-2xl font-bold">{widget.title || 'Royalty Shop'}</h2>
                 <a
                     href="/shop"
                     className="text-xs font-medium text-muted-foreground hover:text-foreground"
