@@ -206,6 +206,10 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::post('/account/earnings/withdraw', [EarningsController::class, 'withdraw']);
     Route::get('/account/earnings/withdrawals', [EarningsController::class, 'withdrawalHistory']);
     Route::get('/account/commissions',        [CommissionAccountController::class, 'index']);
+    Route::get(
+        '/account/commissions/{order}/delivery-files/{file}/download',
+        [CommissionAccountController::class, 'downloadDeliveryFile']
+    );
     Route::patch('/account/commissions/{order}', [CommissionAccountController::class, 'update']);
     Route::post('/account/commissions/{order}/accept-quote', [CommissionAccountController::class, 'acceptQuote']);
     Route::post('/account/commissions/{order}/pay-next-stage', [CommissionAccountController::class, 'payNextStage']);

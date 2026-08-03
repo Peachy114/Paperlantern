@@ -8,9 +8,18 @@ import { studioApi } from '@/api/studio'
 import { useAuthStore } from '@/store/authStore'
 import { storageUrl } from '@/utils/storage'
 import type { RoyaltyDesignAsset } from '@/types/artistProfile'
-import { RoyaltyMessageBubble, royaltyMessageBackgroundStyle } from '@/components/royalty/RoyaltyDesignRenderer'
+import {
+    RoyaltyMessageBubble,
+    royaltyMessageBackgroundStyle,
+} from '@/components/royalty/RoyaltyDesignRenderer'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -40,7 +49,7 @@ interface Thread {
 interface Message {
     id: string
     body: string | null
-    kind: 'message' | 'stage_submission' | 'final_delivery'
+    kind: 'message' | 'system' | 'stage_submission' | 'final_delivery'
     upload_type: UploadType | null
     stage_index: number | null
     approval_status: 'pending' | 'approved' | 'adjustment' | null
@@ -67,6 +76,39 @@ interface CommissionStep {
     rounds?: number
 }
 
+type CommissionQuoteStatus =
+    | 'pending'
+    | 'renegotiation_requested'
+    | 'superseded'
+    | 'accepted'
+    | 'rejected'
+    | 'withdrawn'
+
+interface CommissionQuote {
+    id: string
+    version: number
+    quote_credits: number
+    quote_note: string | null
+    flow_snapshot: CommissionStep[]
+    status: CommissionQuoteStatus
+    renegotiation_reason: string | null
+    preferred_credits: number | null
+    requested_changes: string | null
+    renegotiation_requested_at: string | null
+    accepted_at: string | null
+    rejected_at: string | null
+    rejection_reason: string | null
+    superseded_at: string | null
+    created_at: string
+    updated_at: string
+    creator: {
+        id: string
+        name: string
+        username: string
+        avatar: string | null
+    } | null
+}
+
 interface OrderInfo {
     id: string
     status: string
@@ -90,6 +132,7 @@ interface OrderInfo {
     extra_attempt_credits: number
     archived_at: string | null
     revisions: CommissionRevision[]
+    quotes?: CommissionQuote[]
     service: { title: string; image_path: string | null } | null
     artist?: { id: string; name: string; username: string } | null
     customer?: { id: string; name: string; username: string } | null
@@ -143,6 +186,13 @@ export default function Messages() {
     const [infoOpen, setInfoOpen] = useState(false)
     const [settingsOpen, setSettingsOpen] = useState(false)
     const [quoteOpen, setQuoteOpen] = useState(false)
+    const [quoteDetails, setQuoteDetails] = useState<CommissionQuote | null>(null)
+    const [renegotiationQuote, setRenegotiationQuote] = useState<CommissionQuote | null>(null)
+    const [rejectQuoteTarget, setRejectQuoteTarget] = useState<CommissionQuote | null>(null)
+    const [renegotiationReason, setRenegotiationReason] = useState('')
+    const [preferredCredits, setPreferredCredits] = useState('')
+    const [requestedChanges, setRequestedChanges] = useState('')
+    const [quoteRejectionReason, setQuoteRejectionReason] = useState('')
     const [stageOpen, setStageOpen] = useState(false)
     const [revisionOpen, setRevisionOpen] = useState(false)
     const [extraAttemptOpen, setExtraAttemptOpen] = useState(false)
@@ -158,7 +208,10 @@ export default function Messages() {
     const user = useAuthStore((state) => state.user)
     const queryClient = useQueryClient()
 
-    const { data: threadData, isLoading } = useQuery<{ threads: { data: Thread[] }; preferences: MessagePreferences }>({
+    const { data: threadData, isLoading } = useQuery<{
+        threads: { data: Thread[] }
+        preferences: MessagePreferences
+    }>({
         queryKey: ['commission-message-threads'],
         queryFn: () => commissionApi.getMessageThreads().then((res) => res.data),
     })
@@ -174,11 +227,12 @@ export default function Messages() {
         [inboxFilter, threads]
     )
     const inboxCounts = useMemo(() => inboxFilterCounts(threads), [threads])
-    const preferences = preferenceData?.preferences ?? threadData?.preferences ?? {
-        message_read_receipts_enabled: true,
-        message_design_id: null,
-        message_background_id: null,
-    }
+    const preferences = preferenceData?.preferences ??
+        threadData?.preferences ?? {
+            message_read_receipts_enabled: true,
+            message_design_id: null,
+            message_background_id: null,
+        }
     const firstThreadId = threads[0]?.id ?? null
 
     useEffect(() => {
@@ -197,6 +251,9 @@ export default function Messages() {
     )
     const messages = messageData?.messages ?? []
     const order = messageData?.order ?? null
+    const quotes = order?.quotes ?? []
+    const latestQuote = quotes.length > 0 ? quotes[quotes.length - 1] : null
+    const hasQuoteHistory = quotes.length > 0
     const isArtist = Boolean(order?.artist?.id && order.artist.id === user?.id)
     const isCommissionOrder = Boolean(order?.service)
     const relatedServiceThreads = useMemo(
@@ -212,41 +269,88 @@ export default function Messages() {
             ),
         [selectedThread?.other_user?.id, threads]
     )
-    const selectedBackground = preferenceData?.message_backgrounds.find((asset) => asset.id === preferences.message_background_id) ?? null
-    const selectedDesign = preferenceData?.message_designs.find((asset) => asset.id === preferences.message_design_id) ?? null
+    const selectedBackground =
+        preferenceData?.message_backgrounds.find(
+            (asset) => asset.id === preferences.message_background_id
+        ) ?? null
+    const selectedDesign =
+        preferenceData?.message_designs.find(
+            (asset) => asset.id === preferences.message_design_id
+        ) ?? null
     const visibleRevisions = useMemo(
-        () => visibleRevisionItems(order?.revisions ?? [], messages, Boolean(messageData?.pagination?.has_more)),
+        () =>
+            visibleRevisionItems(
+                order?.revisions ?? [],
+                messages,
+                Boolean(messageData?.pagination?.has_more)
+            ),
         [order?.revisions, messages, messageData?.pagination?.has_more]
     )
-    const timeline = useMemo(() => buildTimeline(messages, visibleRevisions), [messages, visibleRevisions])
+    const timeline = useMemo(
+        () => buildTimeline(messages, visibleRevisions, quotes),
+        [messages, visibleRevisions, quotes]
+    )
 
     useEffect(() => {
         if (!order) return
-        setQuoteCredits(order.quote_credits || 0)
-        setQuoteNote(order.quote_note || '')
+        setQuoteCredits(latestQuote?.quote_credits ?? order.quote_credits ?? 0)
+        setQuoteNote(latestQuote?.quote_note ?? order.quote_note ?? '')
         setStageIndex(order.current_step_index || 0)
         setRevisionStepIndex(defaultCreativeStepIndex(order))
-    }, [order?.id, order?.quote_credits, order?.quote_note, order?.current_step_index])
+    }, [
+        order?.id,
+        order?.quote_credits,
+        order?.quote_note,
+        order?.current_step_index,
+        latestQuote?.id,
+        latestQuote?.quote_credits,
+        latestQuote?.quote_note,
+    ])
 
     const refreshMessages = () => {
         queryClient.invalidateQueries({ queryKey: ['commission-messages', selectedId] })
         queryClient.invalidateQueries({ queryKey: ['commission-message-threads'] })
     }
 
+    const openQuoteComposer = () => {
+        setQuoteCredits(latestQuote?.quote_credits ?? order?.quote_credits ?? 0)
+        setQuoteNote(latestQuote?.quote_note ?? order?.quote_note ?? '')
+        setQuoteOpen(true)
+    }
+
+    const openRenegotiation = (quote: CommissionQuote) => {
+        setRenegotiationReason('')
+        setPreferredCredits('')
+        setRequestedChanges('')
+        setRenegotiationQuote(quote)
+    }
+
+    const openQuoteRejection = (quote: CommissionQuote) => {
+        setQuoteRejectionReason('')
+        setRejectQuoteTarget(quote)
+    }
+
     const loadOlderMessages = useMutation({
-        mutationFn: () => commissionApi.getMessages(selectedId!, { before: messageData?.pagination?.next_before }).then((res) => res.data as MessageResponse),
+        mutationFn: () =>
+            commissionApi
+                .getMessages(selectedId!, { before: messageData?.pagination?.next_before })
+                .then((res) => res.data as MessageResponse),
         onSuccess: (olderData) => {
-            queryClient.setQueryData<MessageResponse>(['commission-messages', selectedId], (current) => {
-                if (!current) return olderData
-                return {
-                    ...current,
-                    order: olderData.order,
-                    messages: mergeMessages(olderData.messages, current.messages),
-                    pagination: olderData.pagination,
+            queryClient.setQueryData<MessageResponse>(
+                ['commission-messages', selectedId],
+                (current) => {
+                    if (!current) return olderData
+                    return {
+                        ...current,
+                        order: olderData.order,
+                        messages: mergeMessages(olderData.messages, current.messages),
+                        pagination: olderData.pagination,
+                    }
                 }
-            })
+            )
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not load older messages.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not load older messages.'),
     })
 
     const sendMessage = useMutation({
@@ -263,11 +367,13 @@ export default function Messages() {
             setUploadType('image')
             refreshMessages()
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not send message.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not send message.'),
     })
 
     const startDirectThread = useMutation({
-        mutationFn: (username: string) => commissionApi.startDirectThread(username).then((res) => res.data),
+        mutationFn: (username: string) =>
+            commissionApi.startDirectThread(username).then((res) => res.data),
         onSuccess: (data) => {
             const threadId = data?.thread?.id
             if (threadId) {
@@ -276,7 +382,8 @@ export default function Messages() {
             }
             queryClient.invalidateQueries({ queryKey: ['commission-message-threads'] })
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not open messages.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not open messages.'),
     })
 
     useEffect(() => {
@@ -285,50 +392,101 @@ export default function Messages() {
     }, [requestedArtist])
 
     const savePreferences = useMutation({
-        mutationFn: (payload: MessagePreferences) => commissionApi.updateMessagePreferences(payload).then((res) => res.data),
+        mutationFn: (payload: MessagePreferences) =>
+            commissionApi.updateMessagePreferences(payload).then((res) => res.data),
         onSuccess: () => {
             toast.success('Message settings saved.')
             queryClient.invalidateQueries({ queryKey: ['message-preferences'] })
             setSettingsOpen(false)
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not save message settings.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not save message settings.'),
     })
 
     const quoteOrder = useMutation({
         mutationFn: () =>
-            studioApi.quoteCommissionOrder(order!.id, {
-                quote_credits: quoteCredits,
-                quote_note: quoteNote.trim() || undefined,
-                flow: order?.flow_snapshot ?? [],
-            }).then((res) => res.data),
+            studioApi
+                .quoteCommissionOrder(order!.id, {
+                    quote_credits: quoteCredits,
+                    quote_note: quoteNote.trim() || undefined,
+                    flow: order?.flow_snapshot ?? [],
+                })
+                .then((res) => res.data),
         onSuccess: () => {
-            toast.success('Quote sent.')
+            toast.success(hasQuoteHistory ? 'Changed quote sent.' : 'Quote sent.')
             setQuoteOpen(false)
             refreshMessages()
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not send quote.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not send quote.'),
     })
 
     const artistUpdate = useMutation({
         mutationFn: (status: 'in_progress' | 'delivered' | 'cancelled' | 'disputed') =>
             studioApi.updateCommissionOrder(order!.id, { status }).then((res) => res.data),
         onSuccess: () => refreshMessages(),
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not update commission.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not update commission.'),
     })
 
     const customerUpdate = useMutation({
-        mutationFn: (action: 'cancel' | 'dispute') => commissionApi.updateAccountOrder(order!.id, action).then((res) => res.data),
+        mutationFn: (action: 'cancel' | 'dispute') =>
+            commissionApi.updateAccountOrder(order!.id, action).then((res) => res.data),
         onSuccess: () => refreshMessages(),
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not update commission.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not update commission.'),
     })
 
     const acceptQuote = useMutation({
-        mutationFn: () => commissionApi.acceptQuote(order!.id).then((res) => res.data),
+        mutationFn: (quoteId: string) =>
+            commissionApi.acceptQuote(order!.id, quoteId).then((res) => res.data),
         onSuccess: () => {
             toast.success('Quote accepted.')
             refreshMessages()
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not accept quote.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not accept quote.'),
+    })
+
+    const requestNewQuote = useMutation({
+        mutationFn: () =>
+            commissionApi
+                .requestNewQuote(order!.id, {
+                    quote_id: renegotiationQuote!.id,
+                    reason: renegotiationReason.trim(),
+                    preferred_credits:
+                        preferredCredits.trim() === '' ? undefined : Number(preferredCredits),
+                    requested_changes: requestedChanges.trim() || undefined,
+                })
+                .then((res) => res.data),
+        onSuccess: () => {
+            toast.success('New quote requested.')
+            setRenegotiationQuote(null)
+            setRenegotiationReason('')
+            setPreferredCredits('')
+            setRequestedChanges('')
+            refreshMessages()
+        },
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not request a new quote.'),
+    })
+
+    const rejectQuote = useMutation({
+        mutationFn: () =>
+            commissionApi
+                .rejectQuote(order!.id, {
+                    quote_id: rejectQuoteTarget!.id,
+                    reason: quoteRejectionReason.trim() || undefined,
+                })
+                .then((res) => res.data),
+        onSuccess: () => {
+            toast.success('Quote rejected. The commission request remains open.')
+            setRejectQuoteTarget(null)
+            setQuoteRejectionReason('')
+            refreshMessages()
+        },
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not reject the quote.'),
     })
 
     const payFinalDelivery = useMutation({
@@ -337,15 +495,19 @@ export default function Messages() {
             toast.success(data?.message ?? 'Final delivery paid.')
             refreshMessages()
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not pay final delivery.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not pay final delivery.'),
     })
 
     const requestRevision = useMutation({
-        mutationFn: (payExtra: boolean = false) => commissionApi.requestRevision(order!.id, {
-            reason: revisionReason,
-            step_index: revisionStepIndex,
-            pay_extra: payExtra,
-        }).then((res) => res.data),
+        mutationFn: (payExtra: boolean = false) =>
+            commissionApi
+                .requestRevision(order!.id, {
+                    reason: revisionReason,
+                    step_index: revisionStepIndex,
+                    pay_extra: payExtra,
+                })
+                .then((res) => res.data),
         onSuccess: () => {
             toast.success('Adjustment requested.')
             setRevisionOpen(false)
@@ -365,17 +527,20 @@ export default function Messages() {
 
     const advanceStage = useMutation({
         mutationFn: () =>
-            studioApi.advanceCommissionStage(order!.id, {
-                step_index: stageIndex,
-                note: stageNote.trim() || undefined,
-            }).then((res) => res.data),
+            studioApi
+                .advanceCommissionStage(order!.id, {
+                    step_index: stageIndex,
+                    note: stageNote.trim() || undefined,
+                })
+                .then((res) => res.data),
         onSuccess: () => {
             toast.success('Stage updated.')
             setStageOpen(false)
             setStageNote('')
             refreshMessages()
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not update stage.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not update stage.'),
     })
 
     const archiveOrder = useMutation({
@@ -384,16 +549,19 @@ export default function Messages() {
             toast.success('Commission archived.')
             refreshMessages()
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not archive commission.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not archive commission.'),
     })
 
     const approveSubmission = useMutation({
-        mutationFn: (messageId: string) => commissionApi.approveSubmission(messageId).then((res) => res.data),
+        mutationFn: (messageId: string) =>
+            commissionApi.approveSubmission(messageId).then((res) => res.data),
         onSuccess: () => {
             toast.success('Submission approved.')
             refreshMessages()
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not approve submission.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not approve submission.'),
     })
 
     const selectThread = (id: string) => {
@@ -416,7 +584,8 @@ export default function Messages() {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">Messages</h1>
                     <p className="mt-1 text-sm text-muted-foreground">
-                        Commission conversations with text, images, request information, and delivery stages.
+                        Commission conversations with text, images, request information, and
+                        delivery stages.
                     </p>
                 </div>
                 <Button type="button" variant="outline" onClick={() => setSettingsOpen(true)}>
@@ -467,9 +636,17 @@ export default function Messages() {
                                 >
                                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
                                         {thread.service?.image_path ? (
-                                            <img src={storageUrl(thread.service.image_path)!} alt="" className="h-full w-full object-cover" />
+                                            <img
+                                                src={storageUrl(thread.service.image_path)!}
+                                                alt=""
+                                                className="h-full w-full object-cover"
+                                            />
                                         ) : thread.other_user?.avatar ? (
-                                            <img src={storageUrl(thread.other_user.avatar)!} alt="" className="h-full w-full object-cover" />
+                                            <img
+                                                src={storageUrl(thread.other_user.avatar)!}
+                                                alt=""
+                                                className="h-full w-full object-cover"
+                                            />
                                         ) : (
                                             <div className="flex h-full w-full items-center justify-center text-xs font-bold">
                                                 {(thread.other_user?.name ?? 'U').slice(0, 1)}
@@ -480,12 +657,18 @@ export default function Messages() {
                                         )}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <div className="truncate text-sm font-semibold">{threadTitle(thread)}</div>
+                                        <div className="truncate text-sm font-semibold">
+                                            {threadTitle(thread)}
+                                        </div>
                                         <div className="truncate text-xs text-muted-foreground">
-                                            {thread.other_user?.name ?? 'User'} - {threadTypeLabel(thread)}
+                                            {thread.other_user?.name ?? 'User'} -{' '}
+                                            {threadTypeLabel(thread)}
                                         </div>
                                         <div className="mt-1 truncate text-xs text-muted-foreground">
-                                            {thread.last_message?.body || (thread.last_message?.image_path ? 'Image' : 'No messages yet')}
+                                            {thread.last_message?.body ||
+                                                (thread.last_message?.image_path
+                                                    ? 'Image'
+                                                    : 'No messages yet')}
                                         </div>
                                     </div>
                                     {thread.unread_count > 0 && (
@@ -504,9 +687,16 @@ export default function Messages() {
                         <>
                             <header className="border-b">
                                 <div className="flex items-center justify-between gap-3 p-3">
-                                    <div className="truncate font-semibold">{selectedThread.other_user?.name ?? 'User'}</div>
+                                    <div className="truncate font-semibold">
+                                        {selectedThread.other_user?.name ?? 'User'}
+                                    </div>
                                     <div className="flex items-center gap-2">
-                                        <Button type="button" size="sm" variant="outline" onClick={() => setInfoOpen(true)}>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => setInfoOpen(true)}
+                                        >
                                             <Info className="mr-1 h-4 w-4" />
                                             Info
                                         </Button>
@@ -514,7 +704,11 @@ export default function Messages() {
                                             type="button"
                                             size="sm"
                                             variant="outline"
-                                            onClick={() => (isArtist ? artistUpdate.mutate('disputed') : customerUpdate.mutate('dispute'))}
+                                            onClick={() =>
+                                                isArtist
+                                                    ? artistUpdate.mutate('disputed')
+                                                    : customerUpdate.mutate('dispute')
+                                            }
                                         >
                                             <Flag className="mr-1 h-4 w-4" />
                                             Report
@@ -524,25 +718,37 @@ export default function Messages() {
                                 {order && isCommissionOrder && (
                                     <div className="flex items-center justify-between gap-3 border-t px-3 py-2 text-sm">
                                         <span className="font-medium">Commission Request</span>
-                                        <span className="text-muted-foreground">{stageStatus(order)}</span>
+                                        <span className="text-muted-foreground">
+                                            {stageStatus(order)}
+                                        </span>
                                         <div className="relative">
-                                            <Button type="button" size="sm" variant="ghost" onClick={() => setActionMenuOpen((open) => !open)}>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => setActionMenuOpen((open) => !open)}
+                                            >
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </Button>
                                             {actionMenuOpen && (
                                                 <div className="absolute right-0 z-20 mt-1 w-32 rounded-lg border bg-popover p-1 shadow-lg">
-                                                    {isArtist && ['requested', 'quoted'].includes(order.status) && (
-                                                        <button
-                                                            type="button"
-                                                            className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
-                                                            onClick={() => {
-                                                                setQuoteOpen(true)
-                                                                setActionMenuOpen(false)
-                                                            }}
-                                                        >
-                                                            Quote
-                                                        </button>
-                                                    )}
+                                                    {isArtist &&
+                                                        ['requested', 'quoted'].includes(
+                                                            order.status
+                                                        ) && (
+                                                            <button
+                                                                type="button"
+                                                                className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                                                                onClick={() => {
+                                                                    openQuoteComposer()
+                                                                    setActionMenuOpen(false)
+                                                                }}
+                                                            >
+                                                                {hasQuoteHistory
+                                                                    ? 'Change Quote'
+                                                                    : 'Create Quote'}
+                                                            </button>
+                                                        )}
                                                     <button
                                                         type="button"
                                                         className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
@@ -557,7 +763,9 @@ export default function Messages() {
                                                         type="button"
                                                         className="w-full rounded-md px-3 py-2 text-left text-sm text-red-500 hover:bg-muted"
                                                         onClick={() => {
-                                                            ;(isArtist ? artistUpdate.mutate('cancelled') : customerUpdate.mutate('cancel'))
+                                                            isArtist
+                                                                ? artistUpdate.mutate('cancelled')
+                                                                : customerUpdate.mutate('cancel')
                                                             setActionMenuOpen(false)
                                                         }}
                                                     >
@@ -577,12 +785,24 @@ export default function Messages() {
                                 {order && isCommissionOrder && (
                                     <CommissionRequestBlock
                                         order={order}
+                                        latestQuote={latestQuote}
+                                        hasQuoteHistory={hasQuoteHistory}
                                         isArtist={isArtist}
-                                        busy={quoteOrder.isPending || acceptQuote.isPending || artistUpdate.isPending}
+                                        busy={
+                                            quoteOrder.isPending ||
+                                            acceptQuote.isPending ||
+                                            requestNewQuote.isPending ||
+                                            rejectQuote.isPending ||
+                                            artistUpdate.isPending ||
+                                            customerUpdate.isPending
+                                        }
                                         onViewDetails={() => setInfoOpen(true)}
-                                        onQuote={() => setQuoteOpen(true)}
-                                        onAccept={() => acceptQuote.mutate()}
-                                        onReject={() => (isArtist ? artistUpdate.mutate('cancelled') : customerUpdate.mutate('cancel'))}
+                                        onQuote={openQuoteComposer}
+                                        onCancel={() =>
+                                            isArtist
+                                                ? artistUpdate.mutate('cancelled')
+                                                : customerUpdate.mutate('cancel')
+                                        }
                                     />
                                 )}
                                 {messageData?.pagination?.has_more && (
@@ -594,11 +814,34 @@ export default function Messages() {
                                             disabled={loadOlderMessages.isPending}
                                             onClick={() => loadOlderMessages.mutate()}
                                         >
-                                            {loadOlderMessages.isPending ? 'Loading...' : 'Load older messages'}
+                                            {loadOlderMessages.isPending
+                                                ? 'Loading...'
+                                                : 'Load older messages'}
                                         </Button>
                                     </div>
                                 )}
                                 {timeline.map((item) => {
+                                    if (item.type === 'quote') {
+                                        return (
+                                            <CommissionQuoteBlock
+                                                key={`quote-${item.quote.id}`}
+                                                quote={item.quote}
+                                                isLatest={item.quote.id === latestQuote?.id}
+                                                isArtist={isArtist}
+                                                busy={
+                                                    quoteOrder.isPending ||
+                                                    acceptQuote.isPending ||
+                                                    requestNewQuote.isPending ||
+                                                    rejectQuote.isPending
+                                                }
+                                                onViewDetails={() => setQuoteDetails(item.quote)}
+                                                onChangeQuote={openQuoteComposer}
+                                                onAccept={() => acceptQuote.mutate(item.quote.id)}
+                                                onRequestNew={() => openRenegotiation(item.quote)}
+                                                onReject={() => openQuoteRejection(item.quote)}
+                                            />
+                                        )
+                                    }
                                     if (item.type === 'revision') {
                                         return (
                                             <AdjustmentMessage
@@ -608,21 +851,39 @@ export default function Messages() {
                                         )
                                     }
                                     const message = item.message
+                                    if (message.kind === 'system') {
+                                        return (
+                                            <SystemMessageBlock
+                                                key={message.id}
+                                                message={message}
+                                            />
+                                        )
+                                    }
                                     if (message.kind === 'stage_submission') {
                                         return (
                                             <StageSubmissionBlock
                                                 key={message.id}
                                                 message={message}
                                                 mine={message.sender?.id === user?.id}
-                                                needsAdjustment={submissionNeedsAdjustment(message, order)}
+                                                needsAdjustment={submissionNeedsAdjustment(
+                                                    message,
+                                                    order
+                                                )}
                                                 isArtist={isArtist}
                                                 busy={approveSubmission.isPending}
-                                                onApprove={() => approveSubmission.mutate(message.id)}
+                                                onApprove={() =>
+                                                    approveSubmission.mutate(message.id)
+                                                }
                                                 onAdjustment={() => {
-                                                    setRevisionStepIndex(message.stage_index ?? defaultCreativeStepIndex(order!))
+                                                    setRevisionStepIndex(
+                                                        message.stage_index ??
+                                                            defaultCreativeStepIndex(order!)
+                                                    )
                                                     setRevisionOpen(true)
                                                 }}
-                                                onPreview={(src, title) => setImagePreview({ src, title })}
+                                                onPreview={(src, title) =>
+                                                    setImagePreview({ src, title })
+                                                }
                                             />
                                         )
                                     }
@@ -634,30 +895,67 @@ export default function Messages() {
                                                 order={order!}
                                                 mine={message.sender?.id === user?.id}
                                                 isArtist={isArtist}
-                                                busy={payFinalDelivery.isPending || archiveOrder.isPending}
+                                                busy={
+                                                    payFinalDelivery.isPending ||
+                                                    archiveOrder.isPending
+                                                }
                                                 onPayFinal={() => payFinalDelivery.mutate()}
                                                 onArchive={() => archiveOrder.mutate()}
-                                                onPreview={(src, title) => setImagePreview({ src, title })}
+                                                onPreview={(src, title) =>
+                                                    setImagePreview({ src, title })
+                                                }
                                             />
                                         )
                                     }
 
                                     const mine = message.sender?.id === user?.id
                                     return (
-                                        <div key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`flex max-w-[76%] flex-col gap-2 ${mine ? 'items-end' : 'items-start'}`}>
-                                                <RoyaltyMessageBubble mine={mine} design={selectedDesign}>
-                                                    <div className="mb-1 text-[11px] opacity-75">{message.sender?.name ?? 'User'}</div>
-                                                    {message.body && <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.body}</p>}
-                                                    {mine && preferences.message_read_receipts_enabled && (
-                                                        <div className="mt-1 text-right text-[10px] opacity-70">
-                                                            {message.read_by_recipient ? 'Read' : 'Sent'}
-                                                        </div>
+                                        <div
+                                            key={message.id}
+                                            className={`flex ${mine ? 'justify-end' : 'justify-start'}`}
+                                        >
+                                            <div
+                                                className={`flex max-w-[76%] flex-col gap-2 ${mine ? 'items-end' : 'items-start'}`}
+                                            >
+                                                <RoyaltyMessageBubble
+                                                    mine={mine}
+                                                    design={selectedDesign}
+                                                >
+                                                    <div className="mb-1 text-[11px] opacity-75">
+                                                        {message.sender?.name ?? 'User'}
+                                                    </div>
+                                                    {message.body && (
+                                                        <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                                                            {message.body}
+                                                        </p>
                                                     )}
+                                                    {mine &&
+                                                        preferences.message_read_receipts_enabled && (
+                                                            <div className="mt-1 text-right text-[10px] opacity-70">
+                                                                {message.read_by_recipient
+                                                                    ? 'Read'
+                                                                    : 'Sent'}
+                                                            </div>
+                                                        )}
                                                 </RoyaltyMessageBubble>
                                                 {message.image_path && (
-                                                    <button type="button" className="block max-w-full overflow-hidden rounded-lg bg-muted" onClick={() => setImagePreview({ src: storageUrl(message.image_path)!, title: 'Message image' })}>
-                                                        <img src={storageUrl(message.image_path)!} alt="" className="max-h-64 max-w-full object-contain" />
+                                                    <button
+                                                        type="button"
+                                                        className="block max-w-full overflow-hidden rounded-lg bg-muted"
+                                                        onClick={() =>
+                                                            setImagePreview({
+                                                                src: storageUrl(
+                                                                    message.image_path
+                                                                )!,
+                                                                title: 'Message image',
+                                                            })
+                                                        }
+                                                    >
+                                                        <img
+                                                            src={storageUrl(message.image_path)!}
+                                                            alt=""
+                                                            className="max-h-64 max-w-full object-contain"
+                                                        />
                                                     </button>
                                                 )}
                                             </div>
@@ -669,16 +967,35 @@ export default function Messages() {
                             <div className="border-t p-3">
                                 {image && (
                                     <div className="mb-2 flex items-center justify-between rounded-lg border px-3 py-2 text-xs text-muted-foreground">
-                                        <span className="truncate">{image.name}{isArtist ? ` · ${uploadType}` : ''}</span>
-                                        <button type="button" onClick={() => setImage(null)} className="font-medium text-foreground">Remove</button>
+                                        <span className="truncate">
+                                            {image.name}
+                                            {isArtist ? ` · ${uploadType}` : ''}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setImage(null)}
+                                            className="font-medium text-foreground"
+                                        >
+                                            Remove
+                                        </button>
                                     </div>
                                 )}
                                 <div className="flex gap-2">
                                     <label className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg border">
                                         <ImagePlus className="h-4 w-4" />
-                                        <input type="file" accept="image/*" className="sr-only" onChange={attachImage} />
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            className="sr-only"
+                                            onChange={attachImage}
+                                        />
                                     </label>
-                                    <Textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Write a message..." className="min-h-10 resize-none" />
+                                    <Textarea
+                                        value={body}
+                                        onChange={(event) => setBody(event.target.value)}
+                                        placeholder="Write a message..."
+                                        className="min-h-10 resize-none"
+                                    />
                                     <Button
                                         type="button"
                                         className="h-10"
@@ -731,15 +1048,24 @@ export default function Messages() {
                             <InfoRow label="Quote" value={`${order.quote_credits} credits`} />
                             <InfoRow label="Escrow" value={`${order.escrow_credits} credits`} />
                             <InfoRow label="Released" value={`${order.released_credits} credits`} />
-                            {order.auto_release_at && <InfoRow label="Auto-release" value={new Date(order.auto_release_at).toLocaleString()} />}
+                            {order.auto_release_at && (
+                                <InfoRow
+                                    label="Auto-release"
+                                    value={new Date(order.auto_release_at).toLocaleString()}
+                                />
+                            )}
                             <div>
                                 <div className="font-medium">Request</div>
-                                <p className="mt-1 whitespace-pre-line text-muted-foreground">{order.request_message}</p>
+                                <p className="mt-1 whitespace-pre-line text-muted-foreground">
+                                    {order.request_message}
+                                </p>
                             </div>
                             {order.reference_notes && (
                                 <div>
                                     <div className="font-medium">References</div>
-                                    <p className="mt-1 whitespace-pre-line text-muted-foreground">{order.reference_notes}</p>
+                                    <p className="mt-1 whitespace-pre-line text-muted-foreground">
+                                        {order.reference_notes}
+                                    </p>
                                 </div>
                             )}
                             {(order.request_answers?.length ?? 0) > 0 && (
@@ -747,24 +1073,118 @@ export default function Messages() {
                                     <div className="font-medium">Request form answers</div>
                                     <div className="mt-2 space-y-2">
                                         {order.request_answers!.map((answer, index) => (
-                                            <div key={`${answer.question_id ?? index}`} className="rounded-lg border p-3">
-                                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{answer.question}</p>
-                                                <p className="mt-1 whitespace-pre-line">{answer.answer || '-'}</p>
+                                            <div
+                                                key={`${answer.question_id ?? index}`}
+                                                className="rounded-lg border p-3"
+                                            >
+                                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                                    {answer.question}
+                                                </p>
+                                                <p className="mt-1 whitespace-pre-line">
+                                                    {answer.answer || '-'}
+                                                </p>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             )}
-                            {order.client_details && Object.entries(order.client_details).some(([field, value]) => field !== 'nickname' && Boolean(value)) && (
-                                <div>
-                                    <div className="font-medium">Wanderer details</div>
-                                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                                        {Object.entries(order.client_details).filter(([field, value]) => field !== 'nickname' && Boolean(value)).map(([field, value]) => (
-                                            <InfoRow key={field} label={clientDetailLabel(field)} value={value} />
-                                        ))}
+                            {order.client_details &&
+                                Object.entries(order.client_details).some(
+                                    ([field, value]) => field !== 'nickname' && Boolean(value)
+                                ) && (
+                                    <div>
+                                        <div className="font-medium">Wanderer details</div>
+                                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                            {Object.entries(order.client_details)
+                                                .filter(
+                                                    ([field, value]) =>
+                                                        field !== 'nickname' && Boolean(value)
+                                                )
+                                                .map(([field, value]) => (
+                                                    <InfoRow
+                                                        key={field}
+                                                        label={clientDetailLabel(field)}
+                                                        value={value}
+                                                    />
+                                                ))}
+                                        </div>
                                     </div>
+                                )}
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={Boolean(quoteDetails)}
+                onOpenChange={(open) => !open && setQuoteDetails(null)}
+            >
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Commission Quote · Version {quoteDetails?.version ?? '-'}
+                        </DialogTitle>
+                    </DialogHeader>
+                    {quoteDetails && (
+                        <div className="space-y-4 text-sm">
+                            <div className="rounded-xl border bg-muted/20 p-4">
+                                <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                                    Quote amount
+                                </div>
+                                <div className="mt-1 text-2xl font-bold">
+                                    {quoteDetails.quote_credits} credits
+                                </div>
+                                <div className="mt-2 text-xs capitalize text-muted-foreground">
+                                    Status: {quoteDetails.status.replace(/_/g, ' ')}
+                                </div>
+                            </div>
+                            {quoteDetails.quote_note && (
+                                <div>
+                                    <div className="font-semibold">Artist note</div>
+                                    <p className="mt-1 whitespace-pre-line text-muted-foreground">
+                                        {quoteDetails.quote_note}
+                                    </p>
                                 </div>
                             )}
+                            {quoteDetails.renegotiation_reason && (
+                                <div className="rounded-xl border p-4">
+                                    <div className="font-semibold">New quote request</div>
+                                    <p className="mt-2 whitespace-pre-line text-muted-foreground">
+                                        {quoteDetails.renegotiation_reason}
+                                    </p>
+                                    {quoteDetails.preferred_credits !== null && (
+                                        <p className="mt-2">
+                                            Preferred budget: {quoteDetails.preferred_credits}{' '}
+                                            credits
+                                        </p>
+                                    )}
+                                    {quoteDetails.requested_changes && (
+                                        <p className="mt-2 whitespace-pre-line text-muted-foreground">
+                                            Requested changes: {quoteDetails.requested_changes}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                            <div>
+                                <div className="font-semibold">Commission flow</div>
+                                <div className="mt-2 space-y-2">
+                                    {quoteDetails.flow_snapshot.map((step, index) => (
+                                        <div
+                                            key={`${step.label}-${index}`}
+                                            className="rounded-lg border px-3 py-2"
+                                        >
+                                            <span className="font-medium">
+                                                {index + 1}. {step.label}
+                                            </span>
+                                            {typeof step.percent === 'number' && (
+                                                <span className="ml-2 text-muted-foreground">
+                                                    {step.percent}%
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </DialogContent>
@@ -772,78 +1192,260 @@ export default function Messages() {
 
             <Dialog open={quoteOpen} onOpenChange={setQuoteOpen}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Send quote</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>
+                            {hasQuoteHistory ? 'Change quote' : 'Create quote'}
+                        </DialogTitle>
+                    </DialogHeader>
                     <div className="space-y-3">
+                        {latestQuote?.status === 'renegotiation_requested' && (
+                            <div className="rounded-xl border bg-muted/30 p-3 text-sm">
+                                <div className="font-semibold">Wanderer requested a new quote</div>
+                                {latestQuote.preferred_credits !== null && (
+                                    <p className="mt-2">
+                                        Preferred budget: {latestQuote.preferred_credits} credits
+                                    </p>
+                                )}
+                                {latestQuote.renegotiation_reason && (
+                                    <p className="mt-2 whitespace-pre-line text-muted-foreground">
+                                        Reason: {latestQuote.renegotiation_reason}
+                                    </p>
+                                )}
+                                {latestQuote.requested_changes && (
+                                    <p className="mt-2 whitespace-pre-line text-muted-foreground">
+                                        Requested changes: {latestQuote.requested_changes}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                         <div className="grid gap-1.5">
                             <Label>Quote credits</Label>
-                            <Input type="number" min={0} value={quoteCredits} onChange={(event) => setQuoteCredits(Number(event.target.value) || 0)} />
+                            <Input
+                                type="number"
+                                min={0}
+                                value={quoteCredits}
+                                onChange={(event) =>
+                                    setQuoteCredits(Number(event.target.value) || 0)
+                                }
+                            />
                         </div>
                         <div className="grid gap-1.5">
                             <Label>Quote note</Label>
-                            <Textarea value={quoteNote} onChange={(event) => setQuoteNote(event.target.value)} />
+                            <Textarea
+                                value={quoteNote}
+                                onChange={(event) => setQuoteNote(event.target.value)}
+                            />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setQuoteOpen(false)}>Cancel</Button>
-                        <Button disabled={quoteOrder.isPending} onClick={() => quoteOrder.mutate()}>Send quote</Button>
+                        <Button variant="outline" onClick={() => setQuoteOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button disabled={quoteOrder.isPending} onClick={() => quoteOrder.mutate()}>
+                            {quoteOrder.isPending
+                                ? 'Sending...'
+                                : hasQuoteHistory
+                                  ? 'Send changed quote'
+                                  : 'Send quote'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={Boolean(renegotiationQuote)}
+                onOpenChange={(open) => !open && setRenegotiationQuote(null)}
+            >
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Request a New Quote</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <div className="grid gap-1.5">
+                            <Label>Reason</Label>
+                            <Textarea
+                                value={renegotiationReason}
+                                onChange={(event) => setRenegotiationReason(event.target.value)}
+                                className="min-h-28"
+                                placeholder="Explain why you need a changed quote."
+                            />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label>Preferred budget — optional</Label>
+                            <Input
+                                type="number"
+                                min={0}
+                                value={preferredCredits}
+                                onChange={(event) => setPreferredCredits(event.target.value)}
+                                placeholder="70"
+                            />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label>Requested changes — optional</Label>
+                            <Textarea
+                                value={requestedChanges}
+                                onChange={(event) => setRequestedChanges(event.target.value)}
+                                placeholder="Example: remove the detailed background."
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRenegotiationQuote(null)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={
+                                requestNewQuote.isPending || renegotiationReason.trim().length < 5
+                            }
+                            onClick={() => requestNewQuote.mutate()}
+                        >
+                            {requestNewQuote.isPending ? 'Sending...' : 'Send Request'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={Boolean(rejectQuoteTarget)}
+                onOpenChange={(open) => !open && setRejectQuoteTarget(null)}
+            >
+                <DialogContent className="sm:max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Reject Commission Quote</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                            This rejects only the current quote. It does not cancel the commission
+                            request.
+                        </p>
+                        <div className="grid gap-1.5">
+                            <Label>Reason — optional</Label>
+                            <Textarea
+                                value={quoteRejectionReason}
+                                onChange={(event) => setQuoteRejectionReason(event.target.value)}
+                                placeholder="Explain why you rejected this quote."
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRejectQuoteTarget(null)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            disabled={rejectQuote.isPending}
+                            onClick={() => rejectQuote.mutate()}
+                        >
+                            {rejectQuote.isPending ? 'Rejecting...' : 'Reject Quote'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             <Dialog open={stageOpen} onOpenChange={setStageOpen}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Update stage</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>Update stage</DialogTitle>
+                    </DialogHeader>
                     <div className="space-y-3">
                         <div className="grid gap-1.5">
                             <Label>Stage</Label>
-                            <select value={stageIndex} onChange={(event) => setStageIndex(Number(event.target.value))} className="h-10 rounded-md border bg-background px-3 text-sm">
+                            <select
+                                value={stageIndex}
+                                onChange={(event) => setStageIndex(Number(event.target.value))}
+                                className="h-10 rounded-md border bg-background px-3 text-sm"
+                            >
                                 {(order?.flow_snapshot ?? []).map((step, index) => (
-                                    <option key={`${step.label}-${index}`} value={index}>{step.label}{step.rounds ? ` (${step.rounds} attempts)` : ''}</option>
+                                    <option key={`${step.label}-${index}`} value={index}>
+                                        {step.label}
+                                        {step.rounds ? ` (${step.rounds} attempts)` : ''}
+                                    </option>
                                 ))}
                             </select>
                         </div>
-                        <Textarea value={stageNote} onChange={(event) => setStageNote(event.target.value)} placeholder="Stage note for this update." />
+                        <Textarea
+                            value={stageNote}
+                            onChange={(event) => setStageNote(event.target.value)}
+                            placeholder="Stage note for this update."
+                        />
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setStageOpen(false)}>Cancel</Button>
-                        <Button disabled={advanceStage.isPending || !order?.flow_snapshot?.length} onClick={() => advanceStage.mutate()}>Save stage</Button>
+                        <Button variant="outline" onClick={() => setStageOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={advanceStage.isPending || !order?.flow_snapshot?.length}
+                            onClick={() => advanceStage.mutate()}
+                        >
+                            Save stage
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             <Dialog open={revisionOpen} onOpenChange={setRevisionOpen}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Need adjustments</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>Need adjustments</DialogTitle>
+                    </DialogHeader>
                     <div className="space-y-3">
-                        <Textarea value={revisionReason} onChange={(event) => setRevisionReason(event.target.value)} className="min-h-32" placeholder="Explain what needs adjustment." />
+                        <Textarea
+                            value={revisionReason}
+                            onChange={(event) => setRevisionReason(event.target.value)}
+                            className="min-h-32"
+                            placeholder="Explain what needs adjustment."
+                        />
                         <div className="grid gap-1.5">
                             <Label>Return to stage</Label>
-                            <select value={revisionStepIndex} onChange={(event) => setRevisionStepIndex(Number(event.target.value))} className="h-10 rounded-md border bg-background px-3 text-sm">
+                            <select
+                                value={revisionStepIndex}
+                                onChange={(event) =>
+                                    setRevisionStepIndex(Number(event.target.value))
+                                }
+                                className="h-10 rounded-md border bg-background px-3 text-sm"
+                            >
                                 {creativeSteps(order).map(({ step, index }) => (
-                                    <option key={`${step.label}-${index}`} value={index}>{step.label} · {attemptText(order!, index, step)}</option>
+                                    <option key={`${step.label}-${index}`} value={index}>
+                                        {step.label} · {attemptText(order!, index, step)}
+                                    </option>
                                 ))}
                             </select>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setRevisionOpen(false)}>Cancel</Button>
-                        <Button disabled={requestRevision.isPending || revisionReason.trim().length < 5} onClick={() => requestRevision.mutate(false)}>Send adjustment</Button>
+                        <Button variant="outline" onClick={() => setRevisionOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={requestRevision.isPending || revisionReason.trim().length < 5}
+                            onClick={() => requestRevision.mutate(false)}
+                        >
+                            Send adjustment
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             <Dialog open={extraAttemptOpen} onOpenChange={setExtraAttemptOpen}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>No attempts left</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>No attempts left</DialogTitle>
+                    </DialogHeader>
                     <div className="space-y-2 text-sm text-muted-foreground">
                         <p>You have used all included attempts for this stage.</p>
                         <p>
-                            Pay {order?.extra_attempt_credits ?? 1} credits for an extra attempt, or continue the original flow.
+                            Pay {order?.extra_attempt_credits ?? 1} credits for an extra attempt, or
+                            continue the original flow.
                         </p>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setExtraAttemptOpen(false)}>Cancel</Button>
-                        <Button disabled={requestRevision.isPending || revisionReason.trim().length < 5} onClick={() => requestRevision.mutate(true)}>
+                        <Button variant="outline" onClick={() => setExtraAttemptOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            disabled={requestRevision.isPending || revisionReason.trim().length < 5}
+                            onClick={() => requestRevision.mutate(true)}
+                        >
                             Pay extra attempt
                         </Button>
                     </DialogFooter>
@@ -852,7 +1454,9 @@ export default function Messages() {
 
             <Dialog open={uploadTypeOpen} onOpenChange={setUploadTypeOpen}>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Image upload type</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>Image upload type</DialogTitle>
+                    </DialogHeader>
                     <div className="grid gap-2">
                         {artistUploadTypes(order).map((type) => (
                             <button
@@ -865,18 +1469,32 @@ export default function Messages() {
                                 }}
                             >
                                 {type === 'image' ? 'Image' : type}
-                                <span className="mt-1 block text-xs normal-case text-muted-foreground">{uploadTypeDescription(type)}</span>
+                                <span className="mt-1 block text-xs normal-case text-muted-foreground">
+                                    {uploadTypeDescription(type)}
+                                </span>
                             </button>
                         ))}
                     </div>
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={Boolean(imagePreview)} onOpenChange={(open) => !open && setImagePreview(null)}>
+            <Dialog
+                open={Boolean(imagePreview)}
+                onOpenChange={(open) => !open && setImagePreview(null)}
+            >
                 <DialogContent className="h-[92dvh] !w-[min(96vw,1320px)] !max-w-none overflow-hidden p-0">
-                    <DialogHeader className="border-b px-4 py-3"><DialogTitle>{imagePreview?.title ?? 'Image'}</DialogTitle></DialogHeader>
+                    <DialogHeader className="border-b px-4 py-3">
+                        <DialogTitle>{imagePreview?.title ?? 'Image'}</DialogTitle>
+                    </DialogHeader>
                     <div className="flex min-h-0 flex-1 items-center justify-center bg-muted p-4">
-                        {imagePreview && <img src={imagePreview.src} alt="" className="max-h-[78dvh] max-w-full object-contain" draggable={false} />}
+                        {imagePreview && (
+                            <img
+                                src={imagePreview.src}
+                                alt=""
+                                className="max-h-[78dvh] max-w-full object-contain"
+                                draggable={false}
+                            />
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>
@@ -908,7 +1526,9 @@ function threadMatchesInboxFilter(thread: Thread, filter: InboxFilter) {
 
 function inboxFilterCounts(threads: Thread[]): Record<InboxFilter, number> {
     return {
-        all: threads.filter((thread) => !thread.archived_at).reduce((sum, thread) => sum + thread.unread_count, 0),
+        all: threads
+            .filter((thread) => !thread.archived_at)
+            .reduce((sum, thread) => sum + thread.unread_count, 0),
         commission: threads
             .filter((thread) => thread.type === 'commission' && !thread.archived_at)
             .reduce((sum, thread) => sum + thread.unread_count, 0),
@@ -966,9 +1586,17 @@ function ServiceHistoryPanel({
                         <span>Status: {order.status.replace('_', ' ')}</span>
                         <span>Quote: {order.quote_credits} credits</span>
                         <span>Paid: {order.escrow_credits} credits</span>
-                        <span>Due: {Math.max(0, order.quote_credits - order.escrow_credits)} credits</span>
+                        <span>
+                            Due: {Math.max(0, order.quote_credits - order.escrow_credits)} credits
+                        </span>
                     </div>
-                    <Button type="button" size="sm" variant="outline" className="mt-3 w-full" onClick={onViewDetails}>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="mt-3 w-full"
+                        onClick={onViewDetails}
+                    >
                         View Details
                     </Button>
                 </div>
@@ -986,12 +1614,17 @@ function ServiceHistoryPanel({
                             type="button"
                             onClick={() => onSelect(thread.id)}
                             className={`w-full rounded-xl border bg-background p-3 text-left text-xs transition hover:bg-muted ${
-                                selectedId === thread.id ? 'border-primary ring-2 ring-primary/20' : ''
+                                selectedId === thread.id
+                                    ? 'border-primary ring-2 ring-primary/20'
+                                    : ''
                             }`}
                         >
-                            <div className="font-semibold">{thread.service?.title ?? 'Commission'}</div>
+                            <div className="font-semibold">
+                                {thread.service?.title ?? 'Commission'}
+                            </div>
                             <div className="mt-1 text-muted-foreground">
-                                {thread.status.replace('_', ' ')} - {thread.escrow_credits}/{thread.quote_credits} credits
+                                {thread.status.replace('_', ' ')} - {thread.escrow_credits}/
+                                {thread.quote_credits} credits
                             </div>
                         </button>
                     ))
@@ -1001,52 +1634,181 @@ function ServiceHistoryPanel({
     )
 }
 
-function CommissionRequestBlock({ order, isArtist, busy, onViewDetails, onQuote, onAccept, onReject }: {
+function CommissionRequestBlock({
+    order,
+    latestQuote,
+    hasQuoteHistory,
+    isArtist,
+    busy,
+    onViewDetails,
+    onQuote,
+    onCancel,
+}: {
     order: OrderInfo
+    latestQuote: CommissionQuote | null
+    hasQuoteHistory: boolean
     isArtist: boolean
     busy: boolean
     onViewDetails: () => void
     onQuote: () => void
-    onAccept: () => void
-    onReject: () => void
+    onCancel: () => void
 }) {
-    if (!['requested', 'quoted'].includes(order.status)) {
-        return (
-            <CenteredBlock>
-                <div className="font-semibold">Commission request</div>
-                <div className="mt-1 text-sm text-muted-foreground">settled to {order.quote_credits} credits</div>
-                <div className="mt-3">
-                    <Button size="sm" variant="outline" onClick={onViewDetails}>View Details</Button>
-                </div>
-            </CenteredBlock>
-        )
+    const requestActive = ['requested', 'quoted'].includes(order.status)
+    const accepted = ['in_progress', 'delivered', 'completed'].includes(order.status)
+
+    let statusText = isArtist ? 'Waiting for your quote' : 'Waiting for artist quote'
+
+    if (accepted || latestQuote?.status === 'accepted') {
+        statusText = 'Commission Quote Accepted.'
+    } else if (latestQuote?.status === 'renegotiation_requested') {
+        statusText = isArtist ? 'Wanderer requested a new quote' : 'Waiting for artist new quote'
+    } else if (latestQuote?.status === 'pending') {
+        statusText = isArtist ? 'Waiting for Wanderer response' : 'Commission quote received'
+    } else if (latestQuote?.status === 'rejected') {
+        statusText = isArtist
+            ? 'Quote rejected · create a new quote'
+            : 'Quote rejected · waiting for artist'
     }
 
     return (
         <CenteredBlock>
-            <div className="font-semibold">Commission request</div>
-            <div className="mt-1 text-sm text-muted-foreground">
-                {order.status === 'quoted' ? `Quote: ${order.quote_credits} credits` : 'Awaiting artist quote'}
-            </div>
-            <div className="mt-3 grid gap-2">
-                <Button size="sm" variant="outline" onClick={onViewDetails}>View Details</Button>
-                {isArtist && <Button size="sm" disabled={busy} onClick={onQuote}>Quote</Button>}
-                {!isArtist && order.status === 'quoted' && (
-                    <Button size="sm" disabled={busy} onClick={onAccept}>Accept Quote</Button>
-                )}
-                <Button size="sm" variant="destructive" disabled={busy} onClick={onReject}>
-                    {isArtist ? 'Cancel' : 'Reject'}
+            <div className="font-semibold">Commission Request</div>
+            <div className="mt-1 text-sm text-muted-foreground">{statusText}</div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <Button size="sm" variant="outline" onClick={onViewDetails}>
+                    View Details
                 </Button>
+                {isArtist && requestActive && (
+                    <Button size="sm" disabled={busy} onClick={onQuote}>
+                        {hasQuoteHistory ? 'Change Quote' : 'Create Quote'}
+                    </Button>
+                )}
+                {requestActive && (
+                    <Button size="sm" variant="destructive" disabled={busy} onClick={onCancel}>
+                        {isArtist ? 'Cancel Commission' : 'Cancel Request'}
+                    </Button>
+                )}
             </div>
         </CenteredBlock>
     )
 }
 
-function AdjustmentMessage({
-    revision,
+function CommissionQuoteBlock({
+    quote,
+    isLatest,
+    isArtist,
+    busy,
+    onViewDetails,
+    onChangeQuote,
+    onAccept,
+    onRequestNew,
+    onReject,
 }: {
-    revision: CommissionRevision
+    quote: CommissionQuote
+    isLatest: boolean
+    isArtist: boolean
+    busy: boolean
+    onViewDetails: () => void
+    onChangeQuote: () => void
+    onAccept: () => void
+    onRequestNew: () => void
+    onReject: () => void
 }) {
+    const statusText: Record<CommissionQuoteStatus, string> = {
+        pending: isArtist ? 'Waiting for Wanderer response' : 'Review this quote',
+        renegotiation_requested: isArtist
+            ? 'Wanderer requested a new quote'
+            : 'New Quote Requested',
+        superseded: 'Superseded by a newer quote',
+        accepted: 'Accepted',
+        rejected: 'Rejected',
+        withdrawn: 'Withdrawn',
+    }
+
+    return (
+        <CenteredBlock>
+            <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Commission Quote · Version {quote.version}
+            </div>
+            <div className="mt-2 text-2xl font-bold">{quote.quote_credits} credits</div>
+            {quote.quote_note && (
+                <p className="mt-2 line-clamp-3 whitespace-pre-line text-sm text-muted-foreground">
+                    {quote.quote_note}
+                </p>
+            )}
+            <div className="mt-2 text-xs text-muted-foreground">{statusText[quote.status]}</div>
+            <div className="mt-3 grid gap-2">
+                <Button size="sm" variant="outline" onClick={onViewDetails}>
+                    View Details
+                </Button>
+
+                {quote.status === 'pending' && isLatest && !isArtist && (
+                    <>
+                        <Button size="sm" disabled={busy} onClick={onAccept}>
+                            Accept Quote
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={busy} onClick={onRequestNew}>
+                            Request New Quote
+                        </Button>
+                        <Button size="sm" variant="destructive" disabled={busy} onClick={onReject}>
+                            Reject Quote
+                        </Button>
+                    </>
+                )}
+
+                {quote.status === 'pending' && isLatest && isArtist && (
+                    <Button size="sm" disabled={busy} onClick={onChangeQuote}>
+                        Change Quote
+                    </Button>
+                )}
+
+                {quote.status === 'renegotiation_requested' && isLatest && isArtist && (
+                    <Button size="sm" disabled={busy} onClick={onChangeQuote}>
+                        Create New Quote
+                    </Button>
+                )}
+
+                {quote.status === 'renegotiation_requested' && !isArtist && (
+                    <Button size="sm" variant="outline" disabled>
+                        New Quote Requested
+                    </Button>
+                )}
+
+                {quote.status === 'rejected' && isLatest && isArtist && (
+                    <Button size="sm" disabled={busy} onClick={onChangeQuote}>
+                        Create New Quote
+                    </Button>
+                )}
+
+                {['accepted', 'rejected', 'superseded', 'withdrawn'].includes(quote.status) && (
+                    <Button size="sm" variant="outline" disabled>
+                        {quote.status === 'accepted'
+                            ? 'Accepted'
+                            : quote.status === 'rejected'
+                              ? 'Rejected'
+                              : quote.status === 'superseded'
+                                ? 'Superseded'
+                                : 'Withdrawn'}
+                    </Button>
+                )}
+            </div>
+        </CenteredBlock>
+    )
+}
+
+function SystemMessageBlock({ message }: { message: Message }) {
+    return (
+        <div className="flex justify-center">
+            <div className="max-w-lg rounded-xl border bg-muted/60 px-4 py-3 text-center text-sm">
+                <p className="whitespace-pre-line break-words [overflow-wrap:anywhere]">
+                    {message.body}
+                </p>
+            </div>
+        </div>
+    )
+}
+
+function AdjustmentMessage({ revision }: { revision: CommissionRevision }) {
     return (
         <div className="space-y-2">
             <div className="flex justify-center">
@@ -1056,7 +1818,9 @@ function AdjustmentMessage({
             </div>
             <div className="flex justify-center">
                 <div className="w-fit max-w-[76%] rounded-xl bg-muted px-4 py-2 text-center text-sm">
-                    <p className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{revision.reason}</p>
+                    <p className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                        {revision.reason}
+                    </p>
                     {revision.extra_attempt_credits > 0 && (
                         <div className="mt-1 text-[10px] opacity-70">
                             Extra attempt paid: {revision.extra_attempt_credits} credits
@@ -1068,7 +1832,16 @@ function AdjustmentMessage({
     )
 }
 
-function StageSubmissionBlock({ message, mine, needsAdjustment, isArtist, busy, onApprove, onAdjustment, onPreview }: {
+function StageSubmissionBlock({
+    message,
+    mine,
+    needsAdjustment,
+    isArtist,
+    busy,
+    onApprove,
+    onAdjustment,
+    onPreview,
+}: {
     message: Message
     mine: boolean
     needsAdjustment: boolean
@@ -1079,21 +1852,33 @@ function StageSubmissionBlock({ message, mine, needsAdjustment, isArtist, busy, 
     onPreview: (src: string, title: string) => void
 }) {
     const imageSrc = message.image_path ? storageUrl(message.image_path) : null
-    const statusText = needsAdjustment ? 'Need adjustment' : (message.approval_status ?? 'submitted')
+    const statusText = needsAdjustment
+        ? 'Need adjustment'
+        : (message.approval_status ?? 'submitted')
 
     return (
         <AlignedBlock mine={mine}>
             <div className="font-semibold">Image Submitted</div>
-            <div className="mt-1 text-sm capitalize text-muted-foreground">{message.upload_type}</div>
+            <div className="mt-1 text-sm capitalize text-muted-foreground">
+                {message.upload_type}
+            </div>
             {imageSrc && (
-                <button type="button" className="mx-auto mt-3 block h-32 w-32 overflow-hidden rounded-lg bg-muted" onClick={() => onPreview(imageSrc, `${message.upload_type} image`)}>
+                <button
+                    type="button"
+                    className="mx-auto mt-3 block h-32 w-32 overflow-hidden rounded-lg bg-muted"
+                    onClick={() => onPreview(imageSrc, `${message.upload_type} image`)}
+                >
                     <img src={imageSrc} alt="" className="h-full w-full object-cover" />
                 </button>
             )}
             {message.approval_status === 'pending' && !needsAdjustment && !isArtist ? (
                 <div className="mt-3 grid gap-2">
-                    <Button size="sm" disabled={busy} onClick={onApprove}>Approve</Button>
-                    <Button size="sm" variant="outline" onClick={onAdjustment}>Adjustment</Button>
+                    <Button size="sm" disabled={busy} onClick={onApprove}>
+                        Approve
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={onAdjustment}>
+                        Adjustment
+                    </Button>
                 </div>
             ) : (
                 <div className="mt-3 text-xs capitalize text-muted-foreground">{statusText}</div>
@@ -1102,7 +1887,16 @@ function StageSubmissionBlock({ message, mine, needsAdjustment, isArtist, busy, 
     )
 }
 
-function FinalDeliveryBlock({ message, order, mine, isArtist, busy, onPayFinal, onArchive, onPreview }: {
+function FinalDeliveryBlock({
+    message,
+    order,
+    mine,
+    isArtist,
+    busy,
+    onPayFinal,
+    onArchive,
+    onPreview,
+}: {
     message: Message
     order: OrderInfo
     mine: boolean
@@ -1112,30 +1906,100 @@ function FinalDeliveryBlock({ message, order, mine, isArtist, busy, onPayFinal, 
     onArchive: () => void
     onPreview: (src: string, title: string) => void
 }) {
+    const [isDownloading, setIsDownloading] = useState(false)
     const file = message.delivery_file
     const finalUnlocked = order.status === 'completed' || Boolean(order.final_payment_paid_at)
-    const previewSrc = file ? storageUrl(finalUnlocked ? file.file_path : (file.preview_path ?? file.file_path)) : (message.image_path ? storageUrl(message.image_path) : null)
-    const originalSrc = file ? storageUrl(file.file_path) : null
+    const previewSrc = file
+        ? storageUrl(finalUnlocked ? file.file_path : (file.preview_path ?? file.file_path))
+        : message.image_path
+          ? storageUrl(message.image_path)
+          : null
+
+    const downloadOriginal = async () => {
+        if (!file || isDownloading) return
+
+        setIsDownloading(true)
+        try {
+            const response = await commissionApi.downloadDeliveryFile(order.id, file.id)
+            const blob = response.data instanceof Blob ? response.data : new Blob([response.data])
+            const objectUrl = window.URL.createObjectURL(blob)
+            const anchor = document.createElement('a')
+
+            anchor.href = objectUrl
+            anchor.download = file.original_name?.trim() || `commission-${order.id}-delivery`
+            anchor.style.display = 'none'
+            document.body.appendChild(anchor)
+            anchor.click()
+            anchor.remove()
+
+            window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1000)
+        } catch (error: any) {
+            toast.error(error?.response?.data?.message ?? 'Could not download the original file.')
+        } finally {
+            setIsDownloading(false)
+        }
+    }
 
     return (
         <AlignedBlock mine={mine}>
             <div className="font-semibold">Final Art Image</div>
-            <div className="mt-1 text-sm text-muted-foreground">{finalUnlocked ? 'Original Image' : 'Watermarked Image'}</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+                {finalUnlocked ? 'Original Image' : 'Watermarked Image'}
+            </div>
             {previewSrc && (
-                <button type="button" className="mx-auto mt-3 block h-36 w-36 overflow-hidden rounded-lg bg-muted" onClick={() => onPreview(previewSrc, finalUnlocked ? 'Final art original' : 'Final art preview')}>
+                <button
+                    type="button"
+                    className="mx-auto mt-3 block h-36 w-36 overflow-hidden rounded-lg bg-muted"
+                    onClick={() =>
+                        onPreview(
+                            previewSrc,
+                            finalUnlocked ? 'Final art original' : 'Final art preview'
+                        )
+                    }
+                >
                     <img src={previewSrc} alt="" className="h-full w-full object-cover" />
                 </button>
             )}
             <div className="mt-3 grid gap-2">
-                {previewSrc && <Button size="sm" variant="outline" onClick={() => onPreview(previewSrc, finalUnlocked ? 'Final art original' : 'Final art preview')}>View</Button>}
-                {!isArtist && !finalUnlocked && <Button size="sm" disabled={busy} onClick={onPayFinal}>Final Pay</Button>}
-                {!isArtist && finalUnlocked && originalSrc && (
-                    <Button asChild size="sm">
-                        <a href={originalSrc} download><Download className="mr-1 h-4 w-4" />Download</a>
+                {previewSrc && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                            onPreview(
+                                previewSrc,
+                                finalUnlocked ? 'Final art original' : 'Final art preview'
+                            )
+                        }
+                    >
+                        View
+                    </Button>
+                )}
+                {!isArtist && !finalUnlocked && (
+                    <Button type="button" size="sm" disabled={busy} onClick={onPayFinal}>
+                        Final Pay
+                    </Button>
+                )}
+                {!isArtist && finalUnlocked && file && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={busy || isDownloading}
+                        onClick={downloadOriginal}
+                    >
+                        <Download className="mr-1 h-4 w-4" />
+                        {isDownloading ? 'Downloading...' : 'Download'}
                     </Button>
                 )}
                 {isArtist && order.status === 'completed' && (
-                    <Button size="sm" variant="outline" disabled={busy || Boolean(order.archived_at)} onClick={onArchive}>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={busy || Boolean(order.archived_at)}
+                        onClick={onArchive}
+                    >
                         {order.archived_at ? 'Archived' : 'Archive'}
                     </Button>
                 )}
@@ -1147,7 +2011,9 @@ function FinalDeliveryBlock({ message, order, mine, isArtist, busy, onPayFinal, 
 function AlignedBlock({ children, mine }: { children: ReactNode; mine: boolean }) {
     return (
         <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-            <div className="w-full max-w-xs rounded-xl border bg-background p-4 text-center shadow-sm">{children}</div>
+            <div className="w-full max-w-xs rounded-xl border bg-background p-4 text-center shadow-sm">
+                {children}
+            </div>
         </div>
     )
 }
@@ -1155,7 +2021,9 @@ function AlignedBlock({ children, mine }: { children: ReactNode; mine: boolean }
 function CenteredBlock({ children }: { children: ReactNode }) {
     return (
         <div className="flex justify-center">
-            <div className="w-full max-w-xs rounded-xl border bg-background p-4 text-center shadow-sm">{children}</div>
+            <div className="w-full max-w-xs rounded-xl border bg-background p-4 text-center shadow-sm">
+                {children}
+            </div>
         </div>
     )
 }
@@ -1184,25 +2052,59 @@ function MessageSettingsDialog({
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-2xl">
-                <DialogHeader><DialogTitle>Message settings</DialogTitle></DialogHeader>
+                <DialogHeader>
+                    <DialogTitle>Message settings</DialogTitle>
+                </DialogHeader>
                 <div className="space-y-4">
                     <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={draft.message_read_receipts_enabled} onChange={(event) => setDraft((current) => ({ ...current, message_read_receipts_enabled: event.target.checked }))} />
+                        <input
+                            type="checkbox"
+                            checked={draft.message_read_receipts_enabled}
+                            onChange={(event) =>
+                                setDraft((current) => ({
+                                    ...current,
+                                    message_read_receipts_enabled: event.target.checked,
+                                }))
+                            }
+                        />
                         Read receipts
                     </label>
-                    <AssetPicker label="Message Design" value={draft.message_design_id} assets={designs} onChange={(message_design_id) => setDraft((current) => ({ ...current, message_design_id }))} />
-                    <AssetPicker label="Message Background" value={draft.message_background_id} assets={backgrounds} onChange={(message_background_id) => setDraft((current) => ({ ...current, message_background_id }))} />
+                    <AssetPicker
+                        label="Message Design"
+                        value={draft.message_design_id}
+                        assets={designs}
+                        onChange={(message_design_id) =>
+                            setDraft((current) => ({ ...current, message_design_id }))
+                        }
+                    />
+                    <AssetPicker
+                        label="Message Background"
+                        value={draft.message_background_id}
+                        assets={backgrounds}
+                        onChange={(message_background_id) =>
+                            setDraft((current) => ({ ...current, message_background_id }))
+                        }
+                    />
                 </div>
                 <DialogFooter>
-                    <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                    <Button disabled={busy} onClick={() => onSave(draft)}>Save</Button>
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button disabled={busy} onClick={() => onSave(draft)}>
+                        Save
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
     )
 }
 
-function AssetPicker({ label, value, assets, onChange }: {
+function AssetPicker({
+    label,
+    value,
+    assets,
+    onChange,
+}: {
     label: string
     value: string | null
     assets: RoyaltyDesignAsset[]
@@ -1212,10 +2114,26 @@ function AssetPicker({ label, value, assets, onChange }: {
         <div className="space-y-2">
             <Label>{label}</Label>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-                <button type="button" onClick={() => onChange(null)} className={`flex h-20 items-center justify-center rounded-lg border text-xs ${!value ? 'border-primary bg-primary/10' : ''}`}>Default</button>
+                <button
+                    type="button"
+                    onClick={() => onChange(null)}
+                    className={`flex h-20 items-center justify-center rounded-lg border text-xs ${!value ? 'border-primary bg-primary/10' : ''}`}
+                >
+                    Default
+                </button>
                 {assets.map((asset) => (
-                    <button key={asset.id} type="button" onClick={() => onChange(asset.id)} className={`overflow-hidden rounded-lg border ${value === asset.id ? 'border-primary ring-2 ring-primary/30' : ''}`} title={asset.name}>
-                        <img src={storageUrl(asset.image_path)!} alt={asset.name} className="h-20 w-full object-cover" />
+                    <button
+                        key={asset.id}
+                        type="button"
+                        onClick={() => onChange(asset.id)}
+                        className={`overflow-hidden rounded-lg border ${value === asset.id ? 'border-primary ring-2 ring-primary/30' : ''}`}
+                        title={asset.name}
+                    >
+                        <img
+                            src={storageUrl(asset.image_path)!}
+                            alt={asset.name}
+                            className="h-20 w-full object-cover"
+                        />
                     </button>
                 ))}
             </div>
@@ -1229,7 +2147,11 @@ function creativeSteps(order: OrderInfo | null) {
         .filter(({ step }) => ['sketch', 'revision', 'draft', 'add'].includes(step.type))
 }
 
-function buildTimeline(messages: Message[], revisions: CommissionRevision[]) {
+function buildTimeline(
+    messages: Message[],
+    revisions: CommissionRevision[],
+    quotes: CommissionQuote[]
+) {
     const messageItems = messages.map((message) => ({
         type: 'message' as const,
         createdAt: message.created_at,
@@ -1240,13 +2162,26 @@ function buildTimeline(messages: Message[], revisions: CommissionRevision[]) {
         createdAt: revision.created_at,
         revision,
     }))
+    const quoteItems = quotes.map((quote) => ({
+        type: 'quote' as const,
+        createdAt: quote.created_at,
+        quote,
+    }))
+    const priority = { quote: 0, revision: 1, message: 2 } as const
 
-    return [...messageItems, ...revisionItems].sort(
-        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    )
+    return [...messageItems, ...revisionItems, ...quoteItems].sort((a, b) => {
+        const timeDifference = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+
+        if (timeDifference !== 0) return timeDifference
+        return priority[a.type] - priority[b.type]
+    })
 }
 
-function visibleRevisionItems(revisions: CommissionRevision[], messages: Message[], hasMore: boolean) {
+function visibleRevisionItems(
+    revisions: CommissionRevision[],
+    messages: Message[],
+    hasMore: boolean
+) {
     if (!hasMore || messages.length === 0) return revisions
 
     const oldestLoadedAt = new Date(messages[0].created_at).getTime()
@@ -1263,7 +2198,8 @@ function mergeMessages(olderMessages: Message[], currentMessages: Message[]) {
 }
 
 function submissionNeedsAdjustment(message: Message, order: OrderInfo | null) {
-    if (!order || message.kind !== 'stage_submission' || message.approval_status !== 'pending') return false
+    if (!order || message.kind !== 'stage_submission' || message.approval_status !== 'pending')
+        return false
 
     return order.revisions.some((revision) => {
         if (!['requested', 'pending'].includes(revision.status ?? '')) return false
@@ -1277,7 +2213,8 @@ function submissionNeedsAdjustment(message: Message, order: OrderInfo | null) {
 
 function defaultCreativeStepIndex(order: OrderInfo) {
     const current = order.current_step_index ?? 0
-    if (['sketch', 'revision', 'draft', 'add'].includes(order.flow_snapshot[current]?.type)) return current
+    if (['sketch', 'revision', 'draft', 'add'].includes(order.flow_snapshot[current]?.type))
+        return current
     return creativeSteps(order)[0]?.index ?? 0
 }
 
@@ -1290,7 +2227,8 @@ function attemptText(order: OrderInfo, index: number, step: CommissionStep) {
 function artistUploadTypes(order: OrderInfo | null): UploadType[] {
     const types: UploadType[] = ['image']
     if ((order?.flow_snapshot ?? []).some((step) => step.type === 'sketch')) types.push('sketch')
-    if ((order?.flow_snapshot ?? []).some((step) => step.type === 'revision')) types.push('revision')
+    if ((order?.flow_snapshot ?? []).some((step) => step.type === 'revision'))
+        types.push('revision')
     types.push('final')
     return types
 }
@@ -1298,13 +2236,24 @@ function artistUploadTypes(order: OrderInfo | null): UploadType[] {
 function uploadTypeDescription(type: UploadType) {
     if (type === 'sketch') return 'Submits a sketch and waits for approval or adjustment.'
     if (type === 'revision') return 'Submits a revision and waits for approval or adjustment.'
-    if (type === 'final') return 'Submits the final art with a watermarked preview and final payment.'
+    if (type === 'final')
+        return 'Submits the final art with a watermarked preview and final payment.'
     return 'Sends a normal chat image without changing the commission flow.'
 }
 
 function stageStatus(order: OrderInfo) {
+    const quotes = order.quotes ?? []
+    const latestQuote = quotes.length > 0 ? quotes[quotes.length - 1] : null
+
+    if (latestQuote?.status === 'renegotiation_requested') return 'New quote requested'
+    if (latestQuote?.status === 'pending') return 'Waiting for quote response'
+    if (latestQuote?.status === 'rejected') return 'Quote rejected'
+    if (latestQuote?.status === 'accepted') return 'Quote accepted'
+
     const step = order.flow_snapshot?.[order.current_step_index]
-    return step?.label ? `${step.label} · ${order.status.replace('_', ' ')}` : order.status.replace('_', ' ')
+    return step?.label
+        ? `${step.label} · ${order.status.replace('_', ' ')}`
+        : order.status.replace('_', ' ')
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -1317,14 +2266,18 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 function clientDetailLabel(field: string) {
-    return ({
-        name: 'Name',
-        username: 'Username',
-        email: 'Email',
-        discord: 'Discord',
-        twitter: 'Twitter / X',
-        instagram: 'Instagram',
-        facebook: 'Facebook',
-        tiktok: 'TikTok',
-    } as Record<string, string>)[field] ?? field
+    return (
+        (
+            {
+                name: 'Name',
+                username: 'Username',
+                email: 'Email',
+                discord: 'Discord',
+                twitter: 'Twitter / X',
+                instagram: 'Instagram',
+                facebook: 'Facebook',
+                tiktok: 'TikTok',
+            } as Record<string, string>
+        )[field] ?? field
+    )
 }

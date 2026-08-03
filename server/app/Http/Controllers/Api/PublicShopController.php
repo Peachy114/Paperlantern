@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use ZipArchive;
 
@@ -48,7 +49,9 @@ class PublicShopController extends Controller
             ])
             ->latest()
             ->paginate($limit)
-            ->through(fn(ShopItem $item) => $this->formatShopItem($item, $user));
+            ->through(
+                fn(ShopItem $item) => $this->formatShopItem($item, $user)
+            );
 
         $stickers = ArtistSticker::query()
             ->with('user:id,name,username,avatar,role')
@@ -57,11 +60,13 @@ class PublicShopController extends Controller
             ->latest()
             ->limit($limit)
             ->get()
-            ->map(fn(ArtistSticker $sticker) => $this->formatSticker(
-                $sticker,
-                $user,
-                $ownedStickerIds->has($sticker->id),
-            ))
+            ->map(
+                fn(ArtistSticker $sticker) => $this->formatSticker(
+                    $sticker,
+                    $user,
+                    $ownedStickerIds->has($sticker->id),
+                )
+            )
             ->values();
 
         return response()->json([
@@ -73,6 +78,16 @@ class PublicShopController extends Controller
 
     private function formatShopItem(ShopItem $item, $user): array
     {
+        $isOwner = $user
+            && (string) $item->user_id === (string) $user->id;
+
+        $userRating = $user
+            ? ShopItemRating::query()
+            ->where('shop_item_id', $item->id)
+            ->where('user_id', $user->id)
+            ->first(['rating', 'comment'])
+            : null;
+
         return [
             'id' => $item->id,
             'type' => $item->type,
@@ -82,7 +97,10 @@ class PublicShopController extends Controller
             'labels' => $item->labels ?? [],
             'image_path' => $item->image_path,
             'download_policy' => $item->download_policy,
-            'credit_cost' => $item->download_policy === 'paid' ? (int) $item->credit_cost : 0,
+            'credit_cost' => $item->download_policy === 'paid'
+                ? (int) $item->credit_cost
+                : 0,
+            'is_owner' => (bool) $isOwner,
             'download_unlocked' => $this->unlockedFor($item, $user),
             'downloads_count' => (int) $item->downloads_count,
             'likes' => (int) $item->likes_count,
@@ -91,37 +109,54 @@ class PublicShopController extends Controller
                 ->where('commentable_id', $item->id)
                 ->where('status', 'visible')
                 ->count(),
-            'rating' => round((float) ShopItemRating::where('shop_item_id', $item->id)->avg('rating'), 1),
-            'ratings_count' => ShopItemRating::where('shop_item_id', $item->id)->count(),
-            'user_rating' => $user
-                ? ShopItemRating::where('shop_item_id', $item->id)
-                    ->where('user_id', $user->id)
-                    ->value('rating')
-                : null,
+            'rating' => round(
+                (float) ShopItemRating::where(
+                    'shop_item_id',
+                    $item->id
+                )->avg('rating'),
+                1
+            ),
+            'ratings_count' => ShopItemRating::where(
+                'shop_item_id',
+                $item->id
+            )->count(),
+            'user_rating' => $userRating?->rating,
+            'user_rating_comment' => $userRating?->comment,
             'files_count' => $item->files->count(),
             'usage' => $item->usage ?? [],
             'created_at' => $item->created_at,
             'href' => '/shop',
-            'source' => $item->user?->role === 'super_admin' ? 'admin' : 'artist',
+            'source' => $item->user?->role === 'super_admin'
+                ? 'admin'
+                : 'artist',
             'source_label' => $item->user?->role === 'super_admin'
                 ? 'By Admin'
-                : 'By ' . ($item->user?->name ?? $item->user?->username ?? 'Artist'),
-            'artist' => $item->user ? [
-                'id' => $item->user->id,
-                'name' => $item->user->name,
-                'username' => $item->user->username,
-                'avatar' => $item->user->avatar,
-                'verified' => (bool) $item->user->artist_verified,
-            ] : null,
+                : 'By ' . (
+                    $item->user?->name
+                    ?? $item->user?->username
+                    ?? 'Artist'
+                ),
+            'artist' => $item->user
+                ? [
+                    'id' => $item->user->id,
+                    'name' => $item->user->name,
+                    'username' => $item->user->username,
+                    'avatar' => $item->user->avatar,
+                    'verified' => (bool) $item->user->artist_verified,
+                ]
+                : null,
         ];
     }
 
-    public function purchase(Request $request, ShopItem $shopItem): JsonResponse
-    {
+    public function purchase(
+        Request $request,
+        ShopItem $shopItem
+    ): JsonResponse {
         abort_unless($shopItem->status === 'published', 404);
-        $user = $request->user();
 
-        if ($shopItem->user_id === $user->id) {
+        $user = $request->user('sanctum');
+
+        if ((string) $shopItem->user_id === (string) $user->id) {
             return response()->json([
                 'message' => 'You cannot buy your own shop product from the public page.',
                 'unlocked' => false,
@@ -156,53 +191,72 @@ class PublicShopController extends Controller
             ], 402);
         }
 
-        $result = DB::transaction(function () use ($user, $shopItem, $cost, $wallet) {
-            $transaction = $this->wallets->debit($wallet, $cost, [
-                'source' => 'shop_download',
-                'description' => "Shop Download - {$shopItem->title}",
-                'meta' => ['shop_item_id' => $shopItem->id, 'cost' => $cost],
-            ]);
+        $result = DB::transaction(
+            function () use ($user, $shopItem, $cost, $wallet) {
+                $transaction = $this->wallets->debit($wallet, $cost, [
+                    'source' => 'shop_download',
+                    'description' => "Shop Download - {$shopItem->title}",
+                    'meta' => [
+                        'shop_item_id' => $shopItem->id,
+                        'cost' => $cost,
+                    ],
+                ]);
 
-            if ($transaction === false) {
+                if ($transaction === false) {
+                    return [
+                        'success' => false,
+                        'message' => 'Insufficient credits.',
+                        'balance' => $wallet->fresh()->balance,
+                        'requires_top_up' => true,
+                    ];
+                }
+
+                ShopItemPurchase::create([
+                    'user_id' => $user->id,
+                    'shop_item_id' => $shopItem->id,
+                    'credit_cost' => $cost,
+                ]);
+
+                $shopItem->increment('downloads_count');
+                $shopItem->loadMissing('user');
+
+                if ($shopItem->user) {
+                    $this->commissions->recordEarning(
+                        $user,
+                        $shopItem->user,
+                        $cost,
+                        'shop_download',
+                        $shopItem
+                    );
+                }
+
                 return [
-                    'success' => false,
-                    'message' => 'Insufficient credits.',
-                    'balance' => $wallet->fresh()->balance,
-                    'requires_top_up' => true,
+                    'success' => true,
+                    'message' => 'Shop product unlocked.',
+                    'balance' => $transaction->balance_after,
+                    'unlocked' => true,
                 ];
             }
+        );
 
-            ShopItemPurchase::create([
-                'user_id' => $user->id,
-                'shop_item_id' => $shopItem->id,
-                'credit_cost' => $cost,
-            ]);
-
-            $shopItem->increment('downloads_count');
-            $shopItem->loadMissing('user');
-
-            if ($shopItem->user) {
-                $this->commissions->recordEarning($user, $shopItem->user, $cost, 'shop_download', $shopItem);
-            }
-
-            return [
-                'success' => true,
-                'message' => 'Shop product unlocked.',
-                'balance' => $transaction->balance_after,
-                'unlocked' => true,
-            ];
-        });
-
-        return response()->json($result, $result['success'] ? 200 : 402);
+        return response()->json(
+            $result,
+            $result['success'] ? 200 : 402
+        );
     }
 
-    public function rate(Request $request, ShopItem $shopItem): JsonResponse
-    {
+    public function rate(
+        Request $request,
+        ShopItem $shopItem
+    ): JsonResponse {
         abort_unless($shopItem->status === 'published', 404);
-        $user = $request->user();
 
-        if ($shopItem->user_id === $user->id) {
-            return response()->json(['message' => 'You cannot rate your own shop product.'], 422);
+        $user = $request->user('sanctum');
+
+        if ((string) $shopItem->user_id === (string) $user->id) {
+            return response()->json([
+                'message' => 'You cannot rate your own shop product.',
+            ], 422);
         }
 
         if (! $this->unlockedFor($shopItem, $user)) {
@@ -232,27 +286,61 @@ class PublicShopController extends Controller
         return response()->json([
             'message' => 'Shop rating saved.',
             'rating' => $rating,
-            'average_rating' => round((float) ShopItemRating::where('shop_item_id', $shopItem->id)->avg('rating'), 1),
-            'ratings_count' => ShopItemRating::where('shop_item_id', $shopItem->id)->count(),
+            'average_rating' => round(
+                (float) ShopItemRating::where(
+                    'shop_item_id',
+                    $shopItem->id
+                )->avg('rating'),
+                1
+            ),
+            'ratings_count' => ShopItemRating::where(
+                'shop_item_id',
+                $shopItem->id
+            )->count(),
         ]);
     }
 
-    public function download(Request $request, ShopItem $shopItem): StreamedResponse|JsonResponse
-    {
+    public function download(
+        Request $request,
+        ShopItem $shopItem
+    ): StreamedResponse|BinaryFileResponse|JsonResponse {
         abort_unless($shopItem->status === 'published', 404);
+
+        $user = $request->user('sanctum');
+
+        if (
+            $user
+            && (string) $shopItem->user_id === (string) $user->id
+        ) {
+            return response()->json([
+                'message' => 'You cannot download your own artwork.',
+            ], 422);
+        }
+
         $shopItem->loadMissing('files');
 
-        if ($shopItem->download_policy === 'paid' && ! $this->unlockedFor($shopItem, $request->user())) {
+        if (
+            $shopItem->download_policy === 'paid'
+            && ! $this->unlockedFor($shopItem, $user)
+        ) {
             return response()->json([
                 'message' => 'Buy this shop product before downloading.',
                 'requires_purchase' => true,
                 'credit_cost' => (int) $shopItem->credit_cost,
-            ], $request->user() ? 402 : 401);
+            ], $user ? 402 : 401);
         }
 
-        $files = $shopItem->files->filter(fn($file) => Storage::disk('local')->exists($file->file_path))->values();
+        $files = $shopItem->files
+            ->filter(
+                fn($file) => Storage::disk('local')
+                    ->exists($file->file_path)
+            )
+            ->values();
+
         if ($files->isEmpty()) {
-            return response()->json(['message' => 'Shop files were not found.'], 404);
+            return response()->json([
+                'message' => 'Shop files were not found.',
+            ], 404);
         }
 
         if ($files->count() === 1) {
@@ -264,12 +352,27 @@ class PublicShopController extends Controller
             );
         }
 
-        $zipPath = storage_path('app/tmp/shop-downloads/' . $shopItem->id . '-' . now()->timestamp . '.zip');
+        $zipPath = storage_path(
+            'app/tmp/shop-downloads/'
+                . $shopItem->id
+                . '-'
+                . now()->timestamp
+                . '.zip'
+        );
+
         File::ensureDirectoryExists(dirname($zipPath));
 
         $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            return response()->json(['message' => 'Could not prepare the download bundle.'], 500);
+
+        if (
+            $zip->open(
+                $zipPath,
+                ZipArchive::CREATE | ZipArchive::OVERWRITE
+            ) !== true
+        ) {
+            return response()->json([
+                'message' => 'Could not prepare the download bundle.',
+            ], 500);
         }
 
         foreach ($files as $file) {
@@ -278,9 +381,15 @@ class PublicShopController extends Controller
                 $file->original_name ?: basename($file->file_path)
             );
         }
+
         $zip->close();
 
-        return response()->download($zipPath, $this->downloadName($shopItem, 'zip'))->deleteFileAfterSend(true);
+        return response()
+            ->download(
+                $zipPath,
+                $this->downloadName($shopItem, 'zip')
+            )
+            ->deleteFileAfterSend(true);
     }
 
     private function unlockedFor(ShopItem $item, $user): bool
@@ -298,16 +407,23 @@ class PublicShopController extends Controller
             ->exists();
     }
 
-    private function downloadName(ShopItem $item, string $extension = 'zip'): string
-    {
+    private function downloadName(
+        ShopItem $item,
+        string $extension = 'zip'
+    ): string {
         $base = str($item->title)->slug()->value() ?: 'shop-product';
 
         return "{$base}.{$extension}";
     }
 
-    private function formatSticker(ArtistSticker $sticker, $user, bool $purchased): array
-    {
-        $isCreator = $user && $sticker->user_id === $user->id;
+    private function formatSticker(
+        ArtistSticker $sticker,
+        $user,
+        bool $purchased
+    ): array {
+        $isCreator = $user
+            && (string) $sticker->user_id === (string) $user->id;
+
         $owned = (bool) ($isCreator || $purchased);
 
         return [
@@ -317,7 +433,11 @@ class PublicShopController extends Controller
             'bundle_name' => $sticker->bundle_name,
             'image_path' => $sticker->image_path,
             'is_free' => (bool) $sticker->is_free,
-            'credit_cost' => (int) ($sticker->is_free ? 0 : max(1, $sticker->credit_cost ?? 1)),
+            'credit_cost' => (int) (
+                $sticker->is_free
+                ? 0
+                : max(1, $sticker->credit_cost ?? 1)
+            ),
             'subscription_free' => (bool) $sticker->subscription_free,
             'owned' => $owned,
             'can_use' => $owned,
@@ -329,16 +449,24 @@ class PublicShopController extends Controller
                 'messages' => false,
             ],
             'href' => '/noble-royalty',
-            'source' => $sticker->user?->role === 'super_admin' ? 'admin' : 'artist',
+            'source' => $sticker->user?->role === 'super_admin'
+                ? 'admin'
+                : 'artist',
             'source_label' => $sticker->user?->role === 'super_admin'
                 ? 'By Admin'
-                : 'By ' . ($sticker->user?->name ?? $sticker->user?->username ?? 'Artist'),
-            'artist' => $sticker->user ? [
-                'id' => $sticker->user->id,
-                'name' => $sticker->user->name,
-                'username' => $sticker->user->username,
-                'avatar' => $sticker->user->avatar,
-            ] : null,
+                : 'By ' . (
+                    $sticker->user?->name
+                    ?? $sticker->user?->username
+                    ?? 'Artist'
+                ),
+            'artist' => $sticker->user
+                ? [
+                    'id' => $sticker->user->id,
+                    'name' => $sticker->user->name,
+                    'username' => $sticker->user->username,
+                    'avatar' => $sticker->user->avatar,
+                ]
+                : null,
         ];
     }
 }

@@ -14,6 +14,7 @@ use App\Models\EarningTransaction;
 use App\Models\FeatureBoost;
 use App\Models\Ticket;
 use App\Services\CommissionOrderService;
+use App\Services\CommissionQuoteService;
 use App\Services\ArtWatermarkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,11 @@ use Illuminate\Support\Facades\Storage;
 
 class CommissionController extends Controller
 {
-    public function __construct(private CommissionOrderService $orders, private ArtWatermarkService $watermarks) {}
+    public function __construct(
+        private CommissionOrderService $orders,
+        private CommissionQuoteService $quotes,
+        private ArtWatermarkService $watermarks,
+    ) {}
 
     public function show(Request $request): JsonResponse
     {
@@ -198,7 +203,7 @@ class CommissionController extends Controller
             'flow.*.rounds' => ['nullable', 'integer', 'min:0', 'max:50'],
         ]);
 
-        $order = $this->orders->sendQuote(
+        $result = $this->quotes->sendQuote(
             $order,
             $request->user(),
             (int) $validated['quote_credits'],
@@ -208,7 +213,8 @@ class CommissionController extends Controller
 
         return response()->json([
             'message' => 'Commission quote sent.',
-            'order' => $this->formatOrder($order),
+            'order' => $this->formatOrder($result['order']),
+            'quote' => CommissionQuoteService::formatQuote($result['quote']),
         ]);
     }
 
@@ -765,7 +771,7 @@ class CommissionController extends Controller
             'delivery_files' => $order->relationLoaded('deliveryFiles')
                 ? $order->deliveryFiles->map(fn(CommissionDeliveryFile $file) => \App\Http\Controllers\Api\CommissionAccountController::formatDeliveryFile($file))->values()
                 : [],
-                'service' => $order->service ? [
+            'service' => $order->service ? [
                 'id' => $order->service->id,
                 'title' => $order->service->title,
                 'slug' => $order->service->slug,

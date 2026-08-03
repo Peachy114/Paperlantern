@@ -89,7 +89,9 @@ class PublicCommissionController extends Controller
             ->latest()
             ->paginate(24);
 
-        $commissions->getCollection()->transform(fn(CommissionService $service) => $this->formatService($service));
+        $commissions->getCollection()->transform(
+            fn(CommissionService $service) => $this->formatService($service)
+        );
 
         return response()->json([
             'categories' => CommissionCategory::query()
@@ -105,10 +107,15 @@ class PublicCommissionController extends Controller
 
     public function show(CommissionService $commission): JsonResponse
     {
-        abort_unless($commission->is_published && in_array($commission->status, ['open', 'waitlist', 'closed'], true), 404);
+        abort_unless(
+            $commission->is_published
+                && in_array($commission->status, ['open', 'waitlist', 'closed'], true),
+            404
+        );
+
         abort_unless(
             $commission->user?->commissionArtistProfile?->application_status === 'approved'
-            && $commission->user?->commissionArtistProfile?->commissions_enabled,
+                && $commission->user?->commissionArtistProfile?->commissions_enabled,
             404
         );
 
@@ -123,6 +130,28 @@ class PublicCommissionController extends Controller
 
     public function request(Request $request, CommissionService $commission): JsonResponse
     {
+        $user = $request->user();
+
+        $commission->loadMissing('user.commissionArtistProfile');
+
+        abort_unless(
+            $commission->is_published
+                && in_array($commission->status, ['open', 'waitlist'], true),
+            404
+        );
+
+        abort_unless(
+            $commission->user?->commissionArtistProfile?->application_status === 'approved'
+                && $commission->user?->commissionArtistProfile?->commissions_enabled,
+            404
+        );
+
+        if ((string) $commission->user_id === (string) $user->id) {
+            return response()->json([
+                'message' => 'You cannot request your own commission.',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'request_message' => ['required', 'string', 'min:10', 'max:3000'],
             'reference_notes' => ['nullable', 'string', 'max:3000'],
@@ -143,28 +172,19 @@ class PublicCommissionController extends Controller
             'agree_to_flow' => ['accepted'],
         ]);
 
-        $commission->loadMissing('user.commissionArtistProfile');
-        abort_unless($commission->is_published && in_array($commission->status, ['open', 'waitlist'], true), 404);
-        abort_unless(
-            $commission->user?->commissionArtistProfile?->application_status === 'approved'
-            && $commission->user?->commissionArtistProfile?->commissions_enabled,
-            404
-        );
-        abort_if($commission->user_id === $request->user()->id, 403, 'You cannot request your own commission service.');
-
         $validated['client_details'] = $this->resolveRequiredRequestFields(
             $commission,
             $validated,
-            $request->user()
+            $user
         );
 
         $flow = $this->flow($commission);
 
-        $order = DB::transaction(function () use ($request, $commission, $validated, $flow) {
+        $order = DB::transaction(function () use ($request, $commission, $validated, $flow, $user) {
             $order = CommissionOrder::create([
                 'commission_service_id' => $commission->id,
                 'artist_id' => $commission->user_id,
-                'customer_id' => $request->user()->id,
+                'customer_id' => $user->id,
                 'status' => 'requested',
                 'request_message' => $validated['request_message'],
                 'reference_notes' => $validated['reference_notes'] ?? null,
@@ -180,24 +200,31 @@ class PublicCommissionController extends Controller
 
             CommissionMessage::create([
                 'commission_order_id' => $order->id,
-                'sender_id' => $request->user()->id,
+                'sender_id' => $user->id,
                 'body' => $validated['request_message'],
                 'kind' => 'message',
             ]);
 
             if ($request->hasFile('reference_image')) {
-                $imagePath = $request->file('reference_image')->store("commission-messages/{$order->id}", 'public');
+                $imagePath = $request->file('reference_image')->store(
+                    "commission-messages/{$order->id}",
+                    'public'
+                );
 
                 CommissionMessage::create([
                     'commission_order_id' => $order->id,
-                    'sender_id' => $request->user()->id,
+                    'sender_id' => $user->id,
                     'body' => 'Reference image attached from the commission request.',
                     'image_path' => $imagePath,
                     'image_moderation_status' => 'pending',
                 ]);
             }
 
-            return $order->fresh(['service.category', 'artist:id,name,username,avatar', 'customer:id,name,username,avatar']);
+            return $order->fresh([
+                'service.category',
+                'artist:id,name,username,avatar',
+                'customer:id,name,username,avatar',
+            ]);
         });
 
         return response()->json([
@@ -237,10 +264,15 @@ class PublicCommissionController extends Controller
             'client_fields' => $this->clientFields($service),
             'promo_discounts' => $service->promo_discounts ?? [],
             'setup_options' => $this->setupOptions($service),
-            'artist_terms' => $profile?->terms_moderation_status === 'approved' ? $profile->terms : null,
+            'artist_terms' => $profile?->terms_moderation_status === 'approved'
+                ? $profile->terms
+                : null,
             'platform_terms' => $this->platformTerms(),
             'rating_average' => round($rating, 2),
-            'ratings_count' => (int) (($service->published_ratings_count ?? 0) ?: ($profile?->ratings_count ?? 0)),
+            'ratings_count' => (int) (
+                ($service->published_ratings_count ?? 0)
+                ?: ($profile?->ratings_count ?? 0)
+            ),
             'customers_count' => (int) ($profile?->customers_count ?? 0),
             'category' => $service->category ? [
                 'id' => $service->category->id,
@@ -367,8 +399,11 @@ class PublicCommissionController extends Controller
         ];
     }
 
-    private function resolveRequiredRequestFields(CommissionService $commission, array $validated, User $user): array
-    {
+    private function resolveRequiredRequestFields(
+        CommissionService $commission,
+        array $validated,
+        User $user
+    ): array {
         $answers = collect($validated['request_answers'] ?? [])
             ->keyBy(fn($answer) => (string) ($answer['question_id'] ?? ''));
 
@@ -414,11 +449,17 @@ class PublicCommissionController extends Controller
                 ]);
             }
 
-            if (trim((string) ($details[$field] ?? '')) === '' && trim((string) ($profileDetails[$field] ?? '')) !== '') {
+            if (
+                trim((string) ($details[$field] ?? '')) === ''
+                && trim((string) ($profileDetails[$field] ?? '')) !== ''
+            ) {
                 $details[$field] = $profileDetails[$field];
             }
 
-            if (! ($config['required'] ?? false) || trim((string) ($details[$field] ?? '')) !== '') {
+            if (
+                ! ($config['required'] ?? false)
+                || trim((string) ($details[$field] ?? '')) !== ''
+            ) {
                 continue;
             }
 

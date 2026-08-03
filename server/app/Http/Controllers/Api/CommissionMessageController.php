@@ -101,6 +101,7 @@ class CommissionMessageController extends Controller
             'service:id,title,slug,image_path',
             'artist:id,name,username,avatar,artist_verified',
             'customer:id,name,username,avatar',
+            'quotes.creator:id,name,username,avatar',
             'revisions.requester:id,name,username,avatar',
             'deliveryFiles.uploader:id,name,username,avatar',
         ]);

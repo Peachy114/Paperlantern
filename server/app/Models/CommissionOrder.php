@@ -98,6 +98,12 @@ class CommissionOrder extends Model
         return $this->hasMany(CommissionMessage::class, 'commission_order_id');
     }
 
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(CommissionQuote::class, 'commission_order_id')
+            ->orderBy('version');
+    }
+
     public function revisions(): HasMany
     {
         return $this->hasMany(CommissionRevision::class, 'commission_order_id');
