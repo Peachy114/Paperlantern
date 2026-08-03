@@ -211,6 +211,9 @@ type HeaderDragKind =
     | 'cover-size'
     | 'avatar-frame'
     | 'avatar-image'
+    | 'avatar-frame-width'
+    | 'avatar-frame-height'
+    | 'avatar-frame-size'
     | 'avatar-border'
     | 'avatar-border-width'
     | 'avatar-border-height'
@@ -306,6 +309,37 @@ export default function ArtistProfile() {
 
         return () => mediaQuery.removeEventListener('change', updateEditorMode)
     }, [])
+
+    useEffect(() => {
+        if (!manageProfileMode) return
+
+        const navbar = document.querySelector<HTMLElement>('body nav')
+        const footers = Array.from(document.querySelectorAll<HTMLElement>('body footer'))
+        const shellElements = [navbar, ...footers].filter((element): element is HTMLElement =>
+            Boolean(element)
+        )
+        const previousStyles = shellElements.map((element) => ({
+            element,
+            display: element.style.getPropertyValue('display'),
+            priority: element.style.getPropertyPriority('display'),
+        }))
+
+        shellElements.forEach((element) => {
+            element.style.setProperty('display', 'none', 'important')
+        })
+        document.documentElement.dataset.profileManageMode = 'true'
+
+        return () => {
+            previousStyles.forEach(({ element, display, priority }) => {
+                if (display) {
+                    element.style.setProperty('display', display, priority)
+                } else {
+                    element.style.removeProperty('display')
+                }
+            })
+            delete document.documentElement.dataset.profileManageMode
+        }
+    }, [manageProfileMode])
 
     const desktopManageMode = manageProfileMode && isDesktopProfileEditor
     const desktopBoardEditMode = editMode && isDesktopProfileEditor
@@ -1076,6 +1110,7 @@ export default function ArtistProfile() {
                                     </Button>
                                 </div>
                             )}
+                            <ProfileDashboardWidgets profile={profile} />
                             {useCanvasLayout ? (
                                 <ProfileLayoutCanvas
                                     refEl={canvasRef}
@@ -2254,7 +2289,10 @@ function ArtistHeader({
     const selectedBorder =
         profile.borders.find((border) => border.id === theme.profileBorderId) ??
         artist.profile_border
-    const coverOffset = theme.tabsConfig.cover_offset ?? { x: 0, y: 0 }
+    const profileDisplayScaleX = normalizeProfileDisplayScale(theme.tabsConfig.cover_offset?.x)
+    const profileDisplayScaleY = normalizeProfileDisplayScale(theme.tabsConfig.cover_offset?.y)
+    const profileDisplayWidth = Math.round(112 * profileDisplayScaleX)
+    const profileDisplayHeight = Math.round(112 * profileDisplayScaleY)
     const borderOffset = theme.tabsConfig.border_offset ?? { x: 0, y: 0 }
 
     /**
@@ -2269,9 +2307,10 @@ function ArtistHeader({
     const headerLocks = theme.tabsConfig.header_locks ?? defaultProfileTabsConfig().header_locks!
     const headerVisualHeight = theme.showCover ? theme.bannerHeight : 112
     const headerLockForDrag: Partial<Record<HeaderDragKind, ProfileHeaderLockKey>> = {
-        'cover-frame': 'cover_frame',
-        'cover-size': 'cover_frame',
         'avatar-frame': 'avatar_frame',
+        'avatar-frame-width': 'avatar_frame',
+        'avatar-frame-height': 'avatar_frame',
+        'avatar-frame-size': 'avatar_frame',
         'avatar-border': 'avatar_border',
         'avatar-border-width': 'avatar_border',
         'avatar-border-height': 'avatar_border',
@@ -2348,6 +2387,46 @@ function ArtistHeader({
                 profile_cover_width: width,
                 profile_banner_height: height,
             }
+            return
+        }
+
+        if (drag.kind === 'avatar-frame-width') {
+            const x = Number(clamp(drag.startPositionX + rawDx / 112, 0.5, 3).toFixed(3))
+            const tabsConfig = {
+                ...theme.tabsConfig,
+                cover_offset: {
+                    x,
+                    y: normalizeProfileDisplayScale(theme.tabsConfig.cover_offset?.y),
+                },
+            }
+            onThemeChange({ tabsConfig })
+            drag.patch = { profile_tabs_config: JSON.stringify(tabsConfig) }
+            return
+        }
+
+        if (drag.kind === 'avatar-frame-height') {
+            const y = Number(clamp(drag.startPositionY + rawDy / 112, 0.5, 3).toFixed(3))
+            const tabsConfig = {
+                ...theme.tabsConfig,
+                cover_offset: {
+                    x: normalizeProfileDisplayScale(theme.tabsConfig.cover_offset?.x),
+                    y,
+                },
+            }
+            onThemeChange({ tabsConfig })
+            drag.patch = { profile_tabs_config: JSON.stringify(tabsConfig) }
+            return
+        }
+
+        if (drag.kind === 'avatar-frame-size') {
+            const x = Number(clamp(drag.startPositionX + rawDx / 112, 0.5, 3).toFixed(3))
+            const y = Number(clamp(drag.startPositionY + rawDy / 112, 0.5, 3).toFixed(3))
+            const tabsConfig = {
+                ...theme.tabsConfig,
+                cover_offset: { x, y },
+            }
+            onThemeChange({ tabsConfig })
+            drag.patch = { profile_tabs_config: JSON.stringify(tabsConfig) }
             return
         }
 
@@ -2446,10 +2525,9 @@ function ArtistHeader({
             onThemeChange({ avatarImageX: x, avatarImageY: y })
             drag.patch = { avatar_position_x: x, avatar_position_y: y }
         } else {
-            const x = snapPercentCenter(clamp(drag.startPositionX + rawDx / 3, 0, 100))
             const y = clamp(drag.startPositionY + rawDy / 3, 0, 100)
-            onThemeChange({ avatarFrameX: x, avatarFrameY: y })
-            drag.patch = { profile_avatar_frame_x: x, profile_avatar_frame_y: y }
+            onThemeChange({ avatarFrameX: 50, avatarFrameY: y })
+            drag.patch = { profile_avatar_frame_x: 50, profile_avatar_frame_y: y }
         }
     }
 
@@ -2477,22 +2555,12 @@ function ArtistHeader({
                 {theme.showCover ? (
                     <div
                         className={`relative mx-auto overflow-hidden bg-muted ${
-                            editMode ? 'cursor-move ring-2 ring-foreground/30 ring-inset' : ''
+                            editMode ? 'ring-2 ring-foreground/30 ring-inset' : ''
                         }`}
                         style={{
                             height: theme.bannerHeight,
                             width: `${theme.coverWidth}%`,
-                            transform: `translate(${coverOffset.x}px, ${coverOffset.y}px)`,
                         }}
-                        onPointerDown={(event) => {
-                            if (event.button === 2) {
-                                beginHeaderDrag(event, 'cover-image', coverPosition)
-                                return
-                            }
-                            if (event.button === 0)
-                                beginHeaderDrag(event, 'cover-frame', coverOffset)
-                        }}
-                        onContextMenu={(event) => event.preventDefault()}
                     >
                         {cover ? (
                             <img
@@ -2511,26 +2579,18 @@ function ArtistHeader({
                         )}
                         {editMode && (
                             <>
-                                <HeaderLockButton
-                                    locked={headerLocks.cover_frame}
-                                    label="Cover frame"
-                                    className="right-2 top-2 z-[1002]"
-                                    onToggle={() => toggleHeaderLock('cover_frame')}
-                                />
-                                <div className="absolute bottom-4 left-4 rounded-md bg-background/90 px-3 py-1 text-xs text-foreground shadow-sm">
-                                    Left-drag frame. Right-drag image. Use the white/blue corner to
-                                    resize.
+                                <div className="pointer-events-none absolute bottom-4 left-4 rounded-md bg-background/90 px-3 py-1 text-xs text-foreground shadow-sm">
+                                    Cover position is fixed. Use the corner handle or sidebar
+                                    controls to resize.
                                 </div>
-                                {!headerLocks.cover_frame && (
-                                    <button
-                                        type="button"
-                                        className="absolute bottom-0 right-0 h-7 w-7 cursor-nwse-resize border-b-4 border-r-4 border-foreground bg-background/70"
-                                        aria-label="Resize cover"
-                                        onPointerDown={(event) =>
-                                            beginHeaderDrag(event, 'cover-size', coverPosition)
-                                        }
-                                    />
-                                )}
+                                <button
+                                    type="button"
+                                    className="absolute bottom-0 right-0 h-7 w-7 cursor-nwse-resize border-b-4 border-r-4 border-foreground bg-background/70"
+                                    aria-label="Resize cover"
+                                    onPointerDown={(event) =>
+                                        beginHeaderDrag(event, 'cover-size', { x: 0, y: 0 })
+                                    }
+                                />
                             </>
                         )}
                     </div>
@@ -2549,10 +2609,12 @@ function ArtistHeader({
                 style={{ height: headerVisualHeight }}
             >
                 <div
-                    className="pointer-events-auto absolute isolate h-28 w-28 overflow-visible -translate-x-1/2 -translate-y-1/2"
+                    className="pointer-events-auto absolute isolate overflow-visible -translate-x-1/2 -translate-y-1/2"
                     style={{
-                        left: `${theme.avatarFrameX}%`,
+                        left: '50%',
                         top: `${theme.avatarFrameY}%`,
+                        width: profileDisplayWidth,
+                        height: profileDisplayHeight,
                     }}
                 >
                     {selectedBorder && (
@@ -2640,8 +2702,8 @@ function ArtistHeader({
                     )}
 
                     <div
-                        className={`relative z-0 h-full w-full overflow-hidden bg-primary text-primary-foreground flex items-center justify-center text-3xl font-bold ${
-                            editMode ? 'cursor-move ring-2 ring-foreground/20' : ''
+                        className={`relative z-0 flex h-full w-full items-center justify-center overflow-hidden bg-primary text-3xl font-bold text-primary-foreground ${
+                            editMode ? 'cursor-ns-resize ring-2 ring-foreground/20' : ''
                         }`}
                         style={{
                             borderColor: theme.avatarBorderColor || 'var(--background)',
@@ -2649,18 +2711,13 @@ function ArtistHeader({
                             borderStyle: 'solid',
                             borderWidth: theme.avatarBorderWidth,
                         }}
-                        onPointerDown={(event) =>
-                            beginHeaderDrag(
-                                event,
-                                event.button === 2 ? 'avatar-image' : 'avatar-frame',
-                                event.button === 2
-                                    ? avatarImagePosition
-                                    : {
-                                          x: theme.avatarFrameX,
-                                          y: theme.avatarFrameY,
-                                      }
-                            )
-                        }
+                        onPointerDown={(event) => {
+                            if (event.button !== 0) return
+                            beginHeaderDrag(event, 'avatar-frame', {
+                                x: 50,
+                                y: theme.avatarFrameY,
+                            })
+                        }}
                         onContextMenu={(event) => event.preventDefault()}
                     >
                         {avatar ? (
@@ -2676,13 +2733,50 @@ function ArtistHeader({
                         ) : (
                             avatarLetter
                         )}
-                        {editMode && (
-                            <span className="pointer-events-none absolute bottom-1 right-1 z-20 h-4 w-4 rounded-full border-2 border-sky-400 bg-white shadow-sm" />
-                        )}
                     </div>
+                    {editMode && !headerLocks.avatar_frame && (
+                        <>
+                            <button
+                                type="button"
+                                className="absolute -right-2 top-1/2 z-[1002] h-10 w-3 -translate-y-1/2 cursor-ew-resize rounded bg-sky-500 shadow-md ring-2 ring-white"
+                                onPointerDown={(event) =>
+                                    beginHeaderDrag(event, 'avatar-frame-width', {
+                                        x: profileDisplayScaleX,
+                                        y: profileDisplayScaleY,
+                                    })
+                                }
+                                aria-label="Resize profile display width"
+                                title="Resize profile display width"
+                            />
+                            <button
+                                type="button"
+                                className="absolute -bottom-2 left-1/2 z-[1002] h-3 w-10 -translate-x-1/2 cursor-ns-resize rounded bg-sky-500 shadow-md ring-2 ring-white"
+                                onPointerDown={(event) =>
+                                    beginHeaderDrag(event, 'avatar-frame-height', {
+                                        x: profileDisplayScaleX,
+                                        y: profileDisplayScaleY,
+                                    })
+                                }
+                                aria-label="Resize profile display height"
+                                title="Resize profile display height"
+                            />
+                            <button
+                                type="button"
+                                className="absolute -bottom-2 -right-2 z-[1003] h-5 w-5 cursor-nwse-resize border-b-4 border-r-4 border-white bg-sky-500 shadow-md"
+                                onPointerDown={(event) =>
+                                    beginHeaderDrag(event, 'avatar-frame-size', {
+                                        x: profileDisplayScaleX,
+                                        y: profileDisplayScaleY,
+                                    })
+                                }
+                                aria-label="Resize profile display"
+                                title="Resize profile display width and height"
+                            />
+                        </>
+                    )}
                     {editMode && (
-                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-background px-2 py-0.5 text-[10px] text-foreground shadow-sm">
-                            Profile image editable
+                        <div className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-background px-2 py-0.5 text-[10px] text-foreground shadow-sm">
+                            Drag up/down · resize with handles
                         </div>
                     )}
                 </div>
@@ -2754,6 +2848,27 @@ function ArtistHeader({
                 )}
             </div>
         </header>
+    )
+}
+
+function ProfileDashboardWidgets({ profile }: { profile: ArtistProfileResponse }) {
+    const stats = profile.stats
+    const items = [
+        { label: 'Works', value: stats?.works_total ?? profile.works.length },
+        { label: 'Arts', value: stats?.arts_total ?? profile.arts.length },
+        { label: 'Followers', value: stats?.followers_count ?? 0 },
+        { label: 'Feeds', value: stats?.feed_posts_count ?? profile.feeds?.length ?? 0 },
+    ]
+
+    return (
+        <section className="mb-5 grid gap-3 sm:grid-cols-4">
+            {items.map((item) => (
+                <div key={item.label} className="rounded-lg border border-border bg-card p-4">
+                    <p className="text-2xl font-bold">{item.value.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">{item.label}</p>
+                </div>
+            ))}
+        </section>
     )
 }
 
@@ -3123,6 +3238,8 @@ function ManageProfileSidebar({
     const coverRef = useRef<HTMLInputElement | null>(null)
     const avatarRef = useRef<HTMLInputElement | null>(null)
     const backgroundRef = useRef<HTMLInputElement | null>(null)
+    const profileDisplayScaleX = normalizeProfileDisplayScale(draft.tabsConfig.cover_offset?.x)
+    const profileDisplayScaleY = normalizeProfileDisplayScale(draft.tabsConfig.cover_offset?.y)
 
     const updateTabsConfig = (patch: Partial<ProfileTabsConfig>) => {
         onChange({ tabsConfig: { ...draft.tabsConfig, ...patch } })
@@ -3422,9 +3539,47 @@ function ManageProfileSidebar({
                         suffix="px"
                         onChange={(bannerHeight) => onChange({ bannerHeight })}
                     />
+                    <RangeField
+                        label="Profile display width"
+                        value={Math.round(profileDisplayScaleX * 112)}
+                        min={64}
+                        max={320}
+                        suffix="px"
+                        onChange={(value) =>
+                            updateTabsConfig({
+                                cover_offset: {
+                                    x: Number((value / 112).toFixed(3)),
+                                    y: profileDisplayScaleY,
+                                },
+                            })
+                        }
+                    />
+                    <RangeField
+                        label="Profile display height"
+                        value={Math.round(profileDisplayScaleY * 112)}
+                        min={64}
+                        max={320}
+                        suffix="px"
+                        onChange={(value) =>
+                            updateTabsConfig({
+                                cover_offset: {
+                                    x: profileDisplayScaleX,
+                                    y: Number((value / 112).toFixed(3)),
+                                },
+                            })
+                        }
+                    />
+                    <RangeField
+                        label="Profile vertical position"
+                        value={draft.avatarFrameY}
+                        min={0}
+                        max={100}
+                        suffix="%"
+                        onChange={(avatarFrameY) => onChange({ avatarFrameX: 50, avatarFrameY })}
+                    />
                     <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                        Left-drag the profile image to move the parent. Right-drag the image to
-                        reposition its content. Drag near the center to snap.
+                        The cover stays fixed and can only resize. The profile display stays
+                        horizontally centered, but it can resize and move up or down.
                     </p>
                 </ProfileEditSection>
 
@@ -4665,12 +4820,8 @@ function BoardBlock({
     ) => void
 }) {
     const imageSrc = blockImageSrc(block)
-    const objectFit =
-        block.fit_mode === 'stretch' ? 'fill' : block.fit_mode === 'stay' ? 'none' : block.fit_mode
-    const showBorder =
-        editMode || (block.type === 'image' && !block.is_sticker)
-            ? (block.show_border ?? (!block.is_sticker && !block.transparent_background))
-            : false
+    const objectFit = block.fit_mode === 'stretch' ? 'fill' : block.fit_mode
+    const showBorder = block.show_border ?? (!block.is_sticker && !block.transparent_background)
     const transparent = block.transparent_background ?? block.is_sticker
     const backgroundColor = transparent
         ? 'transparent'
@@ -5908,6 +6059,11 @@ function overlaps(a: BlockRect, b: BlockRect) {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
 }
 
+function normalizeProfileDisplayScale(value: number | undefined) {
+    const scale = Number(value)
+    return Number.isFinite(scale) && scale >= 0.5 && scale <= 3 ? scale : 1
+}
+
 function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max)
 }
@@ -5981,7 +6137,7 @@ function createProfileThemeDraft(artist: ArtistProfileResponse['artist']): Profi
         showCover: artist.profile_show_cover ?? true,
         coverWidth: artist.profile_cover_width ?? 100,
         bannerHeight: artist.profile_banner_height ?? 288,
-        avatarFrameX: artist.profile_avatar_frame_x ?? 50,
+        avatarFrameX: 50,
         avatarFrameY: artist.profile_avatar_frame_y ?? 100,
         avatarImageX: artist.avatar_position_x ?? 50,
         avatarImageY: artist.avatar_position_y ?? 50,
@@ -6013,7 +6169,7 @@ function profileThemeToPayload(draft: ProfileThemeDraft) {
         profile_show_cover: draft.showCover,
         profile_cover_width: draft.coverWidth,
         profile_banner_height: draft.bannerHeight,
-        profile_avatar_frame_x: draft.avatarFrameX,
+        profile_avatar_frame_x: 50,
         profile_avatar_frame_y: draft.avatarFrameY,
         avatar_position_x: draft.avatarImageX,
         avatar_position_y: draft.avatarImageY,
@@ -6193,7 +6349,7 @@ function defaultProfileTabsConfig(): ProfileTabsConfig {
             w: 90,
             h: 420,
         })),
-        cover_offset: { x: 0, y: 0 },
+        cover_offset: { x: 1, y: 1 },
         border_offset: { x: 0, y: 0 },
 
         // Keep for profiles saved before width/height were introduced.
@@ -6242,8 +6398,8 @@ function normalizeProfileTabsConfig(
         buttons: normalizeCanvasItems(value.buttons, defaults.buttons ?? [], 'tab'),
         sections: normalizeCanvasItems(value.sections, defaults.sections ?? [], 'section'),
         cover_offset: {
-            x: clamp(value.cover_offset?.x ?? 0, -320, 320),
-            y: clamp(value.cover_offset?.y ?? 0, -180, 180),
+            x: normalizeProfileDisplayScale(value.cover_offset?.x),
+            y: normalizeProfileDisplayScale(value.cover_offset?.y),
         },
         border_offset: {
             x: Number(value.border_offset?.x ?? 0),

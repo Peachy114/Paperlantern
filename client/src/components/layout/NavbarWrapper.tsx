@@ -3,13 +3,18 @@ import { useAuthStore } from '@/store/authStore'
 import { useModalStore } from '@/store/modalStore'
 import { useState, useRef, useEffect } from 'react'
 import NavbarView from '@/components/navbar/NavbarView'
+import { useAccountNotificationRouteSync } from '@/hooks/useAccountNotificationRouteSync'
 
 export default function NavbarWrapper() {
     const { user, token } = useAuthStore()
     const { openLogin } = useModalStore()
     const location = useLocation()
+
+    useAccountNotificationRouteSync()
     const [profileOpen, setProfileOpen] = useState(false)
+    const [notificationOpen, setNotificationOpen] = useState(false)
     const profileButtonRef = useRef<HTMLButtonElement>(null)
+    const notificationButtonRef = useRef<HTMLButtonElement>(null)
     const [navbarHidden, setNavbarHidden] = useState(false)
 
     const lastScrollY = useRef(0)
@@ -31,9 +36,13 @@ export default function NavbarWrapper() {
 
         navbarHiddenRef.current = false
         const resetTimer = window.setTimeout(() => setNavbarHidden(false), 0)
-
         return () => window.clearTimeout(resetTimer)
     }, [isChapterPage])
+
+    useEffect(() => {
+        setProfileOpen(false)
+        setNotificationOpen(false)
+    }, [location.pathname, location.search])
 
     useEffect(() => {
         let ticking = false
@@ -71,11 +80,15 @@ export default function NavbarWrapper() {
     }, [])
 
     const handleProfileClick = () => {
-        if (!token) {
-            openLogin()
-        } else {
-            setProfileOpen(!profileOpen)
-        }
+        setNotificationOpen(false)
+        if (!token) openLogin()
+        else setProfileOpen((open) => !open)
+    }
+
+    const handleNotificationClick = () => {
+        if (!token) return
+        setProfileOpen(false)
+        setNotificationOpen((open) => !open)
     }
 
     return (
@@ -91,9 +104,13 @@ export default function NavbarWrapper() {
             isShopActive={isShopActive}
             navbarHidden={navbarHidden}
             profileOpen={profileOpen}
+            notificationOpen={notificationOpen}
             profileButtonRef={profileButtonRef}
+            notificationButtonRef={notificationButtonRef}
             onProfileClick={handleProfileClick}
+            onNotificationClick={handleNotificationClick}
             setProfileOpen={setProfileOpen}
+            setNotificationOpen={setNotificationOpen}
         />
     )
 }

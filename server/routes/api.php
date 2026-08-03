@@ -198,6 +198,10 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::get('/account/history',            [AccountLibraryController::class, 'history']);
     Route::get('/account/notifications',      [NotificationController::class, 'index']);
     Route::post('/account/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::patch(
+        '/account/notifications/read-section',
+        [NotificationController::class, 'markSectionRead']
+    );
     Route::patch('/account/notifications/{notification}/read', [NotificationController::class, 'markRead']);
     Route::get('/account/notification-preferences', [NotificationController::class, 'preferences']);
     Route::put('/account/notification-preferences', [NotificationController::class, 'updatePreferences']);

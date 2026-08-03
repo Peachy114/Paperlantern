@@ -256,6 +256,12 @@ export default function Messages() {
     const hasQuoteHistory = quotes.length > 0
     const isArtist = Boolean(order?.artist?.id && order.artist.id === user?.id)
     const isCommissionOrder = Boolean(order?.service)
+    const showCommissionRequest = Boolean(
+        order && isCommissionOrder && shouldShowCommissionRequest(order)
+    )
+    const canArtistUseStage = Boolean(order && isArtist && canArtistManageStage(order))
+    const canCancel = Boolean(order && canCancelCommission(order))
+    const canArchive = Boolean(order && isArtist && canArchiveCommission(order))
     const relatedServiceThreads = useMemo(
         () =>
             threads.filter(
@@ -292,6 +298,13 @@ export default function Messages() {
     )
 
     useEffect(() => {
+        if (!messageData?.order?.id) return
+
+        queryClient.invalidateQueries({ queryKey: ['notification-center'] })
+        queryClient.invalidateQueries({ queryKey: ['account-notifications'] })
+    }, [messageData?.order?.id, queryClient])
+
+    useEffect(() => {
         if (!order) return
         setQuoteCredits(latestQuote?.quote_credits ?? order.quote_credits ?? 0)
         setQuoteNote(latestQuote?.quote_note ?? order.quote_note ?? '')
@@ -310,6 +323,8 @@ export default function Messages() {
     const refreshMessages = () => {
         queryClient.invalidateQueries({ queryKey: ['commission-messages', selectedId] })
         queryClient.invalidateQueries({ queryKey: ['commission-message-threads'] })
+        queryClient.invalidateQueries({ queryKey: ['notification-center'] })
+        queryClient.invalidateQueries({ queryKey: ['account-notifications'] })
     }
 
     const openQuoteComposer = () => {
@@ -569,6 +584,8 @@ export default function Messages() {
         setSearchParams({ order: id })
         commissionApi.markMessagesRead(id).finally(() => {
             queryClient.invalidateQueries({ queryKey: ['commission-message-threads'] })
+            queryClient.invalidateQueries({ queryKey: ['notification-center'] })
+            queryClient.invalidateQueries({ queryKey: ['account-notifications'] })
         })
     }
 
@@ -717,7 +734,11 @@ export default function Messages() {
                                 </div>
                                 {order && isCommissionOrder && (
                                     <div className="flex items-center justify-between gap-3 border-t px-3 py-2 text-sm">
-                                        <span className="font-medium">Commission Request</span>
+                                        <span className="font-medium">
+                                            {showCommissionRequest
+                                                ? 'Commission Request'
+                                                : 'Commission'}
+                                        </span>
                                         <span className="text-muted-foreground">
                                             {stageStatus(order)}
                                         </span>
@@ -731,7 +752,18 @@ export default function Messages() {
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </Button>
                                             {actionMenuOpen && (
-                                                <div className="absolute right-0 z-20 mt-1 w-32 rounded-lg border bg-popover p-1 shadow-lg">
+                                                <div className="absolute right-0 z-20 mt-1 w-40 rounded-lg border bg-popover p-1 shadow-lg">
+                                                    <button
+                                                        type="button"
+                                                        className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                                                        onClick={() => {
+                                                            setInfoOpen(true)
+                                                            setActionMenuOpen(false)
+                                                        }}
+                                                    >
+                                                        Details
+                                                    </button>
+
                                                     {isArtist &&
                                                         ['requested', 'quoted'].includes(
                                                             order.status
@@ -749,28 +781,68 @@ export default function Messages() {
                                                                     : 'Create Quote'}
                                                             </button>
                                                         )}
-                                                    <button
-                                                        type="button"
-                                                        className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
-                                                        onClick={() => {
-                                                            setStageOpen(true)
-                                                            setActionMenuOpen(false)
-                                                        }}
-                                                    >
-                                                        Stage
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        className="w-full rounded-md px-3 py-2 text-left text-sm text-red-500 hover:bg-muted"
-                                                        onClick={() => {
-                                                            isArtist
-                                                                ? artistUpdate.mutate('cancelled')
-                                                                : customerUpdate.mutate('cancel')
-                                                            setActionMenuOpen(false)
-                                                        }}
-                                                    >
-                                                        Cancel
-                                                    </button>
+
+                                                    {canArtistUseStage && (
+                                                        <button
+                                                            type="button"
+                                                            className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                                                            onClick={() => {
+                                                                setStageOpen(true)
+                                                                setActionMenuOpen(false)
+                                                            }}
+                                                        >
+                                                            Stage
+                                                        </button>
+                                                    )}
+
+                                                    {canCancel && (
+                                                        <button
+                                                            type="button"
+                                                            className="w-full rounded-md px-3 py-2 text-left text-sm text-red-500 hover:bg-muted"
+                                                            onClick={() => {
+                                                                isArtist
+                                                                    ? artistUpdate.mutate(
+                                                                          'cancelled'
+                                                                      )
+                                                                    : customerUpdate.mutate(
+                                                                          'cancel'
+                                                                      )
+                                                                setActionMenuOpen(false)
+                                                            }}
+                                                        >
+                                                            {isArtist
+                                                                ? 'Cancel Commission'
+                                                                : 'Cancel Request'}
+                                                        </button>
+                                                    )}
+
+                                                    {canArchive && (
+                                                        <button
+                                                            type="button"
+                                                            className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-muted"
+                                                            disabled={archiveOrder.isPending}
+                                                            onClick={() => {
+                                                                archiveOrder.mutate()
+                                                                setActionMenuOpen(false)
+                                                            }}
+                                                        >
+                                                            {archiveOrder.isPending
+                                                                ? 'Archiving...'
+                                                                : 'Archive'}
+                                                        </button>
+                                                    )}
+
+                                                    {isArtist &&
+                                                        order.status === 'completed' &&
+                                                        Boolean(order.archived_at) && (
+                                                            <button
+                                                                type="button"
+                                                                disabled
+                                                                className="w-full rounded-md px-3 py-2 text-left text-sm text-muted-foreground"
+                                                            >
+                                                                Archived
+                                                            </button>
+                                                        )}
                                                 </div>
                                             )}
                                         </div>
@@ -782,7 +854,7 @@ export default function Messages() {
                                 className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4"
                                 style={royaltyMessageBackgroundStyle(selectedBackground)}
                             >
-                                {order && isCommissionOrder && (
+                                {order && isCommissionOrder && showCommissionRequest && (
                                     <CommissionRequestBlock
                                         order={order}
                                         latestQuote={latestQuote}
@@ -1342,7 +1414,7 @@ export default function Messages() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={stageOpen} onOpenChange={setStageOpen}>
+            <Dialog open={isArtist && stageOpen} onOpenChange={setStageOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Update stage</DialogTitle>
@@ -2239,6 +2311,30 @@ function uploadTypeDescription(type: UploadType) {
     if (type === 'final')
         return 'Submits the final art with a watermarked preview and final payment.'
     return 'Sends a normal chat image without changing the commission flow.'
+}
+
+function shouldShowCommissionRequest(order: OrderInfo) {
+    return (
+        ['requested', 'quoted'].includes(order.status) &&
+        Number(order.escrow_credits ?? 0) <= 0 &&
+        (order.paid_steps?.length ?? 0) === 0 &&
+        !order.final_payment_paid_at
+    )
+}
+
+function canArtistManageStage(order: OrderInfo) {
+    return order.status === 'in_progress' && !order.archived_at && !order.final_payment_paid_at
+}
+
+function canCancelCommission(order: OrderInfo) {
+    return (
+        ['requested', 'quoted', 'awaiting_payment', 'in_progress'].includes(order.status) &&
+        !order.archived_at
+    )
+}
+
+function canArchiveCommission(order: OrderInfo) {
+    return order.status === 'completed' && !order.archived_at
 }
 
 function stageStatus(order: OrderInfo) {

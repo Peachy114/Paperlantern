@@ -42,11 +42,28 @@ class AppNotificationService
         'creator_announcement',
     ];
 
+    private const SECTION_CATEGORIES = [
+        'messages' => ['messages'],
+        'commissions' => ['commissions'],
+        'shop' => ['new_purchase', 'new_review', 'shop_update'],
+        'comments' => ['comment_reply', 'new_comment', 'creator_liked_comment'],
+        'earnings' => ['payout_update', 'new_supporter'],
+        'arts' => ['likes', 'new_comment'],
+        'announcements' => ['creator_announcement', 'moderation_action', 'copyright_report'],
+        'releases' => [
+            'new_chapter',
+            'new_episode',
+            'new_volume',
+            'return_from_hiatus',
+            'work_completed',
+            'early_access_release',
+        ],
+    ];
+
     public function __construct(private NotificationEmailService $emails) {}
 
     public function preferences(User $user): NotificationPreference
     {
-        // default preferences ----
         return NotificationPreference::firstOrCreate(
             ['user_id' => $user->id],
             [
@@ -61,15 +78,24 @@ class AppNotificationService
         );
     }
 
-    public function notify(User $user, string $category, string $title, ?string $body = null, ?string $actionUrl = null, array $meta = []): ?AppNotification
-    {
+    public function notify(
+        User $user,
+        string $category,
+        string $title,
+        ?string $body = null,
+        ?string $actionUrl = null,
+        array $meta = []
+    ): ?AppNotification {
         $preferences = $this->preferences($user);
 
         if (! $this->categoryEnabled($user, $preferences, $category)) {
             return null;
         }
 
-        // grouped logging ----
+        $skipEmail = (bool) ($meta['skip_email'] ?? false);
+        unset($meta['skip_email']);
+        $meta['section'] ??= self::sectionForCategory($category);
+
         Log::info('LanternPaper notification', [
             'to' => $user->email,
             'user_id' => $user->id,
@@ -91,7 +117,7 @@ class AppNotificationService
             ]);
         }
 
-        if ($preferences->email_enabled && ! $preferences->digest_enabled) {
+        if (! $skipEmail && $preferences->email_enabled && ! $preferences->digest_enabled) {
             $this->emails->send(
                 $user,
                 $title,
@@ -100,12 +126,12 @@ class AppNotificationService
                 [
                     'category' => $category,
                     'actionUrl' => $actionUrl,
-                    'actionLabel' => $meta['email_action_label'] ?? 'Open LaternComix',
+                    'actionLabel' => $meta['email_action_label'] ?? 'Open LanternComix',
                 ]
             );
         }
 
-        if ($preferences->digest_enabled) {
+        if (! $skipEmail && $preferences->digest_enabled) {
             Log::info('LanternPaper notification queued for digest', [
                 'user_id' => $user->id,
                 'category' => $category,
@@ -118,7 +144,6 @@ class AppNotificationService
 
     public function welcome(User $user): void
     {
-        // role-specific welcome ----
         if ($user->role === 'storyteller') {
             $this->notify(
                 $user,
@@ -131,7 +156,6 @@ class AppNotificationService
                     'email_action_label' => 'Open Studio',
                 ]
             );
-
             return;
         }
 
@@ -148,9 +172,21 @@ class AppNotificationService
         );
     }
 
+    public static function sectionForCategory(string $category): ?string
+    {
+        foreach (self::SECTION_CATEGORIES as $section => $categories) {
+            if (in_array($category, $categories, true)) return $section;
+        }
+        return null;
+    }
+
+    public static function categoriesForSection(string $section): array
+    {
+        return self::SECTION_CATEGORIES[$section] ?? [];
+    }
+
     private function categoryEnabled(User $user, NotificationPreference $preferences, string $category): bool
     {
-        // category preference check ----
         $categories = array_values(array_unique(array_merge(
             $preferences->reader_categories ?? self::READER_CATEGORIES,
             $preferences->creator_categories ?? self::CREATOR_CATEGORIES,
