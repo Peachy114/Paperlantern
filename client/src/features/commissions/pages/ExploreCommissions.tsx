@@ -43,7 +43,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
-import CommissionPageWidgets  from '@/features/page-builder/CommissionPageWidgets'
+import CommissionPageWidgets from '@/features/page-builder/CommissionPageWidgets'
 
 const statusLabel: Record<CommissionService['status'], string> = {
     open: 'Open',
@@ -60,6 +60,7 @@ const statusClass: Record<CommissionService['status'], string> = {
 }
 
 const PROFILE_LINK_FIELDS = new Set(['discord', 'twitter', 'instagram', 'facebook', 'tiktok'])
+const BASE_CLIENT_FIELDS = new Set(['name', 'username', 'email'])
 
 const defaultCommissionWidgets: PageWidget[] = [
     {
@@ -75,7 +76,14 @@ const defaultCommissionWidgets: PageWidget[] = [
             hero_source_commissions: true,
             limit: 10,
         },
-        style: { transparent: true, border: false, radius: 0, padding: 0, margin: 0, z_index: 1 },
+        style: {
+            transparent: true,
+            border: false,
+            radius: 0,
+            padding: 0,
+            margin: 0,
+            z_index: 1,
+        },
     },
     {
         id: 'default-commission-labels',
@@ -88,7 +96,14 @@ const defaultCommissionWidgets: PageWidget[] = [
             labels_display: 'labels',
             limit: 10,
         },
-        style: { transparent: true, border: false, radius: 0, padding: 0, margin: 0, z_index: 2 },
+        style: {
+            transparent: true,
+            border: false,
+            radius: 0,
+            padding: 0,
+            margin: 0,
+            z_index: 2,
+        },
     },
     {
         id: 'default-commission-grid',
@@ -96,7 +111,14 @@ const defaultCommissionWidgets: PageWidget[] = [
         title: 'Image Grid',
         enabled: true,
         settings: { grid: 'masonry', info_layout: 'image_only', limit: 10 },
-        style: { transparent: true, border: false, radius: 0, padding: 0, margin: 0, z_index: 3 },
+        style: {
+            transparent: true,
+            border: false,
+            radius: 0,
+            padding: 0,
+            margin: 0,
+            z_index: 3,
+        },
     },
 ]
 
@@ -155,19 +177,6 @@ export default function ExploreCommissions() {
 
     return (
         <div className="relative mx-auto">
-            {/* <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
-                    <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
-                        Explore
-                    </p>
-                    <h1 className="text-3xl font-bold tracking-tight">Commission</h1>
-                    <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                        Browse artist commission openings, waitlists, prices, terms, and public
-                        ratings.
-                    </p>
-                </div>
-            </div> */}
-
             <CommissionDialog
                 commission={selectedCommission}
                 open={Boolean(selectedCommission)}
@@ -226,6 +235,11 @@ function CommissionDialog({
     const { token } = useAuthStore()
     const user = useAuthStore((state) => state.user)
     const { openLogin } = useModalStore()
+
+    const isOwnCommission = Boolean(
+        user?.id && commission?.artist?.id && String(user.id) === String(commission.artist.id)
+    )
+
     const [requestOpen, setRequestOpen] = useState(false)
     const [requestMessage, setRequestMessage] = useState('')
     const [referenceNotes, setReferenceNotes] = useState('')
@@ -235,8 +249,13 @@ function CommissionDialog({
     const [clientDetails, setClientDetails] = useState<Record<string, string>>({})
     const [requestErrors, setRequestErrors] = useState<Record<string, string>>({})
     const [termsOpen, setTermsOpen] = useState(false)
+
     const requestMutation = useMutation({
         mutationFn: () => {
+            if (isOwnCommission) {
+                throw new Error('You cannot request your own commission.')
+            }
+
             const identifier = commission?.slug
             if (!identifier) {
                 throw new Error(
@@ -253,8 +272,10 @@ function CommissionDialog({
                 })
                 throw new Error('Please complete the required fields.')
             }
+
             const nextErrors: Record<string, string> = {}
             const savedClientDetails = user ? profileClientDetails(user) : {}
+
             for (const question of commission.request_questions ?? []) {
                 const key = question.id || question.title
                 if (question.required && !requestAnswers[key]?.trim()) {
@@ -262,7 +283,10 @@ function CommissionDialog({
                         `Please answer: ${question.title || 'Required question'}`
                 }
             }
-            for (const [field, config] of Object.entries(commission.client_fields ?? {})) {
+
+            for (const [field, config] of collectedCommissionClientFields(
+                commission.client_fields
+            )) {
                 if (
                     config.collect &&
                     config.required &&
@@ -274,19 +298,22 @@ function CommissionDialog({
                     continue
                 }
 
-                if (config.collect && config.required && !clientDetails[field]?.trim()) {
+                if (config.collect && config.required && !savedClientDetails[field]?.trim()) {
                     nextErrors[`client_${field}`] =
-                        `Please provide your ${clientFieldLabel(field).toLowerCase()}.`
+                        `Please add your ${clientFieldLabel(field)} in Profile Settings before requesting this commission.`
                 }
             }
+
             if (Object.keys(nextErrors).length > 0) {
                 setRequestErrors(nextErrors)
                 throw new Error(Object.values(nextErrors)[0])
             }
+
             if (!agree) {
                 setRequestErrors({ agree_to_flow: 'Please confirm the commission flow and terms.' })
                 throw new Error('Please complete the required fields.')
             }
+
             if (referenceImage && !isValidReferenceImage(referenceImage)) {
                 setRequestErrors({
                     reference_image: 'Upload a JPG, PNG, WEBP, or GIF up to 10 MB.',
@@ -308,11 +335,15 @@ function CommissionDialog({
                     requestAnswers[key]?.trim() ?? ''
                 )
             })
-            Object.entries(commission.client_fields ?? {}).forEach(([field, config]) => {
-                if (config.collect && clientDetails[field]?.trim()) {
-                    payload.append(`client_details[${field}]`, clientDetails[field].trim())
+
+            collectedCommissionClientFields(commission.client_fields).forEach(([field, config]) => {
+                const value =
+                    savedClientDetails[field]?.trim() ?? clientDetails[field]?.trim() ?? ''
+                if (config.collect && value) {
+                    payload.append(`client_details[${field}]`, value)
                 }
             })
+
             return publicApi.requestCommission(identifier, payload)
         },
         onSuccess: (response) => {
@@ -352,9 +383,28 @@ function CommissionDialog({
         }))
     }, [requestOpen, commission?.id, user?.id])
 
+    useEffect(() => {
+        if (isOwnCommission && requestOpen) {
+            setRequestOpen(false)
+        }
+    }, [isOwnCommission, requestOpen])
+
     if (!commission) return null
 
     const image = commission.image_path
+    const collectedClientFields = collectedCommissionClientFields(commission.client_fields)
+    const baseClientFields = collectedClientFields.filter(([field]) =>
+        BASE_CLIENT_FIELDS.has(field)
+    )
+    const socialClientFields = collectedClientFields.filter(([field]) =>
+        PROFILE_LINK_FIELDS.has(field)
+    )
+    const missingRequiredProfileLinks = socialClientFields
+        .filter(([, config]) => config.required)
+        .filter(([field]) => PROFILE_LINK_FIELDS.has(field))
+        .filter(([field]) => !clientDetails[field]?.trim())
+        .map(([field]) => field)
+
     const attachReferenceImage = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0] ?? null
         if (!file) {
@@ -423,9 +473,11 @@ function CommissionDialog({
                                                 </Badge>
                                             )}
                                         </div>
+
                                         <h2 className="text-2xl font-bold tracking-tight">
                                             {commission.title}
                                         </h2>
+
                                         {commission.artist && (
                                             <Link
                                                 to={`/artists/${commission.artist.username}`}
@@ -567,31 +619,58 @@ function CommissionDialog({
                             <div className="border-t bg-background p-4">
                                 <Button
                                     className="w-full"
-                                    disabled={commission.status === 'closed'}
+                                    disabled={commission.status === 'closed' || isOwnCommission}
                                     onClick={() => {
+                                        if (isOwnCommission) {
+                                            toast.error('You cannot request your own commission.')
+                                            return
+                                        }
+
                                         if (!token) {
                                             openLogin()
                                             return
                                         }
+
                                         setRequestOpen(true)
                                     }}
                                 >
-                                    {commission.status === 'closed'
-                                        ? 'Commission closed'
-                                        : commission.status === 'waitlist'
-                                          ? 'Join waitlist'
-                                          : 'Request commission'}
+                                    {isOwnCommission
+                                        ? 'You cannot request your own commission'
+                                        : commission.status === 'closed'
+                                          ? 'Commission closed'
+                                          : commission.status === 'waitlist'
+                                            ? 'Join waitlist'
+                                            : 'Request commission'}
                                 </Button>
-                                <p className="mt-2 text-center text-xs text-muted-foreground">
-                                    You will review the artist flow and quote before credits are
-                                    charged.
+
+                                <p
+                                    className={`mt-2 text-center text-xs ${
+                                        isOwnCommission
+                                            ? 'font-medium text-destructive'
+                                            : 'text-muted-foreground'
+                                    }`}
+                                >
+                                    {isOwnCommission
+                                        ? 'This commission service belongs to your account.'
+                                        : 'You will review the artist flow and quote before credits are charged.'}
                                 </p>
                             </div>
                         </div>
                     </div>
                 </DialogContent>
             </Dialog>
-            <Dialog open={requestOpen} onOpenChange={setRequestOpen}>
+
+            <Dialog
+                open={requestOpen && !isOwnCommission}
+                onOpenChange={(nextOpen) => {
+                    if (nextOpen && isOwnCommission) {
+                        toast.error('You cannot request your own commission.')
+                        return
+                    }
+
+                    setRequestOpen(nextOpen)
+                }}
+            >
                 <DialogContent className="max-h-[88dvh] overflow-y-auto sm:max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Request commission</DialogTitle>
@@ -600,6 +679,7 @@ function CommissionDialog({
                             and send a quote before you pay.
                         </DialogDescription>
                     </DialogHeader>
+
                     <div className="space-y-4">
                         <div>
                             <LabelText>Message to artist</LabelText>
@@ -622,6 +702,7 @@ function CommissionDialog({
                                 </p>
                             )}
                         </div>
+
                         {(commission.request_questions?.length ?? 0) > 0 && (
                             <div className="space-y-3 rounded-lg border p-3">
                                 <p className="text-sm font-semibold">Artist questions</p>
@@ -649,46 +730,66 @@ function CommissionDialog({
                                 })}
                             </div>
                         )}
-                        {hasCollectedClientFields(commission.client_fields) && (
-                            <div className="space-y-3 rounded-lg border p-3">
-                                <p className="text-sm font-semibold">Wanderer details</p>
-                                <p className="text-xs text-muted-foreground">
-                                    The artist can see only the fields requested here.
-                                </p>
-                                {Object.entries(commission.client_fields)
-                                    .filter(([, config]) => config.collect)
-                                    .map(([field, config]) => (
-                                        <div key={field}>
-                                            <LabelText>
-                                                {clientFieldLabel(field)}
-                                                {config.required ? ' *' : ''}
-                                            </LabelText>
-                                            <Input
-                                                type={field === 'email' ? 'email' : 'text'}
-                                                value={clientDetails[field] ?? ''}
-                                                onChange={(event) => {
-                                                    setClientDetails((current) => ({
-                                                        ...current,
-                                                        [field]: event.target.value,
-                                                    }))
-                                                    setRequestErrors((current) => {
-                                                        const next = { ...current }
-                                                        delete next[`client_${field}`]
-                                                        return next
-                                                    })
-                                                }}
-                                                placeholder={clientFieldPlaceholder(field)}
-                                                className="mt-1"
-                                            />
-                                            {requestErrors[`client_${field}`] && (
-                                                <p className="mt-1 text-xs text-destructive">
-                                                    {requestErrors[`client_${field}`]}
-                                                </p>
-                                            )}
+
+                        {collectedClientFields.length > 0 && (
+                            <div className="space-y-4 rounded-lg border p-3">
+                                <div>
+                                    <p className="text-sm font-semibold">Wanderer details</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Artist request to get your info. The artist can only see the
+                                        details listed here.
+                                    </p>
+                                </div>
+
+                                {missingRequiredProfileLinks.length > 0 && (
+                                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                                        <div>
+                                            <p className="text-sm font-medium text-destructive">
+                                                Need {missingRequiredProfileLinks.length}{' '}
+                                                {missingRequiredProfileLinks.length === 1
+                                                    ? 'public link'
+                                                    : 'public links'}
+                                            </p>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Add {formatFieldList(missingRequiredProfileLinks)}{' '}
+                                                in Profile Settings before requesting.
+                                            </p>
                                         </div>
-                                    ))}
+                                        <Button asChild size="sm" variant="outline">
+                                            <Link to="/settings/profile#public-links">
+                                                Add in Profile Settings
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {baseClientFields.length > 0 && (
+                                    <ClientDetailList
+                                        title="Artist will get info"
+                                        fields={baseClientFields}
+                                        values={clientDetails}
+                                        errors={requestErrors}
+                                    />
+                                )}
+
+                                {socialClientFields.length > 0 && (
+                                    <ClientDetailList
+                                        title="Social media"
+                                        fields={socialClientFields}
+                                        values={clientDetails}
+                                        errors={requestErrors}
+                                        action={
+                                            <Button asChild size="sm" variant="outline">
+                                                <Link to="/settings/profile#public-links">
+                                                    Edit public links
+                                                </Link>
+                                            </Button>
+                                        }
+                                    />
+                                )}
                             </div>
                         )}
+
                         <div>
                             <LabelText>Reference notes</LabelText>
                             <textarea
@@ -710,6 +811,7 @@ function CommissionDialog({
                                 </p>
                             )}
                         </div>
+
                         <div>
                             <LabelText>Reference image</LabelText>
                             {referenceImage && (
@@ -745,14 +847,17 @@ function CommissionDialog({
                                 </p>
                             )}
                         </div>
+
                         <div className="rounded-lg border p-3">
                             <p className="mb-2 text-sm font-semibold">Flow preview</p>
                             <FlowPreview flow={commission.flow} />
                         </div>
+
                         <RequestTermsPreview
                             commission={commission}
                             onExpand={() => setTermsOpen(true)}
                         />
+
                         <label
                             className={`flex items-center gap-3 rounded-lg border px-3 py-3 text-sm transition ${agree ? 'border-foreground bg-muted/30' : 'bg-background'}`}
                         >
@@ -774,32 +879,38 @@ function CommissionDialog({
                                 Service
                             </span>
                         </label>
+
                         {requestErrors.agree_to_flow && (
                             <p className="text-xs text-destructive">
                                 {requestErrors.agree_to_flow}
                             </p>
                         )}
                     </div>
+
                     <div className="flex gap-2">
                         <Button
                             type="button"
                             className="h-11 flex-1 rounded-full"
                             disabled={
+                                isOwnCommission ||
                                 requestMutation.isPending ||
                                 requestMessage.trim().length < 10 ||
                                 !agree
                             }
                             onClick={() => requestMutation.mutate()}
                         >
-                            {requestMutation.isPending
-                                ? 'Sending...'
-                                : agree
-                                  ? 'Send request'
-                                  : 'Accept terms to start request'}
+                            {isOwnCommission
+                                ? 'You cannot request your own commission'
+                                : requestMutation.isPending
+                                  ? 'Sending...'
+                                  : agree
+                                    ? 'Send request'
+                                    : 'Accept terms to start request'}
                         </Button>
                     </div>
                 </DialogContent>
             </Dialog>
+
             <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
                 <DialogContent className="flex max-h-[88dvh] flex-col overflow-hidden sm:max-w-2xl">
                     <DialogHeader>
@@ -823,6 +934,101 @@ function LabelText({ children }: { children: ReactNode }) {
     return <div className="text-sm font-medium">{children}</div>
 }
 
+type ClientFieldEntry = [
+    string,
+    CommissionService['client_fields'][keyof CommissionService['client_fields']],
+]
+
+function ClientDetailList({
+    title,
+    fields,
+    values,
+    errors,
+    action,
+}: {
+    title: string
+    fields: ClientFieldEntry[]
+    values: Record<string, string>
+    errors: Record<string, string>
+    action?: ReactNode
+}) {
+    return (
+        <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {title}
+                </p>
+                {action}
+            </div>
+            <div className="space-y-3">
+                {fields.map(([field, config]) => {
+                    const value = values[field]?.trim() ?? ''
+
+                    return (
+                        <div key={field} className="rounded-lg border bg-muted/20 p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <LabelText>{clientFieldLabel(field)}</LabelText>
+                                <span
+                                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                        config.required
+                                            ? value
+                                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                                : 'bg-destructive/10 text-destructive'
+                                            : value
+                                              ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                                              : 'bg-muted text-muted-foreground'
+                                    }`}
+                                >
+                                    {config.required ? 'Required' : 'Collect if available'}
+                                </span>
+                            </div>
+
+                            {PROFILE_LINK_FIELDS.has(field) && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                    <span
+                                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                                            value
+                                                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                                                : config.required
+                                                  ? 'bg-destructive/10 text-destructive'
+                                                  : 'bg-muted text-muted-foreground'
+                                        }`}
+                                    >
+                                        {value ? 'Saved in public links' : 'Not saved'}
+                                    </span>
+                                </div>
+                            )}
+
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                {PROFILE_LINK_FIELDS.has(field)
+                                    ? 'The artist will use the saved public link from your profile.'
+                                    : 'This comes from your account profile.'}
+                            </p>
+
+                            <p
+                                className={`mt-2 break-all rounded-md bg-background px-3 py-2 text-xs ${
+                                    value ? '' : 'text-muted-foreground'
+                                }`}
+                            >
+                                {value ||
+                                    (config.required
+                                        ? 'Required in Profile Settings'
+                                        : 'Not saved, will not be sent')}
+                            </p>
+
+                            {errors[`client_${field}`] && (
+                                <p className="mt-1 text-xs text-destructive">
+                                    {errors[`client_${field}`]}
+                                </p>
+                            )}
+                        </div>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
 function RequestQuestionInput({
     question,
     value,
@@ -840,9 +1046,11 @@ function RequestQuestionInput({
                 {question.title}
                 {question.required ? ' *' : ''}
             </LabelText>
+
             {question.description && (
                 <p className="mt-1 text-xs text-muted-foreground">{question.description}</p>
             )}
+
             {question.id === 'license-use' ? (
                 <div className="mt-2 space-y-2">
                     {(question.options ?? []).map((option) => (
@@ -881,6 +1089,7 @@ function RequestQuestionInput({
                     {(question.options ?? []).map((option) => {
                         const selected = value.split('\n').filter(Boolean)
                         const checked = selected.includes(option)
+
                         return (
                             <label
                                 key={option}
@@ -922,6 +1131,7 @@ function RequestQuestionInput({
                     className="mt-2 min-h-20 w-full rounded-md border bg-background p-3 text-sm"
                 />
             )}
+
             {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
         </div>
     )
@@ -936,8 +1146,75 @@ function licenseOptionDescription(option: string) {
     return description ?? option
 }
 
-function hasCollectedClientFields(fields: CommissionService['client_fields']) {
-    return Object.values(fields ?? {}).some((config) => config.collect)
+function collectedCommissionClientFields(
+    fields: CommissionService['client_fields']
+): ClientFieldEntry[] {
+    const order = [
+        'name',
+        'username',
+        'email',
+        'discord',
+        'twitter',
+        'instagram',
+        'facebook',
+        'tiktok',
+    ]
+    const normalized = { ...(fields ?? {}) } as Record<string, ClientFieldEntry[1]>
+
+    normalized.name = {
+        ...(normalized.name ?? {}),
+        collect: true,
+        required: booleanFieldValue(normalized.name?.required, false),
+    }
+    normalized.username = {
+        ...(normalized.username ?? {}),
+        collect: true,
+        required: booleanFieldValue(normalized.username?.required, false),
+    }
+    normalized.email = {
+        ...(normalized.email ?? {}),
+        collect: true,
+        required: booleanFieldValue(normalized.email?.required, true),
+    }
+
+    delete (normalized as Record<string, unknown>).nickname
+
+    const entries: ClientFieldEntry[] = Object.entries(normalized).map(([field, config]) => [
+        field,
+        {
+            collect: booleanFieldValue(config?.collect, false),
+            required: booleanFieldValue(config?.required, false),
+        },
+    ])
+
+    return entries
+        .filter(([, config]) => config.collect)
+        .sort(([fieldA], [fieldB]) => {
+            const indexA = order.indexOf(fieldA)
+            const indexB = order.indexOf(fieldB)
+            return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB)
+        })
+}
+
+function booleanFieldValue(value: unknown, fallback = false) {
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase()
+        if (['1', 'true', 'on', 'yes'].includes(normalized)) return true
+        if (['0', 'false', 'off', 'no', ''].includes(normalized)) return false
+    }
+
+    if (value === true || value === 1) return true
+    if (value === false || value === 0 || value === null) return false
+
+    return fallback
+}
+
+function formatFieldList(fields: string[]) {
+    const labels = fields.map(clientFieldLabel)
+    if (labels.length <= 1) return labels[0] ?? ''
+    if (labels.length === 2) return `${labels[0]} and ${labels[1]}`
+
+    return `${labels.slice(0, -1).join(', ')}, and ${labels.at(-1)}`
 }
 
 function clientFieldLabel(field: string) {
@@ -945,7 +1222,7 @@ function clientFieldLabel(field: string) {
         (
             {
                 name: 'Name',
-                nickname: 'Nickname',
+                username: 'Username',
                 email: 'Email',
                 discord: 'Discord',
                 twitter: 'Twitter / X',
@@ -957,27 +1234,10 @@ function clientFieldLabel(field: string) {
     )
 }
 
-function clientFieldPlaceholder(field: string) {
-    return (
-        (
-            {
-                name: 'Name or nickname',
-                nickname: 'Display nickname',
-                email: 'you@example.com',
-                discord: 'Discord username or link',
-                twitter: 'https://x.com/username',
-                instagram: 'https://instagram.com/username',
-                facebook: 'https://facebook.com/username',
-                tiktok: 'https://tiktok.com/@username',
-            } as Record<string, string>
-        )[field] ?? ''
-    )
-}
-
 function profileClientDetails(user: User): Record<string, string> {
     return {
         name: user.name ?? '',
-        nickname: user.nickname ?? '',
+        username: user.username ?? '',
         email: user.email ?? '',
         discord: user.discord_url ?? '',
         twitter: user.twitter_url ?? '',

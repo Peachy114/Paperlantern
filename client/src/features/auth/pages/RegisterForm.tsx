@@ -36,7 +36,6 @@ export default function RegisterForm() {
     } = useAuth()
     const [data, setData] = useState({
         name: '',
-        nickname: '',
         username: '',
         email: '',
         password: '',
@@ -154,21 +153,6 @@ export default function RegisterForm() {
                         placeholder="@username"
                         value={data.username}
                         onChange={(e) => setData({ ...data, username: e.target.value })}
-                        className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
-                    />
-                </div>
-                <div className="flex flex-col px-3 pt-2.5 pb-2">
-                    <label
-                        htmlFor="nickname"
-                        className="text-[10px] font-medium text-muted-foreground tracking-widest uppercase mb-1"
-                    >
-                        Nickname
-                    </label>
-                    <input
-                        id="nickname"
-                        placeholder="Display nickname"
-                        value={data.nickname}
-                        onChange={(e) => setData({ ...data, nickname: e.target.value })}
                         className="text-sm text-foreground placeholder:text-muted-foreground/40 bg-transparent outline-none"
                     />
                 </div>

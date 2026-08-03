@@ -19,7 +19,6 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name'     => ['required', 'string', 'max:255'],
-            'nickname' => ['nullable', 'string', 'max:80'],
             'username' => ['required', 'string', 'max:50', 'unique:users,username'],
             'email'    => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
@@ -124,7 +123,6 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'name'          => ['sometimes', 'string', 'max:255'],
-            'nickname'      => ['nullable', 'string', 'max:80'],
             'username'      => ['sometimes', 'string', 'max:50', 'unique:users,username,' . $user->id],
             'email'         => ['sometimes', 'email', 'unique:users,email,' . $user->id],
             'bio'           => ['nullable', 'string', 'max:500'],
@@ -136,16 +134,31 @@ class AuthController extends Controller
             'tiktok_url'    => ['nullable', 'url', 'max:255'],
             'account_menu_style' => ['sometimes', 'string', 'in:circular,detailed'],
         ]);
+        $emailChanged = isset($validated['email'])
+            && $validated['email'] !== $user->email
+            && $user->role !== 'super_admin';
 
         if ($request->hasFile('avatar')) {
             if ($user->avatar) Storage::delete($user->avatar);
             $validated['avatar'] = $request->file('avatar')->store('avatars', 'public');
         }
 
+        if ($emailChanged) {
+            $validated['email_verified_at'] = null;
+            $validated['email_verification_code'] = null;
+            $validated['email_verification_expires_at'] = null;
+        }
+
         $user->update($validated);
 
+        if ($emailChanged) {
+            $this->service->sendVerificationCodeForUser($user->fresh());
+        }
+
         return response()->json([
-            'message' => 'Profile updated.',
+            'message' => $emailChanged
+                ? 'Profile updated. Please verify your new email address.'
+                : 'Profile updated.',
             'user'    => $this->service->formatUser($user->fresh()),
         ]);
     }

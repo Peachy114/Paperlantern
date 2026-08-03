@@ -10,9 +10,13 @@ export type ShopDownload = {
     price?: number | string | null
     currency?: string | null
     rating?: number | null
+    ratings_count?: number
+    user_rating?: number | null
+    user_rating_comment?: string | null
     sold_count?: number | null
     is_popular?: boolean
     is_new?: boolean
+    is_owner?: boolean
     download_unlocked?: boolean
     files_count: number
     likes: number
@@ -41,12 +45,18 @@ export type ShopSticker = {
     credit_cost: number
     href: string
     usage: {
+        stickers?: boolean
         comments: boolean
         profile: boolean
         backgrounds: boolean
         messages: boolean
     }
-    artist?: { name: string; username: string; avatar?: string | null } | null
+    artist?: {
+        id?: string
+        name: string
+        username: string
+        avatar?: string | null
+    } | null
     source?: 'admin' | 'artist'
     source_label?: string
     owned?: boolean

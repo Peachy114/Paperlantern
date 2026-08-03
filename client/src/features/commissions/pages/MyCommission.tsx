@@ -107,7 +107,7 @@ interface InfoQuestion {
 
 interface ClientFields {
     name: { collect: boolean; required: boolean }
-    nickname: { collect: boolean; required: boolean }
+    username: { collect: boolean; required: boolean }
     email: { collect: boolean; required: boolean }
     discord: { collect: boolean; required: boolean }
     twitter: { collect: boolean; required: boolean }
@@ -261,8 +261,8 @@ interface ServiceForm {
 
 const DEFAULT_CLIENT_FIELDS: ClientFields = {
     name: { collect: true, required: false },
-    nickname: { collect: true, required: false },
-    email: { collect: false, required: false },
+    username: { collect: true, required: false },
+    email: { collect: true, required: true },
     discord: { collect: false, required: false },
     twitter: { collect: false, required: false },
     instagram: { collect: false, required: false },
@@ -344,8 +344,17 @@ const COMMISSION_NAV_ITEMS = [
     { value: 'settings', label: 'Settings', icon: Settings },
 ]
 
+interface ConfirmAction {
+    title: string
+    description: string
+    confirmLabel: string
+    destructive?: boolean
+    onConfirm: () => void
+}
+
 export default function MyCommission() {
     const queryClient = useQueryClient()
+    const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
     const { data, isLoading } = useQuery<CommissionPageResponse>({
         queryKey: QUERY_KEY,
         queryFn: () => studioApi.getCommissionProfile().then((res) => res.data),
@@ -478,7 +487,49 @@ export default function MyCommission() {
         )
     }
 
+    const nextCommissionStatus = profile.commission_status === 'open' ? 'closed' : 'open'
+    const requestStatusChange = () => {
+        setConfirmAction({
+            title:
+                nextCommissionStatus === 'open'
+                    ? 'Open commissions?'
+                    : 'Close commissions?',
+            description:
+                nextCommissionStatus === 'open'
+                    ? 'Wanderers will be able to request your published commission services again.'
+                    : 'All published commission services will stop accepting new requests until you reopen commissions.',
+            confirmLabel: nextCommissionStatus === 'open' ? 'Open commissions' : 'Close commissions',
+            destructive: nextCommissionStatus === 'closed',
+            onConfirm: () =>
+                updateSettings.mutate({
+                    commissions_enabled: nextCommissionStatus === 'open',
+                    commission_status: nextCommissionStatus,
+                }),
+        })
+    }
+
+    const requestDeleteService = (slug: string, title: string) => {
+        setConfirmAction({
+            title: 'Delete commission service?',
+            description: `Delete "${title}"? Wanderers will no longer be able to request this service.`,
+            confirmLabel: 'Delete service',
+            destructive: true,
+            onConfirm: () => deleteService.mutate(slug),
+        })
+    }
+
+    const requestDeleteServices = (targets: Array<{ slug: string; title: string }>) => {
+        setConfirmAction({
+            title: 'Delete selected services?',
+            description: `Delete ${targets.length} selected commission service${targets.length === 1 ? '' : 's'}? This cannot be undone.`,
+            confirmLabel: 'Delete selected',
+            destructive: true,
+            onConfirm: () => targets.forEach((service) => deleteService.mutate(service.slug)),
+        })
+    }
+
     return (
+        <>
         <div className="mx-auto w-full max-w-[1500px] pb-16">
             <header className="mb-5 px-1">
                 <h1 className="text-2xl font-black uppercase tracking-[0.03em] sm:text-3xl">
@@ -494,6 +545,8 @@ export default function MyCommission() {
                 services={services}
                 orders={orders}
                 widgets={widgets}
+                statusBusy={updateSettings.isPending}
+                onToggleStatus={requestStatusChange}
             />
 
             {profile.application_status !== 'approved' && (
@@ -548,7 +601,8 @@ export default function MyCommission() {
                             deleting={deleteService.isPending}
                             onCreate={(payload) => createService.mutate(payload)}
                             onUpdate={(slug, payload) => updateService.mutate({ slug, payload })}
-                            onDelete={(slug) => deleteService.mutate(slug)}
+                            onDelete={requestDeleteService}
+                            onDeleteSelected={requestDeleteServices}
                         />
                     </TabsContent>
 
@@ -608,6 +662,51 @@ export default function MyCommission() {
                 </div>
             </Tabs>
         </div>
+        <ConfirmActionDialog
+            action={confirmAction}
+            busy={updateSettings.isPending || deleteService.isPending}
+            onOpenChange={(open) => {
+                if (!open) setConfirmAction(null)
+            }}
+        />
+        </>
+    )
+}
+
+function ConfirmActionDialog({
+    action,
+    busy,
+    onOpenChange,
+}: {
+    action: ConfirmAction | null
+    busy: boolean
+    onOpenChange: (open: boolean) => void
+}) {
+    return (
+        <Dialog open={Boolean(action)} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>{action?.title}</DialogTitle>
+                    <DialogDescription>{action?.description}</DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="gap-2 sm:justify-end">
+                    <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
+                        Cancel
+                    </Button>
+                    <Button
+                        type="button"
+                        variant={action?.destructive ? 'destructive' : 'default'}
+                        disabled={busy}
+                        onClick={() => {
+                            action?.onConfirm()
+                            onOpenChange(false)
+                        }}
+                    >
+                        {busy ? 'Working...' : action?.confirmLabel}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -616,11 +715,15 @@ function CommissionDashboardHero({
     services,
     orders,
     widgets,
+    statusBusy,
+    onToggleStatus,
 }: {
     profile: CommissionProfile
     services: CommissionService[]
     orders: CommissionOrder[]
     widgets?: CommissionWidgetsData
+    statusBusy: boolean
+    onToggleStatus: () => void
 }) {
     const activeServices = services.filter(
         (service) => service.status === 'open' && service.is_published
@@ -683,7 +786,12 @@ function CommissionDashboardHero({
                             </div>
                         </div>
 
-                        <div className="rounded-2xl border border-border bg-background px-4 py-3 shadow-sm">
+                        <button
+                            type="button"
+                            disabled={statusBusy || profile.application_status !== 'approved'}
+                            onClick={onToggleStatus}
+                            className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-left shadow-sm transition hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
                             <div className="flex items-center justify-between gap-3">
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">
@@ -691,6 +799,9 @@ function CommissionDashboardHero({
                                     </p>
                                     <p className="mt-1 text-sm font-bold capitalize">
                                         {profile.commission_status ?? 'closed'}
+                                    </p>
+                                    <p className="mt-1 text-[10px] text-muted-foreground">
+                                        Click to {profile.commission_status === 'open' ? 'close' : 'open'}
                                     </p>
                                 </div>
                                 <span
@@ -701,7 +812,7 @@ function CommissionDashboardHero({
                                     }`}
                                 />
                             </div>
-                        </div>
+                        </button>
                     </div>
 
                     <div className="rounded-2xl border border-border bg-background p-4 shadow-sm sm:p-5">
@@ -1093,21 +1204,46 @@ function formatCompactMetric(value: number) {
 }
 
 function normalizeClientFields(value?: CommissionProfile['client_fields']): ClientFields {
+    const fields = { ...(value ?? {}) } as Record<string, unknown>
+    delete fields.nickname
+
     return {
         ...DEFAULT_CLIENT_FIELDS,
-        ...(value ?? {}),
-        name: { ...DEFAULT_CLIENT_FIELDS.name, ...(value?.name ?? {}) },
-        nickname: { ...DEFAULT_CLIENT_FIELDS.nickname, ...(value?.nickname ?? {}) },
-        email: { ...DEFAULT_CLIENT_FIELDS.email, ...(value?.email ?? {}) },
-        discord: { ...DEFAULT_CLIENT_FIELDS.discord, ...(value?.discord ?? {}) },
-        twitter: { ...DEFAULT_CLIENT_FIELDS.twitter, ...(value?.twitter ?? {}) },
-        instagram: {
-            ...DEFAULT_CLIENT_FIELDS.instagram,
-            ...(value?.instagram ?? {}),
-        },
-        facebook: { ...DEFAULT_CLIENT_FIELDS.facebook, ...(value?.facebook ?? {}) },
-        tiktok: { ...DEFAULT_CLIENT_FIELDS.tiktok, ...(value?.tiktok ?? {}) },
+        ...fields,
+        name: normalizeClientField(DEFAULT_CLIENT_FIELDS.name, fields.name),
+        username: normalizeClientField(DEFAULT_CLIENT_FIELDS.username, fields.username),
+        email: normalizeClientField(DEFAULT_CLIENT_FIELDS.email, fields.email),
+        discord: normalizeClientField(DEFAULT_CLIENT_FIELDS.discord, fields.discord),
+        twitter: normalizeClientField(DEFAULT_CLIENT_FIELDS.twitter, fields.twitter),
+        instagram: normalizeClientField(DEFAULT_CLIENT_FIELDS.instagram, fields.instagram),
+        facebook: normalizeClientField(DEFAULT_CLIENT_FIELDS.facebook, fields.facebook),
+        tiktok: normalizeClientField(DEFAULT_CLIENT_FIELDS.tiktok, fields.tiktok),
     }
+}
+
+function normalizeClientField(
+    fallback: { collect: boolean; required: boolean },
+    value: unknown
+): { collect: boolean; required: boolean } {
+    const field = (value ?? {}) as Partial<{ collect: unknown; required: unknown }>
+
+    return {
+        collect: booleanFieldValue(field.collect, fallback.collect),
+        required: booleanFieldValue(field.required, fallback.required),
+    }
+}
+
+function booleanFieldValue(value: unknown, fallback = false) {
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase()
+        if (['1', 'true', 'on', 'yes'].includes(normalized)) return true
+        if (['0', 'false', 'off', 'no', ''].includes(normalized)) return false
+    }
+
+    if (value === true || value === 1) return true
+    if (value === false || value === 0 || value === null) return false
+
+    return fallback
 }
 
 function normalizeFlowTemplate(value?: CommissionProfile['flow_template']): FlowStep[] {
@@ -1242,6 +1378,7 @@ function CommissionFormsWorkspace({
     const [forms, setForms] = useState<RequestQuestion[]>(
         normalizeRequestQuestions(profile.request_forms)
     )
+    const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
     const [adding, setAdding] = useState(false)
     const [draft, setDraft] = useState<RequestQuestion>({
         id: makeLocalId(),
@@ -1273,6 +1410,20 @@ function CommissionFormsWorkspace({
         setAdding(false)
     }
 
+    const requestRemoveForm = (index: number) => {
+        const title = forms[index]?.title || 'this question'
+        setConfirmAction({
+            title: 'Delete saved question?',
+            description: `Remove "${title}" from your reusable commission forms?`,
+            confirmLabel: 'Delete question',
+            destructive: true,
+            onConfirm: () =>
+                setForms((current) =>
+                    current.filter((_, questionIndex) => questionIndex !== index)
+                ),
+        })
+    }
+
     return (
         <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <RequestQuestionsSection
@@ -1285,11 +1436,7 @@ function CommissionFormsWorkspace({
                         )
                     )
                 }
-                onRemove={(index) =>
-                    setForms((current) =>
-                        current.filter((_, questionIndex) => questionIndex !== index)
-                    )
-                }
+                onRemove={requestRemoveForm}
             />
             <Button className="mt-4" disabled={busy} onClick={() => onSave(forms)}>
                 {busy ? 'Saving...' : 'Save forms'}
@@ -1392,6 +1539,13 @@ function CommissionFormsWorkspace({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <ConfirmActionDialog
+                action={confirmAction}
+                busy={busy}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmAction(null)
+                }}
+            />
         </section>
     )
 }
@@ -1406,6 +1560,19 @@ function CommissionFaqWorkspace({
     onSave: (faqs: InfoQuestion[]) => void
 }) {
     const [faqs, setFaqs] = useState<InfoQuestion[]>(profile.faqs ?? [])
+    const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
+
+    const requestRemoveFaq = (index: number) => {
+        const title = faqs[index]?.question || 'this Q&A'
+        setConfirmAction({
+            title: 'Delete public Q&A?',
+            description: `Remove "${title}" from your commission FAQ?`,
+            confirmLabel: 'Delete Q&A',
+            destructive: true,
+            onConfirm: () =>
+                setFaqs((current) => current.filter((_, itemIndex) => itemIndex !== index)),
+        })
+    }
 
     return (
         <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
@@ -1428,13 +1595,18 @@ function CommissionFaqWorkspace({
                         )
                     )
                 }
-                onRemove={(index) =>
-                    setFaqs((current) => current.filter((_, itemIndex) => itemIndex !== index))
-                }
+                onRemove={requestRemoveFaq}
             />
             <Button className="mt-4" disabled={busy} onClick={() => onSave(faqs)}>
                 {busy ? 'Saving...' : 'Save FAQ'}
             </Button>
+            <ConfirmActionDialog
+                action={confirmAction}
+                busy={busy}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmAction(null)
+                }}
+            />
         </section>
     )
 }
@@ -1451,6 +1623,7 @@ function CommissionDiscountWorkspace({
     const [discounts, setDiscounts] = useState<PromoDiscount[]>(
         normalizePromoDiscounts(profile.discounts)
     )
+    const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
     const [adding, setAdding] = useState(false)
     const [draft, setDraft] = useState<PromoDiscount>({
         id: makeLocalId(),
@@ -1484,6 +1657,20 @@ function CommissionDiscountWorkspace({
         setAdding(false)
     }
 
+    const requestRemoveDiscount = (index: number) => {
+        const title = discounts[index]?.label || 'this discount'
+        setConfirmAction({
+            title: 'Delete discount?',
+            description: `Remove "${title}" from your reusable commission promotions?`,
+            confirmLabel: 'Delete discount',
+            destructive: true,
+            onConfirm: () =>
+                setDiscounts((current) =>
+                    current.filter((_, discountIndex) => discountIndex !== index)
+                ),
+        })
+    }
+
     return (
         <section className="rounded-[24px] border border-border bg-background p-5 shadow-[0_10px_30px_rgba(15,23,42,0.04)]">
             <DiscountsSection
@@ -1496,11 +1683,7 @@ function CommissionDiscountWorkspace({
                         )
                     )
                 }
-                onRemove={(index) =>
-                    setDiscounts((current) =>
-                        current.filter((_, discountIndex) => discountIndex !== index)
-                    )
-                }
+                onRemove={requestRemoveDiscount}
             />
             <Button className="mt-4" disabled={busy} onClick={() => onSave(discounts)}>
                 {busy ? 'Saving...' : 'Save discounts'}
@@ -1607,6 +1790,13 @@ function CommissionDiscountWorkspace({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            <ConfirmActionDialog
+                action={confirmAction}
+                busy={busy}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmAction(null)
+                }}
+            />
         </section>
     )
 }
@@ -2114,6 +2304,7 @@ function CommissionServicesSection({
     onCreate,
     onUpdate,
     onDelete,
+    onDeleteSelected,
 }: {
     profile: CommissionProfile
     services: CommissionService[]
@@ -2122,7 +2313,8 @@ function CommissionServicesSection({
     deleting: boolean
     onCreate: (payload: FormData) => void
     onUpdate: (slug: string, payload: FormData) => void
-    onDelete: (slug: string) => void
+    onDelete: (slug: string, title: string) => void
+    onDeleteSelected: (targets: Array<{ slug: string; title: string }>) => void
 }) {
     const [open, setOpen] = useState(false)
     const [editing, setEditing] = useState<CommissionService | null>(null)
@@ -2163,10 +2355,7 @@ function CommissionServicesSection({
             required_references: service.required_references ?? '',
             request_questions: service.request_questions ?? [],
             info_questions: service.info_questions ?? [],
-            client_fields: {
-                ...DEFAULT_CLIENT_FIELDS,
-                ...(service.client_fields ?? {}),
-            },
+            client_fields: normalizeClientFields(service.client_fields),
             promo_discounts: service.promo_discounts ?? [],
             setup_options: {
                 ...DEFAULT_SETUP_OPTIONS,
@@ -2230,9 +2419,14 @@ function CommissionServicesSection({
                         variant="destructive"
                         disabled={selectedServiceIds.length === 0 || deleting}
                         onClick={() => {
-                            services
-                                .filter((service) => selectedServiceIds.includes(service.id))
-                                .forEach((service) => onDelete(service.slug))
+                            onDeleteSelected(
+                                services
+                                    .filter((service) => selectedServiceIds.includes(service.id))
+                                    .map((service) => ({
+                                        slug: service.slug,
+                                        title: service.title,
+                                    }))
+                            )
                             setSelectedServiceIds([])
                         }}
                     >
@@ -2326,7 +2520,7 @@ function CommissionServicesSection({
                                     size="sm"
                                     variant="destructive"
                                     disabled={deleting}
-                                    onClick={() => onDelete(service.slug)}
+                                    onClick={() => onDelete(service.slug, service.title)}
                                 >
                                     <Trash2 className="h-4 w-4" />
                                     Delete
@@ -2806,6 +3000,7 @@ function ServiceDialog({
     saving: boolean
     onSubmit: () => void
 }) {
+    const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
     const setField = <K extends keyof ServiceForm>(key: K, value: ServiceForm[K]) => {
         setForm((current) => ({ ...current, [key]: value }))
     }
@@ -2855,6 +3050,17 @@ function ServiceDialog({
         }))
     }
 
+    const confirmRemoveRequestQuestion = (index: number) => {
+        const title = form.request_questions[index]?.title || 'this question'
+        setConfirmAction({
+            title: 'Delete request question?',
+            description: `Remove "${title}" from this service request form?`,
+            confirmLabel: 'Delete question',
+            destructive: true,
+            onConfirm: () => removeRequestQuestion(index),
+        })
+    }
+
     const addInfoQuestion = () => {
         setForm((current) => ({
             ...current,
@@ -2883,6 +3089,17 @@ function ServiceDialog({
             ...current,
             info_questions: current.info_questions.filter((_, itemIndex) => itemIndex !== index),
         }))
+    }
+
+    const confirmRemoveInfoQuestion = (index: number) => {
+        const title = form.info_questions[index]?.question || 'this info question'
+        setConfirmAction({
+            title: 'Delete info question?',
+            description: `Remove "${title}" from this service FAQ?`,
+            confirmLabel: 'Delete question',
+            destructive: true,
+            onConfirm: () => removeInfoQuestion(index),
+        })
     }
 
     const addDiscount = () => {
@@ -2921,6 +3138,17 @@ function ServiceDialog({
         }))
     }
 
+    const confirmRemoveDiscount = (index: number) => {
+        const title = form.promo_discounts[index]?.label || 'this promo'
+        setConfirmAction({
+            title: 'Delete promo?',
+            description: `Remove "${title}" from this service?`,
+            confirmLabel: 'Delete promo',
+            destructive: true,
+            onConfirm: () => removeDiscount(index),
+        })
+    }
+
     const updateSetup = (patch: Partial<SetupOptions>) => {
         setForm((current) => ({
             ...current,
@@ -2938,6 +3166,7 @@ function ServiceDialog({
     }
 
     return (
+        <>
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="flex h-[min(92dvh,920px)] w-[min(96vw,1180px)] max-w-none flex-col overflow-hidden p-0 sm:max-w-none">
                 <DialogHeader className="p-6 pb-4">
@@ -3241,14 +3470,14 @@ function ServiceDialog({
                                 questions={form.request_questions}
                                 onAdd={addRequestQuestion}
                                 onUpdate={updateRequestQuestion}
-                                onRemove={removeRequestQuestion}
+                                onRemove={confirmRemoveRequestQuestion}
                             />
 
                             <InfoQuestionsSection
                                 items={form.info_questions}
                                 onAdd={addInfoQuestion}
                                 onUpdate={updateInfoQuestion}
-                                onRemove={removeInfoQuestion}
+                                onRemove={confirmRemoveInfoQuestion}
                             />
                         </TabsContent>
 
@@ -3305,7 +3534,7 @@ function ServiceDialog({
                                 discounts={form.promo_discounts}
                                 onAdd={addDiscount}
                                 onUpdate={updateDiscount}
-                                onRemove={removeDiscount}
+                                onRemove={confirmRemoveDiscount}
                             />
                         </TabsContent>
 
@@ -3341,6 +3570,14 @@ function ServiceDialog({
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+        <ConfirmActionDialog
+            action={confirmAction}
+            busy={false}
+            onOpenChange={(dialogOpen) => {
+                if (!dialogOpen) setConfirmAction(null)
+            }}
+        />
+        </>
     )
 }
 
@@ -3526,6 +3763,7 @@ function FlowEditor({
     onUpdate: (index: number, patch: Partial<FlowStep>) => void
     onMove: (index: number, target: number) => void
 }) {
+    const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
     const handleDragStart = (event: DragEvent<HTMLDivElement>, index: number) => {
         event.dataTransfer.setData('text/plain', String(index))
         event.dataTransfer.effectAllowed = 'move'
@@ -3536,6 +3774,17 @@ function FlowEditor({
         const sourceIndex = Number(event.dataTransfer.getData('text/plain'))
         if (Number.isInteger(sourceIndex) && sourceIndex !== targetIndex)
             onMove(sourceIndex, targetIndex)
+    }
+
+    const confirmRemoveStep = (index: number) => {
+        setConfirmAction({
+            title: 'Delete flow step?',
+            description: `Remove "${flow[index]?.label || 'this step'}" from the commission flow?`,
+            confirmLabel: 'Delete step',
+            destructive: true,
+            onConfirm: () =>
+                setFlow((current) => current.filter((_, stepIndex) => stepIndex !== index)),
+        })
     }
 
     return (
@@ -3612,17 +3861,20 @@ function FlowEditor({
                             type="button"
                             size="sm"
                             variant="destructive"
-                            onClick={() =>
-                                setFlow((current) =>
-                                    current.filter((_, stepIndex) => stepIndex !== index)
-                                )
-                            }
+                            onClick={() => confirmRemoveStep(index)}
                         >
                             Delete
                         </Button>
                     </div>
                 ))}
             </div>
+            <ConfirmActionDialog
+                action={confirmAction}
+                busy={false}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmAction(null)
+                }}
+            />
         </div>
     )
 }
@@ -3686,6 +3938,7 @@ function RequestQuestionsSection({
     onUpdate: (index: number, patch: Partial<RequestQuestion>) => void
     onRemove: (index: number) => void
 }) {
+    const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null)
     const handleQuestionTypeChange = (questionIndex: number, type: RequestQuestion['type']) => {
         const currentQuestion = questions[questionIndex]
 
@@ -3718,13 +3971,24 @@ function RequestQuestionsSection({
         })
     }
 
-    const handleRemoveOption = (questionIndex: number, optionIndex: number) => {
+    const removeOption = (questionIndex: number, optionIndex: number) => {
         const updatedOptions = questions[questionIndex].options.filter(
             (_, index) => index !== optionIndex
         )
 
         onUpdate(questionIndex, {
             options: updatedOptions,
+        })
+    }
+
+    const confirmRemoveOption = (questionIndex: number, optionIndex: number) => {
+        const option = questions[questionIndex]?.options[optionIndex] || `Option ${optionIndex + 1}`
+        setConfirmAction({
+            title: 'Delete option?',
+            description: `Remove "${option}" from this question?`,
+            confirmLabel: 'Delete option',
+            destructive: true,
+            onConfirm: () => removeOption(questionIndex, optionIndex),
         })
     }
 
@@ -3844,7 +4108,7 @@ function RequestQuestionsSection({
                                                 variant="ghost"
                                                 className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                 onClick={() =>
-                                                    handleRemoveOption(questionIndex, optionIndex)
+                                                    confirmRemoveOption(questionIndex, optionIndex)
                                                 }
                                                 aria-label={`Delete option ${optionIndex + 1}`}
                                                 title="Delete option"
@@ -3945,6 +4209,13 @@ function RequestQuestionsSection({
                     </div>
                 )}
             </div>
+            <ConfirmActionDialog
+                action={confirmAction}
+                busy={false}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmAction(null)
+                }}
+            />
         </div>
     )
 }
@@ -4173,7 +4444,7 @@ function ClientFieldsSection({
 }) {
     const labels: Record<keyof ClientFields, string> = {
         name: 'Name',
-        nickname: 'Nickname',
+        username: 'Username',
         email: 'Email',
         discord: 'Discord',
         twitter: 'Twitter / X',
@@ -4188,7 +4459,7 @@ function ClientFieldsSection({
             <p className="mb-3 text-xs text-muted-foreground">
                 Choose what contact details the artist may collect.
             </p>
-            <div className="grid gap-2">
+                <div className="grid gap-2">
                 <div className="grid items-center gap-2 rounded-lg border px-3 py-2 text-sm md:grid-cols-[1fr_auto]">
                     <span>{labels.name}</span>
                     <label className="flex items-center gap-2">
@@ -4205,6 +4476,12 @@ function ClientFieldsSection({
                         />
                         Required / not
                     </label>
+                </div>
+                <div className="grid items-center gap-2 rounded-lg border px-3 py-2 text-sm md:grid-cols-[1fr_auto]">
+                    <span>{labels.username}</span>
+                    <span className="text-xs text-muted-foreground">
+                        Always shared from the wanderer account
+                    </span>
                 </div>
                 <div className="grid items-center gap-2 rounded-lg border px-3 py-2 text-sm md:grid-cols-[1fr_auto_auto]">
                     <span>{labels.email}</span>
@@ -4237,7 +4514,7 @@ function ClientFieldsSection({
                         Required for wanderers
                     </label>
                 </div>
-                {(['discord', 'twitter', 'instagram', 'facebook'] as Array<keyof ClientFields>).map(
+                {(['discord', 'twitter', 'instagram', 'facebook', 'tiktok'] as Array<keyof ClientFields>).map(
                     (field) => (
                         <div
                             key={field}

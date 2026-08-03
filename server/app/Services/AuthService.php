@@ -53,16 +53,14 @@ class AuthService
 
         if ($user->role !== 'super_admin' && ! $user->email_verified_at) {
             $this->sendEmailVerificationCode($user);
-
-            throw ValidationException::withMessages([
-                'login' => ['Please verify your email first. A new verification code was sent to your email.'],
-            ]);
         }
 
         $token = $this->repo->createToken($user);
 
         return [
-            'message' => 'Login successful.',
+            'message' => $user->email_verified_at
+                ? 'Login successful.'
+                : 'Login successful. Please verify your email from the banner in your account.',
             'user'    => $this->formatUser($user),
             'token'   => $token,
         ];
@@ -185,6 +183,11 @@ class AuthService
         return app(NotificationEmailService::class);
     }
 
+    public function sendVerificationCodeForUser(User $user): void
+    {
+        $this->sendEmailVerificationCode($user);
+    }
+
     private function sendEmailVerificationCode(User $user): void
     {
         $code = (string) random_int(100000, 999999);
@@ -259,7 +262,6 @@ class AuthService
         return [
             'id'        => $user->id,
             'name'      => $user->name,
-            'nickname'  => $user->nickname,
             'username'  => $user->username,
             'email'     => $user->email,
             'email_verified_at' => $user->email_verified_at?->toIso8601String(),

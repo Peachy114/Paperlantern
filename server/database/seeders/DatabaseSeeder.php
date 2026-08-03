@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             SuperAdminSeeder::class,
+            DefaultStickerSeeder::class,
             CreditPackageSeeder::class,
             SuperLikeAwardSeeder::class,
             LabelingSeeder::class,

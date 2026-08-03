@@ -13,7 +13,7 @@ export const Pages = {
     DiscoveryPage: lazy(() => import('@/features/work/pages/DiscoveryPage')),
     ExploreArts: lazy(() => import('@/features/arts/pages/ExploreArts')),
     ExploreCommissions: lazy(() => import('@/features/commissions/pages/ExploreCommissions')),
-    Shop: lazy(() => import('@/features/shop/pages/Shop')),
+    Shop: lazy(() => import('@/features/shop/pages/Shop/index')),
     ArtistProfile: lazy(() => import('@/features/artist-profile/pages/ArtistProfile')),
     GoogleCallback: lazy(() => import('@/pages/GoogleCallback')),
 
@@ -37,7 +37,7 @@ export const Pages = {
     Tickets: lazy(() => import('@/features/tickets/Tickets')),
     TicketShow: lazy(() => import('@/features/tickets/TicketShow')),
     MyArts: lazy(() => import('@/features/arts/pages/MyArts')),
-    MyShop: lazy(() => import('@/features/shop/pages/MyShop')),
+    MyShop: lazy(() => import('@/features/shop/pages/MyShop/index')),
     MyCommission: lazy(() => import('@/features/commissions/pages/AccountCommission')),
     Messages: lazy(() => import('@/features/commissions/pages/Messages')),
     MyStickers: lazy(() => import('@/features/stickers/pages/MyStickers')),

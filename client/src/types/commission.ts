@@ -27,7 +27,7 @@ export interface CommissionInfoQuestion {
 
 export interface CommissionClientFields {
     name: { collect: boolean; required: boolean }
-    nickname: { collect: boolean; required: boolean }
+    username: { collect: boolean; required: boolean }
     email: { collect: boolean; required: boolean }
     discord: { collect: boolean; required: boolean }
     twitter: { collect: boolean; required: boolean }

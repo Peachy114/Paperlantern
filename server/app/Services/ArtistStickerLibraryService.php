@@ -46,6 +46,9 @@ class ArtistStickerLibraryService
             ->orWhereHas('purchases', fn($q) => $q->where('user_id', $user->id))
             ->orWhereHas('subscriptions', fn($q) => $q->where('user_id', $user->id))
             ->orWhereIn('id', $giftedIds)
+            ->orWhere(fn($query) => $query
+                ->where('is_public', true)
+                ->where('is_free', true))
             ->when($hasSubscription, fn($query) => $query->orWhere(fn($inner) => $inner
                 ->where('is_public', true)
                 ->where('subscription_free', true)))

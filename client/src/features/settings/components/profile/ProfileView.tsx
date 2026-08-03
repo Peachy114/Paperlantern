@@ -44,17 +44,21 @@ export default function ProfileView() {
                     </div>
                     {/* ── Social Media Links ── */}
                     <div className="space-y-1.5">
-                        <Label htmlFor="nickname">Nickname</Label>
+                        <Label htmlFor="email">Email</Label>
                         <Input
-                            id="nickname"
-                            {...profile.register('nickname')}
-                            placeholder="Display nickname"
+                            id="email"
+                            type="email"
+                            {...profile.register('email')}
+                            placeholder="you@example.com"
                         />
-                        {profile.errors.nickname && (
+                        {profile.errors.email && (
                             <p className="text-sm text-destructive">
-                                {profile.errors.nickname.message}
+                                {profile.errors.email.message}
                             </p>
                         )}
+                        <p className="text-xs text-muted-foreground">
+                            If you change your email, a new verification code will be sent.
+                        </p>
                     </div>
 
                     <div className="space-y-2">
@@ -91,7 +95,7 @@ export default function ProfileView() {
                         </div>
                     </div>
 
-                    <div className="space-y-4">
+                    <div id="public-links" className="scroll-mt-24 space-y-4">
                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                             Public Links
                         </h3>

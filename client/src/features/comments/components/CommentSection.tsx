@@ -54,15 +54,98 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import SuperLikeButton from './SuperLikeButton'
 
-const REACTION_EMOJIS = ['😀', '😂', '😭', '🔥', '❤️']
+const COMMENT_REACTION_EMOJIS = [
+    '😀',
+    '😂',
+    '😭',
+    '🔥',
+    '❤️',
+    '😍',
+    '🥰',
+    '😮',
+    '😆',
+    '👏',
+    '👍',
+    '✨',
+    '💯',
+    '🤔',
+    '😎',
+    '🥹',
+    '😅',
+    '🙌',
+    '🎉',
+    '⭐',
+]
+COMMENT_REACTION_EMOJIS.splice(
+    0,
+    COMMENT_REACTION_EMOJIS.length,
+    '\uD83D\uDE00',
+    '\uD83D\uDE02',
+    '\uD83D\uDE2D',
+    '\uD83D\uDD25',
+    '\u2764\uFE0F',
+    '\uD83D\uDE0D',
+    '\uD83E\uDD70',
+    '\uD83D\uDE2E',
+    '\uD83D\uDE06',
+    '\uD83D\uDC4F',
+    '\uD83D\uDC4D',
+    '\u2728',
+    '\uD83D\uDCAF',
+    '\uD83E\uDD14',
+    '\uD83D\uDE0E',
+    '\uD83E\uDD79',
+    '\uD83D\uDE05',
+    '\uD83D\uDE4C',
+    '\uD83C\uDF89',
+    '\u2B50'
+)
+
 const COMMENT_SORTS: Array<{ value: CommentSort; label: string }> = [
     { value: 'all', label: 'All' },
     { value: 'latest', label: 'Latest' },
     { value: 'popular', label: 'Popular' },
 ]
 
+const INITIAL_VISIBLE_REPLIES = 5
+
 function normalizeUsername(value?: string | null): string {
     return value?.trim().replace(/^@/, '').toLowerCase() ?? ''
+}
+
+function compareRepliesOldestFirst(a: PublicComment, b: PublicComment): number {
+    const aTime = Date.parse(a.created_at)
+    const bTime = Date.parse(b.created_at)
+
+    if (Number.isFinite(aTime) && Number.isFinite(bTime) && aTime !== bTime) {
+        return aTime - bTime
+    }
+
+    return String(a.id).localeCompare(String(b.id))
+}
+
+function flattenRepliesOldestFirst(replies: PublicComment[]): PublicComment[] {
+    const flattened: PublicComment[] = []
+    const seen = new Set<string>()
+
+    const visit = (reply: PublicComment) => {
+        const replyId = String(reply.id)
+
+        if (seen.has(replyId)) return
+
+        seen.add(replyId)
+        flattened.push(reply)
+
+        for (const nestedReply of reply.replies ?? []) {
+            visit(nestedReply)
+        }
+    }
+
+    for (const reply of replies) {
+        visit(reply)
+    }
+
+    return flattened.sort(compareRepliesOldestFirst)
 }
 
 interface CommentSectionProps {
@@ -107,6 +190,7 @@ export default function CommentSection({
 
     const commentsKey = ['comments', targetType, targetId, sort]
     const replyingToId = replyingTo?.id ?? null
+    const replyThreadId = replyingTo ? String(replyingTo.parent_id ?? replyingTo.id) : null
 
     const { data, isLoading } = useQuery({
         queryKey: commentsKey,
@@ -133,7 +217,7 @@ export default function CommentSection({
 
         let focusFrame: number | null = null
         const mountFrame = window.requestAnimationFrame(() => {
-            const target = document.getElementById(`reply-composer-slot-${replyingToId}`)
+            const target = document.getElementById(`reply-composer-slot-${replyThreadId}`)
             setReplyPortalTarget(target)
 
             focusFrame = window.requestAnimationFrame(() => {
@@ -146,14 +230,17 @@ export default function CommentSection({
             window.cancelAnimationFrame(mountFrame)
             if (focusFrame !== null) window.cancelAnimationFrame(focusFrame)
         }
-    }, [replyingToId])
+    }, [replyingToId, replyThreadId])
 
     const createMutation = useMutation({
         mutationFn: () => {
             const payload = new FormData()
             if (body.trim()) payload.append('body', body.trim())
             if (selectedSticker?.id) payload.append('artist_sticker_id', selectedSticker.id)
-            if (replyingTo?.id) payload.append('parent_id', replyingTo.id)
+            if (replyingTo?.id) {
+                payload.append('parent_id', replyingTo.parent_id ?? replyingTo.id)
+                payload.append('reply_to_id', replyingTo.id)
+            }
             if (reactionEmoji) payload.append('reaction_emoji', reactionEmoji)
             if (imageFile) payload.append('image', imageFile)
 
@@ -283,7 +370,10 @@ export default function CommentSection({
     }
 
     const commentComposer = (
-        <form onSubmit={submit} className="mb-5 flex gap-3 border-b pb-4">
+        <form
+            onSubmit={submit}
+            className={replyingTo ? 'flex gap-3 py-3' : 'mb-5 flex gap-3 border-b pb-4'}
+        >
             <CommentAvatar
                 name={user?.name ?? 'Guest'}
                 avatar={user?.avatar ?? null}
@@ -306,65 +396,7 @@ export default function CommentSection({
                         </Button>
                     </div>
                 )}
-                {/* Top toolbar: heading, bold, italic, bullet and spoiler */}
-                <div className="mb-2 flex flex-wrap items-center gap-1">
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 rounded-full px-2 text-xs"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('## ', '')}
-                        title="Turn selected text into a heading"
-                    >
-                        H
-                    </Button>
-                    <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('**')}
-                        title="Bold selected text"
-                    >
-                        <Bold className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('*')}
-                        title="Italic selected text"
-                    >
-                        <Italic className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 rounded-full px-2 text-xs"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('- ', '')}
-                        title="Turn selected text into a bullet"
-                    >
-                        Bullet
-                    </Button>
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 rounded-full px-2 text-xs"
-                        onMouseDown={(event) => event.preventDefault()}
-                        onClick={() => wrapSelectedText('||')}
-                        title="Spoiler selected text"
-                    >
-                        <EyeOff className="h-4 w-4" />
-                        Spoiler
-                    </Button>
-                </div>
 
-                {/* Middle: comment textarea and selected attachments */}
                 <Textarea
                     ref={textareaRef}
                     value={body}
@@ -413,7 +445,7 @@ export default function CommentSection({
 
                 {emojiOpen && (
                     <div className="mt-3 flex flex-wrap gap-2">
-                        {REACTION_EMOJIS.map((emoji) => (
+                        {COMMENT_REACTION_EMOJIS.map((emoji) => (
                             <button
                                 key={emoji}
                                 type="button"
@@ -562,7 +594,7 @@ export default function CommentSection({
                         <CommentItem
                             key={comment.id}
                             comment={comment}
-                            replyingToId={replyingToId}
+                            replyThreadId={replyThreadId}
                             canPin={canPinComments}
                             pinning={pinMutation.isPending}
                             onPin={(commentId, isPinned) =>
@@ -678,7 +710,7 @@ export default function CommentSection({
 
 function CommentItem({
     comment,
-    replyingToId,
+    replyThreadId,
     canPin,
     pinning,
     onPin,
@@ -690,10 +722,9 @@ function CommentItem({
     removingCommentId,
     currentUserId,
     currentRole,
-    depth = 0,
 }: {
     comment: PublicComment
-    replyingToId: string | null
+    replyThreadId: string | null
     canPin: boolean
     pinning: boolean
     onPin: (commentId: string, isPinned: boolean) => void
@@ -705,21 +736,187 @@ function CommentItem({
     removingCommentId: string | null
     currentUserId: string | null
     currentRole?: string
-    depth?: number
+}) {
+    const flatReplies = useMemo(
+        () => flattenRepliesOldestFirst(comment.replies ?? []),
+        [comment.replies]
+    )
+    const [repliesExpanded, setRepliesExpanded] = useState(false)
+    const [visibleReplyCount, setVisibleReplyCount] = useState(INITIAL_VISIBLE_REPLIES)
+
+    const hiddenReplyCount = Math.max(flatReplies.length - visibleReplyCount, 0)
+    const visibleReplies = repliesExpanded ? flatReplies.slice(hiddenReplyCount) : []
+    const composerBelongsToThread =
+        replyThreadId !== null &&
+        (String(replyThreadId) === String(comment.id) ||
+            flatReplies.some((reply) => String(reply.id) === String(replyThreadId)))
+
+    useEffect(() => {
+        setVisibleReplyCount((current) =>
+            Math.min(Math.max(current, INITIAL_VISIBLE_REPLIES), flatReplies.length)
+        )
+
+        if (flatReplies.length === 0) {
+            setRepliesExpanded(false)
+        }
+    }, [flatReplies.length])
+
+    useEffect(() => {
+        if (composerBelongsToThread) {
+            setRepliesExpanded(true)
+        }
+    }, [composerBelongsToThread])
+
+    const openReplies = () => {
+        setVisibleReplyCount(Math.min(INITIAL_VISIBLE_REPLIES, flatReplies.length))
+        setRepliesExpanded(true)
+    }
+
+    const hideReplies = () => {
+        setRepliesExpanded(false)
+        setVisibleReplyCount(Math.min(INITIAL_VISIBLE_REPLIES, flatReplies.length))
+    }
+
+    const loadOlderReplies = () => {
+        setVisibleReplyCount((current) =>
+            Math.min(current + INITIAL_VISIBLE_REPLIES, flatReplies.length)
+        )
+    }
+
+    return (
+        <div className={comment.is_pinned ? 'bg-muted/25 px-2' : ''}>
+            <CommentRow
+                comment={comment}
+                canPin={canPin}
+                pinning={pinning}
+                onPin={onPin}
+                onReply={onReply}
+                onLike={onLike}
+                onRemove={onRemove}
+                onReport={onReport}
+                likingCommentId={likingCommentId}
+                removingCommentId={removingCommentId}
+                currentUserId={currentUserId}
+                currentRole={currentRole}
+            />
+
+            {flatReplies.length > 0 && (
+                <div className="ml-12 mt-1 flex min-h-7 items-center gap-3">
+                    <span className="h-px w-8 shrink-0 bg-border" aria-hidden="true" />
+
+                    {!repliesExpanded ? (
+                        <button
+                            type="button"
+                            className="text-xs font-medium text-muted-foreground transition hover:text-foreground"
+                            onClick={openReplies}
+                        >
+                            View all {flatReplies.length}{' '}
+                            {flatReplies.length === 1 ? 'reply' : 'replies'}
+                        </button>
+                    ) : (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                            {hiddenReplyCount > 0 && (
+                                <button
+                                    type="button"
+                                    className="text-xs font-medium text-muted-foreground transition hover:text-foreground"
+                                    onClick={loadOlderReplies}
+                                >
+                                    View {Math.min(INITIAL_VISIBLE_REPLIES, hiddenReplyCount)} more{' '}
+                                    {Math.min(INITIAL_VISIBLE_REPLIES, hiddenReplyCount) === 1
+                                        ? 'reply'
+                                        : 'replies'}
+                                </button>
+                            )}
+
+                            <button
+                                type="button"
+                                className="text-xs font-medium text-muted-foreground transition hover:text-foreground"
+                                onClick={hideReplies}
+                            >
+                                Hide replies
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {(repliesExpanded || composerBelongsToThread) && (
+                <div className="relative ml-12 mt-1 pl-4">
+                    <span
+                        className="absolute bottom-0 left-0 top-0 w-px bg-border"
+                        aria-hidden="true"
+                    />
+
+                    {repliesExpanded && visibleReplies.length > 0 && (
+                        <div className="divide-y">
+                            {visibleReplies.map((reply) => (
+                                <CommentRow
+                                    key={reply.id}
+                                    comment={reply}
+                                    canPin={canPin}
+                                    pinning={pinning}
+                                    onPin={onPin}
+                                    onReply={onReply}
+                                    onLike={onLike}
+                                    onRemove={onRemove}
+                                    onReport={onReport}
+                                    likingCommentId={likingCommentId}
+                                    removingCommentId={removingCommentId}
+                                    currentUserId={currentUserId}
+                                    currentRole={currentRole}
+                                    isReply
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {composerBelongsToThread && <div id={`reply-composer-slot-${comment.id}`} />}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function CommentRow({
+    comment,
+    canPin,
+    pinning,
+    onPin,
+    onReply,
+    onLike,
+    onRemove,
+    onReport,
+    likingCommentId,
+    removingCommentId,
+    currentUserId,
+    currentRole,
+    isReply = false,
+}: {
+    comment: PublicComment
+    canPin: boolean
+    pinning: boolean
+    onPin: (commentId: string, isPinned: boolean) => void
+    onReply: (comment: PublicComment) => void
+    onLike: (commentId: string) => void
+    onRemove: (commentId: string) => void
+    onReport: (comment: PublicComment) => void
+    likingCommentId: string | null
+    removingCommentId: string | null
+    currentUserId: string | null
+    currentRole?: string
+    isReply?: boolean
 }) {
     const role = comment.user?.role
     const verified = Boolean(comment.user?.artist_verified) || role === 'super_admin'
     const moderator = role === 'super_admin'
-    const replies = comment.replies ?? []
-    const canRemove = currentRole === 'super_admin' || currentUserId === comment.user?.id
+    const canRemove =
+        currentRole === 'super_admin' ||
+        (currentUserId !== null &&
+            comment.user?.id !== undefined &&
+            String(currentUserId) === String(comment.user.id))
 
     return (
-        <article
-            id={`comment-${comment.id}`}
-            className={`flex gap-3 py-4 ${depth > 0 ? 'ml-8 border-l pl-4' : ''} ${
-                comment.is_pinned ? 'bg-muted/25 px-2' : ''
-            }`}
-        >
+        <article id={`comment-${comment.id}`} className={`flex gap-3 ${isReply ? 'py-3' : 'py-4'}`}>
             <CommentAvatar
                 name={comment.user?.name ?? 'Unknown'}
                 avatar={comment.user?.avatar ?? null}
@@ -753,18 +950,21 @@ function CommentItem({
                     </span>
                 </div>
 
-                {comment.parent && (
+                {(comment.reply_to ?? comment.parent) && (
                     <button
                         type="button"
                         className="mt-2 rounded-md bg-muted px-2 py-1 text-left text-xs text-muted-foreground hover:text-foreground"
                         onClick={() =>
                             document
-                                .getElementById(`comment-${comment.parent?.id}`)
+                                .getElementById(
+                                    `comment-${(comment.reply_to ?? comment.parent)?.id}`
+                                )
                                 ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
                         }
                     >
-                        Replying to @{comment.parent.user?.username ?? 'unknown'}:{' '}
-                        {comment.parent.body ?? 'comment'}
+                        Replying to @
+                        {(comment.reply_to ?? comment.parent)?.user?.username ?? 'unknown'}:{' '}
+                        {(comment.reply_to ?? comment.parent)?.body ?? 'comment'}
                     </button>
                 )}
 
@@ -862,37 +1062,6 @@ function CommentItem({
                         Report
                     </Button>
                 </div>
-
-                {replyingToId === comment.id && (
-                    <div
-                        id={`reply-composer-slot-${comment.id}`}
-                        className="mt-4 border-l-2 border-primary/30 pl-3"
-                    />
-                )}
-
-                {replies.length > 0 && (
-                    <div className="mt-3 divide-y">
-                        {replies.map((reply) => (
-                            <CommentItem
-                                key={reply.id}
-                                comment={reply}
-                                replyingToId={replyingToId}
-                                canPin={canPin}
-                                pinning={pinning}
-                                onPin={onPin}
-                                onReply={onReply}
-                                onLike={onLike}
-                                onRemove={onRemove}
-                                onReport={onReport}
-                                likingCommentId={likingCommentId}
-                                removingCommentId={removingCommentId}
-                                currentUserId={currentUserId}
-                                currentRole={currentRole}
-                                depth={depth + 1}
-                            />
-                        ))}
-                    </div>
-                )}
             </div>
         </article>
     )

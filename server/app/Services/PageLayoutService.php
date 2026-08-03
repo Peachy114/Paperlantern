@@ -138,7 +138,7 @@ class PageLayoutService
                     'filter_cards_data' => 'shop',
                     'limit' => 10,
                 ]),
-                $this->widget('sticker_shop', 'Sticker Shop', [
+                $this->widget('sticker_shop', 'Royalty Shop', [
                     'enabled' => true,
                     'filter_cards_data' => 'shop',
                     'limit' => 10,

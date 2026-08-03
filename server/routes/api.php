@@ -136,6 +136,7 @@ Route::prefix('public')->group(function () {
     Route::get('/arts/{art}', [PublicArtController::class, 'show']);
     Route::get('/shop', [PublicShopController::class, 'index']);
     Route::post('/shop/{shopItem}/purchase', [PublicShopController::class, 'purchase'])->middleware('auth:sanctum');
+    Route::post('/shop/{shopItem}/rating', [PublicShopController::class, 'rate'])->middleware('auth:sanctum');
     Route::get('/shop/{shopItem}/download', [PublicShopController::class, 'download']);
     Route::post('/arts/{art}/view', [PublicArtController::class, 'recordView']);
     Route::get('/arts/{art}/download', [PublicArtController::class, 'download']);
@@ -197,6 +198,10 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::get('/account/history',            [AccountLibraryController::class, 'history']);
     Route::get('/account/notifications',      [NotificationController::class, 'index']);
     Route::post('/account/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::patch(
+        '/account/notifications/read-section',
+        [NotificationController::class, 'markSectionRead']
+    );
     Route::patch('/account/notifications/{notification}/read', [NotificationController::class, 'markRead']);
     Route::get('/account/notification-preferences', [NotificationController::class, 'preferences']);
     Route::put('/account/notification-preferences', [NotificationController::class, 'updatePreferences']);
@@ -205,6 +210,10 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
     Route::post('/account/earnings/withdraw', [EarningsController::class, 'withdraw']);
     Route::get('/account/earnings/withdrawals', [EarningsController::class, 'withdrawalHistory']);
     Route::get('/account/commissions',        [CommissionAccountController::class, 'index']);
+    Route::get(
+        '/account/commissions/{order}/delivery-files/{file}/download',
+        [CommissionAccountController::class, 'downloadDeliveryFile']
+    );
     Route::patch('/account/commissions/{order}', [CommissionAccountController::class, 'update']);
     Route::post('/account/commissions/{order}/accept-quote', [CommissionAccountController::class, 'acceptQuote']);
     Route::post('/account/commissions/{order}/pay-next-stage', [CommissionAccountController::class, 'payNextStage']);

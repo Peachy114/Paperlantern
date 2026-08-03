@@ -185,7 +185,7 @@ export const WIDGET_TYPES: Record<PageKey, WidgetRegistryItem[]> = {
         ...DISCOVERY_WIDGETS,
         { value: 'tab_cards', label: 'Tab with Cards' },
         { value: 'shop_card', label: 'Shop Card' },
-        { value: 'sticker_shop', label: 'Sticker Shop' },
+        { value: 'sticker_shop', label: 'Royalty Shop' },
         { value: 'featured_hero', label: 'Featured Hero' },
         { value: 'group_hero', label: 'Group Hero' },
         { value: 'labels', label: 'Labels' },
@@ -330,7 +330,7 @@ export function createWidget(type: string, title: string, index: number): PageWi
             type === 'group_hero'
                 ? 'Popular Arts'
                 : type === 'sticker_shop'
-                  ? 'Sticker Shop'
+                  ? 'Royalty Shop'
                 : type === 'shop_card'
                   ? 'Shop Picks'
                   : type === 'tab_cards'

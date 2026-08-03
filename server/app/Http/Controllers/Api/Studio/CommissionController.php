@@ -14,6 +14,7 @@ use App\Models\EarningTransaction;
 use App\Models\FeatureBoost;
 use App\Models\Ticket;
 use App\Services\CommissionOrderService;
+use App\Services\CommissionQuoteService;
 use App\Services\ArtWatermarkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,11 @@ use Illuminate\Support\Facades\Storage;
 
 class CommissionController extends Controller
 {
-    public function __construct(private CommissionOrderService $orders, private ArtWatermarkService $watermarks) {}
+    public function __construct(
+        private CommissionOrderService $orders,
+        private CommissionQuoteService $quotes,
+        private ArtWatermarkService $watermarks,
+    ) {}
 
     public function show(Request $request): JsonResponse
     {
@@ -39,7 +44,7 @@ class CommissionController extends Controller
                 ->select('commission_services.*')
                 ->selectSub($this->activeServiceBoostSubquery(), 'boosted_until')
                 ->where('user_id', $user->id)
-                ->with('category:id,name,slug')
+                ->with(['category:id,name,slug', 'user.commissionArtistProfile:id,user_id,client_fields'])
                 ->latest()
                 ->get()
                 ->map(fn(CommissionService $service) => $this->formatService($service))
@@ -80,7 +85,7 @@ class CommissionController extends Controller
 
         $service = CommissionService::create($validated);
 
-        return response()->json($this->formatService($service->load('category')), 201);
+        return response()->json($this->formatService($service->load(['category', 'user.commissionArtistProfile:id,user_id,client_fields'])), 201);
     }
 
     public function updateService(Request $request, CommissionService $service): JsonResponse
@@ -106,7 +111,7 @@ class CommissionController extends Controller
 
         $service->update($validated);
 
-        return response()->json($this->formatService($service->fresh()->load('category')));
+        return response()->json($this->formatService($service->fresh()->load(['category', 'user.commissionArtistProfile:id,user_id,client_fields'])));
     }
 
     public function destroyService(Request $request, CommissionService $service): JsonResponse
@@ -198,7 +203,7 @@ class CommissionController extends Controller
             'flow.*.rounds' => ['nullable', 'integer', 'min:0', 'max:50'],
         ]);
 
-        $order = $this->orders->sendQuote(
+        $result = $this->quotes->sendQuote(
             $order,
             $request->user(),
             (int) $validated['quote_credits'],
@@ -208,7 +213,8 @@ class CommissionController extends Controller
 
         return response()->json([
             'message' => 'Commission quote sent.',
-            'order' => $this->formatOrder($order),
+            'order' => $this->formatOrder($result['order']),
+            'quote' => CommissionQuoteService::formatQuote($result['quote']),
         ]);
     }
 
@@ -415,6 +421,11 @@ class CommissionController extends Controller
             $validated['commissions_enabled'] = $validated['commission_status'] === 'open';
         }
 
+        if (isset($validated['client_fields']) && is_array($validated['client_fields'])) {
+            unset($validated['client_fields']['nickname']);
+            $validated['client_fields'] = self::normalizeClientFieldFlags($validated['client_fields']);
+        }
+
         $profile->update($validated);
 
         return response()->json([
@@ -457,7 +468,7 @@ class CommissionController extends Controller
             'request_forms' => $profile->request_forms ?? self::defaultRequestForms(),
             'faqs' => $profile->faqs ?? [],
             'discounts' => $profile->discounts ?? [],
-            'client_fields' => array_replace_recursive(self::defaultClientFields(), $profile->client_fields ?? []),
+            'client_fields' => self::profileClientFields($profile->client_fields ?? []),
             'flow_template' => $profile->flow_template ?? self::defaultFlowTemplate(),
             'customers_count' => (int) $profile->customers_count,
             'average_rating' => (float) $profile->average_rating,
@@ -494,12 +505,69 @@ class CommissionController extends Controller
     {
         return [
             'name' => ['collect' => true, 'required' => false],
-            'email' => ['collect' => false, 'required' => false],
+            'username' => ['collect' => true, 'required' => false],
+            'email' => ['collect' => true, 'required' => true],
             'discord' => ['collect' => false, 'required' => false],
             'twitter' => ['collect' => false, 'required' => false],
             'instagram' => ['collect' => false, 'required' => false],
             'facebook' => ['collect' => false, 'required' => false],
+            'tiktok' => ['collect' => false, 'required' => false],
         ];
+    }
+
+    private static function profileClientFields(array $fields): array
+    {
+        $normalized = array_replace_recursive(self::defaultClientFields(), $fields);
+        unset($normalized['nickname']);
+
+        return self::normalizeClientFieldFlags($normalized);
+    }
+
+    private static function normalizeClientFieldFlags(array $fields): array
+    {
+        foreach ($fields as $field => $config) {
+            if (! is_array($config)) {
+                unset($fields[$field]);
+
+                continue;
+            }
+
+            $fields[$field] = [
+                'collect' => self::booleanFlag($config['collect'] ?? null),
+                'required' => self::booleanFlag($config['required'] ?? null),
+            ];
+        }
+
+        return $fields;
+    }
+
+    private static function booleanFlag(mixed $value, bool $fallback = false): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+
+            if (in_array($normalized, ['1', 'true', 'on', 'yes'], true)) {
+                return true;
+            }
+
+            if (in_array($normalized, ['0', 'false', 'off', 'no', ''], true)) {
+                return false;
+            }
+        }
+
+        if ($value === 1) {
+            return true;
+        }
+
+        if ($value === 0 || $value === null) {
+            return false;
+        }
+
+        return $fallback;
     }
 
     private static function defaultFlowTemplate(): array
@@ -526,7 +594,7 @@ class CommissionController extends Controller
 
     private function validateService(Request $request, bool $creating = true): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'title' => [$creating ? 'required' : 'sometimes', 'string', 'max:255'],
             'commission_category_id' => ['nullable', 'exists:commission_categories,id'],
             'description' => ['nullable', 'string', 'max:3000'],
@@ -556,8 +624,8 @@ class CommissionController extends Controller
             'client_fields' => ['nullable', 'array'],
             'client_fields.name.collect' => ['nullable', 'boolean'],
             'client_fields.name.required' => ['nullable', 'boolean'],
-            'client_fields.nickname.collect' => ['nullable', 'boolean'],
-            'client_fields.nickname.required' => ['nullable', 'boolean'],
+            'client_fields.username.collect' => ['nullable', 'boolean'],
+            'client_fields.username.required' => ['nullable', 'boolean'],
             'client_fields.email.collect' => ['nullable', 'boolean'],
             'client_fields.email.required' => ['nullable', 'boolean'],
             'client_fields.discord.collect' => ['nullable', 'boolean'],
@@ -596,6 +664,13 @@ class CommissionController extends Controller
             'flow.*.percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'flow.*.rounds' => ['nullable', 'integer', 'min:0', 'max:50'],
         ]);
+
+        if (isset($validated['client_fields']) && is_array($validated['client_fields'])) {
+            unset($validated['client_fields']['nickname']);
+            $validated['client_fields'] = self::normalizeClientFieldFlags($validated['client_fields']);
+        }
+
+        return $validated;
     }
 
     private function storeImage(Request $request): ?string
@@ -696,7 +771,7 @@ class CommissionController extends Controller
             'delivery_files' => $order->relationLoaded('deliveryFiles')
                 ? $order->deliveryFiles->map(fn(CommissionDeliveryFile $file) => \App\Http\Controllers\Api\CommissionAccountController::formatDeliveryFile($file))->values()
                 : [],
-                'service' => $order->service ? [
+            'service' => $order->service ? [
                 'id' => $order->service->id,
                 'title' => $order->service->title,
                 'slug' => $order->service->slug,
@@ -731,16 +806,28 @@ class CommissionController extends Controller
 
     private function clientFields(CommissionService $service): array
     {
-        return array_replace_recursive([
+        $profileFields = $service->user?->commissionArtistProfile?->client_fields;
+        if ($profileFields === null) {
+            $profileFields = CommissionArtistProfile::query()
+                ->where('user_id', $service->user_id)
+                ->first(['client_fields'])
+                ?->client_fields;
+        }
+
+        $fields = array_replace_recursive([
             'name' => ['collect' => true, 'required' => false],
-            'nickname' => ['collect' => true, 'required' => false],
-            'email' => ['collect' => false, 'required' => false],
+            'username' => ['collect' => true, 'required' => false],
+            'email' => ['collect' => true, 'required' => true],
             'discord' => ['collect' => false, 'required' => false],
             'twitter' => ['collect' => false, 'required' => false],
             'instagram' => ['collect' => false, 'required' => false],
             'facebook' => ['collect' => false, 'required' => false],
             'tiktok' => ['collect' => false, 'required' => false],
-        ], $service->client_fields ?? []);
+        ], is_array($profileFields) ? $profileFields : []);
+
+        unset($fields['nickname']);
+
+        return self::normalizeClientFieldFlags($fields);
     }
 
     private function setupOptions(CommissionService $service): array

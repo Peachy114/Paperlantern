@@ -1,6 +1,6 @@
 import type { ArtistSticker } from '@/types/artistProfile'
 
-export type CommentTargetType = 'work' | 'chapter' | 'art' | 'comment' | 'feed'
+export type CommentTargetType = 'work' | 'chapter' | 'art' | 'comment' | 'feed' | 'shop'
 export type CommentSort = 'all' | 'latest' | 'popular'
 
 export interface SuperLikeAward {
@@ -16,6 +16,7 @@ export interface SuperLikeAward {
 export interface PublicComment {
     id: string
     parent_id?: string | null
+    reply_to_id?: string | null
     body: string | null
     reaction_emoji: string | null
     gif_url: string | null
@@ -40,6 +41,14 @@ export interface PublicComment {
         artist_verified?: boolean
     } | null
     parent?: {
+        id: string
+        body: string | null
+        user: {
+            name: string
+            username: string
+        } | null
+    } | null
+    reply_to?: {
         id: string
         body: string | null
         user: {

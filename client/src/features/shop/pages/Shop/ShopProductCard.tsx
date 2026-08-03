@@ -20,6 +20,7 @@ export function ShopProductCard({
     const rating = Number.isFinite(item.rating) ? Number(item.rating).toFixed(1) : '5.0'
     const isPopular = item.is_popular ?? rank <= 3
     const isNew = item.is_new ?? isNewItem(item)
+    const protectPreview = item.download_policy === 'paid' && !item.download_unlocked
     const artistBadges =
         item.artist?.badges?.slice(0, 2) ?? (item.artist?.verified ? ['☀️', '💎'] : [])
 
@@ -53,19 +54,28 @@ export function ShopProductCard({
                     <img
                         src={storageUrl(item.image_path)!}
                         alt={item.title}
-                        className="
+                        className={`
                             h-full
                             w-full
                             object-cover
                             transition-transform
                             duration-500
                             ease-out
+                            ${protectPreview ? 'blur-[2px] saturate-75' : ''}
                             group-hover:scale-[1.035]
-                        "
+                        `}
                     />
                 ) : (
                     <div className="flex h-full items-center justify-center text-[#8a8a8a]">
                         <ShoppingBag className="h-9 w-9" />
+                    </div>
+                )}
+
+                {protectPreview && (
+                    <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-[radial-gradient(circle,rgba(255,255,255,0.20)_1px,transparent_1px)] [background-size:8px_8px]">
+                        <span className="-rotate-12 rounded-full bg-black/55 px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] text-white">
+                            LaternComix Preview
+                        </span>
                     </div>
                 )}
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppNotification;
 use App\Models\CommissionDeliveryFile;
 use App\Models\CommissionMessage;
 use App\Models\CommissionOrder;
@@ -101,6 +102,7 @@ class CommissionMessageController extends Controller
             'service:id,title,slug,image_path',
             'artist:id,name,username,avatar,artist_verified',
             'customer:id,name,username,avatar',
+            'quotes.creator:id,name,username,avatar',
             'revisions.requester:id,name,username,avatar',
             'deliveryFiles.uploader:id,name,username,avatar',
         ]);
@@ -399,6 +401,37 @@ class CommissionMessageController extends Controller
             ->update([$column => now()]);
 
         $order->forceFill([$column => now()]);
+
+        $this->markOrderNotificationsRead($request, $order);
+    }
+
+    private function markOrderNotificationsRead(
+        Request $request,
+        CommissionOrder $order
+    ): void {
+        $readAt = now();
+
+        AppNotification::query()
+            ->where('user_id', $request->user()->id)
+            ->whereNull('read_at')
+            ->whereIn('category', ['messages', 'commissions'])
+            ->where(function ($notificationQuery) use ($order) {
+                $notificationQuery
+                    ->where('meta->order_id', $order->id)
+                    ->orWhere(function ($resourceQuery) use ($order) {
+                        $resourceQuery
+                            ->where('meta->resource_type', 'commission_order')
+                            ->where('meta->resource_id', $order->id);
+                    })
+                    ->orWhere(
+                        'action_url',
+                        "/messages?order={$order->id}"
+                    );
+            })
+            ->update([
+                'read_at' => $readAt,
+                'updated_at' => $readAt,
+            ]);
     }
 
     private function unreadCount(CommissionOrder $order, string $viewerId): int

@@ -117,7 +117,7 @@ class ShopController extends Controller
             'labels.*' => ['string', 'max:50'],
             'status' => ['sometimes', 'string', 'in:draft,published,archived'],
             'download_policy' => ['sometimes', 'string', 'in:free,paid'],
-            'credit_cost' => ['nullable', 'integer', 'min:1', 'max:9999'],
+            'credit_cost' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'usage' => ['nullable', 'array'],
             'usage.comments' => ['sometimes', 'boolean'],
             'usage.profile' => ['sometimes', 'boolean'],

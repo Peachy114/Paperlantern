@@ -127,8 +127,8 @@ export default function Shop() {
             </ShopSection>
 
             <ShopSection
-                title="Sticker Shop"
-                empty="No public stickers yet."
+                title="Royalty Shop"
+                empty="No public royalty items yet."
                 loading={shop.isLoading}
                 count={filteredStickers.length}
             >

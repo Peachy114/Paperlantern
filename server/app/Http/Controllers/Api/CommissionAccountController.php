@@ -5,16 +5,23 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CommissionDeliveryFile;
 use App\Models\CommissionOrder;
+use App\Models\CommissionQuote;
 use App\Models\CommissionRating;
 use App\Models\CommissionRevision;
 use App\Models\Ticket;
 use App\Services\CommissionOrderService;
+use App\Services\CommissionQuoteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CommissionAccountController extends Controller
 {
-    public function __construct(private CommissionOrderService $orders) {}
+    public function __construct(
+        private CommissionOrderService $orders,
+        private CommissionQuoteService $quotes,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -26,6 +33,7 @@ class CommissionAccountController extends Controller
             ->with([
                 'service:id,title,slug,image_path,delivery_days',
                 'artist:id,name,username,avatar,artist_verified',
+                'quotes.creator:id,name,username,avatar',
                 'revisions.requester:id,name,username,avatar',
                 'deliveryFiles.uploader:id,name,username,avatar',
             ])
@@ -43,8 +51,64 @@ class CommissionAccountController extends Controller
         abort_unless($order->customer_id === $request->user()->id, 404);
 
         $validated = $request->validate([
-            'action' => ['required', 'in:cancel,dispute'],
+            'action' => [
+                'required',
+                'in:cancel,dispute,request_new_quote,reject_quote',
+            ],
+            'quote_id' => [
+                'required_if:action,request_new_quote,reject_quote',
+                'nullable',
+                'uuid',
+            ],
+            'reason' => [
+                'required_if:action,request_new_quote',
+                'nullable',
+                'string',
+                'min:5',
+                'max:2000',
+            ],
+            'preferred_credits' => [
+                'nullable',
+                'integer',
+                'min:0',
+                'max:999999',
+            ],
+            'requested_changes' => ['nullable', 'string', 'max:3000'],
         ]);
+
+        if ($validated['action'] === 'request_new_quote') {
+            $result = $this->quotes->requestNewQuote(
+                $order,
+                $request->user(),
+                $validated['quote_id'],
+                $validated['reason'],
+                isset($validated['preferred_credits'])
+                    ? (int) $validated['preferred_credits']
+                    : null,
+                $validated['requested_changes'] ?? null,
+            );
+
+            return response()->json([
+                'message' => 'New quote requested. The artist can now send a changed quote.',
+                'order' => self::formatOrder($result['order']),
+                'quote' => self::formatQuote($result['quote']),
+            ]);
+        }
+
+        if ($validated['action'] === 'reject_quote') {
+            $result = $this->quotes->rejectQuote(
+                $order,
+                $request->user(),
+                $validated['quote_id'],
+                $validated['reason'] ?? null,
+            );
+
+            return response()->json([
+                'message' => 'Commission quote rejected. The commission request remains open.',
+                'order' => self::formatOrder($result['order']),
+                'quote' => self::formatQuote($result['quote']),
+            ]);
+        }
 
         if ($validated['action'] === 'cancel') {
             $order = $this->orders->refund($order);
@@ -84,12 +148,58 @@ class CommissionAccountController extends Controller
     {
         abort_unless($order->customer_id === $request->user()->id, 404);
 
-        $order = $this->orders->acceptQuote($order, $request->user());
+        $validated = $request->validate([
+            'quote_id' => ['nullable', 'uuid'],
+        ]);
+
+        $result = $this->quotes->acceptQuote(
+            $order,
+            $request->user(),
+            $validated['quote_id'] ?? null,
+        );
 
         return response()->json([
             'message' => 'Quote accepted and the next payment stage was moved into escrow.',
-            'order' => $this->formatOrder($order),
+            'order' => self::formatOrder($result['order']),
+            'quote' => self::formatQuote($result['quote']),
         ]);
+    }
+
+    public function downloadDeliveryFile(
+        Request $request,
+        CommissionOrder $order,
+        CommissionDeliveryFile $file,
+    ): StreamedResponse {
+        $user = $request->user();
+
+        abort_unless(
+            in_array($user->id, [$order->artist_id, $order->customer_id], true),
+            404
+        );
+        abort_unless($file->commission_order_id === $order->id, 404);
+        abort_if($file->moderation_status === 'suspended', 404);
+
+        if ($user->id === $order->customer_id) {
+            abort_unless(
+                $order->status === 'completed' || $order->final_payment_paid_at !== null,
+                403,
+                'Complete the final payment before downloading the original file.'
+            );
+        }
+
+        $disk = Storage::disk('public');
+        abort_unless($disk->exists($file->file_path), 404, 'Delivery file not found.');
+
+        $downloadName = trim((string) $file->original_name);
+        if ($downloadName === '') {
+            $downloadName = basename($file->file_path);
+        }
+
+        return $disk->download(
+            $file->file_path,
+            $downloadName,
+            ['Content-Type' => $file->mime_type ?: 'application/octet-stream']
+        );
     }
 
     public function payNextStage(Request $request, CommissionOrder $order): JsonResponse
@@ -246,14 +356,19 @@ class CommissionAccountController extends Controller
             'disputed_at' => $order->disputed_at,
             'messages_count' => (int) ($order->messages_count ?? 0),
             'revision_limit' => self::revisionLimit($order),
+            'quotes' => $order->relationLoaded('quotes')
+                ? $order->quotes
+                ->map(fn(CommissionQuote $quote) => self::formatQuote($quote))
+                ->values()
+                : [],
             'revisions' => $order->relationLoaded('revisions')
                 ? $order->revisions->map(fn(CommissionRevision $revision) => self::formatRevision($revision))->values()
                 : [],
             'delivery_files' => $order->relationLoaded('deliveryFiles')
                 ? $order->deliveryFiles
-                    ->filter(fn(CommissionDeliveryFile $file) => $file->moderation_status !== 'suspended')
-                    ->map(fn(CommissionDeliveryFile $file) => self::formatDeliveryFile($file))
-                    ->values()
+                ->filter(fn(CommissionDeliveryFile $file) => $file->moderation_status !== 'suspended')
+                ->map(fn(CommissionDeliveryFile $file) => self::formatDeliveryFile($file))
+                ->values()
                 : [],
             'created_at' => $order->created_at,
             'service' => $order->service ? [
@@ -277,6 +392,11 @@ class CommissionAccountController extends Controller
                 'avatar' => $order->customer->avatar,
             ] : null,
         ];
+    }
+
+    public static function formatQuote(CommissionQuote $quote): array
+    {
+        return CommissionQuoteService::formatQuote($quote);
     }
 
     public static function revisionLimit(CommissionOrder $order): int

@@ -54,15 +54,74 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import SuperLikeButton from './SuperLikeButton'
 
-const REACTION_EMOJIS = ['😀', '😂', '😭', '🔥', '❤️']
+const COMMENT_REACTION_EMOJIS = [
+    '😀',
+    '😂',
+    '😭',
+    '🔥',
+    '❤️',
+    '😍',
+    '🥰',
+    '😮',
+    '😆',
+    '👏',
+    '👍',
+    '✨',
+    '💯',
+    '🤔',
+    '😎',
+    '🥹',
+    '😅',
+    '🙌',
+    '🎉',
+    '⭐',
+]
+COMMENT_REACTION_EMOJIS.splice(
+    0,
+    COMMENT_REACTION_EMOJIS.length,
+    '\uD83D\uDE00',
+    '\uD83D\uDE02',
+    '\uD83D\uDE2D',
+    '\uD83D\uDD25',
+    '\u2764\uFE0F',
+    '\uD83D\uDE0D',
+    '\uD83E\uDD70',
+    '\uD83D\uDE2E',
+    '\uD83D\uDE06',
+    '\uD83D\uDC4F',
+    '\uD83D\uDC4D',
+    '\u2728',
+    '\uD83D\uDCAF',
+    '\uD83E\uDD14',
+    '\uD83D\uDE0E',
+    '\uD83E\uDD79',
+    '\uD83D\uDE05',
+    '\uD83D\uDE4C',
+    '\uD83C\uDF89',
+    '\u2B50'
+)
+
 const COMMENT_SORTS: Array<{ value: CommentSort; label: string }> = [
     { value: 'all', label: 'All' },
     { value: 'latest', label: 'Latest' },
     { value: 'popular', label: 'Popular' },
 ]
 
+const INITIAL_VISIBLE_REPLIES = 5
+
 function normalizeUsername(value?: string | null): string {
     return value?.trim().replace(/^@/, '').toLowerCase() ?? ''
+}
+
+function compareRepliesOldestFirst(a: PublicComment, b: PublicComment): number {
+    const aTime = Date.parse(a.created_at)
+    const bTime = Date.parse(b.created_at)
+
+    if (Number.isFinite(aTime) && Number.isFinite(bTime) && aTime !== bTime) {
+        return aTime - bTime
+    }
+
+    return String(a.id).localeCompare(String(b.id))
 }
 
 interface CommentSectionProps {
@@ -155,7 +214,10 @@ export default function CommentSection2({
             const payload = new FormData()
             if (body.trim()) payload.append('body', body.trim())
             if (selectedSticker?.id) payload.append('artist_sticker_id', selectedSticker.id)
-            if (replyingTo?.id) payload.append('parent_id', replyingTo.id)
+            if (replyingTo?.id) {
+                payload.append('parent_id', replyingTo.parent_id ?? replyingTo.id)
+                payload.append('reply_to_id', replyingTo.id)
+            }
             if (reactionEmoji) payload.append('reaction_emoji', reactionEmoji)
             if (imageFile) payload.append('image', imageFile)
 
@@ -333,7 +395,6 @@ export default function CommentSection2({
                 </div>
             )}
 
-            {/* Always-visible text formatting tools */}
             <div
                 className="
                         mb-2
@@ -517,7 +578,6 @@ export default function CommentSection2({
                 )}
             </div>
 
-            {/* Always-visible media tools and send button */}
             <div className="mt-2 flex items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-1">
                     <Button
@@ -611,7 +671,7 @@ export default function CommentSection2({
                             p-2
                         "
                 >
-                    {REACTION_EMOJIS.map((emoji) => (
+                    {COMMENT_REACTION_EMOJIS.map((emoji) => (
                         <button
                             key={emoji}
                             type="button"
@@ -658,9 +718,6 @@ export default function CommentSection2({
 
     return (
         <section className={compact ? 'w-full space-y-5' : 'w-full bg-background'}>
-            {/* ================================================================
-                COMMENTS HEADER
-            ================================================================ */}
             <div className="mb-2 flex items-center justify-between gap-4 border-b border-border pb-2">
                 <div className="flex min-w-0 items-center gap-2">
                     <MessageCircle className="h-4 w-4 shrink-0" />
@@ -715,18 +772,12 @@ export default function CommentSection2({
                 </div>
             </div>
 
-            {/* ================================================================
-                COMMENT COMPOSER
-            ================================================================ */}
             {replyingToId
                 ? replyPortalTarget
                     ? createPortal(commentComposer, replyPortalTarget)
                     : null
                 : commentComposer}
 
-            {/* ================================================================
-                COMMENT LIST
-            ================================================================ */}
             {isLoading ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">
                     Loading comments...
@@ -919,7 +970,13 @@ function CommentItem({
 
     const moderator = role === 'super_admin'
 
-    const replies = comment.replies ?? []
+    const sortedReplies = useMemo(
+        () => [...(comment.replies ?? [])].sort(compareRepliesOldestFirst),
+        [comment.replies]
+    )
+    const [visibleReplyCount, setVisibleReplyCount] = useState(INITIAL_VISIBLE_REPLIES)
+    const hiddenReplyCount = Math.max(sortedReplies.length - visibleReplyCount, 0)
+    const visibleReplies = sortedReplies.slice(hiddenReplyCount)
 
     const isOwnComment =
         currentUserId !== null &&
@@ -934,6 +991,12 @@ function CommentItem({
         !comment.is_pinned && (awards.length > 0 || Number(comment.super_likes_count ?? 0) > 0)
 
     const authorName = comment.user?.name ?? comment.user?.username ?? 'Unknown'
+
+    useEffect(() => {
+        setVisibleReplyCount((current) =>
+            Math.min(Math.max(current, INITIAL_VISIBLE_REPLIES), sortedReplies.length)
+        )
+    }, [sortedReplies.length])
 
     return (
         <div id={`comment-${comment.id}`} className="relative">
@@ -953,7 +1016,6 @@ function CommentItem({
                         sm:px-5
                     "
                 >
-                    {/* Pin action */}
                     {canPin && (
                         <Button
                             type="button"
@@ -983,7 +1045,6 @@ function CommentItem({
                         </Button>
                     )}
 
-                    {/* Reply appears on hover, keeping the resting UI clean. */}
                     <Button
                         type="button"
                         size="icon-sm"
@@ -1048,7 +1109,7 @@ function CommentItem({
                                     />
                                 )}
 
-                                {comment.parent && (
+                                {(comment.reply_to ?? comment.parent) && (
                                     <button
                                         type="button"
                                         className="
@@ -1061,7 +1122,9 @@ function CommentItem({
                                         "
                                         onClick={() =>
                                             document
-                                                .getElementById(`comment-${comment.parent?.id}`)
+                                                .getElementById(
+                                                    `comment-${(comment.reply_to ?? comment.parent)?.id}`
+                                                )
                                                 ?.scrollIntoView({
                                                     behavior: 'smooth',
                                                     block: 'center',
@@ -1069,8 +1132,8 @@ function CommentItem({
                                         }
                                     >
                                         replied to{' '}
-                                        {comment.parent.user?.name ??
-                                            comment.parent.user?.username ??
+                                        {(comment.reply_to ?? comment.parent)?.user?.name ??
+                                            (comment.reply_to ?? comment.parent)?.user?.username ??
                                             'comment'}
                                     </button>
                                 )}
@@ -1082,11 +1145,7 @@ function CommentItem({
                                         <span
                                             key={award.id ?? award.icon}
                                             title={`${award.name} x${award.count ?? 0}`}
-                                            className="
-                                                    inline-flex
-                                                    items-center
-                                                    text-amber-500
-                                                "
+                                            className="inline-flex items-center text-amber-500"
                                         >
                                             <Icon className="h-3.5 w-3.5 fill-current" />
                                         </span>
@@ -1244,7 +1303,7 @@ function CommentItem({
                 />
             )}
 
-            {replies.length > 0 && (
+            {sortedReplies.length > 0 && (
                 <div
                     className="
                         relative
@@ -1260,7 +1319,28 @@ function CommentItem({
                         before:bg-border
                     "
                 >
-                    {replies.map((reply) => (
+                    {hiddenReplyCount > 0 && (
+                        <div className="relative pb-1">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 rounded-[7px] px-2 text-[10px] text-orange-500"
+                                onClick={() =>
+                                    setVisibleReplyCount((current) =>
+                                        Math.min(
+                                            current + INITIAL_VISIBLE_REPLIES,
+                                            sortedReplies.length
+                                        )
+                                    )
+                                }
+                            >
+                                Load more replies ({hiddenReplyCount})
+                            </Button>
+                        </div>
+                    )}
+
+                    {visibleReplies.map((reply) => (
                         <div
                             key={reply.id}
                             className="

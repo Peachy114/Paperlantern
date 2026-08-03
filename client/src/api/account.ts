@@ -51,14 +51,61 @@ export interface AccountHistory {
     }
 }
 
+export interface AppNotificationMeta {
+    section?: string | null
+    actor_id?: string | null
+    actor_name?: string | null
+    actor_username?: string | null
+    actor_avatar?: string | null
+    resource_type?: string | null
+    resource_id?: string | null
+    order_id?: string | null
+    quote_id?: string | null
+    message_id?: string | null
+    shop_item_id?: string | null
+    [key: string]: unknown
+}
+
 export interface AppNotification {
     id: string
     category: string
     title: string
     body: string | null
     action_url: string | null
+    meta: AppNotificationMeta | null
     read_at: string | null
     created_at: string
+}
+
+export interface NotificationAttention {
+    messages: boolean
+    commissions: boolean
+    shop: boolean
+    comments: boolean
+    earnings: boolean
+    arts: boolean
+    notifications: boolean
+}
+
+export interface NotificationListMeta {
+    current_page: number
+    last_page: number
+    total: number
+    unread: number
+    attention: NotificationAttention
+}
+
+export interface NotificationListResponse {
+    data: AppNotification[]
+    meta: NotificationListMeta
+}
+
+export interface NotificationQuery {
+    category?: string
+    section?: string
+    filter?: 'all' | 'unread' | 'read'
+    page?: number
+    per_page?: number
 }
 
 export interface NotificationPreferences {
@@ -105,13 +152,16 @@ export const accountApi = {
             public_highlight: publicHighlight,
         }),
     history: () => api.get<AccountHistory>('/account/history'),
-    notifications: (category?: string) =>
-        api.get<{ data: AppNotification[]; meta: { unread: number; total: number } }>(
-            '/account/notifications',
-            { params: category ? { category } : undefined }
-        ),
-    markNotificationRead: (id: string) => api.patch(`/account/notifications/${id}/read`),
-    markAllNotificationsRead: () => api.post('/account/notifications/read-all'),
+    notifications: (query?: string | NotificationQuery) => {
+        const params: NotificationQuery | undefined =
+            typeof query === 'string' ? { category: query } : query
+
+        return api.get<NotificationListResponse>('/account/notifications', { params })
+    },
+    markNotificationRead: (id: string) =>
+        api.patch<{ notification: AppNotification }>(`/account/notifications/${id}/read`),
+    markAllNotificationsRead: () =>
+        api.post<{ message: string }>('/account/notifications/read-all'),
     notificationPreferences: () =>
         api.get<{
             preferences: NotificationPreferences

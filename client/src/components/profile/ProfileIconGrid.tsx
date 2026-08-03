@@ -18,6 +18,8 @@ import {
     Wallet,
     type LucideIcon,
 } from 'lucide-react'
+import { useNotificationCenter } from '@/hooks/useNotificationCenter'
+import type { NotificationAttention } from '@/api/account'
 
 interface Props {
     isStoryteller: boolean
@@ -26,13 +28,23 @@ interface Props {
     onClose: () => void
 }
 
+type MenuItem = {
+    label: string
+    icon: LucideIcon
+    to: string
+    description?: string
+    dot?: boolean
+}
+
 export default function ProfileIconGrid({
     isStoryteller,
     isAdmin,
     accountMenuStyle = 'circular',
     onClose,
 }: Props) {
-    const primaryItems = isAdmin
+    const { attention } = useNotificationCenter()
+
+    const primaryItems: MenuItem[] = isAdmin
         ? [
               { label: 'Admin', icon: Shield, to: '/admin' },
               { label: 'Arts', icon: Images, to: '/admin/arts' },
@@ -54,7 +66,7 @@ export default function ProfileIconGrid({
                 { label: 'Messages', icon: MessageCircle, to: '/messages' },
             ]
 
-    const secondaryItems = isAdmin
+    const secondaryItems: MenuItem[] = isAdmin
         ? []
         : [
               ...(isStoryteller
@@ -85,10 +97,17 @@ export default function ProfileIconGrid({
           ]
 
     if (isStoryteller && !isAdmin && accountMenuStyle === 'detailed') {
-        return <ArtistMenu onClose={onClose} />
+        return <ArtistMenu attention={attention} onClose={onClose} />
     }
 
-    const circularItems = orderCircularItems([...primaryItems, ...secondaryItems], isAdmin, isStoryteller)
+    const circularItems = orderCircularItems(
+        [...primaryItems, ...secondaryItems].map((item) => ({
+            ...item,
+            dot: itemNeedsAttention(item.label, attention),
+        })),
+        isAdmin,
+        isStoryteller
+    )
 
     return (
         <div className="grid gap-2">
@@ -97,14 +116,13 @@ export default function ProfileIconGrid({
     )
 }
 
-type MenuItem = {
-    label: string
-    icon: LucideIcon
-    to: string
-    description?: string
-}
-
-function ArtistMenu({ onClose }: { onClose: () => void }) {
+function ArtistMenu({
+    attention,
+    onClose,
+}: {
+    attention: NotificationAttention
+    onClose: () => void
+}) {
     const sections: { title: string; items: MenuItem[] }[] = [
         {
             title: 'Studio',
@@ -228,7 +246,11 @@ function ArtistMenu({ onClose }: { onClose: () => void }) {
                     </p>
                     <div className="grid gap-1.5">
                         {section.items.map((item) => (
-                            <ArtistMenuItem key={item.label} item={item} onClose={onClose} />
+                            <ArtistMenuItem
+                                key={item.label}
+                                item={{ ...item, dot: itemNeedsAttention(item.label, attention) }}
+                                onClose={onClose}
+                            />
                         ))}
                     </div>
                 </section>
@@ -239,24 +261,32 @@ function ArtistMenu({ onClose }: { onClose: () => void }) {
 
 function ArtistMenuItem({ item, onClose }: { item: MenuItem; onClose: () => void }) {
     const Icon = item.icon
-
     return (
         <Link
             to={item.to}
             onClick={onClose}
             className="group flex items-center gap-3 rounded-lg border border-transparent bg-muted/35 px-3 py-2.5 transition hover:border-border hover:bg-muted"
         >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background text-foreground shadow-sm ring-1 ring-border transition group-hover:bg-primary group-hover:text-primary-foreground">
+            <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background text-foreground shadow-sm ring-1 ring-border transition group-hover:bg-primary group-hover:text-primary-foreground">
                 <Icon className="h-4 w-4" />
+                {item.dot && <AccountAttentionDot />}
             </span>
             <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold leading-tight text-foreground">{item.label}</span>
+                <span className="block text-sm font-semibold leading-tight text-foreground">
+                    {item.label}
+                </span>
                 {item.description && (
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                         {item.description}
                     </span>
                 )}
             </span>
+            {item.dot && (
+                <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-600"
+                    aria-label="Needs attention"
+                />
+            )}
         </Link>
     )
 }
@@ -264,15 +294,16 @@ function ArtistMenuItem({ item, onClose }: { item: MenuItem; onClose: () => void
 function MenuRow({ items, onClose }: { items: MenuItem[]; onClose: () => void }) {
     return (
         <div className="grid grid-cols-3 gap-x-2 gap-y-3 sm:grid-cols-4">
-            {items.map(({ label, icon: Icon, to }) => (
+            {items.map(({ label, icon: Icon, to, dot }) => (
                 <Link
                     key={label}
                     to={to}
                     onClick={onClose}
                     className="flex min-w-0 flex-col items-center gap-1.5 rounded-lg px-1 py-1.5 transition hover:bg-muted/50"
                 >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted transition-colors hover:bg-muted/80">
+                    <div className="relative flex h-11 w-11 items-center justify-center rounded-full bg-muted transition-colors hover:bg-muted/80">
                         <Icon className="h-4 w-4" />
+                        {dot && <AccountAttentionDot />}
                     </div>
                     <span className="text-center text-[11px] leading-tight text-muted-foreground">
                         {label}
@@ -281,6 +312,26 @@ function MenuRow({ items, onClose }: { items: MenuItem[]; onClose: () => void })
             ))}
         </div>
     )
+}
+
+function AccountAttentionDot() {
+    return (
+        <span
+            className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-red-600 ring-2 ring-background"
+            aria-label="Needs attention"
+        />
+    )
+}
+
+function itemNeedsAttention(label: string, attention: NotificationAttention) {
+    if (label === 'Messages') return attention.messages
+    if (label === 'My Commission') return attention.commissions
+    if (label === 'My Shop') return attention.shop
+    if (label === 'My Comments') return attention.comments
+    if (label === 'My Arts') return attention.arts
+    if (label === 'Earnings' || label === 'Withdrawals') return attention.earnings
+    if (label === 'Notifications') return attention.notifications
+    return false
 }
 
 function orderCircularItems(items: MenuItem[], isAdmin: boolean, isStoryteller: boolean) {
@@ -323,10 +374,9 @@ function orderCircularItems(items: MenuItem[], isAdmin: boolean, isStoryteller: 
                 'Become Storyteller',
             ]
     const rank = new Map(order.map((label, index) => [label, index]))
-
-    return [...items].sort((a, b) => {
-        const aRank = rank.get(a.label) ?? 999
-        const bRank = rank.get(b.label) ?? 999
-        return aRank - bRank || a.label.localeCompare(b.label)
-    })
+    return [...items].sort(
+        (a, b) =>
+            (rank.get(a.label) ?? 999) - (rank.get(b.label) ?? 999) ||
+            a.label.localeCompare(b.label)
+    )
 }

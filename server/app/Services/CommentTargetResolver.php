@@ -6,6 +6,7 @@ use App\Models\Art;
 use App\Models\Chapter;
 use App\Models\Comment;
 use App\Models\FeedPost;
+use App\Models\ShopItem;
 use App\Models\Work;
 use Illuminate\Database\Eloquent\Model;
 
@@ -26,6 +27,7 @@ class CommentTargetResolver
                     ->where('moderation_status', '!=', 'violated'))
                 ->findOrFail($id),
             'art' => Art::where('status', 'published')->findOrFail($id),
+            'shop' => ShopItem::where('status', 'published')->findOrFail($id),
             'comment' => Comment::where('status', 'visible')->findOrFail($id),
             'feed' => FeedPost::where('status', 'published')->findOrFail($id),
             default => abort(404, 'Unsupported comment target.'),
@@ -49,6 +51,7 @@ class CommentTargetResolver
             $target instanceof Work => 'work',
             $target instanceof Chapter => 'chapter',
             $target instanceof Art => 'art',
+            $target instanceof ShopItem => 'shop',
             $target instanceof Comment => 'comment',
             $target instanceof FeedPost => 'feed',
             default => 'unknown',
@@ -58,6 +61,10 @@ class CommentTargetResolver
     public function owner(Model $target)
     {
         if ($target instanceof Work || $target instanceof Art) {
+            return $target->user;
+        }
+
+        if ($target instanceof ShopItem) {
             return $target->user;
         }
 

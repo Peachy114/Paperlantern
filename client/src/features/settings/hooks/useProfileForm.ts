@@ -8,8 +8,8 @@ import { authApi } from '@/api/auth'
 
 const schema = yup.object({
     name: yup.string().required('Full name is required').max(255),
-    nickname: yup.string().max(80).nullable().optional(),
     username: yup.string().required('Username is required').max(50),
+    email: yup.string().required('Email is required').email('Enter a valid email address'),
     account_menu_style: yup
         .mixed<'circular' | 'detailed'>()
         .oneOf(['circular', 'detailed'])
@@ -37,8 +37,8 @@ export function useProfileForm() {
         resolver: yupResolver(schema) as unknown as Resolver<ProfileFields>,
         defaultValues: {
             name: user?.name ?? '',
-            nickname: user?.nickname ?? '',
             username: user?.username ?? '',
+            email: user?.email ?? '',
             account_menu_style: user?.account_menu_style ?? 'circular',
             bio: user?.bio ?? '',
             twitter_url: user?.twitter_url ?? '',
@@ -53,8 +53,8 @@ export function useProfileForm() {
         mutationFn: (data: ProfileFields) => {
             const form = new FormData()
             form.append('name', data.name)
-            form.append('nickname', data.nickname ?? '')
             form.append('username', data.username)
+            form.append('email', data.email)
             form.append('account_menu_style', data.account_menu_style)
             form.append('bio', data.bio ?? '')
 
