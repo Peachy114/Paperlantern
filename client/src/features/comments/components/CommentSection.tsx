@@ -124,30 +124,6 @@ function compareRepliesOldestFirst(a: PublicComment, b: PublicComment): number {
     return String(a.id).localeCompare(String(b.id))
 }
 
-function flattenRepliesOldestFirst(replies: PublicComment[]): PublicComment[] {
-    const flattened: PublicComment[] = []
-    const seen = new Set<string>()
-
-    const visit = (reply: PublicComment) => {
-        const replyId = String(reply.id)
-
-        if (seen.has(replyId)) return
-
-        seen.add(replyId)
-        flattened.push(reply)
-
-        for (const nestedReply of reply.replies ?? []) {
-            visit(nestedReply)
-        }
-    }
-
-    for (const reply of replies) {
-        visit(reply)
-    }
-
-    return flattened.sort(compareRepliesOldestFirst)
-}
-
 interface CommentSectionProps {
     targetType: CommentTargetType
     targetId: string
@@ -190,7 +166,6 @@ export default function CommentSection({
 
     const commentsKey = ['comments', targetType, targetId, sort]
     const replyingToId = replyingTo?.id ?? null
-    const replyThreadId = replyingTo ? String(replyingTo.parent_id ?? replyingTo.id) : null
 
     const { data, isLoading } = useQuery({
         queryKey: commentsKey,
@@ -217,7 +192,7 @@ export default function CommentSection({
 
         let focusFrame: number | null = null
         const mountFrame = window.requestAnimationFrame(() => {
-            const target = document.getElementById(`reply-composer-slot-${replyThreadId}`)
+            const target = document.getElementById(`reply-composer-slot-${replyingToId}`)
             setReplyPortalTarget(target)
 
             focusFrame = window.requestAnimationFrame(() => {
@@ -230,7 +205,7 @@ export default function CommentSection({
             window.cancelAnimationFrame(mountFrame)
             if (focusFrame !== null) window.cancelAnimationFrame(focusFrame)
         }
-    }, [replyingToId, replyThreadId])
+    }, [replyingToId])
 
     const createMutation = useMutation({
         mutationFn: () => {
@@ -370,10 +345,7 @@ export default function CommentSection({
     }
 
     const commentComposer = (
-        <form
-            onSubmit={submit}
-            className={replyingTo ? 'flex gap-3 py-3' : 'mb-5 flex gap-3 border-b pb-4'}
-        >
+        <form onSubmit={submit} className="mb-5 flex gap-3 border-b pb-4">
             <CommentAvatar
                 name={user?.name ?? 'Guest'}
                 avatar={user?.avatar ?? null}
@@ -594,7 +566,7 @@ export default function CommentSection({
                         <CommentItem
                             key={comment.id}
                             comment={comment}
-                            replyThreadId={replyThreadId}
+                            replyingToId={replyingToId}
                             canPin={canPinComments}
                             pinning={pinMutation.isPending}
                             onPin={(commentId, isPinned) =>
@@ -710,7 +682,7 @@ export default function CommentSection({
 
 function CommentItem({
     comment,
-    replyThreadId,
+    replyingToId,
     canPin,
     pinning,
     onPin,
@@ -722,9 +694,10 @@ function CommentItem({
     removingCommentId,
     currentUserId,
     currentRole,
+    depth = 0,
 }: {
     comment: PublicComment
-    replyThreadId: string | null
+    replyingToId: string | null
     canPin: boolean
     pinning: boolean
     onPin: (commentId: string, isPinned: boolean) => void
@@ -736,187 +709,33 @@ function CommentItem({
     removingCommentId: string | null
     currentUserId: string | null
     currentRole?: string
-}) {
-    const flatReplies = useMemo(
-        () => flattenRepliesOldestFirst(comment.replies ?? []),
-        [comment.replies]
-    )
-    const [repliesExpanded, setRepliesExpanded] = useState(false)
-    const [visibleReplyCount, setVisibleReplyCount] = useState(INITIAL_VISIBLE_REPLIES)
-
-    const hiddenReplyCount = Math.max(flatReplies.length - visibleReplyCount, 0)
-    const visibleReplies = repliesExpanded ? flatReplies.slice(hiddenReplyCount) : []
-    const composerBelongsToThread =
-        replyThreadId !== null &&
-        (String(replyThreadId) === String(comment.id) ||
-            flatReplies.some((reply) => String(reply.id) === String(replyThreadId)))
-
-    useEffect(() => {
-        setVisibleReplyCount((current) =>
-            Math.min(Math.max(current, INITIAL_VISIBLE_REPLIES), flatReplies.length)
-        )
-
-        if (flatReplies.length === 0) {
-            setRepliesExpanded(false)
-        }
-    }, [flatReplies.length])
-
-    useEffect(() => {
-        if (composerBelongsToThread) {
-            setRepliesExpanded(true)
-        }
-    }, [composerBelongsToThread])
-
-    const openReplies = () => {
-        setVisibleReplyCount(Math.min(INITIAL_VISIBLE_REPLIES, flatReplies.length))
-        setRepliesExpanded(true)
-    }
-
-    const hideReplies = () => {
-        setRepliesExpanded(false)
-        setVisibleReplyCount(Math.min(INITIAL_VISIBLE_REPLIES, flatReplies.length))
-    }
-
-    const loadOlderReplies = () => {
-        setVisibleReplyCount((current) =>
-            Math.min(current + INITIAL_VISIBLE_REPLIES, flatReplies.length)
-        )
-    }
-
-    return (
-        <div className={comment.is_pinned ? 'bg-muted/25 px-2' : ''}>
-            <CommentRow
-                comment={comment}
-                canPin={canPin}
-                pinning={pinning}
-                onPin={onPin}
-                onReply={onReply}
-                onLike={onLike}
-                onRemove={onRemove}
-                onReport={onReport}
-                likingCommentId={likingCommentId}
-                removingCommentId={removingCommentId}
-                currentUserId={currentUserId}
-                currentRole={currentRole}
-            />
-
-            {flatReplies.length > 0 && (
-                <div className="ml-12 mt-1 flex min-h-7 items-center gap-3">
-                    <span className="h-px w-8 shrink-0 bg-border" aria-hidden="true" />
-
-                    {!repliesExpanded ? (
-                        <button
-                            type="button"
-                            className="text-xs font-medium text-muted-foreground transition hover:text-foreground"
-                            onClick={openReplies}
-                        >
-                            View all {flatReplies.length}{' '}
-                            {flatReplies.length === 1 ? 'reply' : 'replies'}
-                        </button>
-                    ) : (
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                            {hiddenReplyCount > 0 && (
-                                <button
-                                    type="button"
-                                    className="text-xs font-medium text-muted-foreground transition hover:text-foreground"
-                                    onClick={loadOlderReplies}
-                                >
-                                    View {Math.min(INITIAL_VISIBLE_REPLIES, hiddenReplyCount)} more{' '}
-                                    {Math.min(INITIAL_VISIBLE_REPLIES, hiddenReplyCount) === 1
-                                        ? 'reply'
-                                        : 'replies'}
-                                </button>
-                            )}
-
-                            <button
-                                type="button"
-                                className="text-xs font-medium text-muted-foreground transition hover:text-foreground"
-                                onClick={hideReplies}
-                            >
-                                Hide replies
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {(repliesExpanded || composerBelongsToThread) && (
-                <div className="relative ml-12 mt-1 pl-4">
-                    <span
-                        className="absolute bottom-0 left-0 top-0 w-px bg-border"
-                        aria-hidden="true"
-                    />
-
-                    {repliesExpanded && visibleReplies.length > 0 && (
-                        <div className="divide-y">
-                            {visibleReplies.map((reply) => (
-                                <CommentRow
-                                    key={reply.id}
-                                    comment={reply}
-                                    canPin={canPin}
-                                    pinning={pinning}
-                                    onPin={onPin}
-                                    onReply={onReply}
-                                    onLike={onLike}
-                                    onRemove={onRemove}
-                                    onReport={onReport}
-                                    likingCommentId={likingCommentId}
-                                    removingCommentId={removingCommentId}
-                                    currentUserId={currentUserId}
-                                    currentRole={currentRole}
-                                    isReply
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    {composerBelongsToThread && <div id={`reply-composer-slot-${comment.id}`} />}
-                </div>
-            )}
-        </div>
-    )
-}
-
-function CommentRow({
-    comment,
-    canPin,
-    pinning,
-    onPin,
-    onReply,
-    onLike,
-    onRemove,
-    onReport,
-    likingCommentId,
-    removingCommentId,
-    currentUserId,
-    currentRole,
-    isReply = false,
-}: {
-    comment: PublicComment
-    canPin: boolean
-    pinning: boolean
-    onPin: (commentId: string, isPinned: boolean) => void
-    onReply: (comment: PublicComment) => void
-    onLike: (commentId: string) => void
-    onRemove: (commentId: string) => void
-    onReport: (comment: PublicComment) => void
-    likingCommentId: string | null
-    removingCommentId: string | null
-    currentUserId: string | null
-    currentRole?: string
-    isReply?: boolean
+    depth?: number
 }) {
     const role = comment.user?.role
     const verified = Boolean(comment.user?.artist_verified) || role === 'super_admin'
     const moderator = role === 'super_admin'
-    const canRemove =
-        currentRole === 'super_admin' ||
-        (currentUserId !== null &&
-            comment.user?.id !== undefined &&
-            String(currentUserId) === String(comment.user.id))
+    const sortedReplies = useMemo(
+        () => [...(comment.replies ?? [])].sort(compareRepliesOldestFirst),
+        [comment.replies]
+    )
+    const [visibleReplyCount, setVisibleReplyCount] = useState(INITIAL_VISIBLE_REPLIES)
+    const hiddenReplyCount = Math.max(sortedReplies.length - visibleReplyCount, 0)
+    const visibleReplies = sortedReplies.slice(hiddenReplyCount)
+    const canRemove = currentRole === 'super_admin' || currentUserId === comment.user?.id
+
+    useEffect(() => {
+        setVisibleReplyCount((current) =>
+            Math.min(Math.max(current, INITIAL_VISIBLE_REPLIES), sortedReplies.length)
+        )
+    }, [sortedReplies.length])
 
     return (
-        <article id={`comment-${comment.id}`} className={`flex gap-3 ${isReply ? 'py-3' : 'py-4'}`}>
+        <article
+            id={`comment-${comment.id}`}
+            className={`flex gap-3 py-4 ${depth > 0 ? 'ml-8 border-l pl-4' : ''} ${
+                comment.is_pinned ? 'bg-muted/25 px-2' : ''
+            }`}
+        >
             <CommentAvatar
                 name={comment.user?.name ?? 'Unknown'}
                 avatar={comment.user?.avatar ?? null}
@@ -1062,6 +881,58 @@ function CommentRow({
                         Report
                     </Button>
                 </div>
+
+                {replyingToId === comment.id && (
+                    <div
+                        id={`reply-composer-slot-${comment.id}`}
+                        className="mt-4 border-l-2 border-primary/30 pl-3"
+                    />
+                )}
+
+                {sortedReplies.length > 0 && (
+                    <div className="mt-3 divide-y">
+                        {hiddenReplyCount > 0 && (
+                            <div className="py-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 rounded-full px-3 text-xs"
+                                    onClick={() =>
+                                        setVisibleReplyCount((current) =>
+                                            Math.min(
+                                                current + INITIAL_VISIBLE_REPLIES,
+                                                sortedReplies.length
+                                            )
+                                        )
+                                    }
+                                >
+                                    Load more replies ({hiddenReplyCount})
+                                </Button>
+                            </div>
+                        )}
+
+                        {visibleReplies.map((reply) => (
+                            <CommentItem
+                                key={reply.id}
+                                comment={reply}
+                                replyingToId={replyingToId}
+                                canPin={canPin}
+                                pinning={pinning}
+                                onPin={onPin}
+                                onReply={onReply}
+                                onLike={onLike}
+                                onRemove={onRemove}
+                                onReport={onReport}
+                                likingCommentId={likingCommentId}
+                                removingCommentId={removingCommentId}
+                                currentUserId={currentUserId}
+                                currentRole={currentRole}
+                                depth={depth + 1}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
         </article>
     )
@@ -1347,6 +1218,8 @@ function StickerPickerDialog({
     onSelect: (sticker: ArtistSticker) => void
 }) {
     const queryClient = useQueryClient()
+    const [accessSticker, setAccessSticker] = useState<ArtistSticker | null>(null)
+
     const { data: library, isLoading: libraryLoading } = useQuery({
         queryKey: ['comment-sticker-library'],
         queryFn: () => commentsApi.stickerLibrary().then((res) => res.data.data),
@@ -1358,14 +1231,31 @@ function StickerPickerDialog({
         enabled: open && Boolean(artistUsername),
     })
 
+    const refreshStickerData = () => {
+        queryClient.invalidateQueries({ queryKey: ['comment-sticker-library'] })
+        queryClient.invalidateQueries({ queryKey: ['artist-sticker-store', artistUsername] })
+        queryClient.invalidateQueries({ queryKey: ['wallet'] })
+    }
+
+    const finishStickerAccess = (sticker: ArtistSticker, message: string) => {
+        refreshStickerData()
+        setAccessSticker(null)
+        onSelect({
+            ...sticker,
+            can_use: true,
+        })
+        onOpenChange(false)
+        toast.success(message)
+    }
+
     const purchaseMutation = useMutation({
-        mutationFn: (stickerId: string) =>
-            commentsApi.purchaseSticker(stickerId).then((res) => res.data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['comment-sticker-library'] })
-            queryClient.invalidateQueries({ queryKey: ['artist-sticker-store', artistUsername] })
-            queryClient.invalidateQueries({ queryKey: ['wallet'] })
-            toast.success('Sticker bought.')
+        mutationFn: (sticker: ArtistSticker) =>
+            commentsApi.purchaseSticker(sticker.id).then((res) => res.data),
+        onSuccess: (sticker) => {
+            finishStickerAccess(
+                sticker,
+                sticker.is_free ? 'Sticker added and selected.' : 'Sticker bought and selected.'
+            )
         },
         onError: (error: any) => {
             toast.error(error.response?.data?.message ?? 'Could not buy sticker.')
@@ -1373,60 +1263,169 @@ function StickerPickerDialog({
     })
 
     const subscribeMutation = useMutation({
-        mutationFn: (stickerId: string) =>
-            commentsApi.subscribeSticker(stickerId).then((res) => res.data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['comment-sticker-library'] })
-            queryClient.invalidateQueries({ queryKey: ['artist-sticker-store', artistUsername] })
-            toast.success('Sticker subscribed.')
+        mutationFn: (sticker: ArtistSticker) =>
+            commentsApi.subscribeSticker(sticker.id).then((res) => res.data),
+        onSuccess: (sticker) => {
+            finishStickerAccess(sticker, 'Sticker subscribed and selected.')
         },
-        onError: () => toast.error('Could not subscribe to sticker.'),
+        onError: (error: any) => {
+            toast.error(error.response?.data?.message ?? 'Could not subscribe to sticker.')
+        },
     })
 
     const myStickers = useMemo(() => library ?? [], [library])
     const artistStickers = useMemo(() => store ?? [], [store])
+    const accessCost =
+        accessSticker?.purchase_cost ?? accessSticker?.credit_cost ?? 1
+    const accessBusy = purchaseMutation.isPending || subscribeMutation.isPending
+
+    const handleArtistStickerSelect = (sticker: ArtistSticker) => {
+        const canUse = sticker.can_use ?? sticker.library_status !== undefined
+
+        if (canUse) {
+            onSelect(sticker)
+            onOpenChange(false)
+            return
+        }
+
+        setAccessSticker(sticker)
+    }
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-[min(96vw,920px)] max-w-none">
-                <DialogHeader>
-                    <DialogTitle>Stickers</DialogTitle>
-                    <DialogDescription>
-                        Pick from your library or load the artist sticker shelf.
-                    </DialogDescription>
-                </DialogHeader>
+        <>
+            <Dialog
+                open={open}
+                onOpenChange={(nextOpen) => {
+                    if (!nextOpen) setAccessSticker(null)
+                    onOpenChange(nextOpen)
+                }}
+            >
+                <DialogContent className="w-[min(96vw,920px)] max-w-none">
+                    <DialogHeader>
+                        <DialogTitle>Stickers</DialogTitle>
+                        <DialogDescription>
+                            Pick from your library or get a sticker directly from the artist.
+                        </DialogDescription>
+                    </DialogHeader>
 
-                <Tabs defaultValue="library">
-                    <TabsList>
-                        <TabsTrigger value="library">My Library</TabsTrigger>
-                        <TabsTrigger value="artist" disabled={!artistUsername}>
-                            Artist Stickers
-                        </TabsTrigger>
-                    </TabsList>
+                    <Tabs defaultValue="library">
+                        <TabsList>
+                            <TabsTrigger value="library">My Library</TabsTrigger>
+                            <TabsTrigger value="artist" disabled={!artistUsername}>
+                                Artist Stickers
+                            </TabsTrigger>
+                        </TabsList>
 
-                    <TabsContent value="library">
-                        <StickerGrid
-                            stickers={myStickers}
-                            loading={libraryLoading}
-                            empty="No stickers in your library yet"
-                            onSelect={onSelect}
-                        />
-                    </TabsContent>
+                        <TabsContent value="library">
+                            <StickerGrid
+                                stickers={myStickers}
+                                loading={libraryLoading}
+                                empty="No stickers in your library yet"
+                                onSelect={(sticker) => {
+                                    onSelect(sticker)
+                                    onOpenChange(false)
+                                }}
+                            />
+                        </TabsContent>
 
-                    <TabsContent value="artist">
-                        <StickerGrid
-                            stickers={artistStickers}
-                            loading={storeLoading}
-                            empty="No artist stickers yet"
-                            onSelect={onSelect}
-                            onBuy={(sticker) => purchaseMutation.mutate(sticker.id)}
-                            onSubscribe={(sticker) => subscribeMutation.mutate(sticker.id)}
-                            busy={purchaseMutation.isPending || subscribeMutation.isPending}
-                        />
-                    </TabsContent>
-                </Tabs>
-            </DialogContent>
-        </Dialog>
+                        <TabsContent value="artist">
+                            <StickerGrid
+                                stickers={artistStickers}
+                                loading={storeLoading}
+                                empty="No artist stickers yet"
+                                onSelect={handleArtistStickerSelect}
+                                onRequestAccess={setAccessSticker}
+                                busy={accessBusy}
+                            />
+                        </TabsContent>
+                    </Tabs>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={Boolean(accessSticker)}
+                onOpenChange={(nextOpen) => {
+                    if (!nextOpen && !accessBusy) setAccessSticker(null)
+                }}
+            >
+                <DialogContent className="w-[min(94vw,460px)]">
+                    <DialogHeader>
+                        <DialogTitle>Get this sticker?</DialogTitle>
+                        <DialogDescription>
+                            Buy or subscribe here. You do not need to leave the comment section or
+                            open the Shop.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {accessSticker && (
+                        <div className="grid gap-4">
+                            <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-xl border bg-muted/20 p-3">
+                                <img
+                                    src={storageUrl(accessSticker.image_path)!}
+                                    alt={accessSticker.name}
+                                    draggable={false}
+                                    onContextMenu={(event) => event.preventDefault()}
+                                    className="h-full w-full select-none object-contain"
+                                />
+                            </div>
+
+                            <div className="rounded-lg border bg-muted/20 p-3 text-center">
+                                <p className="font-semibold">{accessSticker.name}</p>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    {accessCost <= 0 || accessSticker.is_free
+                                        ? 'Free sticker'
+                                        : `${accessCost} credits`}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    <DialogFooter className="gap-2 sm:justify-between">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            disabled={accessBusy}
+                            onClick={() => setAccessSticker(null)}
+                        >
+                            Cancel
+                        </Button>
+
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={!accessSticker || accessBusy}
+                                onClick={() => {
+                                    if (accessSticker) subscribeMutation.mutate(accessSticker)
+                                }}
+                            >
+                                {subscribeMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Gift className="h-4 w-4" />
+                                )}
+                                Subscribe
+                            </Button>
+
+                            <Button
+                                type="button"
+                                disabled={!accessSticker || accessBusy}
+                                onClick={() => {
+                                    if (accessSticker) purchaseMutation.mutate(accessSticker)
+                                }}
+                            >
+                                {purchaseMutation.isPending && (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                )}
+                                {accessCost <= 0 || accessSticker?.is_free
+                                    ? 'Get free'
+                                    : `Buy for ${accessCost} credits`}
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     )
 }
 
@@ -1435,16 +1434,14 @@ function StickerGrid({
     loading,
     empty,
     onSelect,
-    onBuy,
-    onSubscribe,
+    onRequestAccess,
     busy = false,
 }: {
     stickers: ArtistSticker[]
     loading: boolean
     empty: string
     onSelect: (sticker: ArtistSticker) => void
-    onBuy?: (sticker: ArtistSticker) => void
-    onSubscribe?: (sticker: ArtistSticker) => void
+    onRequestAccess?: (sticker: ArtistSticker) => void
     busy?: boolean
 }) {
     if (loading) {
@@ -1469,15 +1466,27 @@ function StickerGrid({
             {stickers.map((sticker) => {
                 const canUse = sticker.can_use ?? sticker.library_status !== undefined
                 const cost = sticker.purchase_cost ?? sticker.credit_cost ?? 1
+                const chooseSticker = () => {
+                    if (canUse) {
+                        onSelect(sticker)
+                        return
+                    }
+
+                    onRequestAccess?.(sticker)
+                }
 
                 return (
                     <div key={sticker.id} className="flex h-full flex-col p-2">
                         <button
                             type="button"
-                            disabled={!canUse}
-                            onClick={() => onSelect(sticker)}
-                            className="h-[150px] bg-transparent p-1 transition hover:bg-muted/30 disabled:opacity-60"
-                            title={sticker.name}
+                            disabled={busy}
+                            onClick={chooseSticker}
+                            className="relative h-[150px] bg-transparent p-1 transition hover:bg-muted/30 disabled:opacity-60"
+                            title={
+                                canUse
+                                    ? `Use ${sticker.name}`
+                                    : `Get ${sticker.name} without leaving comments`
+                            }
                         >
                             <img
                                 src={storageUrl(sticker.image_path)!}
@@ -1486,39 +1495,28 @@ function StickerGrid({
                                 onContextMenu={(event) => event.preventDefault()}
                                 className="h-full w-full select-none object-contain"
                             />
+
+                            {!canUse && (
+                                <span className="absolute bottom-2 right-2 rounded-full bg-background/95 px-2 py-1 text-[10px] font-semibold shadow">
+                                    {cost <= 0 || sticker.is_free ? 'FREE' : `${cost} CR`}
+                                </span>
+                            )}
                         </button>
-                        {canUse ? (
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="mt-1 h-7 w-full"
-                                onClick={() => onSelect(sticker)}
-                            >
-                                Use
-                            </Button>
-                        ) : (
-                            <div className="mt-1 grid grid-cols-2 gap-1">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={busy}
-                                    onClick={() => onSubscribe?.(sticker)}
-                                >
-                                    <Gift className="h-3 w-3" />
-                                    Sub
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    disabled={busy}
-                                    onClick={() => onBuy?.(sticker)}
-                                >
-                                    {cost <= 0 || sticker.is_free ? 'Free' : `${cost}cr`}
-                                </Button>
-                            </div>
-                        )}
+
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={canUse ? 'ghost' : 'default'}
+                            className="mt-1 h-7 w-full"
+                            disabled={busy}
+                            onClick={chooseSticker}
+                        >
+                            {canUse
+                                ? 'Use'
+                                : cost <= 0 || sticker.is_free
+                                  ? 'Get free'
+                                  : 'Buy / Subscribe'}
+                        </Button>
                     </div>
                 )
             })}

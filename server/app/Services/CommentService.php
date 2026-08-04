@@ -271,6 +271,7 @@ class CommentService
         ];
     }
 
+
     private function commentRelations(bool $includeParent = false, bool $includeReplyTo = false): array
     {
         // comment relations ----
@@ -308,9 +309,44 @@ class CommentService
             return true;
         }
 
-        return $user->purchasedArtistStickers()->where('artist_stickers.id', $sticker->id)->exists()
-            || $user->subscribedArtistStickers()->where('artist_stickers.id', $sticker->id)->exists();
+        if ((bool) $sticker->is_public && (bool) $sticker->is_free) {
+            return true;
+        }
+
+        if (
+            $user->purchasedArtistStickers()
+            ->where('artist_stickers.id', $sticker->id)
+            ->exists()
+            || $user->subscribedArtistStickers()
+            ->where('artist_stickers.id', $sticker->id)
+            ->exists()
+        ) {
+            return true;
+        }
+
+        $gifted = \App\Models\NobleRoyaltyGift::query()
+            ->where('recipient_id', $user->id)
+            ->where('giftable_type', ArtistSticker::class)
+            ->where('giftable_id', $sticker->id)
+            ->exists();
+
+        if ($gifted) {
+            return true;
+        }
+
+        if (! (bool) $sticker->subscription_free) {
+            return false;
+        }
+
+        return \App\Models\UserSubscription::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->where(fn($query) => $query
+                ->whereNull('ends_at')
+                ->orWhere('ends_at', '>', now()))
+            ->exists();
     }
+
 
     private function notifyCommentActivity(User $sender, Model $target, ?Comment $parent, Comment $comment): void
     {
