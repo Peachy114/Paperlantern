@@ -173,9 +173,12 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
 
                                 <ProfileLinkLists
                                     token={token}
-                                    walletBalance={wallet?.balance}
-                                    onLogout={handleLogout}
+                                    onLogout={() => {
+                                        handleLogout()
+                                        closeMenu()
+                                    }}
                                     onClose={closeMenu}
+                                    mobile
                                 />
                             </>
                         )}
@@ -255,9 +258,8 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
                                                     <ProfileNews isStoryteller={isStoryteller} />
                                                 </div>
 
-                                                <ProfileLinkLists
+                                               <ProfileLinkLists
                                                     token={token}
-                                                    walletBalance={wallet?.balance}
                                                     onLogout={() => {
                                                         handleLogout()
                                                         closeMenu()

@@ -3286,7 +3286,7 @@ function ServiceDialog({
                                 </div>
                             </div>
 
-                            <div className="grid gap-3 md:grid-cols-2">
+                            <div className="grid gap-3 md:grid-cols-2 pb-5">
                                 <div>
                                     <Label>Status</Label>
                                     <select
@@ -3560,7 +3560,7 @@ function ServiceDialog({
                     </Tabs>
                 </div>
 
-                <DialogFooter className="border-t bg-background p-4">
+                <DialogFooter className="border-t bg-background p-4 px-10">
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Cancel
                     </Button>

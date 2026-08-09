@@ -53,7 +53,7 @@ export default function CreatorWorkspaceShell({
             <main className="mx-auto w-full max-w-[1500px] px-3 pb-16 pt-6 sm:px-5 lg:px-6">
                 <header className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <h1 className="text-xl font-black uppercase tracking-tight text-foreground sm:text-2xl">
-                        {title}, <span className="text-rose-500">{description}</span>
+                        {title}<span className="text-rose-500">{description}</span>
                     </h1>
                     {action ? <div className="shrink-0">{action}</div> : null}
                 </header>

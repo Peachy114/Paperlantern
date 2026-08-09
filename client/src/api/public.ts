@@ -1,36 +1,5 @@
 import api from './axios'
 
-function logStickerOwnership(responseData: any): void {
-    const stickers = Array.isArray(responseData?.stickers)
-        ? responseData.stickers
-        : Array.isArray(responseData?.stickers?.data)
-          ? responseData.stickers.data
-          : []
-
-    console.group('[Public Shop] Sticker ownership')
-    console.log('Full shop response:', responseData)
-
-    if (stickers.length === 0) {
-        console.warn('No stickers found in the shop response.')
-        console.groupEnd()
-        return
-    }
-
-    console.table(
-        stickers.map((sticker: any) => ({
-            id: sticker.id,
-            name: sticker.name,
-            owned: Boolean(sticker.owned),
-            can_use: Boolean(sticker.can_use),
-            is_free: Boolean(sticker.is_free),
-            credit_cost: sticker.credit_cost,
-            owner_user_id: sticker.user_id,
-        }))
-    )
-
-    console.groupEnd()
-}
-
 export const publicApi = {
     // ======================================================
     // Homepage
@@ -77,9 +46,6 @@ export const publicApi = {
 
     getShop: async (params?: URLSearchParams) => {
         const response = await api.get(`/public/shop${params ? `?${params.toString()}` : ''}`)
-
-        logStickerOwnership(response.data)
-
         return response
     },
 
