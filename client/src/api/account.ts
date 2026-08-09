@@ -87,6 +87,8 @@ export interface NotificationAttention {
     notifications: boolean
 }
 
+export type NotificationSection = keyof Omit<NotificationAttention, 'notifications'>
+
 export interface NotificationListMeta {
     current_page: number
     last_page: number
@@ -162,6 +164,8 @@ export const accountApi = {
         api.patch<{ notification: AppNotification }>(`/account/notifications/${id}/read`),
     markAllNotificationsRead: () =>
         api.post<{ message: string }>('/account/notifications/read-all'),
+    markNotificationSectionRead: (section: NotificationSection) =>
+        api.post<{ message: string }>('/account/notifications/read-section', { section }),
     notificationPreferences: () =>
         api.get<{
             preferences: NotificationPreferences
