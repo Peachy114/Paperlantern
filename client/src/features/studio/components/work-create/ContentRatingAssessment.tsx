@@ -148,19 +148,26 @@ export default function ContentRatingAssessment({
                 {ratingGroups.map((group) => {
                     const error = errors[`content_rating_assessment.${group.key}`]
                     return (
-                        <div key={group.key} className="space-y-2">
+                        <div key={group.key} className="min-w-0 space-y-2">
                             <Label>{group.label}</Label>
                             {error && <p className="text-xs text-destructive">{error}</p>}
                             <Select
                                 value={values[group.key]}
                                 onValueChange={(value) => onRatingChange(group.key, value)}
                             >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Please select one" />
+                                <SelectTrigger className="w-full">
+                                    <SelectValue
+                                        placeholder="Please select one"
+                                        className="truncate whitespace-nowrap"
+                                    />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="max-w-[min(28rem,90vw)]">
                                     {group.options.map((option, index) => (
-                                        <SelectItem key={option} value={String(index)}>
+                                        <SelectItem
+                                            key={option}
+                                            value={String(index)}
+                                            className="whitespace-normal border-0 outline-none ring-0 focus:outline-none focus:ring-0"
+                                        >
                                             {index}: {option}
                                         </SelectItem>
                                     ))}

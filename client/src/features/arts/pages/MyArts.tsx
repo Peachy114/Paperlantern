@@ -83,6 +83,7 @@ export default function MyArts() {
     const [boostArt, setBoostArt] = useState<Art | null>(null)
     const [viewArt, setViewArt] = useState<Art | null>(null)
     const [selectedArts, setSelectedArts] = useState<string[]>([])
+    const [selectionMode, setSelectionMode] = useState(false)
     const [activeSection, setActiveSection] = useState('arts')
     const [workspaceBannerImage, setWorkspaceBannerImage] = useState<string | null>(null)
 
@@ -204,6 +205,17 @@ export default function MyArts() {
                 await trashArt.mutateAsync(confirm.art.slug)
                 toast.success('Art post moved to trash.')
             }
+            if (confirm.type === 'bulk-trash') {
+                const selected = arts.filter((art) => selectedArts.includes(art.id))
+                for (const art of selected) {
+                    await trashArt.mutateAsync(art.slug)
+                }
+                toast.success(
+                    `${selected.length} art post${selected.length === 1 ? '' : 's'} moved to trash.`
+                )
+                clearSelectedArts()
+                setSelectionMode(false)
+            }
             if (confirm.type === 'restore') {
                 await restoreArt.mutateAsync(confirm.art.slug)
                 toast.success('Art post restored.')
@@ -225,23 +237,6 @@ export default function MyArts() {
     }
 
     const clearSelectedArts = () => setSelectedArts([])
-
-    const trashSelectedArts = async () => {
-        const selected = arts.filter((art) => selectedArts.includes(art.id))
-        if (selected.length === 0) return
-
-        try {
-            for (const art of selected) {
-                await trashArt.mutateAsync(art.slug)
-            }
-            toast.success(
-                `${selected.length} art post${selected.length === 1 ? '' : 's'} moved to trash.`
-            )
-            clearSelectedArts()
-        } catch {
-            toast.error('Could not move selected art posts to trash.')
-        }
-    }
 
     const daysLeft = (deletedAt?: string | null) => {
         if (!deletedAt) return 30
@@ -384,7 +379,10 @@ export default function MyArts() {
                                     ) : null}
                                     <button
                                         type="button"
-                                        onClick={() => setSelectedArts(arts.map((art) => art.id))}
+                                        onClick={() => {
+                                            setSelectionMode(true)
+                                            setSelectedArts(arts.map((art) => art.id))
+                                        }}
                                         disabled={acting || selectedArts.length === arts.length}
                                         className="rounded-full border px-3 py-1 text-[9px] font-bold transition hover:bg-muted disabled:opacity-40"
                                     >
@@ -394,15 +392,27 @@ export default function MyArts() {
                                         <>
                                             <button
                                                 type="button"
-                                                onClick={clearSelectedArts}
+                                                onClick={() => {
+                                                    clearSelectedArts()
+                                                    setSelectionMode(false)
+                                                }}
                                                 disabled={acting}
                                                 className="rounded-full border px-3 py-1 text-[9px] font-bold transition hover:bg-muted disabled:opacity-40"
                                             >
                                                 Clear
                                             </button>
+                                            <span
+                                                className="mx-1 h-4 w-px bg-border"
+                                                aria-hidden="true"
+                                            />
                                             <button
                                                 type="button"
-                                                onClick={trashSelectedArts}
+                                                onClick={() =>
+                                                    setConfirm({
+                                                        type: 'bulk-trash',
+                                                        count: selectedArts.length,
+                                                    })
+                                                }
                                                 disabled={acting}
                                                 className="rounded-full bg-rose-500 px-3 py-1 text-[9px] font-bold text-white transition hover:bg-rose-600 disabled:opacity-40"
                                             >
@@ -428,6 +438,7 @@ export default function MyArts() {
                                         key={art.id}
                                         art={art}
                                         selected={selectedArts.includes(art.id)}
+                                        selectionMode={selectionMode}
                                         onSelect={toggleSelectedArt}
                                         onView={setViewArt}
                                         onEdit={openEdit}

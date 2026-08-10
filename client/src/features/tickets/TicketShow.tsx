@@ -15,32 +15,40 @@ export default function TicketShow() {
     }, [id])
 
     return (
-        <div className="p-6 max-w-2xl mx-auto">
-            <h1 className="text-2xl font-semibold mb-4">Ticket Conversation</h1>
+        <div className="flex h-[calc(100dvh-64px)] flex-col px-4 py-4 sm:h-[calc(100dvh-80px)] sm:px-6 sm:py-6">
+            <h1 className="mb-4 text-xl font-semibold sm:text-2xl">
+                Ticket Conversation
+            </h1>
 
             {ticket && (
-                <div className="mb-4 rounded-md border bg-muted/30 p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="font-semibold">{ticket.subject}</h2>
+                <div className="mb-4 rounded-lg border bg-muted/30 p-4 shadow-sm">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <h2 className="break-words text-lg font-semibold">
+                            {ticket.subject}
+                        </h2>
+
                         {ticket.source_type && (
-                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
-                                Moderation appeal
+                            <span className="w-fit rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">
+                                Moderation Appeal
                             </span>
                         )}
                     </div>
-                    <p className="mt-2 whitespace-pre-line text-sm text-muted-foreground">
+
+                    <p className="mt-3 whitespace-pre-line break-words text-sm leading-6 text-muted-foreground">
                         {ticket.message}
                     </p>
                 </div>
             )}
 
-            <TicketThread
-                replies={replies}
-                loading={loading}
-                sending={sending}
-                onSend={sendReply}
-                currentUserIsAdmin={false}
-            />
+            <div className="min-h-0 flex-1 overflow-hidden bg-background">
+                <TicketThread
+                    replies={replies}
+                    loading={loading}
+                    sending={sending}
+                    onSend={sendReply}
+                    currentUserIsAdmin={false}
+                />
+            </div>
         </div>
     )
 }

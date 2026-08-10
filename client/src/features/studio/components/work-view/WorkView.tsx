@@ -38,9 +38,11 @@ export default function WorkView() {
     } = useStudioDashboard()
 
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+    const [confirmingBulkDelete, setConfirmingBulkDelete] = useState(false)
     const [boostWork, setBoostWork] = useState<(typeof works)[number] | null>(null)
     const [deleting, setDeleting] = useState(false)
     const [selectedWorks, setSelectedWorks] = useState<string[]>([])
+    const [selectionMode, setSelectionMode] = useState(false)
     const [workspaceBannerImage, setWorkspaceBannerImage] = useState<string | null>(null)
 
     const totalViews = works.reduce((sum, work) => sum + Number(work.views ?? 0), 0)
@@ -106,23 +108,24 @@ export default function WorkView() {
     }
 
     const deleteSelectedWorks = async () => {
-        if (selectedWorks.length === 0) return
+            if (selectedWorks.length === 0) return
 
-        setDeleting(true)
-        try {
-            for (const slug of selectedWorks) {
-                await handleDelete(slug)
+            setDeleting(true)
+            try {
+                for (const slug of selectedWorks) {
+                    await handleDelete(slug)
+                }
+                toast.success(
+                    `${selectedWorks.length} work${selectedWorks.length === 1 ? '' : 's'} deleted.`
+                )
+                setSelectedWorks([])
+                setSelectionMode(false)
+            } catch {
+                toast.error('Failed to delete selected works.')
+            } finally {
+                setDeleting(false)
             }
-            toast.success(
-                `${selectedWorks.length} work${selectedWorks.length === 1 ? '' : 's'} deleted.`
-            )
-            setSelectedWorks([])
-        } catch {
-            toast.error('Failed to delete selected works.')
-        } finally {
-            setDeleting(false)
         }
-    }
 
     return (
         <CreatorWorkspaceShell
@@ -205,7 +208,10 @@ export default function WorkView() {
                                 ) : null}
                                 <button
                                     type="button"
-                                    onClick={() => setSelectedWorks(works.map((work) => work.slug))}
+                                    onClick={() => {
+                                        setSelectionMode(true)
+                                        setSelectedWorks(works.map((work) => work.slug))
+                                    }}
                                     disabled={deleting || selectedWorks.length === works.length}
                                     className="rounded-full border px-3 py-1 text-[9px] font-bold transition hover:bg-muted disabled:opacity-40"
                                 >
@@ -215,15 +221,19 @@ export default function WorkView() {
                                     <>
                                         <button
                                             type="button"
-                                            onClick={() => setSelectedWorks([])}
+                                            onClick={() => {
+                                                setSelectedWorks([])
+                                                setSelectionMode(false)
+                                            }}
                                             disabled={deleting}
                                             className="rounded-full border px-3 py-1 text-[9px] font-bold transition hover:bg-muted disabled:opacity-40"
                                         >
                                             Clear
                                         </button>
+                                        <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
                                         <button
                                             type="button"
-                                            onClick={deleteSelectedWorks}
+                                            onClick={() => setConfirmingBulkDelete(true)}
                                             disabled={deleting}
                                             className="rounded-full bg-rose-500 px-3 py-1 text-[9px] font-bold text-white transition hover:bg-rose-600 disabled:opacity-40"
                                         >
@@ -235,9 +245,42 @@ export default function WorkView() {
                         ) : null}
                     </div>
 
+                    <AlertDialog
+                open={confirmingBulkDelete}
+                onOpenChange={(open) => {
+                    if (!open) setConfirmingBulkDelete(false)
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Delete {selectedWorks.length} work{selectedWorks.length === 1 ? '' : 's'}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            These works and all their chapters will be permanently deleted. This
+                            cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={async () => {
+                                await deleteSelectedWorks()
+                                setConfirmingBulkDelete(false)
+                            }}
+                            disabled={deleting}
+                            className="bg-red-500 text-white hover:bg-red-600"
+                        >
+                            {deleting ? 'Deleting…' : 'Delete'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
                     <WorkViewTable
                         works={works}
                         selectedSlugs={selectedWorks}
+                        selectionMode={selectionMode}
                         onSelectWork={toggleSelectedWork}
                         onNavigate={navigate}
                         onDeleteRequest={setPendingDeleteId}
@@ -283,8 +326,9 @@ export default function WorkView() {
                         <AlertDialogTitle>Delete this work?</AlertDialogTitle>
                         <AlertDialogDescription>
                             {pendingWork
-                                ? `"${pendingWork.title}" and all its chapters will be permanently deleted. This cannot be undone.`
-                                : 'This action cannot be undone.'}
+                                ? `"${pendingWork.title}" and all its chapters will be deleted. You can restore them
+                            from Trash later.`
+                                : 'You can restore them from Trash later.'}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

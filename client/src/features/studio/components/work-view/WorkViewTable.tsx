@@ -28,9 +28,19 @@ export interface Work {
     boosted_until?: string | null
 }
 
+// interface WorkViewTableProps {
+//     works: Work[]
+//     selectedSlugs: string[]
+//     onSelectWork: (slug: string) => void
+//     onNavigate: (path: string) => void
+//     onDeleteRequest: (slug: string) => void
+//     onBoostRequest: (work: Work) => void
+//     onCreateFirst: () => void
+// }
 interface WorkViewTableProps {
     works: Work[]
     selectedSlugs: string[]
+    selectionMode: boolean
     onSelectWork: (slug: string) => void
     onNavigate: (path: string) => void
     onDeleteRequest: (slug: string) => void
@@ -41,6 +51,7 @@ interface WorkViewTableProps {
 export default function WorkViewTable({
     works,
     selectedSlugs,
+    selectionMode,
     onSelectWork,
     onNavigate,
     onDeleteRequest,
@@ -104,18 +115,20 @@ export default function WorkViewTable({
                                 </span>
                             </div>
 
-                            <label
-                                className="absolute right-2 top-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-black/45 text-white backdrop-blur"
-                                onClick={(event) => event.stopPropagation()}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={selected}
-                                    onChange={() => onSelectWork(work.slug)}
-                                    className="h-4 w-4 accent-sky-500"
-                                    aria-label={`Select ${work.title}`}
-                                />
-                            </label>
+                             {selectionMode && (
+                                <label
+                                    className="absolute right-2 top-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-black/45 text-white backdrop-blur"
+                                    onClick={(event) => event.stopPropagation()}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={selected}
+                                        onChange={() => onSelectWork(work.slug)}
+                                        className="h-4 w-4 accent-sky-500"
+                                        aria-label={`Select ${work.title}`}
+                                    />
+                                </label>
+                            )}
 
                             {work.boosted_until ? (
                                 <button
@@ -157,12 +170,12 @@ export default function WorkViewTable({
                                 <button
                                     type="button"
                                     onClick={() => onNavigate(`/studio/works/${work.slug}/edit`)}
-                                    className="inline-flex h-7 items-center justify-center gap-1 rounded-full bg-rose-400 text-[9px] font-bold text-white transition hover:bg-rose-500"
+                                    className="inline-flex h-7 items-center justify-center gap-1 rounded-full bg-black text-[9px] font-bold text-white transition hover:bg-rose-500"
                                 >
                                     <Pencil size={10} />
                                     Edit
                                 </button>
-                                <button
+                               <button
                                     type="button"
                                     onClick={() => onDeleteRequest(work.slug)}
                                     className="inline-flex h-7 items-center justify-center gap-1 rounded-full bg-sky-400 text-[9px] font-bold text-white transition hover:bg-sky-500"
