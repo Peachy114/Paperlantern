@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useModalStore } from '@/store/modalStore'
-import { useWallet } from '@/hooks/useWallet'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useDarkMode } from '@/hooks/useDarkMode'
 import { storageUrl } from '@/utils/storage'
@@ -15,15 +14,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-    BookOpen,
-    BriefcaseBusiness,
-    LogIn,
-    Palette,
-    ShoppingBag,
-    UserPlus,
-    X,
-} from 'lucide-react'
+import { BookOpen, BriefcaseBusiness, LogIn, Palette, ShoppingBag, UserPlus, X } from 'lucide-react'
 import ProfileIconGrid from './ProfileIconGrid'
 import ProfileNews from './ProfileNews'
 import ProfileLinkLists from './ProfileLinkLists'
@@ -39,7 +30,6 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
     const { user, token } = useAuthStore()
     const { openLogin, openRegister } = useModalStore()
     const { handleLogout } = useAuth()
-    const { wallet } = useWallet()
     const { dark, toggle } = useDarkMode()
 
     const [isDesktop, setIsDesktop] = useState(() =>
@@ -258,7 +248,7 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
                                                     <ProfileNews isStoryteller={isStoryteller} />
                                                 </div>
 
-                                               <ProfileLinkLists
+                                                <ProfileLinkLists
                                                     token={token}
                                                     onLogout={() => {
                                                         handleLogout()

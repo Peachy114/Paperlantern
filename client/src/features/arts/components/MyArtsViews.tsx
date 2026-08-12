@@ -1,19 +1,39 @@
 import { type ReactNode } from 'react'
-import { BarChart3, Eye, Heart, ImageOff, MessageCircle, Pencil, Sparkles, Trash2 } from 'lucide-react'
+import {
+    BarChart3,
+    Eye,
+    Heart,
+    ImageOff,
+    MessageCircle,
+    Pencil,
+    Sparkles,
+    Trash2,
+} from 'lucide-react'
 import CommentSection from '@/features/comments/components/CommentSection'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog'
 import type { Art } from '@/types/art'
 import { ART_STATUS_COLOR } from '@/features/arts/constants/myArts'
 import { getArtImages, getFirstImagePath } from '@/features/arts/utils/myArts'
 import { ArtImageCarousel } from '@/features/arts/components/ArtImagePresentation'
-import { AnalyticsTable, ArtActions, ArtMetric as Metric } from '@/features/arts/components/MyArtsPresentation'
+import {
+    AnalyticsTable,
+    ArtActions,
+    ArtMetric as Metric,
+} from '@/features/arts/components/MyArtsPresentation'
 import { storageUrl } from '@/utils/storage'
 
 // My Arts views ----
 export function ArtDashboardCard({
     art,
     selected,
+    selectionMode = false,
     onSelect,
     onView,
     onEdit,
@@ -22,6 +42,7 @@ export function ArtDashboardCard({
 }: {
     art: Art
     selected: boolean
+    selectionMode?: boolean
     onSelect: (id: string) => void
     onView: (art: Art) => void
     onEdit: (art: Art) => void
@@ -68,7 +89,13 @@ export function ArtDashboardCard({
                     ) : null}
                 </div>
 
-                <label className="absolute right-2 top-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-black/45 text-white backdrop-blur">
+                <label
+                    className={`absolute right-2 top-2 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-black/45 text-white backdrop-blur transition-opacity ${
+                        selectionMode || selected
+                            ? 'opacity-100'
+                            : 'opacity-0 group-hover:opacity-100'
+                    }`}
+                >
                     <input
                         type="checkbox"
                         checked={selected}
@@ -437,4 +464,3 @@ export function ArtViewDialog({
 }
 
 void [ArtPostRow, BulkSelectionBar, AnalyticsTable]
-

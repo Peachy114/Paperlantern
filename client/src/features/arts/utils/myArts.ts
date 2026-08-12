@@ -26,6 +26,7 @@ export function getFirstImagePath(art: Art) {
 export function artConfirmationTitle(confirm: ArtConfirmation) {
     if (confirm?.type === 'restore') return 'Restore this art post?'
     if (confirm?.type === 'force') return 'Permanently delete this art post?'
+    if (confirm?.type === 'bulk-trash') return `Move ${confirm.count} art posts to trash?`
     return 'Move this art post to trash?'
 }
 
@@ -33,11 +34,20 @@ export function artConfirmationDescription(confirm: ArtConfirmation) {
     if (confirm?.type === 'restore') {
         return `"${confirm.art.title}" will return to your My Arts dashboard.`
     }
+
     if (confirm?.type === 'force') {
         return `"${confirm.art.title}" will be permanently deleted and cannot be recovered.`
     }
+
     if (confirm?.type === 'trash') {
         return `"${confirm.art.title}" will stay recoverable for 30 days.`
     }
+
+    if (confirm?.type === 'bulk-trash') {
+        return `${confirm.count} art post${
+            confirm.count === 1 ? '' : 's'
+        } will be moved to trash and remain recoverable for 30 days.`
+    }
+
     return 'Please confirm this action.'
 }

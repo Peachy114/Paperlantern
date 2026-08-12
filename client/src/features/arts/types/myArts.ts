@@ -19,6 +19,7 @@ export interface MyArtsFormState {
 
 export type ArtConfirmation =
     | { type: 'trash'; art: Art }
+    | { type: 'bulk-trash'; count: number }
     | { type: 'restore'; art: Art }
     | { type: 'force'; art: Art }
     | null

@@ -1,20 +1,7 @@
-import {
-    useState,
-    type ChangeEvent,
-    type FormEvent,
-} from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import {
-    Eye,
-    Heart,
-    Images,
-    Info,
-    MessageCircle,
-    PlusCircle,
-    Sparkles,
-    Trash2,
-} from 'lucide-react'
+import { Eye, Heart, Images, Info, MessageCircle, PlusCircle, Sparkles, Trash2 } from 'lucide-react'
 import News from '@/features/announcements/components/News'
 import WorkspaceBannerPicker from '@/features/announcements/components/WorkspaceBannerPicker'
 import { useMyArts } from '@/features/arts/hooks/useMyArts'
@@ -53,13 +40,46 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { ArtsActivityChart } from '@/features/arts/components/ArtsActivityChart'
 import { ExistingImagesPreview } from '@/features/arts/components/ArtImagePresentation'
-import { ArtsEmptyState as EmptyState, TrashTable } from '@/features/arts/components/MyArtsPresentation'
+import {
+    ArtsEmptyState as EmptyState,
+    TrashTable,
+} from '@/features/arts/components/MyArtsPresentation'
 import { ArtLabelInput as LabelBadgeInput } from '@/features/arts/components/ArtLabelInput'
 import {
     ArtDashboardCard,
     ArtViewDialog,
     StudioPanel,
 } from '@/features/arts/components/MyArtsViews'
+
+const MAX_ART_IMAGES = 10
+const MAX_ART_IMAGE_SIZE_MB = 15
+const MAX_ART_IMAGE_SIZE_BYTES = MAX_ART_IMAGE_SIZE_MB * 1024 * 1024
+
+const ALLOWED_ART_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+
+type ValidationErrorLike = {
+    response?: {
+        data?: {
+            message?: string
+            errors?: Record<string, string[]>
+        }
+    }
+}
+
+function fileSizeInMb(bytes: number) {
+    return (bytes / (1024 * 1024)).toFixed(1)
+}
+
+function getServerImageErrors(error: unknown): string[] {
+    const validationError = error as ValidationErrorLike
+    const errors = validationError.response?.data?.errors
+
+    if (!errors) return []
+
+    return Object.entries(errors)
+        .filter(([field]) => field === 'image' || field === 'images' || field.startsWith('images.'))
+        .flatMap(([, messages]) => messages)
+}
 
 export default function MyArts() {
     const queryClient = useQueryClient()
@@ -86,6 +106,7 @@ export default function MyArts() {
     const [selectionMode, setSelectionMode] = useState(false)
     const [activeSection, setActiveSection] = useState('arts')
     const [workspaceBannerImage, setWorkspaceBannerImage] = useState<string | null>(null)
+    const [imageErrors, setImageErrors] = useState<string[]>([])
 
     const featuredArt = arts.find((art) => getFirstImagePath(art)) ?? arts[0] ?? null
     const featuredImage = featuredArt ? storageUrl(getFirstImagePath(featuredArt)) : null
@@ -109,13 +130,20 @@ export default function MyArts() {
         },
     ]
 
+    const clearImagePreviews = () => {
+        form.images.forEach((image) => URL.revokeObjectURL(image.preview))
+    }
+
     const openCreate = () => {
+        clearImagePreviews()
         setEditing(null)
         setForm(EMPTY_ART_FORM)
+        setImageErrors([])
         setFormOpen(true)
     }
 
     const openEdit = (art: Art) => {
+        clearImagePreviews()
         setEditing(art)
         setForm({
             title: art.title,
@@ -126,19 +154,72 @@ export default function MyArts() {
             applyWatermark: art.apply_watermark ?? true,
             images: [],
         })
+        setImageErrors([])
         setFormOpen(true)
     }
 
+    const handleFormOpenChange = (open: boolean) => {
+        if (!open) {
+            clearImagePreviews()
+            setImageErrors([])
+        }
+
+        setFormOpen(open)
+    }
+
     const handleImages = (event: ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(event.target.files ?? []).slice(0, 10)
-        setForm((current) => ({
-            ...current,
-            images: files.map((file) => ({
-                file,
-                preview: URL.createObjectURL(file),
-                description: '',
-            })),
-        }))
+        const selectedFiles = Array.from(event.target.files ?? [])
+        const nextErrors: string[] = []
+
+        if (selectedFiles.length > MAX_ART_IMAGES) {
+            nextErrors.push(
+                `You selected ${selectedFiles.length} images. Maximum is ${MAX_ART_IMAGES}; only the first ${MAX_ART_IMAGES} were checked.`
+            )
+        }
+
+        const files = selectedFiles.slice(0, MAX_ART_IMAGES)
+        const validFiles = files.filter((file) => {
+            if (!ALLOWED_ART_IMAGE_TYPES.has(file.type)) {
+                nextErrors.push(`${file.name}: unsupported file type. Use JPG, PNG, WEBP, or GIF.`)
+                return false
+            }
+
+            if (file.size > MAX_ART_IMAGE_SIZE_BYTES) {
+                nextErrors.push(
+                    `${file.name}: ${fileSizeInMb(file.size)} MB is too large. Maximum is ${MAX_ART_IMAGE_SIZE_MB} MB per image.`
+                )
+                return false
+            }
+
+            return true
+        })
+
+        setImageErrors(nextErrors)
+
+        if (validFiles.length > 0) {
+            setForm((current) => {
+                current.images.forEach((image) => URL.revokeObjectURL(image.preview))
+
+                return {
+                    ...current,
+                    images: validFiles.map((file) => ({
+                        file,
+                        preview: URL.createObjectURL(file),
+                        description: '',
+                    })),
+                }
+            })
+        } else if (files.length === 0) {
+            setForm((current) => {
+                current.images.forEach((image) => URL.revokeObjectURL(image.preview))
+                return {
+                    ...current,
+                    images: [],
+                }
+            })
+        }
+
+        event.target.value = ''
     }
 
     const updateImageDescription = (index: number, description: string) => {
@@ -176,9 +257,18 @@ export default function MyArts() {
         }
 
         if (!editing && form.images.length === 0) {
-            toast.error('Add at least one image.')
+            const message = 'Add at least one valid image before posting.'
+            setImageErrors([message])
+            toast.error(message)
             return
         }
+
+        if (imageErrors.length > 0) {
+            toast.error('Fix the image upload errors before posting.')
+            return
+        }
+
+        setImageErrors([])
 
         try {
             if (editing) {
@@ -191,9 +281,19 @@ export default function MyArts() {
                 await createArt.mutateAsync(buildPayload())
                 toast.success('Art post published.')
             }
+            clearImagePreviews()
             setFormOpen(false)
-        } catch {
-            toast.error('Could not save art post.')
+        } catch (error: unknown) {
+            const serverImageErrors = getServerImageErrors(error)
+
+            if (serverImageErrors.length > 0) {
+                setImageErrors(serverImageErrors)
+                toast.error(serverImageErrors[0])
+                return
+            }
+
+            const validationError = error as ValidationErrorLike
+            toast.error(validationError.response?.data?.message ?? 'Could not save art post.')
         }
     }
 
@@ -311,10 +411,8 @@ export default function MyArts() {
                     <section className="overflow-hidden rounded-[28px] border border-sky-100 bg-gradient-to-br from-sky-50/80 via-white to-orange-50/60 p-2.5 shadow-sm sm:p-3">
                         <div className="grid gap-3 lg:grid-cols-[250px_minmax(0,1fr)]">
                             <News audience="studio" variant="dashboard" />
-
                             <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                                 <ArtsActivityChart points={viewsChart} />
-
                                 <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
                                     {statCards.map(({ label, value, icon: Icon, color }) => (
                                         <div
@@ -454,13 +552,13 @@ export default function MyArts() {
                 </>
             )}
 
-            <Dialog open={formOpen} onOpenChange={setFormOpen}>
+            <Dialog open={formOpen} onOpenChange={handleFormOpenChange}>
                 <DialogContent className="sm:max-w-2xl">
                     <form onSubmit={handleSubmit}>
                         <DialogHeader>
                             <DialogTitle>{editing ? 'Edit Art Post' : 'Add Art Post'}</DialogTitle>
                             <DialogDescription>
-                                Add labels, a description, and up to 10 images.
+                                Add labels, a description, and up to {MAX_ART_IMAGES} images.
                             </DialogDescription>
                         </DialogHeader>
 
@@ -569,17 +667,43 @@ export default function MyArts() {
                                 </label>
                             </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="art-images">Images</Label>
+                            <div
+                                className={`grid gap-2 rounded-lg transition ${
+                                    imageErrors.length > 0
+                                        ? 'border border-destructive bg-destructive/5 p-3'
+                                        : ''
+                                }`}
+                            >
+                                <div className="flex items-center justify-between gap-3">
+                                    <Label
+                                        htmlFor="art-images"
+                                        className={
+                                            imageErrors.length > 0 ? 'text-destructive' : undefined
+                                        }
+                                    >
+                                        Images
+                                    </Label>
+                                    <span
+                                        className={`text-xs ${
+                                            imageErrors.length > 0
+                                                ? 'font-semibold text-destructive'
+                                                : 'text-muted-foreground'
+                                        }`}
+                                    >
+                                        Max {MAX_ART_IMAGE_SIZE_MB} MB each
+                                    </span>
+                                </div>
+
                                 {editing && form.images.length === 0 && (
                                     <ExistingImagesPreview art={editing} />
                                 )}
+
                                 {form.images.length > 0 && (
                                     <div className="flex gap-3 overflow-x-auto pb-2">
                                         {form.images.map((image, index) => (
                                             <div
                                                 key={`${image.file.name}-${index}`}
-                                                className="w-48 shrink-0 border rounded-lg overflow-hidden bg-background"
+                                                className="w-48 shrink-0 overflow-hidden rounded-lg border bg-background"
                                             >
                                                 <div className="aspect-square bg-muted">
                                                     <img
@@ -587,6 +711,12 @@ export default function MyArts() {
                                                         alt={`Selected art ${index + 1}`}
                                                         className="h-full w-full object-contain"
                                                     />
+                                                </div>
+                                                <div className="border-t px-2 py-1 text-[10px] text-muted-foreground">
+                                                    <p className="truncate font-medium text-foreground">
+                                                        {image.file.name}
+                                                    </p>
+                                                    <p>{fileSizeInMb(image.file.size)} MB</p>
                                                 </div>
                                                 <Textarea
                                                     rows={2}
@@ -604,16 +734,56 @@ export default function MyArts() {
                                         ))}
                                     </div>
                                 )}
+
                                 <Input
                                     id="art-images"
                                     type="file"
                                     multiple
                                     accept="image/png,image/jpeg,image/webp,image/gif"
+                                    aria-invalid={imageErrors.length > 0}
+                                    aria-describedby={
+                                        imageErrors.length > 0
+                                            ? 'art-images-errors'
+                                            : 'art-images-help'
+                                    }
+                                    className={
+                                        imageErrors.length > 0
+                                            ? 'border-destructive text-destructive focus-visible:border-destructive focus-visible:ring-destructive/20'
+                                            : undefined
+                                    }
                                     onChange={handleImages}
                                 />
-                                <p className="text-xs text-muted-foreground">
-                                    New uploads replace the current image set when editing.
+
+                                <p
+                                    id="art-images-help"
+                                    className={
+                                        imageErrors.length > 0
+                                            ? 'text-xs text-destructive'
+                                            : 'text-xs text-muted-foreground'
+                                    }
+                                >
+                                    JPG, PNG, WEBP or GIF. Up to {MAX_ART_IMAGES} images, maximum{' '}
+                                    {MAX_ART_IMAGE_SIZE_MB} MB per image.
+                                    {editing
+                                        ? ' New uploads replace the current image set when editing.'
+                                        : ''}
                                 </p>
+
+                                {imageErrors.length > 0 && (
+                                    <div
+                                        id="art-images-errors"
+                                        role="alert"
+                                        aria-live="polite"
+                                        className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+                                    >
+                                        <p className="font-semibold">Fix the image upload:</p>
+                                        <ul className="mt-1 list-disc space-y-1 pl-5">
+                                            {imageErrors.map((error, index) => (
+                                                <li key={`${error}-${index}`}>{error}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -621,12 +791,12 @@ export default function MyArts() {
                             <Button
                                 type="button"
                                 variant="outline"
-                                onClick={() => setFormOpen(false)}
+                                onClick={() => handleFormOpenChange(false)}
                                 disabled={acting}
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={acting}>
+                            <Button type="submit" disabled={acting || imageErrors.length > 0}>
                                 {acting ? 'Saving...' : editing ? 'Save Post' : 'Post Art'}
                             </Button>
                         </DialogFooter>
@@ -689,4 +859,3 @@ export default function MyArts() {
         </CreatorWorkspaceShell>
     )
 }
-
