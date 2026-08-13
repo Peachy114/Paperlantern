@@ -27,6 +27,7 @@ import {
     ArtActions,
     ArtMetric as Metric,
 } from '@/features/arts/components/MyArtsPresentation'
+import ViewProfileLink from '@/components/profile/ViewProfileLink'
 import { storageUrl } from '@/utils/storage'
 
 // My Arts views ----
@@ -119,6 +120,12 @@ export function ArtDashboardCard({
                         <p className="mt-1 truncate text-[9px] font-semibold text-orange-500">
                             {art.user?.name ?? 'Artist'}
                         </p>
+                        <ViewProfileLink
+                            username={art.user?.username}
+                            role={art.user?.role}
+                            compact
+                            className="mt-1"
+                        />
                     </div>
                     <ArtActions
                         art={art}
@@ -257,6 +264,12 @@ export function ArtPostRow({
                             <p className={`text-xs mt-0.5 capitalize ${statusColor}`}>
                                 {art.status}
                             </p>
+                            <ViewProfileLink
+                                username={art.user?.username}
+                                role={art.user?.role}
+                                compact
+                                className="mt-1"
+                            />
                             {art.boosted_until && (
                                 <p className="mt-1 text-[11px] text-amber-500">
                                     Boosted until {new Date(art.boosted_until).toLocaleDateString()}
@@ -416,11 +429,31 @@ export function ArtViewDialog({
                             </div>
                         )}
                     </div>
+
                     <aside className="min-h-0 overflow-y-auto border-l bg-background p-5">
                         <h2 className="text-xl font-semibold">{art.title}</h2>
                         <p className={`mt-1 text-xs capitalize ${ART_STATUS_COLOR[art.status]}`}>
                             {art.status}
                         </p>
+
+                        {art.user && (
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/20 p-3">
+                                <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold">
+                                        {art.user.name}
+                                    </p>
+                                    <p className="truncate text-xs text-muted-foreground">
+                                        @{art.user.username}
+                                    </p>
+                                </div>
+                                <ViewProfileLink
+                                    username={art.user.username}
+                                    role={art.user.role}
+                                    label="View Profile"
+                                />
+                            </div>
+                        )}
+
                         {art.description ? (
                             <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
                                 {art.description}
@@ -430,6 +463,7 @@ export function ArtViewDialog({
                                 No description added.
                             </p>
                         )}
+
                         {labels.length > 0 && (
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {labels.map((label) => (
@@ -442,16 +476,23 @@ export function ArtViewDialog({
                                 ))}
                             </div>
                         )}
+
                         <div className="mt-5 grid grid-cols-2 gap-2 text-sm">
                             <Metric label="Views" value={art.views} />
                             <Metric label="Likes" value={art.likes} />
                             <Metric label="Comments" value={art.comments_count} />
                             <Metric label="Super Likes" value={art.super_likes_count} />
                         </div>
+
                         <div className="mt-6">
                             <CommentSection
                                 targetType="art"
                                 targetId={art.id}
+                                artistUsername={
+                                    art.user?.role === 'storyteller'
+                                        ? art.user.username
+                                        : undefined
+                                }
                                 title="Art comments"
                                 compact
                             />

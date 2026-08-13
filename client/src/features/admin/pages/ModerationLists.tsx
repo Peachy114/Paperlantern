@@ -502,6 +502,7 @@ function ReviewContentSection({
     suspendCommissionMessageImage,
     approveCommissionDeliveryFile,
     suspendCommissionDeliveryFile,
+    approveProfileMedia,
     suspendingContent,
     restoringSuspension,
     approvingCommentImage,
@@ -512,6 +513,7 @@ function ReviewContentSection({
     suspendingCommissionMessageImage,
     approvingCommissionDeliveryFile,
     suspendingCommissionDeliveryFile,
+    approvingProfileMedia,
 }: Pick<
     ReturnType<typeof useAdminModerationQueue>,
     | 'review'
@@ -525,6 +527,7 @@ function ReviewContentSection({
     | 'suspendCommissionMessageImage'
     | 'approveCommissionDeliveryFile'
     | 'suspendCommissionDeliveryFile'
+    | 'approveProfileMedia'
     | 'suspendingContent'
     | 'restoringSuspension'
     | 'approvingCommentImage'
@@ -535,6 +538,7 @@ function ReviewContentSection({
     | 'suspendingCommissionMessageImage'
     | 'approvingCommissionDeliveryFile'
     | 'suspendingCommissionDeliveryFile'
+    | 'approvingProfileMedia'
 >) {
     const navigate = useNavigate()
     const [suspendTarget, setSuspendTarget] = useState<{
@@ -563,6 +567,7 @@ function ReviewContentSection({
     const feedImages = review.feed_images ?? []
     const commissionMessageImages = review.commission_message_images ?? []
     const commissionDeliveryFiles = review.commission_delivery_files ?? []
+    const profileMedia = review.profile_media ?? []
 
     const itemsCount =
         review.works.length +
@@ -573,6 +578,7 @@ function ReviewContentSection({
         feedImages.length +
         commissionMessageImages.length +
         commissionDeliveryFiles.length
+        + profileMedia.length
 
     const keyFor = (type: string, id: string, field?: string | null) =>
         `${type}:${id}:${field ?? ''}`
@@ -669,12 +675,15 @@ function ReviewContentSection({
                     <EmptyState label="live content" />
                 ) : (
                     <div className="grid gap-3 px-3 sm:pl-14 sm:pr-4 py-4 bg-[#fffdf5] dark:bg-[#1c1a17]">
+                        {(review.works.length > 0 || review.chapters.length > 0) && (
+                            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Webcomix &amp; novels</p>
+                        )}
                         {review.works.map((work) => (
                             <ReviewRow
                                 key={`work-${work.id}`}
                                 image={work.cover}
                                 title={work.title}
-                                meta={`Work by @${work.user?.username ?? 'unknown'}`}
+                                meta={`Webcomix/novel by @${work.user?.username ?? 'unknown'} · ${work.status ?? 'review'} · ${new Date(work.created_at).toLocaleString()}`}
                                 actions={
                                     <>
                                         {actionButton(
@@ -705,7 +714,7 @@ function ReviewContentSection({
                                 key={`chapter-${chapter.id}`}
                                 image={chapter.cover ?? chapter.work?.cover ?? null}
                                 title={`${chapter.work?.title ?? 'Unknown'} - Ch.${chapter.order} ${chapter.title}`}
-                                meta={`Chapter by @${chapter.work?.user?.username ?? 'unknown'}`}
+                                meta={`Chapter by @${chapter.work?.user?.username ?? 'unknown'} · ${chapter.status ?? 'review'} · ${new Date(chapter.created_at).toLocaleString()}`}
                                 actions={
                                     <>
                                         {actionButton(
@@ -725,12 +734,15 @@ function ReviewContentSection({
                                 }
                             />
                         ))}
+                        {review.arts.length > 0 && (
+                            <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Arts &amp; commissions</p>
+                        )}
                         {review.arts.map((art) => (
                             <ReviewRow
                                 key={`art-${art.id}`}
                                 image={art.image_path}
                                 title={art.title}
-                                meta={`Art by @${art.user?.username ?? 'unknown'} - ${art.images.length} image(s)`}
+                                meta={`Art by @${art.user?.username ?? 'unknown'} · ${art.status ?? 'published'} · ${new Date(art.created_at).toLocaleString()} · ${art.images.length} image(s)`}
                                 actions={
                                     <>
                                         {actionButton(
@@ -753,12 +765,15 @@ function ReviewContentSection({
                                 }
                             />
                         ))}
+                        {(commentImages.length > 0 || feedImages.length > 0) && (
+                            <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Posts, comments &amp; replies</p>
+                        )}
                         {commentImages.map((comment) => (
                             <ReviewRow
                                 key={`comment-image-${comment.id}`}
                                 image={comment.image_path}
                                 title={comment.body || 'Comment image upload'}
-                                meta={`Comment image by @${comment.user?.username ?? 'unknown'}`}
+                                meta={`Comment/reply image by @${comment.user?.username ?? 'unknown'} · ${comment.image_moderation_status} · ${new Date(comment.created_at).toLocaleString()}`}
                                 actions={
                                     <>
                                         <button
@@ -801,7 +816,7 @@ function ReviewContentSection({
                                 key={`feed-image-${image.id}`}
                                 image={image.image_path}
                                 title={image.feed_post?.body || 'Feed image upload'}
-                                meta={`Feed image by @${image.feed_post?.user?.username ?? 'unknown'}`}
+                                meta={`Feed image by @${image.feed_post?.user?.username ?? 'unknown'} · ${image.moderation_status} · ${new Date(image.created_at).toLocaleString()}`}
                                 actions={
                                     <>
                                         <button
@@ -839,12 +854,15 @@ function ReviewContentSection({
                                 }
                             />
                         ))}
+                        {(commissionMessageImages.length > 0 || commissionDeliveryFiles.length > 0) && (
+                            <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Commission messages &amp; delivery files</p>
+                        )}
                         {commissionMessageImages.map((message) => (
                             <ReviewRow
                                 key={`commission-message-image-${message.id}`}
                                 image={message.image_path}
                                 title={message.body || 'Commission message image upload'}
-                                meta={`Commission message by @${message.sender?.username ?? 'unknown'} - ${message.order?.service?.title ?? 'Commission'}`}
+                                meta={`Commission message by @${message.sender?.username ?? 'unknown'} · ${message.image_moderation_status} · ${new Date(message.created_at).toLocaleString()} · ${message.order?.service?.title ?? 'Commission'}`}
                                 actions={
                                     <>
                                         <button
@@ -887,7 +905,7 @@ function ReviewContentSection({
                                 key={`commission-delivery-file-${file.id}`}
                                 image={file.mime_type?.startsWith('image/') ? file.file_path : null}
                                 title={file.original_name || 'Commission delivery file'}
-                                meta={`Final delivery by @${file.uploader?.username ?? 'unknown'} - ${file.order?.service?.title ?? 'Commission'}`}
+                                meta={`Commission delivery by @${file.uploader?.username ?? 'unknown'} · ${file.moderation_status} · ${new Date(file.created_at).toLocaleString()} · ${file.order?.service?.title ?? 'Commission'}`}
                                 actions={
                                     <>
                                         <button
@@ -925,6 +943,29 @@ function ReviewContentSection({
                                 }
                             />
                         ))}
+                        {(profileMedia.length > 0 || review.profile_blocks.length > 0) && (
+                            <p className="mt-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Profile images &amp; board content</p>
+                        )}
+                        {profileMedia.map((media) => (
+                            <ReviewRow
+                                key={media.id}
+                                image={media.image_path}
+                                title={media.field === 'avatar' ? 'Profile image' : 'Cover image'}
+                                meta={`Profile ${media.field === 'avatar' ? 'avatar' : 'cover'} by @${media.user?.username ?? 'unknown'} · ${media.moderation_status} · ${new Date(media.created_at).toLocaleString()}`}
+                                actions={
+                                    <>
+                                        <button
+                                            onClick={() => approveProfileMedia(media.user_id, media.field)}
+                                            disabled={approvingProfileMedia === `${media.user_id}:${media.field}`}
+                                            className="border-[2px] border-green-400 text-green-700 px-2 py-1 text-[10px] disabled:opacity-50"
+                                        >
+                                            {approvingProfileMedia === `${media.user_id}:${media.field}` ? 'APPROVING...' : 'APPROVE'}
+                                        </button>
+                                        {actionButton('user', media.user_id, `Suspend ${media.field === 'avatar' ? 'Profile Image' : 'Cover Image'}`, media.field, true)}
+                                    </>
+                                }
+                            />
+                        ))}
                         {review.profile_blocks.map((block) => (
                             <ReviewRow
                                 key={`profile-block-${block.id}`}
@@ -934,7 +975,7 @@ function ReviewContentSection({
                                         ? block.text_content || 'Profile board text'
                                         : 'Profile board image'
                                 }
-                                meta={`Board block by @${block.user?.username ?? 'unknown'}`}
+                                meta={`Profile board by @${block.user?.username ?? 'unknown'} · review · ${new Date(block.created_at).toLocaleString()}`}
                                 actions={actionButton(
                                     'profile_block',
                                     block.id,
@@ -1136,6 +1177,7 @@ function ModerationQueue() {
                             suspendCommissionMessageImage={queue.suspendCommissionMessageImage}
                             approveCommissionDeliveryFile={queue.approveCommissionDeliveryFile}
                             suspendCommissionDeliveryFile={queue.suspendCommissionDeliveryFile}
+                            approveProfileMedia={queue.approveProfileMedia}
                             suspendingContent={queue.suspendingContent}
                             restoringSuspension={queue.restoringSuspension}
                             approvingCommentImage={queue.approvingCommentImage}
@@ -1146,6 +1188,7 @@ function ModerationQueue() {
                             suspendingCommissionMessageImage={queue.suspendingCommissionMessageImage}
                             approvingCommissionDeliveryFile={queue.approvingCommissionDeliveryFile}
                             suspendingCommissionDeliveryFile={queue.suspendingCommissionDeliveryFile}
+                            approvingProfileMedia={queue.approvingProfileMedia}
                         />
 
                         {/* Footer */}

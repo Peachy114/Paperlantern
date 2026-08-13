@@ -9,6 +9,8 @@ export interface User {
     email_verified_at?: string | null
     email_verified?: boolean
     role: 'super_admin' | 'storyteller' | 'wanderer'
+    creator_role?: 'artist' | 'storyteller' | null
+    creator_features?: CreatorFeature[]
     is_banned: boolean
     is_suspended?: boolean
     dark_mode?: boolean
@@ -49,6 +51,8 @@ export interface User {
     facebook_url?: string | null
     tiktok_url?: string | null
 }
+
+export type CreatorFeature = 'webcomix' | 'novels' | 'arts' | 'commission' | 'shop'
 
 interface AuthState {
     user: User | null

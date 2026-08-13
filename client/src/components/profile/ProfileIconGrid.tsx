@@ -390,6 +390,7 @@ import {
     Crown,
     Heart,
     Images,
+    UserRound,
     Layers,
     MessageCircle,
     Newspaper,
@@ -402,6 +403,7 @@ import {
 } from 'lucide-react'
 import { useNotificationCenter } from '@/hooks/useNotificationCenter'
 import type { NotificationAttention } from '@/api/account'
+import { useAuthStore, type CreatorFeature } from '@/store/authStore'
 
 interface Props {
     isStoryteller: boolean
@@ -425,10 +427,18 @@ export default function ProfileIconGrid({
     onClose,
 }: Props) {
     const { attention } = useNotificationCenter()
+    const user = useAuthStore((state) => state.user)
+    const features: CreatorFeature[] = user?.creator_features
+        ?? (user?.role === 'storyteller'
+            ? ['webcomix', 'novels', 'arts', 'commission', 'shop']
+            : [])
+    const hasFeature = (feature: CreatorFeature) => features.includes(feature)
+    const hasStories = hasFeature('webcomix') || hasFeature('novels')
 
     const primaryItems: MenuItem[] = isAdmin
         ? [
               { label: 'Admin', icon: Shield, to: '/admin' },
+              { label: 'Admin Profile', icon: UserRound, to: `/artists/${user?.username ?? ''}` },
               { label: 'Arts', icon: Images, to: '/admin/arts' },
               { label: 'Top Up', icon: Coins, to: '/admin/top-up-settings' },
               { label: 'Messages', icon: MessageCircle, to: '/messages' },
@@ -437,10 +447,10 @@ export default function ProfileIconGrid({
           ]
         : isStoryteller
           ? [
-                { label: 'My Series', icon: BookOpen, to: '/studio' },
-                { label: 'My Arts', icon: Images, to: '/arts' },
-                { label: 'My Shop', icon: ShoppingBag, to: '/my-shop' },
-                { label: 'My Commission', icon: BriefcaseBusiness, to: '/commission' },
+                ...(hasStories ? [{ label: 'My Series', icon: BookOpen, to: '/studio' }] : []),
+                ...(hasFeature('arts') ? [{ label: 'My Arts', icon: Images, to: '/arts' }] : []),
+                ...(hasFeature('shop') ? [{ label: 'My Shop', icon: ShoppingBag, to: '/my-shop' }] : []),
+                ...(hasFeature('commission') ? [{ label: 'My Commission', icon: BriefcaseBusiness, to: '/commission' }] : []),
             ]
           : [
                 { label: 'Favorites', icon: Heart, to: '/favorites' },
@@ -477,7 +487,7 @@ export default function ProfileIconGrid({
           ]
 
     if (isStoryteller && !isAdmin && accountMenuStyle === 'detailed') {
-        return <ArtistMenu attention={attention} onClose={onClose} />
+        return <ArtistMenu attention={attention} onClose={onClose} features={features} />
     }
 
     const circularItems = orderCircularItems(
@@ -499,38 +509,46 @@ export default function ProfileIconGrid({
 function ArtistMenu({
     attention,
     onClose,
+    features,
 }: {
     attention: NotificationAttention
     onClose: () => void
+    features: CreatorFeature[]
 }) {
+    const hasFeature = (feature: CreatorFeature) => features.includes(feature)
+    const hasStories = hasFeature('webcomix') || hasFeature('novels')
     const sections: { title: string; items: MenuItem[] }[] = [
         {
             title: 'Studio',
             items: [
+                ...(hasStories ? [
                 {
                     label: 'My Series',
                     icon: BookOpen,
                     to: '/studio',
                     description: 'Works, chapters, analytics',
-                },
+                }] : []),
+                ...(hasFeature('arts') ? [
                 {
                     label: 'My Arts',
                     icon: Images,
                     to: '/arts',
                     description: 'Posts, comments, boosts',
-                },
+                }] : []),
+                ...(hasFeature('shop') ? [
                 {
                     label: 'My Shop',
                     icon: ShoppingBag,
                     to: '/my-shop',
                     description: 'Download products and adoptables',
-                },
+                }] : []),
+                ...(hasFeature('commission') ? [
                 {
                     label: 'My Commission',
                     icon: BriefcaseBusiness,
                     to: '/commission',
                     description: 'Services, orders, messages',
-                },
+                }] : []),
             ],
         },
         {

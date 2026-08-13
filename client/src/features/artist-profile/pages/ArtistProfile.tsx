@@ -8,19 +8,17 @@ import {
     type FormEvent,
     type PointerEvent,
 } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
-    BadgeCheck,
+    ChevronDown,
+    ChevronUp,
     Layers,
-    Link as LinkIcon,
     Move,
     Palette,
-    Plus,
     Save,
     Trash2,
     Upload,
-    X,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useArtistProfile } from '@/features/artist-profile/hooks/useArtistProfile'
@@ -36,14 +34,11 @@ import type {
 } from '@/types/artistProfile'
 import type { Art } from '@/types/art'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import {
     BOARD_UNIT_PX,
     EMPTY_BLOCK,
     PROFILE_CANVAS_DROP_MIME,
-    PROFILE_GRADIENT_DIRECTIONS,
     PROFILE_TAB_IDS,
     PROFILE_TAB_LABELS,
     STICKER_BLOCK_SIZE,
@@ -54,12 +49,9 @@ import type {
     CanvasItemPatch,
     DragState,
     HeaderDraft,
-    HeaderDragKind,
     NavDragState,
     NewBlockForm,
     ProfileEditErrors,
-    ProfileHeaderLockKey,
-    ProfileLinkDraft,
     ProfileThemeDraft,
     TabDragState,
 } from '@/features/artist-profile/types/profileEditor'
@@ -93,10 +85,8 @@ import {
     snapCanvasY,
     snapCenterOffset,
     snapMin,
-    snapPercentCenter,
     snapWithin,
     toFormData,
-    toPublicHref,
     validateProfileEdit,
 } from '@/features/artist-profile/utils/profileLayout'
 import {
@@ -114,21 +104,48 @@ import {
     ProfileSection,
     ProfileSortFilterControls,
 } from '@/features/artist-profile/components/ProfileCanvasControls'
-import {
-    CenterGuide,
-    HeaderLockButton,
-} from '@/features/artist-profile/components/ProfileCanvasHandles'
 import { BoardEditorPanel } from '@/features/artist-profile/components/ProfileBoardEditor'
-import { ArtsMasonry, ProfileArtDialog, ProfileComments, ProfileStickers, WorksGrid } from '@/features/artist-profile/components/ProfilePublicContent'
-import { ProfileBoard } from '@/features/artist-profile/components/ProfileBoard'
-import { ColorField, ProfileEditSection } from '@/features/artist-profile/components/ProfileEditorFields'
-import { ProfileLayoutCanvas, ProfileTabsNav } from '@/features/artist-profile/components/ProfileLayoutCanvas'
 import {
-    ProfileFieldMessage as FieldMessage,
+    ArtsMasonry,
+    ProfileArtDialog,
+    ProfileComments,
+    ProfileStickers,
+    WorksGrid,
+} from '@/features/artist-profile/components/ProfilePublicContent'
+import { ProfileBoard } from '@/features/artist-profile/components/ProfileBoard'
+import { ProfileEditSection } from '@/features/artist-profile/components/ProfileEditorFields'
+import {
+    ProfileLayoutCanvas,
+    ProfileTabsNav,
+} from '@/features/artist-profile/components/ProfileLayoutCanvas'
+import {
     ProfileRangeField as RangeField,
     ProfileSelectField as SelectField,
 } from '@/features/artist-profile/components/ProfileFormPrimitives'
+import {
+    ProfileImageCropDialog,
+    type ProfileCropRequest,
+} from '@/features/artist-profile/components/ProfileImageCropDialog'
+import type { ExtendedGlobalStyles, ProfileCanvasGroup } from '@/features/artist-profile/types/profileTheme'
+import { useProfileBackgroundTone } from '@/features/artist-profile/hooks/useProfileBackgroundTone'
+import { PROFILE_THEME_CSS } from '@/features/artist-profile/styles/profileThemeCss'
+import { ArtistHeader } from '@/features/artist-profile/components/ArtistHeader'
+import { ProfileGlobalColors } from '@/features/artist-profile/components/ProfileGlobalColors'
+import { ProfileGlobalSizes } from '@/features/artist-profile/components/ProfileGlobalSizes'
+import { ProfileBackgroundEditor } from '@/features/artist-profile/components/ProfileBackgroundEditor'
+import { ProfileSectionSizes } from '@/features/artist-profile/components/ProfileSectionSizes'
+import { ProfilePublicLinksEditor } from '@/features/artist-profile/components/ProfilePublicLinksEditor'
+import { ProfileGlobalFont } from '@/features/artist-profile/components/ProfileGlobalFont'
+import { ProfileBorderEditor } from '@/features/artist-profile/components/ProfileBorderEditor'
+import { ProfileIdentityEditor } from '@/features/artist-profile/components/ProfileIdentityEditor'
 
+// Profile global theme helpers ----
+function getExtendedGlobalStyles(config: ProfileTabsConfig): ExtendedGlobalStyles {
+    return (config.global_styles ??
+        defaultProfileTabsConfig().global_styles!) as ExtendedGlobalStyles
+}
+
+// Artist profile page state and orchestration ----
 export default function ArtistProfile() {
     const { username = '' } = useParams()
     const { user, setUser } = useAuthStore()
@@ -136,7 +153,9 @@ export default function ArtistProfile() {
         useArtistProfile(username)
 
     const isOwner = user?.username === profile.artist.username
-    const isStorytellerProfile = profile.artist.role === 'storyteller'
+    const isStorytellerProfile =
+        profile.artist.role === 'storyteller' || profile.artist.role === 'super_admin'
+    const isAdminProfile = profile.artist.role === 'super_admin'
     const [editMode, setEditMode] = useState(false)
     const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
     const [blockOverrides, setBlockOverrides] = useState<Record<string, BlockPatch>>({})
@@ -162,7 +181,9 @@ export default function ArtistProfile() {
     const dragRef = useRef<DragState | null>(null)
     const navDragRef = useRef<NavDragState | null>(null)
     const tabDragRef = useRef<TabDragState | null>(null)
-    const canvasDragRef = useRef<CanvasDragState | null>(null)
+    const canvasDragRef = useRef<(CanvasDragState & { groupItems?: ProfileCanvasItem[] }) | null>(
+        null
+    )
     const stickerDragRef = useRef<ArtistSticker | null>(null)
     const [stickerGhost, setStickerGhost] = useState<{
         sticker: ArtistSticker
@@ -183,24 +204,56 @@ export default function ArtistProfile() {
     useEffect(() => {
         if (!manageProfileMode) return
 
-        const navbar = document.querySelector<HTMLElement>('body nav')
-        const footers = Array.from(document.querySelectorAll<HTMLElement>('body footer'))
-        const shellElements = [navbar, ...footers].filter((element): element is HTMLElement =>
-            Boolean(element)
-        )
-        const previousStyles = shellElements.map((element) => ({
-            element,
-            display: element.style.getPropertyValue('display'),
-            priority: element.style.getPropertyPriority('display'),
-        }))
+        const hiddenElements = new Map<HTMLElement, { display: string; priority: string }>()
 
-        shellElements.forEach((element) => {
+        const hideElement = (element: HTMLElement | null) => {
+            if (!element || hiddenElements.has(element)) return
+
+            hiddenElements.set(element, {
+                display: element.style.getPropertyValue('display'),
+                priority: element.style.getPropertyPriority('display'),
+            })
             element.style.setProperty('display', 'none', 'important')
-        })
+        }
+
+        const normalizeText = (value: string | null | undefined) =>
+            (value ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
+
+        const isConcernNotice = (element: Element) => {
+            const text = normalizeText(element.textContent)
+            return (
+                text.includes('have a concern') &&
+                text.includes('spotted an issue') &&
+                text.includes('let us know here')
+            )
+        }
+
+        const hideManageModeShell = () => {
+            hideElement(document.querySelector<HTMLElement>('body nav'))
+            document
+                .querySelectorAll<HTMLElement>('body footer')
+                .forEach((footer) => hideElement(footer))
+
+            // The concern / issue notice may be rendered by a layout or a late-loaded widget.
+            // Hide the smallest matching node so we never hide the whole application shell.
+            const concernNoticeMatches = Array.from(
+                document.querySelectorAll<HTMLElement>('body *')
+            ).filter(isConcernNotice)
+            const deepestMatches = concernNoticeMatches.filter(
+                (element) => !Array.from(element.children).some(isConcernNotice)
+            )
+            deepestMatches.forEach((element) => hideElement(element))
+        }
+
         document.documentElement.dataset.profileManageMode = 'true'
+        hideManageModeShell()
+
+        const observer = new MutationObserver(hideManageModeShell)
+        observer.observe(document.body, { childList: true, subtree: true })
 
         return () => {
-            previousStyles.forEach(({ element, display, priority }) => {
+            observer.disconnect()
+            hiddenElements.forEach(({ display, priority }, element) => {
                 if (display) {
                     element.style.setProperty('display', display, priority)
                 } else {
@@ -225,7 +278,16 @@ export default function ArtistProfile() {
     const artImages = useMemo(() => getArtImageOptions(profile.arts), [profile.arts])
     const selectedBlock = blocks.find((block) => block.id === selectedBlockId) ?? null
     const boardHeight = getBoardHeight(blocks, themeDraft.boardMinHeight)
-    const visibleTabs = getVisibleProfileTabs(themeDraft.tabsConfig, isStorytellerProfile)
+    const enabledFeatures = profile.artist.creator_features ?? []
+    const visibleTabs = getVisibleProfileTabs(themeDraft.tabsConfig, isStorytellerProfile).filter(
+        (tab) => {
+            if (isAdminProfile && (tab === 'arts' || tab === 'works')) return false
+            if (tab === 'arts') return enabledFeatures.includes('arts')
+            if (tab === 'works')
+                return enabledFeatures.includes('webcomix') || enabledFeatures.includes('novels')
+            return true
+        }
+    )
     const renderableTabs = getRenderableProfileTabs(visibleTabs, themeDraft.tabsConfig)
     const defaultTab = renderableTabs[0] ?? 'board'
     const activeTab = visibleTabs.includes(activeProfileTab) ? activeProfileTab : defaultTab
@@ -297,7 +359,6 @@ export default function ArtistProfile() {
     const patchThemeDraft = (patch: Partial<ProfileThemeDraft>) => {
         setThemeDraft((current) => ({ ...current, ...patch }))
     }
-
     const patchHeaderDraft = (patch: Partial<HeaderDraft>) => {
         setHeaderDraft((current) => ({ ...current, ...patch }))
     }
@@ -537,6 +598,16 @@ export default function ArtistProfile() {
         event.preventDefault()
         event.stopPropagation()
 
+        const allCanvasItems = [
+            ...getCanvasItems(themeDraft.tabsConfig, PROFILE_TAB_IDS, 'tab'),
+            ...getCanvasItems(themeDraft.tabsConfig, PROFILE_TAB_IDS, 'section'),
+        ]
+        const canvasGroups = getExtendedGlobalStyles(themeDraft.tabsConfig).canvas_groups ?? []
+        const activeGroup = canvasGroups.find((group) => group.item_ids.includes(item.id))
+        const groupItems = activeGroup
+            ? allCanvasItems.filter((candidate) => activeGroup.item_ids.includes(candidate.id))
+            : [item]
+
         canvasDragRef.current = {
             itemId: item.id,
             itemKind: item.kind,
@@ -545,6 +616,7 @@ export default function ArtistProfile() {
             startY: event.clientY,
             item,
             config: themeDraft.tabsConfig,
+            groupItems,
         }
 
         window.addEventListener('pointermove', handleCanvasMove)
@@ -559,6 +631,27 @@ export default function ArtistProfile() {
         const rect = canvas.getBoundingClientRect()
         const dx = ((event.clientX - drag.startX) / Math.max(rect.width, 1)) * 100
         const dy = event.clientY - drag.startY
+        if (drag.kind === 'move' && (drag.groupItems?.length ?? 0) > 1) {
+            let nextConfig = themeDraft.tabsConfig
+
+            for (const groupedItem of drag.groupItems ?? []) {
+                const movedItem = {
+                    ...groupedItem,
+                    x: snapCanvasX(
+                        clamp(groupedItem.x + dx, 0, 100 - groupedItem.w),
+                        groupedItem.w
+                    ),
+                    y: snapCanvasY(clamp(groupedItem.y + dy, 0, 2400)),
+                }
+
+                nextConfig = patchCanvasItem(nextConfig, movedItem)
+            }
+
+            drag.config = nextConfig
+            patchThemeDraft({ tabsConfig: nextConfig })
+            return
+        }
+
         const item =
             drag.kind === 'move'
                 ? {
@@ -874,6 +967,7 @@ export default function ArtistProfile() {
     const backgroundImage = profile.artist.profile_background_image
         ? storageUrl(profile.artist.profile_background_image)
         : null
+    const backgroundTone = useProfileBackgroundTone(backgroundImage)
     const navStyle: CSSProperties = {
         transform: `translate(${themeDraft.navX}%, ${themeDraft.navY}px)`,
         width: `${themeDraft.navW}%`,
@@ -897,7 +991,60 @@ export default function ArtistProfile() {
             />
         ) : null
     const editorDockWidth = desktopManageMode ? '380px' : '0px'
-
+    const globalStyles = getExtendedGlobalStyles(themeDraft.tabsConfig)
+    const legacyDefaultColor = (value: string | undefined, kind: 'text' | 'muted' | 'accent') => {
+        const normalized = value?.toLowerCase()
+        if (!normalized) return undefined
+        if (kind === 'muted' && normalized === '#6b7280') return undefined
+        if (kind !== 'muted' && normalized === '#111827') return undefined
+        return value
+    }
+    const profileTextColor = legacyDefaultColor(globalStyles.text_color, 'text')
+    const profileMutedColor = legacyDefaultColor(globalStyles.muted_text_color, 'muted')
+    const profileAccentColor = legacyDefaultColor(globalStyles.accent_color, 'accent')
+    const profileHeadingColor = legacyDefaultColor(globalStyles.heading_text_color, 'text')
+    const profileLabelColor = legacyDefaultColor(globalStyles.label_text_color, 'text')
+    const profileButtonColor = legacyDefaultColor(globalStyles.button_text_color, 'text')
+    const profileLinkColor = legacyDefaultColor(globalStyles.link_text_color, 'text')
+    const publicProfileStyle = {
+        '--profile-font-family': globalStyles.font_family || 'inherit',
+        '--profile-text-color': profileTextColor || 'var(--foreground)',
+        '--profile-muted-text-color': profileMutedColor || 'var(--muted-foreground)',
+        '--profile-heading-text-color':
+            profileHeadingColor || profileTextColor || 'var(--foreground)',
+        '--profile-label-text-color': profileLabelColor || profileTextColor || 'var(--foreground)',
+        '--profile-button-text-color':
+            profileButtonColor || profileTextColor || 'var(--foreground)',
+        '--profile-link-text-color': profileLinkColor || profileAccentColor || 'var(--primary)',
+        '--profile-accent-color': profileAccentColor || 'var(--primary)',
+        '--profile-dark-text-color': globalStyles.dark_text_color || '#e4e4e7',
+        '--profile-dark-muted-text-color': globalStyles.dark_muted_text_color || '#a1a1aa',
+        '--profile-dark-heading-text-color':
+            globalStyles.dark_heading_text_color || globalStyles.dark_text_color || '#f4f4f5',
+        '--profile-dark-label-text-color':
+            globalStyles.dark_label_text_color || globalStyles.dark_text_color || '#e4e4e7',
+        '--profile-dark-button-text-color':
+            globalStyles.dark_button_text_color || globalStyles.dark_text_color || '#e4e4e7',
+        '--profile-dark-link-text-color': globalStyles.dark_link_text_color || '#fb923c',
+        '--profile-dark-accent-color': globalStyles.dark_accent_color || '#f97316',
+        '--profile-base-font-size': `${globalStyles.base_font_size ?? 14}px`,
+        '--profile-widget-font-size': `${globalStyles.widget_font_size ?? 13}px`,
+        '--profile-button-font-size': `${globalStyles.button_font_size ?? 14}px`,
+        '--profile-heading-font-size': `${globalStyles.base_font_size ?? 14}px`,
+        '--profile-label-font-size': `${globalStyles.widget_font_size ?? 13}px`,
+        '--profile-link-font-size': `${globalStyles.button_font_size ?? 14}px`,
+        ...(profileTextColor ? { '--foreground': profileTextColor } : {}),
+        ...(profileMutedColor ? { '--muted-foreground': profileMutedColor } : {}),
+        ...(profileAccentColor
+            ? { '--primary': profileAccentColor, '--ring': profileAccentColor }
+            : {}),
+        ...(profileLinkColor || profileAccentColor
+            ? { '--link': profileLinkColor || profileAccentColor }
+            : {}),
+        fontFamily: globalStyles.font_family || undefined,
+        color: profileTextColor || 'var(--foreground)',
+        fontSize: `${globalStyles.base_font_size ?? 14}px`,
+    } as CSSProperties
     return (
         <div
             className="relative min-h-screen overflow-hidden bg-background"
@@ -907,11 +1054,18 @@ export default function ArtistProfile() {
             {backgroundImage && (
                 <div
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 opacity-40"
+                    className="pointer-events-none absolute inset-0"
                     style={{
                         backgroundImage: `url(${backgroundImage})`,
-                        backgroundPosition: 'center',
-                        backgroundSize: 'cover',
+                        backgroundPosition: `${globalStyles.background_image_position_x ?? 50}% ${globalStyles.background_image_position_y ?? 50}%`,
+                        backgroundSize:
+                            globalStyles.background_image_zoom &&
+                            globalStyles.background_image_zoom > 1
+                                ? `${globalStyles.background_image_zoom * 100}% auto`
+                                : 'cover',
+                        backgroundRepeat: 'no-repeat',
+                        opacity:
+                            themeDraft.backgroundColorEnabled || themeDraft.hasGradient ? 0.4 : 1,
                         filter: `blur(${themeDraft.backgroundBlur / 3}px)`,
                         transform: 'scale(1.04)',
                     }}
@@ -944,11 +1098,15 @@ export default function ArtistProfile() {
                 )}
 
                 <div
+                    data-artist-profile-theme
+                    data-profile-background-tone={backgroundTone}
                     className="min-h-screen min-w-0"
                     style={{
+                        ...publicProfileStyle,
                         paddingLeft: editorDockWidth,
                     }}
                 >
+                    <style>{PROFILE_THEME_CSS}</style>
                     <ArtistHeader
                         profile={profile}
                         isOwner={isOwner}
@@ -989,6 +1147,7 @@ export default function ArtistProfile() {
                                     editMode={desktopManageMode}
                                     activeTab={activeTab}
                                     isStorytellerProfile={isStorytellerProfile}
+                                    isAdminProfile={isAdminProfile}
                                     boardRef={boardRef}
                                     boardBlocks={blocks}
                                     boardHeight={boardHeight}
@@ -1210,616 +1369,8 @@ export default function ArtistProfile() {
     )
 }
 
-function ArtistHeader({
-    profile,
-    isOwner,
-    editMode,
-    draft,
-    theme,
-    onThemeChange,
-    onSavePosition,
-    onToggleFollow,
-    followBusy,
-}: {
-    profile: ArtistProfileResponse
-    isOwner: boolean
-    editMode: boolean
-    draft: HeaderDraft
-    theme: ProfileThemeDraft
-    onThemeChange: (patch: Partial<ProfileThemeDraft>) => void
-    onSavePosition: (fields: Record<string, string | number | boolean | File | null>) => void
-    onToggleFollow: () => void
-    followBusy: boolean
-}) {
-    const { artist } = profile
-    const cover = artist.profile_cover ? storageUrl(artist.profile_cover) : null
-    const avatar = artist.avatar ? storageUrl(artist.avatar) : null
-    const avatarLetter = (artist.username ?? artist.name)[0]?.toUpperCase() ?? 'A'
-    const headerDragRef = useRef<{
-        kind: HeaderDragKind
-        startX: number
-        startY: number
-        startPositionX: number
-        startPositionY: number
-        startWidth: number
-        startHeight: number
-        startBorderWidth: number
-        startBorderHeight: number
-        patch: Record<string, number | string>
-    } | null>(null)
-    const [coverPosition, setCoverPosition] = useState({
-        x: artist.profile_cover_position_x ?? 50,
-        y: artist.profile_cover_position_y ?? 50,
-    })
-    const avatarImagePosition = {
-        x: theme.avatarImageX,
-        y: theme.avatarImageY,
-    }
-    const selectedBorder =
-        profile.borders.find((border) => border.id === theme.profileBorderId) ??
-        artist.profile_border
-    const profileDisplayScaleX = normalizeProfileDisplayScale(theme.tabsConfig.cover_offset?.x)
-    const profileDisplayScaleY = normalizeProfileDisplayScale(theme.tabsConfig.cover_offset?.y)
-    const profileDisplayWidth = Math.round(112 * profileDisplayScaleX)
-    const profileDisplayHeight = Math.round(112 * profileDisplayScaleY)
-    const borderOffset = theme.tabsConfig.border_offset ?? { x: 0, y: 0 }
 
-    /**
-     * Existing profiles only have border_scale, so use it as the fallback.
-     */
-    const legacyBorderScale = theme.tabsConfig.border_scale ?? 1.35
-
-    const borderWidth = theme.tabsConfig.border_width ?? legacyBorderScale
-    const borderHeight = theme.tabsConfig.border_height ?? legacyBorderScale
-
-    const borderLayer = theme.tabsConfig.border_layer ?? 'front'
-    const headerLocks = theme.tabsConfig.header_locks ?? defaultProfileTabsConfig().header_locks!
-    const headerVisualHeight = theme.showCover ? theme.bannerHeight : 112
-    const headerLockForDrag: Partial<Record<HeaderDragKind, ProfileHeaderLockKey>> = {
-        'avatar-frame': 'avatar_frame',
-        'avatar-frame-width': 'avatar_frame',
-        'avatar-frame-height': 'avatar_frame',
-        'avatar-frame-size': 'avatar_frame',
-        'avatar-border': 'avatar_border',
-        'avatar-border-width': 'avatar_border',
-        'avatar-border-height': 'avatar_border',
-        'avatar-border-size': 'avatar_border',
-    }
-
-    const toggleHeaderLock = (key: ProfileHeaderLockKey) => {
-        const tabsConfig = {
-            ...theme.tabsConfig,
-            header_locks: {
-                ...headerLocks,
-                [key]: !headerLocks[key],
-            },
-        }
-
-        onThemeChange({ tabsConfig })
-        onSavePosition({ profile_tabs_config: JSON.stringify(tabsConfig) })
-    }
-
-    const customLinks = theme.links
-        .filter((link) => link.is_public && link.title.trim() && link.url.trim())
-        .map((link) => ({
-            label: link.title,
-            value: link.url,
-        }))
-    const socialLinks = [
-        { label: 'Twitter', value: artist.twitter_url },
-        { label: 'Instagram', value: artist.instagram_url },
-        { label: 'TikTok', value: artist.tiktok_url },
-    ].filter((link) => link.value)
-    const links = [...customLinks, ...socialLinks]
-
-    const beginHeaderDrag = (
-        event: PointerEvent<HTMLElement>,
-        kind: HeaderDragKind,
-        position: { x: number; y: number }
-    ) => {
-        if (!editMode) return
-        if (event.button !== 0 && event.button !== 2) return
-        const lockKey = headerLockForDrag[kind]
-        if (lockKey && headerLocks[lockKey]) return
-        event.preventDefault()
-        event.stopPropagation()
-
-        headerDragRef.current = {
-            kind,
-            startX: event.clientX,
-            startY: event.clientY,
-            startPositionX: position.x,
-            startPositionY: position.y,
-            startWidth: theme.coverWidth,
-            startHeight: theme.bannerHeight,
-            startBorderWidth: borderWidth,
-            startBorderHeight: borderHeight,
-            patch: {},
-        }
-        window.addEventListener('pointermove', handleHeaderMove)
-        window.addEventListener('pointerup', handleHeaderUp, { once: true })
-    }
-
-    const handleHeaderMove = (event: globalThis.PointerEvent) => {
-        const drag = headerDragRef.current
-        if (!drag) return
-        const rawDx = event.clientX - drag.startX
-        const rawDy = event.clientY - drag.startY
-
-        if (drag.kind === 'cover-size') {
-            const width = Math.round(
-                clamp(drag.startWidth + (rawDx / window.innerWidth) * 100, 30, 100)
-            )
-            const height = Math.round(clamp(drag.startHeight + rawDy, 160, 560))
-            onThemeChange({ coverWidth: width, bannerHeight: height })
-            drag.patch = {
-                profile_cover_width: width,
-                profile_banner_height: height,
-            }
-            return
-        }
-
-        if (drag.kind === 'avatar-frame-width') {
-            const x = Number(clamp(drag.startPositionX + rawDx / 112, 0.5, 3).toFixed(3))
-            const tabsConfig = {
-                ...theme.tabsConfig,
-                cover_offset: {
-                    x,
-                    y: normalizeProfileDisplayScale(theme.tabsConfig.cover_offset?.y),
-                },
-            }
-            onThemeChange({ tabsConfig })
-            drag.patch = { profile_tabs_config: JSON.stringify(tabsConfig) }
-            return
-        }
-
-        if (drag.kind === 'avatar-frame-height') {
-            const y = Number(clamp(drag.startPositionY + rawDy / 112, 0.5, 3).toFixed(3))
-            const tabsConfig = {
-                ...theme.tabsConfig,
-                cover_offset: {
-                    x: normalizeProfileDisplayScale(theme.tabsConfig.cover_offset?.x),
-                    y,
-                },
-            }
-            onThemeChange({ tabsConfig })
-            drag.patch = { profile_tabs_config: JSON.stringify(tabsConfig) }
-            return
-        }
-
-        if (drag.kind === 'avatar-frame-size') {
-            const x = Number(clamp(drag.startPositionX + rawDx / 112, 0.5, 3).toFixed(3))
-            const y = Number(clamp(drag.startPositionY + rawDy / 112, 0.5, 3).toFixed(3))
-            const tabsConfig = {
-                ...theme.tabsConfig,
-                cover_offset: { x, y },
-            }
-            onThemeChange({ tabsConfig })
-            drag.patch = { profile_tabs_config: JSON.stringify(tabsConfig) }
-            return
-        }
-
-        if (drag.kind === 'cover-frame') {
-            const x = snapCenterOffset(clamp(drag.startPositionX + rawDx, -320, 320))
-            const y = clamp(drag.startPositionY + rawDy, -180, 180)
-            const tabsConfig = {
-                ...theme.tabsConfig,
-                cover_offset: { x, y },
-            }
-            onThemeChange({ tabsConfig })
-            drag.patch = { profile_tabs_config: JSON.stringify(tabsConfig) }
-            return
-        }
-
-        if (drag.kind === 'avatar-border') {
-            const x = Number((drag.startPositionX + rawDx).toFixed(2))
-            const y = Number((drag.startPositionY + rawDy).toFixed(2))
-
-            const tabsConfig = {
-                ...theme.tabsConfig,
-                border_offset: { x, y },
-            }
-
-            onThemeChange({ tabsConfig })
-
-            drag.patch = {
-                profile_tabs_config: JSON.stringify(tabsConfig),
-            }
-
-            return
-        }
-
-        if (drag.kind === 'avatar-border-width') {
-            const width = Math.max(0.05, drag.startBorderWidth + rawDx / 112)
-
-            const tabsConfig = {
-                ...theme.tabsConfig,
-                border_width: Number(width.toFixed(3)),
-            }
-
-            onThemeChange({ tabsConfig })
-
-            drag.patch = {
-                profile_tabs_config: JSON.stringify(tabsConfig),
-            }
-
-            return
-        }
-
-        if (drag.kind === 'avatar-border-height') {
-            const height = Math.max(0.05, drag.startBorderHeight + rawDy / 112)
-
-            const tabsConfig = {
-                ...theme.tabsConfig,
-                border_height: Number(height.toFixed(3)),
-            }
-
-            onThemeChange({ tabsConfig })
-
-            drag.patch = {
-                profile_tabs_config: JSON.stringify(tabsConfig),
-            }
-
-            return
-        }
-
-        if (drag.kind === 'avatar-border-size') {
-            const width = Math.max(0.05, drag.startBorderWidth + rawDx / 112)
-
-            const height = Math.max(0.05, drag.startBorderHeight + rawDy / 112)
-
-            const tabsConfig = {
-                ...theme.tabsConfig,
-                border_width: Number(width.toFixed(3)),
-                border_height: Number(height.toFixed(3)),
-            }
-
-            onThemeChange({ tabsConfig })
-
-            drag.patch = {
-                profile_tabs_config: JSON.stringify(tabsConfig),
-            }
-
-            return
-        }
-
-        if (drag.kind === 'cover-image') {
-            const x = snapPercentCenter(clamp(drag.startPositionX + rawDx / 3, 0, 100))
-            const y = snapPercentCenter(clamp(drag.startPositionY + rawDy / 3, 0, 100))
-            setCoverPosition({ x, y })
-            drag.patch = { profile_cover_position_x: x, profile_cover_position_y: y }
-        } else if (drag.kind === 'avatar-image') {
-            const x = snapPercentCenter(clamp(drag.startPositionX + rawDx / 3, 0, 100))
-            const y = clamp(drag.startPositionY + rawDy / 3, 0, 100)
-            onThemeChange({ avatarImageX: x, avatarImageY: y })
-            drag.patch = { avatar_position_x: x, avatar_position_y: y }
-        } else {
-            const y = clamp(drag.startPositionY + rawDy / 3, 0, 100)
-            onThemeChange({ avatarFrameX: 50, avatarFrameY: y })
-            drag.patch = { profile_avatar_frame_x: 50, profile_avatar_frame_y: y }
-        }
-    }
-
-    const handleHeaderUp = () => {
-        const drag = headerDragRef.current
-        headerDragRef.current = null
-        window.removeEventListener('pointermove', handleHeaderMove)
-        if (drag && Object.keys(drag.patch).length > 0) onSavePosition(drag.patch)
-    }
-    const globalStyles = theme.tabsConfig.global_styles ?? defaultProfileTabsConfig().global_styles!
-    const profileTextStyle = {
-        fontFamily: globalStyles.font_family || undefined,
-        color: globalStyles.muted_text_color,
-        fontSize: globalStyles.widget_font_size,
-    }
-    const profileButtonStyle = {
-        fontFamily: globalStyles.font_family || undefined,
-        fontSize: globalStyles.button_font_size,
-    }
-
-    return (
-        <header className="relative z-20 border-b">
-            {editMode && <CenterGuide />}
-            <div className="relative bg-muted/30">
-                {theme.showCover ? (
-                    <div
-                        className={`relative mx-auto overflow-hidden bg-muted ${
-                            editMode ? 'ring-2 ring-foreground/30 ring-inset' : ''
-                        }`}
-                        style={{
-                            height: theme.bannerHeight,
-                            width: `${theme.coverWidth}%`,
-                        }}
-                    >
-                        {cover ? (
-                            <img
-                                src={cover}
-                                alt={`${artist.name} cover`}
-                                className="h-full w-full select-none object-cover"
-                                draggable={false}
-                                style={{
-                                    objectPosition: `${coverPosition.x}% ${coverPosition.y}%`,
-                                }}
-                            />
-                        ) : (
-                            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                                <Layers className="h-8 w-8" />
-                            </div>
-                        )}
-                        {editMode && (
-                            <>
-                                <div className="pointer-events-none absolute bottom-4 left-4 rounded-md bg-background/90 px-3 py-1 text-xs text-foreground shadow-sm">
-                                    Cover position is fixed. Use the corner handle or sidebar
-                                    controls to resize.
-                                </div>
-                                <button
-                                    type="button"
-                                    className="absolute bottom-0 right-0 h-7 w-7 cursor-nwse-resize border-b-4 border-r-4 border-foreground bg-background/70"
-                                    aria-label="Resize cover"
-                                    onPointerDown={(event) =>
-                                        beginHeaderDrag(event, 'cover-size', { x: 0, y: 0 })
-                                    }
-                                />
-                            </>
-                        )}
-                    </div>
-                ) : (
-                    <div
-                        className="mx-auto flex items-center justify-center text-xs text-muted-foreground"
-                        style={{ height: headerVisualHeight }}
-                    >
-                        {editMode ? 'Cover image is hidden' : null}
-                    </div>
-                )}
-            </div>
-
-            <div
-                className="pointer-events-none absolute inset-x-0 top-0 z-[1000] mx-auto max-w-[1480px]"
-                style={{ height: headerVisualHeight }}
-            >
-                <div
-                    className="pointer-events-auto absolute isolate overflow-visible -translate-x-1/2 -translate-y-1/2"
-                    style={{
-                        left: '50%',
-                        top: `${theme.avatarFrameY}%`,
-                        width: profileDisplayWidth,
-                        height: profileDisplayHeight,
-                    }}
-                >
-                    {selectedBorder && (
-                        <img
-                            src={storageUrl(selectedBorder.image_path)!}
-                            alt=""
-                            className="pointer-events-none absolute left-1/2 top-1/2 max-h-none max-w-none select-none object-fill"
-                            style={{
-                                width: `${borderWidth * 100}%`,
-                                height: `${borderHeight * 100}%`,
-                                transform: `translate(calc(-50% + ${borderOffset.x}px), calc(-50% + ${borderOffset.y}px))`,
-                                zIndex: borderLayer === 'front' ? 20 : -10,
-                            }}
-                            draggable={false}
-                        />
-                    )}
-
-                    {editMode && selectedBorder && !headerLocks.avatar_border && (
-                        <div
-                            className="pointer-events-none absolute left-1/2 top-1/2 z-[1001] border border-dashed border-sky-400"
-                            style={{
-                                width: `${borderWidth * 100}%`,
-                                height: `${borderHeight * 100}%`,
-                                transform: `translate(calc(-50% + ${borderOffset.x}px), calc(-50% + ${borderOffset.y}px))`,
-                            }}
-                        >
-                            <button
-                                type="button"
-                                className="pointer-events-auto absolute -left-3 -top-3 rounded bg-background p-1 shadow-md ring-1 ring-sky-400"
-                                onPointerDown={(event) =>
-                                    beginHeaderDrag(event, 'avatar-border', borderOffset)
-                                }
-                                aria-label="Move profile border"
-                                title="Move profile border"
-                            >
-                                <Move className="h-3.5 w-3.5 text-sky-500" />
-                            </button>
-
-                            <button
-                                type="button"
-                                className="pointer-events-auto absolute -right-1 top-1/2 h-10 w-3 -translate-y-1/2 cursor-ew-resize rounded bg-sky-500 shadow-md ring-2 ring-white"
-                                onPointerDown={(event) =>
-                                    beginHeaderDrag(event, 'avatar-border-width', borderOffset)
-                                }
-                                aria-label="Resize profile border width"
-                                title="Resize border width"
-                            />
-
-                            <button
-                                type="button"
-                                className="pointer-events-auto absolute -bottom-1 left-1/2 h-3 w-10 -translate-x-1/2 cursor-ns-resize rounded bg-sky-500 shadow-md ring-2 ring-white"
-                                onPointerDown={(event) =>
-                                    beginHeaderDrag(event, 'avatar-border-height', borderOffset)
-                                }
-                                aria-label="Resize profile border height"
-                                title="Resize border height"
-                            />
-
-                            <button
-                                type="button"
-                                className="pointer-events-auto absolute -bottom-2 -right-2 h-5 w-5 cursor-nwse-resize border-b-4 border-r-4 border-white bg-sky-500 shadow-md"
-                                onPointerDown={(event) =>
-                                    beginHeaderDrag(event, 'avatar-border-size', borderOffset)
-                                }
-                                aria-label="Resize profile border width and height"
-                                title="Resize width and height"
-                            />
-                        </div>
-                    )}
-                    {editMode && (
-                        <HeaderLockButton
-                            locked={headerLocks.avatar_frame}
-                            label="Profile frame"
-                            className="-left-7 -top-7 z-[1002]"
-                            onToggle={() => toggleHeaderLock('avatar_frame')}
-                        />
-                    )}
-                    {editMode && selectedBorder && (
-                        <HeaderLockButton
-                            locked={headerLocks.avatar_border}
-                            label="Profile border"
-                            className="-right-7 -top-7 z-[1002]"
-                            onToggle={() => toggleHeaderLock('avatar_border')}
-                        />
-                    )}
-
-                    <div
-                        className={`relative z-0 flex h-full w-full items-center justify-center overflow-hidden bg-primary text-3xl font-bold text-primary-foreground ${
-                            editMode ? 'cursor-ns-resize ring-2 ring-foreground/20' : ''
-                        }`}
-                        style={{
-                            borderColor: theme.avatarBorderColor || 'var(--background)',
-                            borderRadius: `${theme.avatarBorderRadius}%`,
-                            borderStyle: 'solid',
-                            borderWidth: theme.avatarBorderWidth,
-                        }}
-                        onPointerDown={(event) => {
-                            if (event.button !== 0) return
-                            beginHeaderDrag(event, 'avatar-frame', {
-                                x: 50,
-                                y: theme.avatarFrameY,
-                            })
-                        }}
-                        onContextMenu={(event) => event.preventDefault()}
-                    >
-                        {avatar ? (
-                            <img
-                                src={avatar}
-                                alt={artist.name}
-                                className="h-full w-full select-none object-cover"
-                                draggable={false}
-                                style={{
-                                    objectPosition: `${avatarImagePosition.x}% ${avatarImagePosition.y}%`,
-                                }}
-                            />
-                        ) : (
-                            avatarLetter
-                        )}
-                    </div>
-                    {editMode && !headerLocks.avatar_frame && (
-                        <>
-                            <button
-                                type="button"
-                                className="absolute -right-2 top-1/2 z-[1002] h-10 w-3 -translate-y-1/2 cursor-ew-resize rounded bg-sky-500 shadow-md ring-2 ring-white"
-                                onPointerDown={(event) =>
-                                    beginHeaderDrag(event, 'avatar-frame-width', {
-                                        x: profileDisplayScaleX,
-                                        y: profileDisplayScaleY,
-                                    })
-                                }
-                                aria-label="Resize profile display width"
-                                title="Resize profile display width"
-                            />
-                            <button
-                                type="button"
-                                className="absolute -bottom-2 left-1/2 z-[1002] h-3 w-10 -translate-x-1/2 cursor-ns-resize rounded bg-sky-500 shadow-md ring-2 ring-white"
-                                onPointerDown={(event) =>
-                                    beginHeaderDrag(event, 'avatar-frame-height', {
-                                        x: profileDisplayScaleX,
-                                        y: profileDisplayScaleY,
-                                    })
-                                }
-                                aria-label="Resize profile display height"
-                                title="Resize profile display height"
-                            />
-                            <button
-                                type="button"
-                                className="absolute -bottom-2 -right-2 z-[1003] h-5 w-5 cursor-nwse-resize border-b-4 border-r-4 border-white bg-sky-500 shadow-md"
-                                onPointerDown={(event) =>
-                                    beginHeaderDrag(event, 'avatar-frame-size', {
-                                        x: profileDisplayScaleX,
-                                        y: profileDisplayScaleY,
-                                    })
-                                }
-                                aria-label="Resize profile display"
-                                title="Resize profile display width and height"
-                            />
-                        </>
-                    )}
-                    {editMode && (
-                        <div className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-background px-2 py-0.5 text-[10px] text-foreground shadow-sm">
-                            Drag up/down · resize with handles
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className="max-w-[1480px] mx-auto px-4 pb-6 pt-16 text-center">
-                <h1 className="mt-3 inline-flex items-center justify-center gap-2 text-2xl font-bold">
-                    {artist.name}
-                    {artist.artist_verified && (
-                        <BadgeCheck className="h-5 w-5 text-sky-500" aria-label="Verified artist" />
-                    )}
-                </h1>
-                <p className="text-sm text-muted-foreground">@{artist.username}</p>
-                {!isOwner && (
-                    <div className="mt-3 flex justify-center">
-                        <Button
-                            size="sm"
-                            variant={profile.stats?.is_following ? 'outline' : 'default'}
-                            disabled={followBusy}
-                            onClick={onToggleFollow}
-                            style={profileButtonStyle}
-                        >
-                            {profile.stats?.is_following ? 'Unfollow' : 'Follow'}
-                        </Button>
-                    </div>
-                )}
-                <div
-                    className="mt-2 grid justify-center gap-1 text-xs text-muted-foreground"
-                    style={profileTextStyle}
-                >
-                    <p>
-                        {(
-                            profile.stats?.followers_count ??
-                            artist.followers_count ??
-                            0
-                        ).toLocaleString()}{' '}
-                        followers
-                    </p>
-                    <p>{(profile.stats?.total_likes ?? 0).toLocaleString()} total likes</p>
-                </div>
-                {!isOwner && (
-                    <div className="mt-3 flex justify-center">
-                        <Button asChild size="sm" variant="outline" style={profileButtonStyle}>
-                            <Link to={`/messages?to=${artist.username}`}>Message</Link>
-                        </Button>
-                    </div>
-                )}
-                {draft.artistTitle && <p className="mt-1 text-sm">{draft.artistTitle}</p>}
-                {links.length > 0 && (
-                    <div className="mt-3 flex flex-wrap justify-center gap-2">
-                        {links.map((link) => (
-                            <a
-                                key={link.label}
-                                href={toPublicHref(link.value)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground"
-                            >
-                                <LinkIcon className="h-3 w-3" />
-                                {link.label}
-                            </a>
-                        ))}
-                    </div>
-                )}
-                {artist.bio && (
-                    <p className="max-w-2xl mx-auto mt-3 text-sm text-muted-foreground">
-                        {artist.bio}
-                    </p>
-                )}
-            </div>
-        </header>
-    )
-}
-
+// Manage Profile editor sidebar components ----
 function ManageProfileSidebar({
     draft,
     headerDraft,
@@ -1874,18 +1425,95 @@ function ManageProfileSidebar({
 }) {
     const coverRef = useRef<HTMLInputElement | null>(null)
     const avatarRef = useRef<HTMLInputElement | null>(null)
-    const backgroundRef = useRef<HTMLInputElement | null>(null)
     const profileDisplayScaleX = normalizeProfileDisplayScale(draft.tabsConfig.cover_offset?.x)
     const profileDisplayScaleY = normalizeProfileDisplayScale(draft.tabsConfig.cover_offset?.y)
+    const [cropRequest, setCropRequest] = useState<ProfileCropRequest | null>(null)
 
     const updateTabsConfig = (patch: Partial<ProfileTabsConfig>) => {
         onChange({ tabsConfig: { ...draft.tabsConfig, ...patch } })
+    }
+
+    const requestProfileCrop = (
+        field: 'cover' | 'avatar' | 'background_image',
+        file: File | null
+    ) => {
+        if (!file) return
+        const width =
+            field === 'cover'
+                ? Math.max(
+                      320,
+                      Math.round((Math.min(window.innerWidth, 1480) * draft.coverWidth) / 100)
+                  )
+                : field === 'background_image'
+                  ? Math.max(320, window.innerWidth)
+                  : Math.round(112 * profileDisplayScaleX)
+        const height =
+            field === 'cover'
+                ? draft.bannerHeight
+                : field === 'background_image'
+                  ? Math.max(320, window.innerHeight)
+                  : Math.round(112 * profileDisplayScaleY)
+        setCropRequest({ field, file, width, height })
+    }
+
+    const completeProfileCrop = (
+        file: File,
+        fit: 'cover' | 'contain',
+        placement?: { x: number; y: number; zoom: number }
+    ) => {
+        if (!cropRequest) return
+        updateTabsConfig({
+            global_styles: {
+                ...getExtendedGlobalStyles(draft.tabsConfig),
+                [cropRequest.field === 'cover'
+                    ? 'cover_image_fit'
+                    : cropRequest.field === 'avatar'
+                      ? 'avatar_image_fit'
+                      : 'background_image_fit']: fit,
+                ...(cropRequest.field === 'cover' && placement
+                    ? { cover_image_zoom: placement.zoom }
+                    : {}),
+                ...(cropRequest.field === 'background_image' && placement
+                    ? {
+                          background_image_position_x: placement.x,
+                          background_image_position_y: placement.y,
+                          background_image_zoom: placement.zoom,
+                      }
+                    : {}),
+            } as ProfileTabsConfig['global_styles'],
+        })
+        if (cropRequest.field === 'cover') onUploadCover(file)
+        else if (cropRequest.field === 'avatar') onUploadAvatar(file)
+        else onUploadBackground(file)
     }
 
     const updateTabVisibility = (tab: ProfileTabId, visible: boolean) => {
         updateTabsConfig({
             visibility: { ...draft.tabsConfig.visibility, [tab]: visible },
         })
+    }
+
+    const profileTabOrder = (draft.tabsConfig.tab_order ?? PROFILE_TAB_IDS).filter(
+        (tab) => profile.artist.role !== 'super_admin' || (tab !== 'arts' && tab !== 'works')
+    )
+
+    const moveTogetherTab = (tab: ProfileTabId, direction: -1 | 1) => {
+        const fullOrder = [...(draft.tabsConfig.tab_order ?? PROFILE_TAB_IDS)]
+        const currentIndex = fullOrder.indexOf(tab)
+        if (currentIndex < 0) return
+        let targetIndex = currentIndex + direction
+        while (targetIndex >= 0 && targetIndex < fullOrder.length) {
+            const target = fullOrder[targetIndex]
+            if (profile.artist.role !== 'super_admin' || (target !== 'arts' && target !== 'works'))
+                break
+            targetIndex += direction
+        }
+        if (targetIndex < 0 || targetIndex >= fullOrder.length) return
+        ;[fullOrder[currentIndex], fullOrder[targetIndex]] = [
+            fullOrder[targetIndex],
+            fullOrder[currentIndex],
+        ]
+        updateTabsConfig({ tab_order: fullOrder })
     }
 
     const startCanvasPaletteDrag = (
@@ -1897,947 +1525,743 @@ function ManageProfileSidebar({
         event.dataTransfer.effectAllowed = 'copy'
     }
 
-    const startExistingCanvasItemDrag = (
-        event: DragEvent<HTMLDivElement>,
-        item: ProfileCanvasItem
-    ) => {
-        event.dataTransfer.setData(PROFILE_CANVAS_DROP_MIME, `${item.kind}:${item.type}:${item.id}`)
-        event.dataTransfer.effectAllowed = 'move'
-    }
-
     const canvasButtons = getCanvasItems(draft.tabsConfig, PROFILE_TAB_IDS, 'tab')
     const canvasSections = getCanvasItems(draft.tabsConfig, PROFILE_TAB_IDS, 'section')
     const visiblePreviewTabs = PROFILE_TAB_IDS.filter((tab) => draft.tabsConfig.visibility[tab])
+    const extendedGlobalStyles = getExtendedGlobalStyles(draft.tabsConfig)
+    const canvasGroups = extendedGlobalStyles.canvas_groups ?? []
+    const [layerSelection, setLayerSelection] = useState<string[]>([])
+    const [layerDrag, setLayerDrag] = useState<{
+        id: string
+        kind: ProfileCanvasItem['kind']
+    } | null>(null)
+    const [selectedCanvasLayerId, setSelectedCanvasLayerId] = useState<string | null>(null)
+    const allCanvasItems = [...canvasButtons, ...canvasSections]
+    const selectedCanvasItem =
+        allCanvasItems.find((item) => item.id === selectedCanvasLayerId) ??
+        allCanvasItems[0] ??
+        null
 
-    const updateLink = (index: number, patch: Partial<ProfileLinkDraft>) => {
-        onChange({
-            links: draft.links.map((link, linkIndex) =>
-                linkIndex === index ? { ...link, ...patch } : link
-            ),
+    const setCanvasGroups = (canvas_groups: ProfileCanvasGroup[]) => {
+        updateTabsConfig({
+            global_styles: {
+                ...getExtendedGlobalStyles(draft.tabsConfig),
+                canvas_groups,
+            } as ProfileTabsConfig['global_styles'],
         })
     }
 
-    const addLink = () => {
-        onChange({
-            links: [
-                ...draft.links,
-                {
-                    id: `draft-${Date.now()}`,
-                    title: '',
-                    url: '',
-                    image_path: null,
-                    imageFile: null,
-                    imagePreview: null,
-                    is_public: true,
-                },
-            ],
-        })
+    const toggleLayerSelection = (id: string) => {
+        setLayerSelection((current) =>
+            current.includes(id) ? current.filter((itemId) => itemId !== id) : [...current, id]
+        )
     }
 
-    const removeLink = (index: number) => {
-        onChange({
-            links: draft.links.filter((_, linkIndex) => linkIndex !== index),
-        })
+    const groupSelectedLayers = () => {
+        if (layerSelection.length < 2) return
+
+        const cleanedGroups = canvasGroups
+            .map((group) => ({
+                ...group,
+                item_ids: group.item_ids.filter((id) => !layerSelection.includes(id)),
+            }))
+            .filter((group) => group.item_ids.length > 1)
+
+        const nextGroup: ProfileCanvasGroup = {
+            id: `canvas-group-${Date.now()}`,
+            name: `Group ${cleanedGroups.length + 1}`,
+            item_ids: [...layerSelection],
+        }
+
+        setCanvasGroups([...cleanedGroups, nextGroup])
+        setLayerSelection([])
+    }
+
+    const ungroupCanvasGroup = (groupId: string) => {
+        setCanvasGroups(canvasGroups.filter((group) => group.id !== groupId))
+    }
+
+    const reorderCanvasLayer = (
+        kind: ProfileCanvasItem['kind'],
+        sourceId: string,
+        targetId: string
+    ) => {
+        if (sourceId === targetId) return
+
+        const key = kind === 'tab' ? 'buttons' : 'sections'
+        const currentItems = [...(draft.tabsConfig[key] ?? [])]
+        const displayOrder = [...currentItems].reverse()
+        const sourceIndex = displayOrder.findIndex((item) => item.id === sourceId)
+        const targetIndex = displayOrder.findIndex((item) => item.id === targetId)
+
+        if (sourceIndex < 0 || targetIndex < 0) return
+
+        const [moved] = displayOrder.splice(sourceIndex, 1)
+        displayOrder.splice(targetIndex, 0, moved)
+
+        updateTabsConfig({
+            [key]: displayOrder.reverse(),
+        } as Partial<ProfileTabsConfig>)
     }
 
     return (
-        <aside className="fixed inset-y-0 left-0 z-[12000] w-full overflow-y-auto border-r bg-background shadow-xl md:w-[380px] md:p-4">
-            <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b bg-background p-4 md:-mx-4 md:mb-4 md:-mt-4">
-                <div>
-                    <h2 className="text-sm font-semibold">Profile Edit</h2>
-                    <p className="text-xs text-muted-foreground">
-                        {desktopMode
-                            ? 'Desktop editor is docked beside the live preview.'
-                            : 'Mobile editing is limited to profile and banner images.'}
-                    </p>
+        <>
+            <aside className="fixed inset-y-0 left-0 z-[12000] w-full overflow-y-auto border-r bg-background shadow-xl md:w-[380px] md:p-4">
+                <div className="sticky top-[-20px] z-10 flex items-center justify-between gap-3 border-b bg-background p-4 md:-mx-4 md:mb-4 md:-mt-4">
+                    <div>
+                        <h2 className="text-sm font-semibold">Profile Edit</h2>
+                        <p className="text-xs text-muted-foreground">
+                            {desktopMode
+                                ? 'Desktop editor is docked beside the live preview.'
+                                : 'Mobile editing is limited to profile and banner images.'}
+                        </p>
+                    </div>
+                    <div className="hidden items-center gap-2 md:flex">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={onCancel}
+                            disabled={busy}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="button" size="sm" onClick={onSave} disabled={busy}>
+                            <Save className="h-4 w-4" />
+                            Save
+                        </Button>
+                    </div>
                 </div>
-                <div className="hidden items-center gap-2 md:flex">
+
+                <div className="grid grid-cols-2 gap-2 px-4 pb-4 md:hidden">
                     <Button
                         type="button"
                         variant="outline"
-                        size="sm"
-                        onClick={onCancel}
-                        disabled={busy}
+                        onClick={() => avatarRef.current?.click()}
                     >
-                        Cancel
+                        <Upload className="h-4 w-4" />
+                        Profile Image
                     </Button>
-                    <Button type="button" size="sm" onClick={onSave} disabled={busy}>
-                        <Save className="h-4 w-4" />
-                        Save
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => coverRef.current?.click()}
+                    >
+                        <Upload className="h-4 w-4" />
+                        Banner Image
                     </Button>
                 </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-2 px-4 pb-4 md:hidden">
-                <Button type="button" variant="outline" onClick={() => avatarRef.current?.click()}>
-                    <Upload className="h-4 w-4" />
-                    Profile Image
-                </Button>
-                <Button type="button" variant="outline" onClick={() => coverRef.current?.click()}>
-                    <Upload className="h-4 w-4" />
-                    Banner Image
-                </Button>
-            </div>
+                <div className="hidden gap-5 md:grid">
+                    <Button type="button" variant="outline" onClick={onResetTabs}>
+                        <Layers className="h-4 w-4" />
+                        Default Settings
+                    </Button>
 
-            <div className="hidden gap-5 md:grid">
-                <Button type="button" variant="outline" onClick={onResetTabs}>
-                    <Layers className="h-4 w-4" />
-                    Default Settings
-                </Button>
+                    <ProfileEditSection title="Global">
+                        <ProfileGlobalFont draft={draft} updateTabsConfig={updateTabsConfig} />
 
-                <ProfileEditSection title="Global Fonts">
-                    <div className="grid gap-1.5">
-                        <Label htmlFor="profile-global-font">Font family</Label>
-                        <Input
-                            id="profile-global-font"
-                            value={draft.tabsConfig.global_styles?.font_family ?? ''}
-                            placeholder="Inter, Comic Relief, sans-serif"
-                            onChange={(event) =>
-                                updateTabsConfig({
-                                    global_styles: {
-                                        ...(draft.tabsConfig.global_styles ??
-                                            defaultProfileTabsConfig().global_styles!),
-                                        font_family: event.target.value,
-                                    },
+                        <ProfileGlobalColors draft={draft} updateTabsConfig={updateTabsConfig} />
+
+                        <ProfileGlobalSizes draft={draft} updateTabsConfig={updateTabsConfig} />
+                    </ProfileEditSection>
+
+                    <ProfileIdentityEditor
+                        draft={draft}
+                        headerDraft={headerDraft}
+                        errors={errors}
+                        profileDisplayScaleY={profileDisplayScaleY}
+                        coverRef={coverRef}
+                        avatarRef={avatarRef}
+                        onChange={onChange}
+                        onHeaderChange={onHeaderChange}
+                        updateTabsConfig={updateTabsConfig}
+                        requestProfileCrop={requestProfileCrop}
+                    />
+
+                    <ProfilePublicLinksEditor
+                        draft={draft}
+                        errors={errors}
+                        onChange={onChange}
+                    />
+
+                    <ProfileBorderEditor
+                        draft={draft}
+                        errors={errors}
+                        borders={borders}
+                        onChange={onChange}
+                        updateTabsConfig={updateTabsConfig}
+                    />
+
+                    <ProfileBackgroundEditor
+                        draft={draft}
+                        errors={errors}
+                        onChange={onChange}
+                        updateTabsConfig={updateTabsConfig}
+                        onSelectBackground={(file) => requestProfileCrop('background_image', file)}
+                    />
+
+                    <ProfileEditSection title="Tabs">
+                        <div className="grid grid-cols-2 gap-2">
+                            {profileTabOrder.map((tab) => (
+                                <label key={tab} className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={draft.tabsConfig.visibility[tab]}
+                                        onChange={(event) =>
+                                            updateTabVisibility(tab, event.target.checked)
+                                        }
+                                    />
+                                    {PROFILE_TAB_LABELS[tab]}
+                                </label>
+                            ))}
+                        </div>
+                        {draft.navLayout === 'together' && (
+                            <div className="grid gap-2 rounded-lg border p-3">
+                                <p className="text-xs font-medium">Together tab order</p>
+                                {profileTabOrder
+                                    .filter((tab) => draft.tabsConfig.visibility[tab])
+                                    .map((tab, index, tabs) => (
+                                        <div
+                                            key={`order-${tab}`}
+                                            className="flex items-center justify-between gap-2 rounded-md bg-muted/30 px-2 py-1.5 text-sm"
+                                        >
+                                            <span>{PROFILE_TAB_LABELS[tab]}</span>
+                                            <div className="flex gap-1">
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    disabled={index === 0}
+                                                    onClick={() => moveTogetherTab(tab, -1)}
+                                                    aria-label={`Move ${PROFILE_TAB_LABELS[tab]} left`}
+                                                >
+                                                    <ChevronUp className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    disabled={index === tabs.length - 1}
+                                                    onClick={() => moveTogetherTab(tab, 1)}
+                                                    aria-label={`Move ${PROFILE_TAB_LABELS[tab]} right`}
+                                                >
+                                                    <ChevronDown className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                            </div>
+                        )}
+                        <div className="grid gap-2">
+                            <p className="text-xs font-medium text-muted-foreground">Preview</p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {profileTabOrder.map((tab) => {
+                                    const enabled = draft.tabsConfig.visibility[tab]
+                                    return (
+                                        <Button
+                                            key={`preview-${tab}`}
+                                            type="button"
+                                            variant={activeTab === tab ? 'default' : 'outline'}
+                                            size="sm"
+                                            disabled={!enabled}
+                                            onClick={() => onActiveTabChange(tab)}
+                                        >
+                                            {PROFILE_TAB_LABELS[tab].replace('My ', '')}
+                                        </Button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                        <SelectField
+                            label="Tabs"
+                            value={draft.navLayout}
+                            options={['together', 'separate']}
+                            onChange={(navLayout) =>
+                                onChange({
+                                    navLayout: navLayout as ProfileThemeDraft['navLayout'],
                                 })
                             }
                         />
-                    </div>
-                </ProfileEditSection>
-
-                <ProfileEditSection title="Global Colors">
-                    <ColorField
-                        label="Text"
-                        value={draft.tabsConfig.global_styles?.text_color ?? '#111827'}
-                        fallback="#111827"
-                        onChange={(text_color) =>
-                            updateTabsConfig({
-                                global_styles: {
-                                    ...(draft.tabsConfig.global_styles ??
-                                        defaultProfileTabsConfig().global_styles!),
-                                    text_color,
-                                },
-                            })
-                        }
-                    />
-                    <ColorField
-                        label="Muted text"
-                        value={draft.tabsConfig.global_styles?.muted_text_color ?? '#6b7280'}
-                        fallback="#6b7280"
-                        onChange={(muted_text_color) =>
-                            updateTabsConfig({
-                                global_styles: {
-                                    ...(draft.tabsConfig.global_styles ??
-                                        defaultProfileTabsConfig().global_styles!),
-                                    muted_text_color,
-                                },
-                            })
-                        }
-                    />
-                    <ColorField
-                        label="Accent"
-                        value={draft.tabsConfig.global_styles?.accent_color ?? '#111827'}
-                        fallback="#111827"
-                        onChange={(accent_color) =>
-                            updateTabsConfig({
-                                global_styles: {
-                                    ...(draft.tabsConfig.global_styles ??
-                                        defaultProfileTabsConfig().global_styles!),
-                                    accent_color,
-                                },
-                            })
-                        }
-                    />
-                </ProfileEditSection>
-
-                <ProfileEditSection title="Global Sizes">
-                    <RangeField
-                        label="Base text"
-                        value={draft.tabsConfig.global_styles?.base_font_size ?? 14}
-                        min={10}
-                        max={28}
-                        suffix="px"
-                        onChange={(base_font_size) =>
-                            updateTabsConfig({
-                                global_styles: {
-                                    ...(draft.tabsConfig.global_styles ??
-                                        defaultProfileTabsConfig().global_styles!),
-                                    base_font_size,
-                                },
-                            })
-                        }
-                    />
-                    <RangeField
-                        label="Widget text"
-                        value={draft.tabsConfig.global_styles?.widget_font_size ?? 13}
-                        min={10}
-                        max={28}
-                        suffix="px"
-                        onChange={(widget_font_size) =>
-                            updateTabsConfig({
-                                global_styles: {
-                                    ...(draft.tabsConfig.global_styles ??
-                                        defaultProfileTabsConfig().global_styles!),
-                                    widget_font_size,
-                                },
-                            })
-                        }
-                    />
-                    <RangeField
-                        label="Button text"
-                        value={draft.tabsConfig.global_styles?.button_font_size ?? 14}
-                        min={10}
-                        max={24}
-                        suffix="px"
-                        onChange={(button_font_size) =>
-                            updateTabsConfig({
-                                global_styles: {
-                                    ...(draft.tabsConfig.global_styles ??
-                                        defaultProfileTabsConfig().global_styles!),
-                                    button_font_size,
-                                },
-                            })
-                        }
-                    />
-                </ProfileEditSection>
-
-                <ProfileEditSection title="Profile">
-                    <div className="grid gap-1">
-                        <Label htmlFor="profile-title">Title</Label>
-                        {errors.artistTitle && <FieldMessage>{errors.artistTitle}</FieldMessage>}
-                        <Input
-                            id="profile-title"
-                            value={headerDraft.artistTitle}
-                            onChange={(event) =>
-                                onHeaderChange({ artistTitle: event.target.value })
-                            }
-                        />
-                    </div>
-
-                    <label className="flex items-center gap-2 text-sm">
-                        <input
-                            type="checkbox"
-                            checked={draft.showCover}
-                            onChange={(event) => onChange({ showCover: event.target.checked })}
-                        />
-                        Cover Image
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => coverRef.current?.click()}
-                        >
-                            <Upload className="h-4 w-4" />
-                            Cover
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => avatarRef.current?.click()}
-                        >
-                            <Upload className="h-4 w-4" />
-                            Profile
-                        </Button>
-                    </div>
-                    <input
-                        ref={coverRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp,image/gif"
-                        className="hidden"
-                        onChange={(event) => {
-                            onUploadCover(event.target.files?.[0] ?? null)
-                            event.target.value = ''
-                        }}
-                    />
-                    <input
-                        ref={avatarRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                        className="hidden"
-                        onChange={(event) => {
-                            onUploadAvatar(event.target.files?.[0] ?? null)
-                            event.target.value = ''
-                        }}
-                    />
-                    <RangeField
-                        label="Cover width"
-                        value={draft.coverWidth}
-                        min={30}
-                        max={100}
-                        suffix="%"
-                        onChange={(coverWidth) => onChange({ coverWidth })}
-                    />
-                    <RangeField
-                        label="Cover height"
-                        value={draft.bannerHeight}
-                        min={160}
-                        max={560}
-                        suffix="px"
-                        onChange={(bannerHeight) => onChange({ bannerHeight })}
-                    />
-                    <RangeField
-                        label="Profile display width"
-                        value={Math.round(profileDisplayScaleX * 112)}
-                        min={64}
-                        max={320}
-                        suffix="px"
-                        onChange={(value) =>
-                            updateTabsConfig({
-                                cover_offset: {
-                                    x: Number((value / 112).toFixed(3)),
-                                    y: profileDisplayScaleY,
-                                },
-                            })
-                        }
-                    />
-                    <RangeField
-                        label="Profile display height"
-                        value={Math.round(profileDisplayScaleY * 112)}
-                        min={64}
-                        max={320}
-                        suffix="px"
-                        onChange={(value) =>
-                            updateTabsConfig({
-                                cover_offset: {
-                                    x: profileDisplayScaleX,
-                                    y: Number((value / 112).toFixed(3)),
-                                },
-                            })
-                        }
-                    />
-                    <RangeField
-                        label="Profile vertical position"
-                        value={draft.avatarFrameY}
-                        min={0}
-                        max={100}
-                        suffix="%"
-                        onChange={(avatarFrameY) => onChange({ avatarFrameX: 50, avatarFrameY })}
-                    />
-                    <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                        The cover stays fixed and can only resize. The profile display stays
-                        horizontally centered, but it can resize and move up or down.
-                    </p>
-                </ProfileEditSection>
-
-                <ProfileEditSection title="Public Links">
-                    {errors.links && <FieldMessage>{errors.links}</FieldMessage>}
-                    <div className="grid gap-3">
-                        {draft.links.map((link, index) => (
-                            <div key={link.id} className="grid gap-2 rounded-lg border p-3">
-                                <div className="flex items-center justify-between gap-2">
-                                    <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <input
-                                            type="checkbox"
-                                            checked={link.is_public}
-                                            onChange={(event) =>
-                                                updateLink(index, {
-                                                    is_public: event.target.checked,
-                                                })
-                                            }
-                                        />
-                                        Public
-                                    </label>
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        onClick={() => removeLink(index)}
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label htmlFor={`profile-link-title-${index}`}>Title</Label>
-                                    {errors[`links.${index}.title`] && (
-                                        <FieldMessage>
-                                            {errors[`links.${index}.title`]}
-                                        </FieldMessage>
-                                    )}
-                                    <Input
-                                        id={`profile-link-title-${index}`}
-                                        value={link.title}
-                                        onChange={(event) =>
-                                            updateLink(index, { title: event.target.value })
-                                        }
-                                    />
-                                </div>
-                                <div className="grid gap-1">
-                                    <Label htmlFor={`profile-link-url-${index}`}>Link</Label>
-                                    {errors[`links.${index}.url`] && (
-                                        <FieldMessage>{errors[`links.${index}.url`]}</FieldMessage>
-                                    )}
-                                    <Input
-                                        id={`profile-link-url-${index}`}
-                                        value={link.url}
-                                        placeholder="example.com, https://example.com, mailto:hello@example.com"
-                                        onChange={(event) =>
-                                            updateLink(index, { url: event.target.value })
-                                        }
-                                    />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <Button type="button" variant="outline" onClick={addLink}>
-                        <Plus className="h-4 w-4" />
-                        Add Link
-                    </Button>
-                </ProfileEditSection>
-
-                <ProfileEditSection title="Border">
-                    <div className="grid grid-cols-3 gap-2">
-                        <button
-                            type="button"
-                            className={`rounded-lg border px-2 py-3 text-xs ${
-                                !draft.profileBorderId ? 'ring-2 ring-foreground' : ''
-                            }`}
-                            onClick={() => onChange({ profileBorderId: '' })}
-                        >
-                            None
-                        </button>
-                        {borders.map((border) => (
-                            <button
-                                key={border.id}
-                                type="button"
-                                className={`group relative rounded-lg border p-2 ${
-                                    draft.profileBorderId === border.id
-                                        ? 'ring-2 ring-foreground'
-                                        : ''
-                                }`}
-                                onClick={() => onChange({ profileBorderId: border.id })}
-                            >
-                                <img
-                                    src={storageUrl(border.image_path)!}
-                                    alt={border.name}
-                                    className="mx-auto h-16 w-16 object-contain"
-                                />
-                                <span className="mt-1 block truncate text-[10px]">
-                                    {border.name}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                    <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                        Profile borders come from Noble Royalty. Create or sell border designs in
-                        the admin Noble Royalty section.
-                    </p>
-                    <div className="grid grid-cols-2 gap-2">
                         <RangeField
-                            label="Border"
-                            value={draft.avatarBorderWidth}
-                            min={0}
-                            max={16}
-                            suffix="px"
-                            onChange={(avatarBorderWidth) => onChange({ avatarBorderWidth })}
-                        />
-                        <RangeField
-                            label="Radius"
-                            value={draft.avatarBorderRadius}
-                            min={0}
+                            label="Tab width"
+                            value={draft.navW}
+                            min={30}
                             max={100}
                             suffix="%"
-                            onChange={(avatarBorderRadius) => onChange({ avatarBorderRadius })}
+                            onChange={(navW) => onChange({ navW })}
                         />
-                    </div>
-                    <SelectField
-                        label="Border layer"
-                        value={draft.tabsConfig.border_layer ?? 'front'}
-                        options={['front', 'back']}
-                        formatOption={(option) => (option === 'front' ? 'Send Front' : 'Send Back')}
-                        onChange={(border_layer) =>
-                            updateTabsConfig({
-                                border_layer: border_layer as ProfileTabsConfig['border_layer'],
-                            })
-                        }
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-1.5">
-                            <Label htmlFor="profile-border-width">Border width %</Label>
-
-                            <Input
-                                id="profile-border-width"
-                                type="number"
-                                min="5"
-                                step="10"
-                                value={Math.round(
-                                    (draft.tabsConfig.border_width ??
-                                        draft.tabsConfig.border_scale ??
-                                        1.35) * 100
-                                )}
-                                onChange={(event) => {
-                                    const value = Number(event.target.value)
-
-                                    if (!Number.isFinite(value)) return
-
-                                    updateTabsConfig({
-                                        border_width: Math.max(0.05, value / 100),
-                                    })
-                                }}
-                            />
-                        </div>
-
-                        <div className="grid gap-1.5">
-                            <Label htmlFor="profile-border-height">Border height %</Label>
-
-                            <Input
-                                id="profile-border-height"
-                                type="number"
-                                min="5"
-                                step="10"
-                                value={Math.round(
-                                    (draft.tabsConfig.border_height ??
-                                        draft.tabsConfig.border_scale ??
-                                        1.35) * 100
-                                )}
-                                onChange={(event) => {
-                                    const value = Number(event.target.value)
-
-                                    if (!Number.isFinite(value)) return
-
-                                    updateTabsConfig({
-                                        border_height: Math.max(0.05, value / 100),
-                                    })
-                                }}
-                            />
-                        </div>
-                    </div>
-                    <ColorField
-                        label="Border color"
-                        value={draft.avatarBorderColor}
-                        fallback="#ffffff"
-                        error={errors.avatarBorderColor}
-                        onChange={(avatarBorderColor) => onChange({ avatarBorderColor })}
-                    />
-                </ProfileEditSection>
-
-                <ProfileEditSection title="Background">
-                    <ColorField
-                        label="Color"
-                        value={draft.backgroundColor}
-                        fallback="#ffffff"
-                        error={errors.backgroundColor}
-                        onChange={(backgroundColor) => onChange({ backgroundColor })}
-                    />
-                    <label className="flex items-center gap-2 text-sm">
-                        <input
-                            type="checkbox"
-                            checked={draft.hasGradient}
-                            onChange={(event) => onChange({ hasGradient: event.target.checked })}
+                        <RangeField
+                            label="Tab height"
+                            value={draft.navH}
+                            min={28}
+                            max={96}
+                            suffix="px"
+                            onChange={(navH) => onChange({ navH })}
                         />
-                        Gradient
-                    </label>
-                    {draft.hasGradient && (
-                        <>
-                            <div className="grid grid-cols-2 gap-2">
-                                <ColorField
-                                    label="Gradient start"
-                                    value={draft.gradientFrom}
-                                    fallback="#ffffff"
-                                    error={errors.gradientFrom}
-                                    onChange={(gradientFrom) => onChange({ gradientFrom })}
-                                />
-                                <ColorField
-                                    label="Gradient end"
-                                    value={draft.gradientTo}
-                                    fallback="#f4f4f5"
-                                    error={errors.gradientTo}
-                                    onChange={(gradientTo) => onChange({ gradientTo })}
-                                />
-                            </div>
-                            <SelectField
-                                label="Gradient direction"
-                                value={draft.gradientDirection}
-                                options={[...PROFILE_GRADIENT_DIRECTIONS]}
-                                onChange={(gradientDirection) => onChange({ gradientDirection })}
-                            />
-                        </>
-                    )}
-                    <RangeField
-                        label="Background blur"
-                        value={draft.backgroundBlur}
-                        min={0}
-                        max={100}
-                        suffix="%"
-                        onChange={(backgroundBlur) => onChange({ backgroundBlur })}
-                    />
-                    <input
-                        ref={backgroundRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp,image/gif"
-                        className="hidden"
-                        onChange={(event) => {
-                            onUploadBackground(event.target.files?.[0] ?? null)
-                            event.target.value = ''
-                        }}
-                    />
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => backgroundRef.current?.click()}
-                    >
-                        <Upload className="h-4 w-4" />
-                        Upload Background
-                    </Button>
-                </ProfileEditSection>
-
-                <ProfileEditSection title="Tabs">
-                    <div className="grid grid-cols-2 gap-2">
-                        {PROFILE_TAB_IDS.map((tab) => (
-                            <label key={tab} className="flex items-center gap-2 text-sm">
-                                <input
-                                    type="checkbox"
-                                    checked={draft.tabsConfig.visibility[tab]}
-                                    onChange={(event) =>
-                                        updateTabVisibility(tab, event.target.checked)
-                                    }
-                                />
-                                {PROFILE_TAB_LABELS[tab]}
-                            </label>
-                        ))}
-                    </div>
-                    <div className="grid gap-2">
-                        <p className="text-xs font-medium text-muted-foreground">Preview</p>
-                        <div className="flex flex-wrap gap-1.5">
-                            {PROFILE_TAB_IDS.map((tab) => {
-                                const enabled = draft.tabsConfig.visibility[tab]
-                                return (
-                                    <Button
-                                        key={`preview-${tab}`}
-                                        type="button"
-                                        variant={activeTab === tab ? 'default' : 'outline'}
-                                        size="sm"
-                                        disabled={!enabled}
-                                        onClick={() => onActiveTabChange(tab)}
-                                    >
-                                        {PROFILE_TAB_LABELS[tab].replace('My ', '')}
-                                    </Button>
-                                )
-                            })}
-                        </div>
-                    </div>
-                    <SelectField
-                        label="Tabs"
-                        value={draft.navLayout}
-                        options={['together', 'separate']}
-                        onChange={(navLayout) =>
-                            onChange({
-                                navLayout: navLayout as ProfileThemeDraft['navLayout'],
-                            })
-                        }
-                    />
-                    <RangeField
-                        label="Tab width"
-                        value={draft.navW}
-                        min={30}
-                        max={100}
-                        suffix="%"
-                        onChange={(navW) => onChange({ navW })}
-                    />
-                    <RangeField
-                        label="Tab height"
-                        value={draft.navH}
-                        min={28}
-                        max={96}
-                        suffix="px"
-                        onChange={(navH) => onChange({ navH })}
-                    />
-                    <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                        Together keeps tab buttons grouped. Separate lets individual tab buttons
-                        move on the canvas. Content widgets are added to the active preview page.
-                    </p>
-                    <div className="grid gap-3 rounded-lg border p-3">
-                        {(canvasButtons.length > 0 || canvasSections.length > 0) && (
-                            <div>
-                                <p className="mb-2 text-xs font-medium text-muted-foreground">
-                                    Current canvas contents
-                                </p>
-                                <div className="grid gap-1.5">
-                                    {[...canvasButtons, ...canvasSections].map((item) => (
-                                        <div
-                                            key={item.id}
-                                            draggable
-                                            onDragStart={(event) =>
-                                                startExistingCanvasItemDrag(event, item)
-                                            }
-                                            className="grid cursor-grab gap-2 rounded-md border bg-background px-2 py-1.5 text-xs active:cursor-grabbing"
+                        <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                            Together keeps tab buttons grouped. Separate lets individual tab buttons
+                            move on the canvas. Content widgets are added to the active preview
+                            page.
+                        </p>
+                        <div className="grid gap-3 rounded-lg border p-3">
+                            {(canvasButtons.length > 0 || canvasSections.length > 0) && (
+                                <div className="grid gap-3 rounded-lg border bg-muted/10 p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                            <p className="text-xs font-semibold">Layers & Groups</p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                Top rows are in front. Drag rows to reorder. Select
+                                                two or more items to group them; dragging one
+                                                grouped item moves the whole group on the canvas.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={layerSelection.length < 2}
+                                            onClick={groupSelectedLayers}
                                         >
-                                            <div className="flex items-center gap-2">
-                                                <Move className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                                <span className="min-w-0 flex-1 truncate">
-                                                    {item.kind === 'tab' ? 'Button' : 'Content'}:{' '}
-                                                    {PROFILE_TAB_LABELS[item.type]}
-                                                </span>
-                                                <button
-                                                    type="button"
-                                                    className="rounded p-1 text-destructive hover:bg-destructive/10"
-                                                    onClick={() =>
-                                                        onRemoveCanvasItem(item.id, item.kind)
-                                                    }
-                                                    aria-label={`Delete ${PROFILE_TAB_LABELS[item.type]}`}
+                                            <Layers className="h-3.5 w-3.5" />
+                                            Group ({layerSelection.length})
+                                        </Button>
+                                    </div>
+
+                                    {canvasGroups.length > 0 && (
+                                        <div className="grid gap-1.5">
+                                            {canvasGroups.map((group) => (
+                                                <div
+                                                    key={group.id}
+                                                    className="flex items-center justify-between gap-2 rounded-md border bg-background px-2 py-1.5 text-xs"
                                                 >
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
+                                                    <span className="min-w-0 truncate">
+                                                        {group.name} · {group.item_ids.length}{' '}
+                                                        layers
+                                                    </span>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => ungroupCanvasGroup(group.id)}
+                                                    >
+                                                        Ungroup
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {[
+                                        {
+                                            label: 'Content layers',
+                                            kind: 'section' as const,
+                                            items: [...canvasSections].reverse(),
+                                        },
+                                        {
+                                            label: 'Button layers',
+                                            kind: 'tab' as const,
+                                            items: [...canvasButtons].reverse(),
+                                        },
+                                    ].map(({ label, kind, items }) =>
+                                        items.length > 0 ? (
+                                            <div
+                                                key={kind}
+                                                className="grid max-h-44 gap-1 overflow-y-auto pr-1"
+                                            >
+                                                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                                    {label}
+                                                </p>
+                                                {items.map((item) => {
+                                                    const group = canvasGroups.find((candidate) =>
+                                                        candidate.item_ids.includes(item.id)
+                                                    )
+
+                                                    return (
+                                                        <div
+                                                            key={`layer-${item.id}`}
+                                                            draggable
+                                                            onDragStart={(event) => {
+                                                                setLayerDrag({ id: item.id, kind })
+                                                                event.dataTransfer.effectAllowed =
+                                                                    'move'
+                                                                event.dataTransfer.setData(
+                                                                    'text/plain',
+                                                                    item.id
+                                                                )
+                                                            }}
+                                                            onDragOver={(event) => {
+                                                                if (layerDrag?.kind !== kind) return
+                                                                event.preventDefault()
+                                                                event.dataTransfer.dropEffect =
+                                                                    'move'
+                                                            }}
+                                                            onDrop={(event) => {
+                                                                event.preventDefault()
+                                                                if (layerDrag?.kind === kind) {
+                                                                    reorderCanvasLayer(
+                                                                        kind,
+                                                                        layerDrag.id,
+                                                                        item.id
+                                                                    )
+                                                                }
+                                                                setLayerDrag(null)
+                                                            }}
+                                                            onDragEnd={() => setLayerDrag(null)}
+                                                            onClick={() =>
+                                                                setSelectedCanvasLayerId(item.id)
+                                                            }
+                                                            className={`flex cursor-grab items-center gap-2 rounded-md border px-2 py-1.5 text-xs transition active:cursor-grabbing ${
+                                                                selectedCanvasItem?.id === item.id
+                                                                    ? 'border-sky-400 bg-sky-50 ring-1 ring-sky-200 dark:bg-sky-950/20'
+                                                                    : 'bg-background hover:bg-muted/40'
+                                                            }`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={layerSelection.includes(
+                                                                    item.id
+                                                                )}
+                                                                onChange={() =>
+                                                                    toggleLayerSelection(item.id)
+                                                                }
+                                                                onClick={(event) =>
+                                                                    event.stopPropagation()
+                                                                }
+                                                                aria-label={`Select ${PROFILE_TAB_LABELS[item.type]} layer`}
+                                                            />
+                                                            <Move className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                                            <span className="min-w-0 flex-1 truncate">
+                                                                {item.kind === 'tab'
+                                                                    ? 'Button'
+                                                                    : 'Content'}
+                                                                : {PROFILE_TAB_LABELS[item.type]}
+                                                            </span>
+                                                            {group && (
+                                                                <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[9px] text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
+                                                                    {group.name}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
                                             </div>
-                                            {item.kind === 'section' && (
-                                                <div className="grid gap-2 border-t pt-2">
-                                                    <SelectField
-                                                        label="Page"
-                                                        value={getCanvasItemPage(item)}
-                                                        options={visiblePreviewTabs}
-                                                        formatOption={(option) =>
-                                                            PROFILE_TAB_LABELS[
-                                                                option as ProfileTabId
-                                                            ]
-                                                        }
-                                                        onChange={(page) =>
-                                                            onUpdateCanvasItem(item.id, item.kind, {
-                                                                page: page as ProfileTabId,
-                                                            })
-                                                        }
-                                                    />
-                                                    {item.type === 'arts' && (
-                                                        <>
+                                        ) : null
+                                    )}
+                                </div>
+                            )}
+
+                            {(canvasButtons.length > 0 || canvasSections.length > 0) && (
+                                <div>
+                                    <div className="mb-2">
+                                        <p className="text-xs font-medium">
+                                            Selected layer settings
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            Pick a layer above. Only that layer’s settings open
+                                            here.
+                                        </p>
+                                    </div>
+                                    <div className="grid gap-1.5">
+                                        {(selectedCanvasItem ? [selectedCanvasItem] : []).map(
+                                            (item) => (
+                                                <div
+                                                    key={item.id}
+                                                    className="grid gap-2 rounded-lg border bg-background p-3 text-xs"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <Move className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                                        <span className="min-w-0 flex-1 truncate">
+                                                            {item.kind === 'tab'
+                                                                ? 'Button'
+                                                                : 'Content'}
+                                                            : {PROFILE_TAB_LABELS[item.type]}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            className="rounded p-1 text-destructive hover:bg-destructive/10"
+                                                            onClick={() =>
+                                                                onRemoveCanvasItem(
+                                                                    item.id,
+                                                                    item.kind
+                                                                )
+                                                            }
+                                                            aria-label={`Delete ${PROFILE_TAB_LABELS[item.type]}`}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
+                                                    {item.kind === 'section' && (
+                                                        <div className="grid gap-2 border-t pt-2">
                                                             <SelectField
-                                                                label="Display"
-                                                                value={item.display ?? 'masonry'}
-                                                                options={[
-                                                                    'standard',
-                                                                    'masonry',
-                                                                    'bento',
-                                                                    'magazine',
-                                                                    'gallery',
-                                                                    'carousel',
-                                                                ]}
-                                                                formatOption={formatCanvasDisplay}
-                                                                onChange={(display) =>
+                                                                label="Page"
+                                                                value={getCanvasItemPage(item)}
+                                                                options={visiblePreviewTabs}
+                                                                formatOption={(option) =>
+                                                                    PROFILE_TAB_LABELS[
+                                                                        option as ProfileTabId
+                                                                    ]
+                                                                }
+                                                                onChange={(page) =>
                                                                     onUpdateCanvasItem(
                                                                         item.id,
                                                                         item.kind,
                                                                         {
-                                                                            display:
-                                                                                display as ProfileCanvasItem['display'],
+                                                                            page: page as ProfileTabId,
                                                                         }
                                                                     )
                                                                 }
                                                             />
-                                                            <label className="flex items-center gap-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={
-                                                                        item.pagination !== false
+                                                            {item.type === 'arts' && (
+                                                                <>
+                                                                    <SelectField
+                                                                        label="Display"
+                                                                        value={
+                                                                            item.display ??
+                                                                            'masonry'
+                                                                        }
+                                                                        options={[
+                                                                            'standard',
+                                                                            'masonry',
+                                                                            'bento',
+                                                                            'magazine',
+                                                                            'gallery',
+                                                                            'carousel',
+                                                                        ]}
+                                                                        formatOption={
+                                                                            formatCanvasDisplay
+                                                                        }
+                                                                        onChange={(display) =>
+                                                                            onUpdateCanvasItem(
+                                                                                item.id,
+                                                                                item.kind,
+                                                                                {
+                                                                                    display:
+                                                                                        display as ProfileCanvasItem['display'],
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                    <label className="flex items-center gap-2">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={
+                                                                                item.pagination !==
+                                                                                false
+                                                                            }
+                                                                            onChange={(event) =>
+                                                                                onUpdateCanvasItem(
+                                                                                    item.id,
+                                                                                    item.kind,
+                                                                                    {
+                                                                                        pagination:
+                                                                                            event
+                                                                                                .target
+                                                                                                .checked,
+                                                                                    }
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                        Pagination
+                                                                    </label>
+                                                                    <ProfileSortFilterControls
+                                                                        item={item}
+                                                                        options={getProfileFilterOptions(
+                                                                            profile,
+                                                                            item.type
+                                                                        )}
+                                                                        onUpdateCanvasItem={
+                                                                            onUpdateCanvasItem
+                                                                        }
+                                                                    />
+                                                                </>
+                                                            )}
+                                                            {item.type === 'works' && (
+                                                                <>
+                                                                    <SelectField
+                                                                        label="Display"
+                                                                        value={
+                                                                            item.display ??
+                                                                            'image_title'
+                                                                        }
+                                                                        options={[
+                                                                            'image',
+                                                                            'image_title',
+                                                                            'split_card',
+                                                                            'table',
+                                                                        ]}
+                                                                        formatOption={
+                                                                            formatCanvasDisplay
+                                                                        }
+                                                                        onChange={(display) =>
+                                                                            onUpdateCanvasItem(
+                                                                                item.id,
+                                                                                item.kind,
+                                                                                {
+                                                                                    display:
+                                                                                        display as ProfileCanvasItem['display'],
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                    <ProfileSortFilterControls
+                                                                        item={item}
+                                                                        options={getProfileFilterOptions(
+                                                                            profile,
+                                                                            item.type
+                                                                        )}
+                                                                        onUpdateCanvasItem={
+                                                                            onUpdateCanvasItem
+                                                                        }
+                                                                    />
+                                                                </>
+                                                            )}
+                                                            {item.type === 'stickers' && (
+                                                                <>
+                                                                    <RangeField
+                                                                        label="Sticker size"
+                                                                        value={draft.stickerSize}
+                                                                        min={72}
+                                                                        max={180}
+                                                                        suffix="px"
+                                                                        onChange={(stickerSize) =>
+                                                                            onChange({
+                                                                                stickerSize,
+                                                                            })
+                                                                        }
+                                                                    />
+                                                                    <ProfileSortFilterControls
+                                                                        item={item}
+                                                                        options={getProfileFilterOptions(
+                                                                            profile,
+                                                                            item.type
+                                                                        )}
+                                                                        onUpdateCanvasItem={
+                                                                            onUpdateCanvasItem
+                                                                        }
+                                                                    />
+                                                                </>
+                                                            )}
+                                                            {item.type === 'comments' && (
+                                                                <SelectField
+                                                                    label="Display"
+                                                                    value={item.display ?? 'table'}
+                                                                    options={['table', 'cards']}
+                                                                    formatOption={
+                                                                        formatCanvasDisplay
                                                                     }
-                                                                    onChange={(event) =>
+                                                                    onChange={(display) =>
                                                                         onUpdateCanvasItem(
                                                                             item.id,
                                                                             item.kind,
                                                                             {
-                                                                                pagination:
-                                                                                    event.target
-                                                                                        .checked,
+                                                                                display:
+                                                                                    display as ProfileCanvasItem['display'],
                                                                             }
                                                                         )
                                                                     }
                                                                 />
-                                                                Pagination
-                                                            </label>
-                                                            <ProfileSortFilterControls
-                                                                item={item}
-                                                                options={getProfileFilterOptions(
-                                                                    profile,
-                                                                    item.type
-                                                                )}
-                                                                onUpdateCanvasItem={
-                                                                    onUpdateCanvasItem
-                                                                }
-                                                            />
-                                                        </>
-                                                    )}
-                                                    {item.type === 'works' && (
-                                                        <>
-                                                            <SelectField
-                                                                label="Display"
-                                                                value={
-                                                                    item.display ?? 'image_title'
-                                                                }
-                                                                options={[
-                                                                    'image',
-                                                                    'image_title',
-                                                                    'split_card',
-                                                                    'table',
-                                                                ]}
-                                                                formatOption={formatCanvasDisplay}
-                                                                onChange={(display) =>
-                                                                    onUpdateCanvasItem(
-                                                                        item.id,
-                                                                        item.kind,
-                                                                        {
-                                                                            display:
-                                                                                display as ProfileCanvasItem['display'],
-                                                                        }
-                                                                    )
-                                                                }
-                                                            />
-                                                            <ProfileSortFilterControls
-                                                                item={item}
-                                                                options={getProfileFilterOptions(
-                                                                    profile,
-                                                                    item.type
-                                                                )}
-                                                                onUpdateCanvasItem={
-                                                                    onUpdateCanvasItem
-                                                                }
-                                                            />
-                                                        </>
-                                                    )}
-                                                    {item.type === 'stickers' && (
-                                                        <>
-                                                            <RangeField
-                                                                label="Sticker size"
-                                                                value={draft.stickerSize}
-                                                                min={72}
-                                                                max={180}
-                                                                suffix="px"
-                                                                onChange={(stickerSize) =>
-                                                                    onChange({ stickerSize })
-                                                                }
-                                                            />
-                                                            <ProfileSortFilterControls
-                                                                item={item}
-                                                                options={getProfileFilterOptions(
-                                                                    profile,
-                                                                    item.type
-                                                                )}
-                                                                onUpdateCanvasItem={
-                                                                    onUpdateCanvasItem
-                                                                }
-                                                            />
-                                                        </>
-                                                    )}
-                                                    {item.type === 'comments' && (
-                                                        <SelectField
-                                                            label="Display"
-                                                            value={item.display ?? 'table'}
-                                                            options={['table', 'cards']}
-                                                            formatOption={formatCanvasDisplay}
-                                                            onChange={(display) =>
-                                                                onUpdateCanvasItem(
-                                                                    item.id,
-                                                                    item.kind,
-                                                                    {
-                                                                        display:
-                                                                            display as ProfileCanvasItem['display'],
+                                                            )}
+                                                            {item.type === 'feeds' && (
+                                                                <SelectField
+                                                                    label="Display"
+                                                                    value={item.display ?? 'cards'}
+                                                                    options={['cards', 'compact']}
+                                                                    formatOption={
+                                                                        formatCanvasDisplay
                                                                     }
-                                                                )
-                                                            }
-                                                        />
-                                                    )}
-                                                    {item.type === 'feeds' && (
-                                                        <SelectField
-                                                            label="Display"
-                                                            value={item.display ?? 'cards'}
-                                                            options={['cards', 'compact']}
-                                                            formatOption={formatCanvasDisplay}
-                                                            onChange={(display) =>
-                                                                onUpdateCanvasItem(
-                                                                    item.id,
-                                                                    item.kind,
-                                                                    {
-                                                                        display:
-                                                                            display as ProfileCanvasItem['display'],
+                                                                    onChange={(display) =>
+                                                                        onUpdateCanvasItem(
+                                                                            item.id,
+                                                                            item.kind,
+                                                                            {
+                                                                                display:
+                                                                                    display as ProfileCanvasItem['display'],
+                                                                            }
+                                                                        )
                                                                     }
-                                                                )
-                                                            }
-                                                        />
+                                                                />
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
-                                            )}
-                                        </div>
+                                            )
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                            <div>
+                                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                                    Add tab button
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {PROFILE_TAB_IDS.map((tab) => (
+                                        <Button
+                                            key={`tab-${tab}`}
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={
+                                                !draft.tabsConfig.visibility[tab] ||
+                                                draft.navLayout !== 'separate'
+                                            }
+                                            draggable={draft.navLayout === 'separate'}
+                                            onDragStart={(event) =>
+                                                startCanvasPaletteDrag(event, 'tab', tab)
+                                            }
+                                            onClick={() => onAddCanvasItem('tab', tab)}
+                                        >
+                                            {PROFILE_TAB_LABELS[tab].replace('My ', '')}
+                                        </Button>
                                     ))}
                                 </div>
                             </div>
-                        )}
-                        <div>
-                            <p className="mb-2 text-xs font-medium text-muted-foreground">
-                                Add tab button
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                                {PROFILE_TAB_IDS.map((tab) => (
-                                    <Button
-                                        key={`tab-${tab}`}
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={
-                                            !draft.tabsConfig.visibility[tab] ||
-                                            draft.navLayout !== 'separate'
-                                        }
-                                        draggable={draft.navLayout === 'separate'}
-                                        onDragStart={(event) =>
-                                            startCanvasPaletteDrag(event, 'tab', tab)
-                                        }
-                                        onClick={() => onAddCanvasItem('tab', tab)}
-                                    >
-                                        {PROFILE_TAB_LABELS[tab].replace('My ', '')}
-                                    </Button>
-                                ))}
+                            <div>
+                                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                                    Add content
+                                </p>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {PROFILE_TAB_IDS.map((tab) => (
+                                        <Button
+                                            key={`section-${tab}`}
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={!draft.tabsConfig.visibility[tab]}
+                                            draggable
+                                            onDragStart={(event) =>
+                                                startCanvasPaletteDrag(event, 'section', tab)
+                                            }
+                                            onClick={() =>
+                                                onAddCanvasItem(
+                                                    'section',
+                                                    tab,
+                                                    undefined,
+                                                    activeTab
+                                                )
+                                            }
+                                        >
+                                            {PROFILE_TAB_LABELS[tab].replace('My ', '')}
+                                        </Button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                        <div>
-                            <p className="mb-2 text-xs font-medium text-muted-foreground">
-                                Add content
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                                {PROFILE_TAB_IDS.map((tab) => (
-                                    <Button
-                                        key={`section-${tab}`}
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={!draft.tabsConfig.visibility[tab]}
-                                        draggable
-                                        onDragStart={(event) =>
-                                            startCanvasPaletteDrag(event, 'section', tab)
-                                        }
-                                        onClick={() =>
-                                            onAddCanvasItem('section', tab, undefined, activeTab)
-                                        }
-                                    >
-                                        {PROFILE_TAB_LABELS[tab].replace('My ', '')}
-                                    </Button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </ProfileEditSection>
+                    </ProfileEditSection>
 
-                <ProfileEditSection title="Sections">
-                    <RangeField
-                        label="Board height"
-                        value={draft.boardMinHeight}
-                        min={360}
-                        max={2400}
-                        suffix="px"
-                        onChange={(boardMinHeight) => onChange({ boardMinHeight })}
-                    />
-                    <RangeField
-                        label="Art tile width"
-                        value={draft.artsTileWidth}
-                        min={120}
-                        max={420}
-                        suffix="px"
-                        onChange={(artsTileWidth) => onChange({ artsTileWidth })}
-                    />
-                    <RangeField
-                        label="Sticker size"
-                        value={draft.stickerSize}
-                        min={72}
-                        max={180}
-                        suffix="px"
-                        onChange={(stickerSize) => onChange({ stickerSize })}
-                    />
-                </ProfileEditSection>
-            </div>
-        </aside>
+                    <ProfileSectionSizes draft={draft} onChange={onChange} />
+                </div>
+            </aside>
+            <ProfileImageCropDialog
+                key={
+                    cropRequest
+                        ? `${cropRequest.field}-${cropRequest.file.name}-${cropRequest.file.lastModified}`
+                        : 'profile-crop-empty'
+                }
+                request={cropRequest}
+                onClose={() => setCropRequest(null)}
+                onComplete={completeProfileCrop}
+            />
+        </>
     )
 }

@@ -39,4 +39,6 @@ export const moderationApi = {
         api.put(`/admin/moderation/commission-delivery-files/${fileId}/approve`),
     suspendCommissionDeliveryFile: (fileId: string, reason: string) =>
         api.put(`/admin/moderation/commission-delivery-files/${fileId}/suspend`, { reason }),
+    approveProfileMedia: (userId: string, field: 'avatar' | 'profile_cover') =>
+        api.put(`/admin/moderation/users/${userId}/media/${field}/approve`),
 }

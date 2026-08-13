@@ -29,6 +29,7 @@ class PublicCommissionController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = CommissionService::query()
+            ->creatorFeatureVisible()
             ->select('commission_services.*')
             ->where('is_published', true)
             ->where('status', 'open')
@@ -107,6 +108,7 @@ class PublicCommissionController extends Controller
 
     public function show(CommissionService $commission): JsonResponse
     {
+        abort_unless($commission->user?->hasCreatorFeature('commission'), 404);
         abort_unless(
             $commission->is_published
                 && in_array($commission->status, ['open', 'waitlist', 'closed'], true),
@@ -130,6 +132,7 @@ class PublicCommissionController extends Controller
 
     public function request(Request $request, CommissionService $commission): JsonResponse
     {
+        abort_unless($commission->user?->hasCreatorFeature('commission'), 404);
         $user = $request->user();
 
         $commission->loadMissing('user.commissionArtistProfile');

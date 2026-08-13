@@ -29,6 +29,7 @@ class PublicArtController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Art::query()
+            ->creatorFeatureVisible()
             ->select('arts.*')
             ->where('status', 'published')
             ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'))
@@ -96,6 +97,7 @@ class PublicArtController extends Controller
     public function show(string $art): JsonResponse
     {
         $artModel = Art::query()
+            ->creatorFeatureVisible()
             ->where('status', 'published')
             ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'))
             ->with([
@@ -137,6 +139,7 @@ class PublicArtController extends Controller
 
     public function recordView(Request $request, Art $art): JsonResponse
     {
+        abort_unless($art->user?->hasCreatorFeature('arts'), 404);
         abort_unless($art->status === 'published', 404);
         abort_if($this->contentSuspensions->isHidden($art), 404, 'Art not found.');
 
@@ -313,6 +316,7 @@ class PublicArtController extends Controller
 
     public function toggleLike(Request $request, Art $art): JsonResponse
     {
+        abort_unless($art->user?->hasCreatorFeature('arts'), 404);
         abort_unless($art->status === 'published', 404);
         abort_if($this->contentSuspensions->isHidden($art), 404, 'Art not found.');
 
@@ -350,7 +354,7 @@ class PublicArtController extends Controller
         $search = strtolower((string) $request->query('q', ''));
         $tags = [];
 
-        Art::where('status', 'published')
+        Art::creatorFeatureVisible()->where('status', 'published')
             ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'))
             ->whereNotNull('labels')
             ->get(['user_id', 'labels'])
@@ -409,6 +413,7 @@ class PublicArtController extends Controller
 
     private function abortUnlessDownloadable(Art $art): void
     {
+        abort_unless($art->user?->hasCreatorFeature('arts'), 404);
         abort_unless($art->status === 'published', 404);
         abort_if($this->contentSuspensions->isHidden($art), 404, 'Art not found.');
     }

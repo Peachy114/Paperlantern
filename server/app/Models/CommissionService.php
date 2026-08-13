@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Builder;
 
 class CommissionService extends Model
 {
@@ -63,6 +64,11 @@ class CommissionService extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function scopeCreatorFeatureVisible(Builder $query): Builder
+    {
+        return $query->whereHas('user', fn (Builder $user) => $user->withCreatorFeature('commission'));
     }
 
     public function category(): BelongsTo

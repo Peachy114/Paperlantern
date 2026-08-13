@@ -87,6 +87,7 @@ interface ReviewArt {
     title: string
     image_path: string | null
     created_at: string
+    status?: string
     user: ModerationUser
     images: ReviewArtImage[]
     active_content_suspensions?: ActiveSuspension[]
@@ -157,6 +158,16 @@ interface ReviewCommissionDeliveryFile {
     } | null
 }
 
+interface ReviewProfileMedia {
+    id: string
+    user_id: string
+    field: 'avatar' | 'profile_cover'
+    image_path: string
+    moderation_status: string
+    created_at: string
+    user: ModerationUser
+}
+
 interface ModerationReview {
     works: ModerationWorkItem[]
     chapters: ModerationChapter[]
@@ -166,6 +177,7 @@ interface ModerationReview {
     feed_images?: ReviewFeedImage[]
     commission_message_images?: ReviewCommissionMessageImage[]
     commission_delivery_files?: ReviewCommissionDeliveryFile[]
+    profile_media?: ReviewProfileMedia[]
     active_suspensions: ActiveSuspension[]
 }
 
@@ -426,6 +438,12 @@ export function useAdminModerationQueue() {
         },
     })
 
+    const approveProfileMedia = useMutation({
+        mutationFn: ({ userId, field }: { userId: string; field: 'avatar' | 'profile_cover' }) =>
+            moderationApi.approveProfileMedia(userId, field),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: QUEUE_KEY }),
+    })
+
     return {
         chapters: data.chapters,
         works: data.works,
@@ -456,6 +474,8 @@ export function useAdminModerationQueue() {
         approveCommissionDeliveryFile: (id: string) => approveCommissionDeliveryFile.mutate(id),
         suspendCommissionDeliveryFile: (id: string, reason: string) =>
             suspendCommissionDeliveryFile.mutate({ id, reason }),
+        approveProfileMedia: (userId: string, field: 'avatar' | 'profile_cover') =>
+            approveProfileMedia.mutate({ userId, field }),
 
         approvingChapter: approveChapter.isPending ? approveChapter.variables : null,
         violatingChapter: violateChapter.isPending ? violateChapter.variables?.slug : null,
@@ -484,6 +504,9 @@ export function useAdminModerationQueue() {
             : null,
         suspendingCommissionDeliveryFile: suspendCommissionDeliveryFile.isPending
             ? suspendCommissionDeliveryFile.variables?.id
+            : null,
+        approvingProfileMedia: approveProfileMedia.isPending
+            ? `${approveProfileMedia.variables?.userId}:${approveProfileMedia.variables?.field}`
             : null,
     }
 }

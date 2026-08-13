@@ -18,16 +18,18 @@ class CommentTargetResolver
     {
         $target = match ($type) {
             'work' => Work::whereIn('status', ['ongoing', 'completed'])
+                ->creatorFeatureVisible()
                 ->where('moderation_status', '!=', 'violated')
                 ->findOrFail($id),
             'chapter' => Chapter::where('status', '!=', 'draft')
                 ->where('moderation_status', '!=', 'violated')
                 ->whereHas('work', fn($query) => $query
+                    ->creatorFeatureVisible()
                     ->whereIn('status', ['ongoing', 'completed'])
                     ->where('moderation_status', '!=', 'violated'))
                 ->findOrFail($id),
-            'art' => Art::where('status', 'published')->findOrFail($id),
-            'shop' => ShopItem::where('status', 'published')->findOrFail($id),
+            'art' => Art::creatorFeatureVisible()->where('status', 'published')->findOrFail($id),
+            'shop' => ShopItem::creatorFeatureVisible()->where('status', 'published')->findOrFail($id),
             'comment' => Comment::where('status', 'visible')->findOrFail($id),
             'feed' => FeedPost::where('status', 'published')->findOrFail($id),
             default => abort(404, 'Unsupported comment target.'),

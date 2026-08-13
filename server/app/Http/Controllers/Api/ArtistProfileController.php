@@ -23,8 +23,8 @@ class ArtistProfileController extends Controller
     {
         $validated = $request->validate([
             'artist_title' => ['nullable', 'string', 'max:100'],
-            'cover' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
-            'avatar' => ['nullable', 'image', 'max:10240'],
+            'cover' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'dimensions:min_width=320,min_height=160,max_width=12000,max_height=12000', 'max:10240'],
+            'avatar' => ['nullable', 'image', 'dimensions:min_width=64,min_height=64,max_width=12000,max_height=12000', 'max:10240'],
             'background_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
             'profile_cover_position_x' => ['sometimes', 'numeric', 'min:0', 'max:100'],
             'profile_cover_position_y' => ['sometimes', 'numeric', 'min:0', 'max:100'],
@@ -32,6 +32,7 @@ class ArtistProfileController extends Controller
             'avatar_position_y' => ['sometimes', 'numeric', 'min:0', 'max:100'],
             'show_public_links' => ['sometimes', 'boolean'],
             'profile_background_color' => ['nullable', 'string', 'max:20'],
+            'profile_background_color_enabled' => ['sometimes', 'boolean'],
             'profile_background_gradient_from' => ['nullable', 'string', 'max:20'],
             'profile_background_gradient_to' => ['nullable', 'string', 'max:20'],
             'profile_background_gradient_direction' => ['sometimes', 'string', 'in:to top,to right,to bottom,to left,to top right,to bottom right,to bottom left,to top left'],

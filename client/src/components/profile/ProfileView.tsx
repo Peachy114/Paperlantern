@@ -95,7 +95,11 @@ export default function ProfileView({ open, setOpen, buttonRef }: ProfileProps) 
     const isAdmin = user?.role === 'super_admin'
     const isStoryteller = user?.role === 'storyteller'
     const accountMenuStyle = user?.account_menu_style ?? 'circular'
-    const profilePath = !isAdmin && user?.username ? `/users/${user.username}` : null
+    const profilePath = user?.username
+        ? isAdmin || isStoryteller
+            ? `/artists/${user.username}`
+            : `/users/${user.username}`
+        : null
 
     return (
         <>

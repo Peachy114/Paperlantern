@@ -43,22 +43,48 @@ class ModerationController extends Controller
             'field' => ['nullable', 'string', 'max:80'],
         ]);
 
-        return response()->json(
-            $this->contentSuspensions->suspendByType(
+        $result = $this->contentSuspensions->suspendByType(
                 $type,
                 $id,
                 $validated['field'] ?? null,
                 $validated['reason'],
                 $request->user()
-            )
-        );
+            );
+
+        if ($type === 'user' && in_array($validated['field'] ?? null, ['avatar', 'profile_cover'], true)) {
+            $statusField = $validated['field'] === 'avatar'
+                ? 'avatar_moderation_status'
+                : 'cover_moderation_status';
+            User::whereKey($id)->update([$statusField => 'suspended']);
+        }
+
+        return response()->json($result);
+    }
+
+    public function approveProfileMedia(User $user, string $field): JsonResponse
+    {
+        abort_unless(in_array($field, ['avatar', 'profile_cover'], true), 404);
+        abort_unless($user->{$field}, 422, 'This profile image does not exist.');
+
+        $statusField = $field === 'avatar' ? 'avatar_moderation_status' : 'cover_moderation_status';
+        $user->update([$statusField => 'approved']);
+
+        return response()->json([
+            'message' => $field === 'avatar' ? 'Profile image approved.' : 'Cover image approved.',
+        ]);
     }
 
     public function restoreSuspension(Request $request, ContentSuspension $suspension): JsonResponse
     {
-        return response()->json(
-            $this->contentSuspensions->restore($suspension, $request->user())
-        );
+        $result = $this->contentSuspensions->restore($suspension, $request->user());
+        if ($suspension->target_type === User::class && in_array($suspension->target_field, ['avatar', 'profile_cover'], true)) {
+            $statusField = $suspension->target_field === 'avatar'
+                ? 'avatar_moderation_status'
+                : 'cover_moderation_status';
+            User::whereKey($suspension->target_id)->update([$statusField => 'approved']);
+        }
+
+        return response()->json($result);
     }
 
     // ── Chapters ──────────────────────────────────────────────────

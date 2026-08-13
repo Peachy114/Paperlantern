@@ -243,8 +243,8 @@ export function ProfileSortFilterControls({
                         }
                         className={`rounded-md border px-2 py-1 text-xs ${
                             selected.length === 0
-                                ? 'bg-foreground text-background'
-                                : 'bg-background text-muted-foreground'
+                                ? 'bg-banner text-background'
+                                : 'bg-background text-muted-foreground hover:bg-muted'
                         }`}
                     >
                         None
@@ -256,8 +256,8 @@ export function ProfileSortFilterControls({
                             onClick={() => toggleFilter(option.value)}
                             className={`rounded-md border px-2 py-1 text-xs ${
                                 selected.includes(option.value)
-                                    ? 'bg-foreground text-background'
-                                    : 'bg-background text-muted-foreground hover:text-foreground'
+                                    ? 'bg-banner text-background'
+                                    : 'bg-background text-muted-foreground hover:bg-muted'
                             }`}
                         >
                             {option.label}

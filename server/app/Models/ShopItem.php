@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Builder;
 
 class ShopItem extends Model
 {
@@ -58,6 +59,11 @@ class ShopItem extends Model
     public function purchases()
     {
         return $this->hasMany(ShopItemPurchase::class);
+    }
+
+    public function scopeCreatorFeatureVisible(Builder $query): Builder
+    {
+        return $query->whereHas('user', fn (Builder $user) => $user->withCreatorFeature('shop'));
     }
 
     public function ratings()

@@ -1,4 +1,4 @@
-import type { CSSProperties, DragEvent, PointerEvent } from 'react'
+import { useState, type CSSProperties, type DragEvent, type PointerEvent } from 'react'
 import { Layers, Lock, Move, Unlock } from 'lucide-react'
 import type { Art } from '@/types/art'
 import type { ArtistProfileBlock, ArtistProfileResponse, ProfileCanvasItem, ProfileTabId, ProfileTabsConfig } from '@/types/artistProfile'
@@ -118,6 +118,7 @@ export function ProfileLayoutCanvas({
     editMode,
     activeTab,
     isStorytellerProfile,
+    isAdminProfile,
     boardRef,
     boardBlocks,
     boardHeight,
@@ -148,6 +149,7 @@ export function ProfileLayoutCanvas({
     editMode: boolean
     activeTab: ProfileTabId
     isStorytellerProfile: boolean
+    isAdminProfile: boolean
     boardRef: React.RefObject<HTMLDivElement | null>
     boardBlocks: ArtistProfileBlock[]
     boardHeight: number
@@ -185,7 +187,9 @@ export function ProfileLayoutCanvas({
     onDropCanvasItem: (event: DragEvent<HTMLDivElement>) => void
     onOpenArt: (art: Art) => void
 }) {
+    const [widgetPages, setWidgetPages] = useState<Record<string, number>>({})
     const visibleTabs = getVisibleProfileTabs(theme.tabsConfig, isStorytellerProfile)
+        .filter((tab) => !isAdminProfile || (tab !== 'arts' && tab !== 'works'))
     const buttons = getCanvasItems(theme.tabsConfig, visibleTabs, 'tab')
     const sections = getCanvasItems(theme.tabsConfig, visibleTabs, 'section').filter(
         (item) => getCanvasItemPage(item) === activeTab
@@ -201,6 +205,11 @@ export function ProfileLayoutCanvas({
     )
 
     const renderSection = (item: ProfileCanvasItem) => {
+        const pageSize = getWidgetImageLimit(item)
+        const page = widgetPages[item.id] ?? 0
+        const paginate = <T,>(items: T[]) => item.pagination === false
+            ? items
+            : items.slice(page * pageSize, page * pageSize + pageSize)
         if (item.type === 'board') {
             return (
                 <>
@@ -222,35 +231,35 @@ export function ProfileLayoutCanvas({
         if (item.type === 'arts') {
             return (
                 <ArtsMasonry
-                    arts={filterSortArts(profile.arts, item)}
+                    arts={paginate(filterSortArts(profile.arts, item))}
                     tileWidth={theme.artsTileWidth}
                     display={item.display}
-                    limit={item.pagination === false ? undefined : getWidgetImageLimit(item)}
+                    limit={undefined}
                     onOpen={onOpenArt}
                 />
             )
         }
 
         if (item.type === 'works') {
-            return <WorksGrid works={filterSortWorks(profile.works, item)} display={item.display} />
+            return <WorksGrid works={paginate(filterSortWorks(profile.works, item))} display={item.display} />
         }
 
         if (item.type === 'stickers') {
             return (
                 <ProfileStickers
-                    stickers={filterSortStickers(profile.stickers, item)}
+                    stickers={paginate(filterSortStickers(profile.stickers, item))}
                     stickerSize={theme.stickerSize}
                 />
             )
         }
 
         if (item.type === 'feeds') {
-            return <ProfileFeeds feeds={profile.feeds ?? []} display={item.display} />
+            return <ProfileFeeds feeds={paginate(profile.feeds ?? [])} display={item.display} />
         }
 
         return (
             <ProfileComments
-                comments={profile.comments ?? []}
+                comments={paginate(profile.comments ?? [])}
                 variant={item.display === 'cards' ? 'cards' : 'table'}
             />
         )
@@ -357,6 +366,7 @@ export function ProfileLayoutCanvas({
                               }
                     }
                 >
+                    <div className={editMode ? 'absolute bottom-full left-0 z-[70] w-full pb-2' : ''}>
                     <ProfilePageHeading
                         title={PROFILE_TAB_LABELS[item.type]}
                         canEdit={canEditContent}
@@ -366,6 +376,7 @@ export function ProfileLayoutCanvas({
                         onCancel={onCancelContentEdit}
                         busy={busy}
                     />
+                    </div>
                     <ProfileWidgetEditControls
                         item={item}
                         theme={theme}
@@ -376,17 +387,36 @@ export function ProfileLayoutCanvas({
                         onThemeChange={onThemeChange}
                     />
                     <div
+                        data-profile-content
                         className={`min-h-0 flex-1 ${
-                            item.type === 'board' || item.type === 'feeds'
-                                ? 'overflow-visible'
-                                : 'overflow-hidden'
-                        } ${editMode && !contentEditMode ? 'pointer-events-none' : ''}`}
+                            'overflow-visible'
+                        } ${editMode ? 'pointer-events-none select-none' : ''}`}
                         style={{
                             minHeight: item.type === 'board' ? 'calc(100% - 56px)' : undefined,
                         }}
                     >
                         {renderSection(item)}
                     </div>
+                    {item.pagination !== false && (() => {
+                        const totals: Record<ProfileTabId, number> = {
+                            board: 0,
+                            arts: filterSortArts(profile.arts, item).length,
+                            works: filterSortWorks(profile.works, item).length,
+                            stickers: filterSortStickers(profile.stickers, item).length,
+                            comments: (profile.comments ?? []).length,
+                            feeds: (profile.feeds ?? []).length,
+                        }
+                        const pageCount = Math.ceil(totals[item.type] / getWidgetImageLimit(item))
+                        if (pageCount <= 1) return null
+                        const page = Math.min(widgetPages[item.id] ?? 0, pageCount - 1)
+                        return (
+                            <div className={`mt-3 flex items-center justify-center gap-2 ${editMode ? 'pointer-events-none' : ''}`}>
+                                <button type="button" className="rounded-md border bg-background px-3 py-1 text-xs disabled:opacity-40" disabled={page === 0} onClick={() => setWidgetPages((current) => ({ ...current, [item.id]: page - 1 }))}>Previous</button>
+                                <span className="text-xs text-muted-foreground">{page + 1} / {pageCount}</span>
+                                <button type="button" className="rounded-md border bg-background px-3 py-1 text-xs disabled:opacity-40" disabled={page >= pageCount - 1} onClick={() => setWidgetPages((current) => ({ ...current, [item.id]: page + 1 }))}>Next</button>
+                            </div>
+                        )
+                    })()}
                     {editMode && (
                         <CanvasHandles
                             item={item}

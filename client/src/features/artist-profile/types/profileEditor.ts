@@ -21,6 +21,7 @@ export type ProfileLinkDraft = ProfileLink & {
 }
 
 export type ProfileThemeDraft = {
+    backgroundColorEnabled: boolean
     backgroundColor: string
     gradientFrom: string
     gradientTo: string
@@ -155,6 +156,14 @@ export type HeaderDragKind =
     | 'avatar-frame-width'
     | 'avatar-frame-height'
     | 'avatar-frame-size'
+    | 'avatar-frame-left'
+    | 'avatar-frame-right'
+    | 'avatar-frame-top'
+    | 'avatar-frame-bottom'
+    | 'avatar-frame-top-left'
+    | 'avatar-frame-top-right'
+    | 'avatar-frame-bottom-left'
+    | 'avatar-frame-bottom-right'
     | 'avatar-border'
     | 'avatar-border-width'
     | 'avatar-border-height'

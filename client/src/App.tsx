@@ -1,11 +1,13 @@
 import { useEffect } from 'react'
 import { BrowserRouter, useLocation } from 'react-router-dom'
 import AppRoutes from '@/routes'
+import GlobalValidationBridge from '@/components/shared/GlobalValidationBridge'
 
 function App() {
     return (
         <BrowserRouter>
             <ScrollToTop />
+            <GlobalValidationBridge />
             <AppRoutes />
         </BrowserRouter>
     )

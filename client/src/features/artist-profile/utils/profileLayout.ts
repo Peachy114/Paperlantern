@@ -25,6 +25,7 @@ import type {
     ProfileLinkDraft,
     ProfileThemeDraft,
 } from '@/features/artist-profile/types/profileEditor'
+import type { ExtendedGlobalStyles } from '@/features/artist-profile/types/profileTheme'
 
 // Profile layout engine ----
 function normalizeLegacyProfileFilter(item: ProfileCanvasItem) {
@@ -160,7 +161,7 @@ export function overlaps(a: BlockRect, b: BlockRect) {
 
 export function normalizeProfileDisplayScale(value: number | undefined) {
     const scale = Number(value)
-    return Number.isFinite(scale) && scale >= 0.5 && scale <= 3 ? scale : 1
+    return Number.isFinite(scale) && scale >= 0.5 && scale <= 1.75 ? scale : 1
 }
 
 export function clamp(value: number, min: number, max: number) {
@@ -227,6 +228,7 @@ export function normalizeRotation(value: number) {
 
 export function createProfileThemeDraft(artist: ArtistProfileResponse['artist']): ProfileThemeDraft {
     return {
+        backgroundColorEnabled: artist.profile_background_color_enabled ?? true,
         backgroundColor: artist.profile_background_color ?? '',
         gradientFrom: artist.profile_background_gradient_from ?? '',
         gradientTo: artist.profile_background_gradient_to ?? '',
@@ -259,6 +261,7 @@ export function createProfileThemeDraft(artist: ArtistProfileResponse['artist'])
 
 export function profileThemeToPayload(draft: ProfileThemeDraft) {
     return {
+        profile_background_color_enabled: draft.backgroundColorEnabled,
         profile_background_color: draft.backgroundColor,
         profile_background_gradient_from: draft.gradientFrom,
         profile_background_gradient_to: draft.gradientTo,
@@ -312,16 +315,26 @@ export function profileThemeToFormData(draft: ProfileThemeDraft, header: HeaderD
 }
 
 export function getProfileBackground(draft: ProfileThemeDraft): CSSProperties {
-    const base = draft.backgroundColor || 'var(--background)'
-    if (!draft.hasGradient || (!draft.gradientFrom && !draft.gradientTo)) {
-        return { background: base }
-    }
+    const opacity = clamp(
+        Number(
+            (draft.tabsConfig.global_styles as ExtendedGlobalStyles | undefined)
+                ?.background_color_opacity ?? 100
+        ),
+        0,
+        100
+    )
+    const base = draft.backgroundColorEnabled
+        ? toRgba(draft.backgroundColor || '#ffffff', opacity / 100)
+        : 'transparent'
+    if (!draft.hasGradient || (!draft.gradientFrom && !draft.gradientTo)) return { background: base }
 
     const from = draft.gradientFrom || 'transparent'
     const to = draft.gradientTo || 'transparent'
 
     return {
-        background: `linear-gradient(${draft.gradientDirection}, ${from}, ${to}), ${base}`,
+        background: draft.backgroundColorEnabled
+            ? `linear-gradient(${draft.gradientDirection}, ${from}, ${to}), ${base}`
+            : `linear-gradient(${draft.gradientDirection}, ${from}, ${to})`,
     }
 }
 
@@ -423,6 +436,7 @@ export function defaultProfileTabsConfig(): ProfileTabsConfig {
         },
         section_mode: 'separate_pages',
         positions,
+        tab_order: [...PROFILE_TAB_IDS],
         buttons: defaultTabs.map((tab) => ({
             id: `tab-${tab}`,
             type: tab,
@@ -467,10 +481,14 @@ export function defaultProfileTabsConfig(): ProfileTabsConfig {
             font_family: '',
             text_color: '#111827',
             muted_text_color: '#6b7280',
-            accent_color: '#111827',
+            accent_color: '#f97316',
             base_font_size: 14,
             widget_font_size: 13,
             button_font_size: 14,
+            background_color_opacity: 100,
+            header_background_enabled: false,
+            header_background_color: '#ffffff',
+            header_background_opacity: 100,
         },
     }
 }
@@ -494,6 +512,10 @@ export function normalizeProfileTabsConfig(
         visibility,
         section_mode: value.section_mode ?? defaults.section_mode,
         positions,
+        tab_order: [
+            ...(value.tab_order ?? []).filter((tab): tab is ProfileTabId => PROFILE_TAB_IDS.includes(tab)),
+            ...PROFILE_TAB_IDS.filter((tab) => !(value.tab_order ?? []).includes(tab)),
+        ],
         buttons: normalizeCanvasItems(value.buttons, defaults.buttons ?? [], 'tab'),
         sections: normalizeCanvasItems(value.sections, defaults.sections ?? [], 'section'),
         cover_offset: {
@@ -532,6 +554,16 @@ export function normalizeProfileTabsConfig(
                 value.global_styles?.button_font_size ?? defaults.global_styles!.button_font_size,
                 10,
                 24
+            ),
+            background_color_opacity: clamp(
+                value.global_styles?.background_color_opacity ?? 100,
+                0,
+                100
+            ),
+            header_background_opacity: clamp(
+                value.global_styles?.header_background_opacity ?? 100,
+                0,
+                100
             ),
         },
     }
@@ -588,7 +620,7 @@ export function patchTabPosition(
 }
 
 export function getVisibleProfileTabs(config: ProfileTabsConfig, isStorytellerProfile: boolean) {
-    return PROFILE_TAB_IDS.filter((tab) => {
+    return (config.tab_order ?? PROFILE_TAB_IDS).filter((tab) => {
         if ((tab === 'arts' || tab === 'works') && !isStorytellerProfile) return false
         return config.visibility[tab]
     })
@@ -848,8 +880,14 @@ export function formatCanvasDisplay(value: string) {
 
 export function getWidgetImageLimit(item: ProfileCanvasItem) {
     const estimatedColumns = Math.max(1, Math.round(item.w / 18))
-    const estimatedRows = Math.max(1, Math.round(item.h / 160))
-    return clamp(estimatedColumns * estimatedRows * 3, 10, 15)
+    return clamp(estimatedColumns * 2, 2, 12)
+}
+
+export function toRgba(color: string, opacity: number): string {
+    const match = /^#([0-9a-fA-F]{6})$/.exec(color)
+    if (!match) return color
+    const value = Number.parseInt(match[1], 16)
+    return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${clamp(opacity, 0, 1)})`
 }
 
 export function snapCanvasX(value: number, width: number) {

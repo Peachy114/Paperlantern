@@ -5,6 +5,7 @@ import * as yup from 'yup'
 import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { authApi } from '@/api/auth'
+import type { CreatorFeature } from '@/store/authStore'
 
 const schema = yup.object({
     name: yup.string().required('Full name is required').max(255),
@@ -20,6 +21,8 @@ const schema = yup.object({
     instagram_url: yup.string().url('Enter a valid URL').nullable().optional(),
     facebook_url: yup.string().url('Enter a valid URL').nullable().optional(),
     tiktok_url: yup.string().url('Enter a valid URL').nullable().optional(),
+    creator_role: yup.mixed<'artist' | 'storyteller'>().oneOf(['artist', 'storyteller']).required(),
+    creator_features: yup.array().of(yup.mixed<CreatorFeature>().oneOf(['webcomix', 'novels', 'arts', 'commission', 'shop']).required()).required(),
 })
 
 type ProfileFields = yup.InferType<typeof schema>
@@ -32,7 +35,7 @@ export function useProfileForm() {
     const {
         register,
         handleSubmit,
-        formState: { errors },
+        formState: { errors }, watch, setValue, setError: setFieldError,
     } = useForm<ProfileFields>({
         resolver: yupResolver(schema) as unknown as Resolver<ProfileFields>,
         defaultValues: {
@@ -46,6 +49,8 @@ export function useProfileForm() {
             instagram_url: user?.instagram_url ?? '',
             facebook_url: user?.facebook_url ?? '',
             tiktok_url: user?.tiktok_url ?? '',
+            creator_role: user?.creator_role ?? (user?.role === 'storyteller' ? 'storyteller' : 'artist'),
+            creator_features: user?.creator_features ?? (user?.role === 'storyteller' ? ['webcomix', 'novels', 'shop'] : ['arts', 'commission', 'shop']),
         },
     })
 
@@ -64,6 +69,8 @@ export function useProfileForm() {
             form.append('instagram_url', data.instagram_url ?? '')
             form.append('facebook_url', data.facebook_url ?? '')
             form.append('tiktok_url', data.tiktok_url ?? '')
+            form.append('creator_role', data.creator_role)
+            data.creator_features.forEach((feature) => form.append('creator_features[]', feature))
 
             return authApi.updateProfile(form)
         },
@@ -75,6 +82,12 @@ export function useProfileForm() {
         onError: (err: unknown) => {
             setError(getErrorMessage(err) ?? 'Failed to update profile.')
             setSuccess(false)
+            const fieldErrors = getFieldErrors(err)
+            Object.entries(fieldErrors).forEach(([field, messages]) => {
+                if (field in schema.fields && messages[0]) {
+                    setFieldError(field as keyof ProfileFields, { type: 'server', message: messages[0] })
+                }
+            })
         },
     })
 
@@ -85,6 +98,8 @@ export function useProfileForm() {
         loading: mutation.isPending,
         error,
         success,
+        watch,
+        setValue,
     }
 }
 
@@ -93,4 +108,12 @@ function getErrorMessage(err: unknown) {
 
     const response = (err as { response?: { data?: { message?: unknown } } }).response
     return typeof response?.data?.message === 'string' ? response.data.message : null
+}
+
+function getFieldErrors(err: unknown): Record<string, string[]> {
+    if (typeof err !== 'object' || err === null || !('response' in err)) return {}
+    const response = (err as { response?: { data?: { errors?: unknown } } }).response
+    return response?.data?.errors && typeof response.data.errors === 'object'
+        ? response.data.errors as Record<string, string[]>
+        : {}
 }

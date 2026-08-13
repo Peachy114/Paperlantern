@@ -1,10 +1,4 @@
-import {
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FormEvent,
-} from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -45,6 +39,7 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import ViewProfileLink from '@/components/profile/ViewProfileLink'
 import SuperLikeButton from './SuperLikeButton'
 import { CommentMarkdown } from './CommentMarkdown'
 import { CommentStickerPickerDialog } from './CommentStickerPickerDialog'
@@ -238,6 +233,7 @@ export default function CommentSection({
             return aPinned ? -1 : 1
         })
     }, [data?.data])
+
     const hasDraft =
         Boolean(body.trim()) ||
         Boolean(selectedSticker) ||
@@ -659,9 +655,12 @@ function CommentItem({
             />
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="max-w-[180px] truncate text-sm font-semibold">
-                        {comment.user?.name ?? 'Unknown'}
-                    </span>
+                    <ViewProfileLink
+                        username={comment.user?.username}
+                        role={role}
+                        label={comment.user?.name ?? 'Unknown'}
+                        className="text-[13px] leading-none"
+                    />
                     {verified && (
                         <BadgeCheck
                             className="h-3.5 w-3.5 text-sky-500"
@@ -680,7 +679,7 @@ function CommentItem({
                             Pinned
                         </span>
                     )}
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground">
                         {formatDate(comment.created_at)}
                     </span>
                 </div>
@@ -703,7 +702,9 @@ function CommentItem({
                     </button>
                 )}
 
-                {comment.body && <CommentMarkdown text={comment.body} spoiler={comment.is_spoiler} />}
+                {comment.body && (
+                    <CommentMarkdown text={comment.body} spoiler={comment.is_spoiler} />
+                )}
 
                 <CommentMedia comment={comment} />
 
@@ -739,7 +740,9 @@ function CommentItem({
                         onClick={() => onLike(comment.id)}
                     >
                         <Heart
-                            className={`h-3.5 w-3.5 ${comment.liked_by_me ? 'fill-current text-red-500' : ''}`}
+                            className={`h-3.5 w-3.5 ${
+                                comment.liked_by_me ? 'fill-current text-red-500' : ''
+                            }`}
                         />
                         {comment.likes_count ?? 0}
                     </Button>

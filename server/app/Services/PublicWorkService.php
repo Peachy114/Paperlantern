@@ -147,6 +147,7 @@ class PublicWorkService
     private function artsForHome(string $kind, int $limit): Collection
     {
         $query = Art::query()
+            ->creatorFeatureVisible()
             ->where('status', 'published')
             ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'))
             ->with(['activeContentSuspensions', 'images' => fn($q) => $q->orderBy('sort_order')]);

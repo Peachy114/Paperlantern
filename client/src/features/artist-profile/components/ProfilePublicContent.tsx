@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import { CalendarDays, Eye, Gift, Heart, ImageOff, Layers, MessageCircle, type LucideIcon } from 'lucide-react'
 import CommentSection from '@/features/comments/components/CommentSection'
 import SuperLikeButton from '@/features/comments/components/SuperLikeButton'
@@ -222,7 +223,8 @@ export function ProfileArtDialog({
     if (!art) return null
 
     const images = getArtImages(art)
-    const firstImage = images[0]?.image_path ?? art.image_path
+    const imagePaths = images.map((image) => image.image_path).filter(Boolean)
+    if (art.image_path && !imagePaths.includes(art.image_path)) imagePaths.push(art.image_path)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -239,18 +241,7 @@ export function ProfileArtDialog({
                         className="min-h-0 overflow-auto bg-black"
                         onContextMenu={(event) => event.preventDefault()}
                     >
-                        {firstImage ? (
-                            <img
-                                src={storageUrl(firstImage)!}
-                                alt={art.title}
-                                draggable={false}
-                                className="mx-auto min-h-full max-w-full select-none object-contain"
-                            />
-                        ) : (
-                            <div className="flex h-full items-center justify-center text-white/70">
-                                <ImageOff className="h-8 w-8" />
-                            </div>
-                        )}
+                        <ArtViewerImage key={imagePaths.join('|')} paths={imagePaths} alt={art.title} />
                     </div>
                     <aside className="min-h-0 overflow-y-auto border-l bg-background p-5">
                         <h2 className="text-xl font-semibold">{art.title}</h2>
@@ -328,6 +319,29 @@ export function ProfileArtDialog({
                 </div>
             </DialogContent>
         </Dialog>
+    )
+}
+
+function ArtViewerImage({ paths, alt }: { paths: string[]; alt: string }) {
+    const [index, setIndex] = useState(0)
+    const path = paths[index]
+    if (!path) {
+        return (
+            <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-white/70" role="alert">
+                <ImageOff className="h-8 w-8" />
+                <p>This artwork image is unavailable. The artist may need to upload it again.</p>
+            </div>
+        )
+    }
+
+    return (
+        <img
+            src={storageUrl(path)!}
+            alt={alt}
+            draggable={false}
+            className="mx-auto h-full max-h-full max-w-full select-none object-contain"
+            onError={() => setIndex((current) => current + 1)}
+        />
     )
 }
 

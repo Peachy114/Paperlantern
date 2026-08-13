@@ -10,6 +10,8 @@ export interface ArtistProfileUser {
     name: string
     username: string
     role: 'super_admin' | 'storyteller' | 'wanderer'
+    creator_role?: 'artist' | 'storyteller' | null
+    creator_features?: Array<'webcomix' | 'novels' | 'arts' | 'commission' | 'shop'>
     artist_verified: boolean
     avatar: string | null
     profile_cover: string | null
@@ -20,6 +22,7 @@ export interface ArtistProfileUser {
     artist_title: string | null
     show_public_links: boolean
     profile_background_color: string | null
+    profile_background_color_enabled: boolean
     profile_background_gradient_from: string | null
     profile_background_gradient_to: string | null
     profile_background_gradient_direction: string
@@ -107,6 +110,7 @@ export interface ProfileTabsConfig {
     visibility: Record<ProfileTabId, boolean>
     section_mode: ProfileSectionMode
     positions: Record<ProfileTabId, ProfileTabPosition>
+    tab_order?: ProfileTabId[]
     buttons?: ProfileCanvasItem[]
     sections?: ProfileCanvasItem[]
     cover_offset?: {
@@ -135,6 +139,25 @@ export interface ProfileTabsConfig {
         base_font_size: number
         widget_font_size: number
         button_font_size: number
+        background_color_opacity?: number
+        header_background_enabled?: boolean
+        header_background_color?: string
+        header_background_opacity?: number
+        show_profile_info?: boolean
+        cover_image_fit?: 'cover' | 'contain'
+        avatar_image_fit?: 'cover' | 'contain'
+        background_image_fit?: 'cover' | 'contain'
+        cover_image_zoom?: number
+        background_image_position_x?: number
+        background_image_position_y?: number
+        background_image_zoom?: number
+        dark_text_color?: string
+        dark_muted_text_color?: string
+        dark_accent_color?: string
+        dark_heading_text_color?: string
+        dark_label_text_color?: string
+        dark_button_text_color?: string
+        dark_link_text_color?: string
     }
 }
 

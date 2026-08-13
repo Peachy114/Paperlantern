@@ -267,6 +267,8 @@ class AuthService
             'email_verified_at' => $user->email_verified_at?->toIso8601String(),
             'email_verified' => (bool) $user->email_verified_at,
             'role'      => $user->role,
+            'creator_role' => $user->creator_role ?: ($user->role === 'storyteller' ? 'storyteller' : null),
+            'creator_features' => $user->normalizedCreatorFeatures(),
             'is_banned' => $user->is_banned,
             'is_suspended' => (bool) ($user->is_suspended ?? false),
             'dark_mode' => (bool) $user->dark_mode,

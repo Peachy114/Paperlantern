@@ -21,13 +21,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        if (error.response?.status === 422 && error.response?.data?.errors) {
+            window.dispatchEvent(new CustomEvent('api-validation-error', {
+                detail: error.response.data.errors,
+            }))
+        }
         if (error.response?.status === 401) {
             useAuthStore.getState().clearAuth()
-        }
-        if (error.response?.status === 403) {
-            useAuthStore.getState().clearAuth()
-            // optional: redirect to a banned page
-            // window.location.href = '/banned'
         }
         return Promise.reject(error)
     }

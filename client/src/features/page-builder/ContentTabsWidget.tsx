@@ -23,25 +23,22 @@ export default function ContentTabsWidget({ widget }: { widget: PageWidget }) {
     }
 
     const tabs = [
-        { key: 'tabs_show_main', label: 'Main', detail: 'Mix', content: 'all', href: '/' },
+        { key: 'tabs_show_main', label: 'Main', content: 'all', href: '/' },
         {
             key: 'tabs_show_comix',
             label: 'Comix',
-            detail: 'Webcomics',
             content: 'webtoon',
             href: '/comix',
         },
         {
             key: 'tabs_show_novels',
             label: 'Novels',
-            detail: 'Novels',
             content: 'wattpad',
             href: '/novels',
         },
         {
             key: 'tabs_show_arts',
             label: 'Arts',
-            detail: 'Art posts',
             content: 'art',
             href: '/explore/arts',
         },

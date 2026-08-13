@@ -28,7 +28,10 @@ export function getArtImageOptions(arts: Art[]): ArtImageOption[] {
 }
 
 export function getArtImages(art: Art) {
-    if (art.images?.length > 0) return art.images
+    const validImages = (art.images ?? []).filter((image) => Boolean(image.image_path?.trim()))
+    if (validImages.length > 0) return validImages
+
+    if (!art.image_path?.trim()) return []
 
     return [{
         id: art.id,

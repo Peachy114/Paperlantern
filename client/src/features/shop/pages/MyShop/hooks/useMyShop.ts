@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import * as yup from 'yup'
 import { arrayMove } from '@dnd-kit/sortable'
-import type { Crop, PercentCrop } from 'react-image-crop'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { studioApi } from '@/api/studio'
 import { storageUrl } from '@/utils/storage'
@@ -47,27 +46,12 @@ export function useMyShop() {
     )
 
     const [cropDialogOpen, setCropDialogOpen] = useState(false)
-    const [crop, setCrop] = useState<Crop | PercentCrop>()
-    const [completedCrop, setCompletedCrop] = useState<Crop | PercentCrop>()
-    const imgRef = useRef<HTMLImageElement | null>(null)
     const imgSrc = useMemo(
         () => preview ?? storageUrl(editing?.image_path ?? null) ?? '',
         [preview, editing]
     )
 
-    const onImageLoad = () => {
-        if (!imgRef.current) return
-
-        setCrop({ unit: '%', x: 0, y: 0, width: 100, height: 100 })
-    }
-
     const cancelCrop = () => setCropDialogOpen(false)
-
-    const confirmCrop = () => {
-        setCropDialogOpen(false)
-        if (!completedCrop || !imgRef.current) return
-        // Cropping is currently a no-op; preserve the selected image.
-    }
 
     const saveMutation = useMutation({
         mutationFn: (payload: FormData) =>
@@ -351,15 +335,8 @@ export function useMyShop() {
         editItem,
         submit,
         cropDialogOpen,
-        crop,
-        setCrop,
-        completedCrop,
-        setCompletedCrop,
-        imgRef,
         imgSrc,
-        onImageLoad,
         cancelCrop,
-        confirmCrop,
     }
 }
 

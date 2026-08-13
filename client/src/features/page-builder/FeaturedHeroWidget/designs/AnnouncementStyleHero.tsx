@@ -1,7 +1,7 @@
-import { CarouselNavigation } from "../CarouselNavigation";
-import { HeroActionCard } from "../HeroActionCard";
-import { MetaOverlay } from "../MetaOverlay";
-import type { HeroLayoutProps } from "../types";
+import { CarouselNavigation } from '../CarouselNavigation'
+import { HeroActionCard } from '../HeroActionCard'
+import { MetaOverlay } from '../MetaOverlay'
+import type { HeroLayoutProps } from '../types'
 
 export function AnnouncementStyleHero({
     widget,
@@ -22,7 +22,7 @@ export function AnnouncementStyleHero({
     return (
         <section className="relative w-full overflow-hidden bg-background">
             <div
-                className={`relative h-[360px] w-full touch-pan-y select-none overflow-hidden sm:h-[430px] lg:h-[520px] ${
+                className={`relative h-[400px] w-full touch-pan-y select-none overflow-hidden sm:h-[500px] lg:h-[620px] ${
                     isDragging ? 'cursor-grabbing' : 'cursor-grab'
                 }`}
                 onPointerDown={onPointerDown}
@@ -34,16 +34,16 @@ export function AnnouncementStyleHero({
                     src={current.image!}
                     alt=""
                     aria-hidden="true"
-                    className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl"
+                    className="absolute inset-0 h-full w-full scale-110 object-cover opacity-80 blur-2xl"
                 />
 
                 <div className="absolute inset-0 bg-black/45" />
 
-                <div className="relative mx-auto flex h-full w-full max-w-[1480px] items-center px-4 sm:px-6">
+                <div className="relative mx-auto flex h-full w-full max-w-[1600px] items-center px-3 sm:px-6">
                     <HeroActionCard
                         item={current}
                         onOpenItem={onOpenItem}
-                        className="relative block h-[78%] w-full overflow-hidden rounded-2xl border border-white/20 bg-black/20 shadow-2xl"
+                        className="relative block h-[86%] w-full overflow-hidden rounded-2xl border border-white/20 bg-black/20 shadow-2xl"
                         style={{
                             transform: `translateX(${dragOffset * 0.18}px)`,
                             transition: isDragging ? 'none' : 'transform 300ms ease',
@@ -51,9 +51,17 @@ export function AnnouncementStyleHero({
                     >
                         <img
                             src={current.image!}
+                            alt=""
+                            aria-hidden="true"
+                            draggable={false}
+                            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl"
+                        />
+                        <div className="absolute inset-0 bg-black/20" />
+                        <img
+                            src={current.image!}
                             alt={current.title}
                             draggable={false}
-                            className="h-full w-full object-cover"
+                            className="relative z-[1] h-full w-full object-contain"
                         />
                         <MetaOverlay item={current} widget={widget} />
                     </HeroActionCard>

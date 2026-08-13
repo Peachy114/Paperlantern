@@ -42,6 +42,7 @@ class PublicShopController extends Controller
             : collect();
 
         $downloads = ShopItem::query()
+            ->creatorFeatureVisible()
             ->where('status', 'published')
             ->with([
                 'files',
@@ -152,6 +153,7 @@ class PublicShopController extends Controller
         Request $request,
         ShopItem $shopItem
     ): JsonResponse {
+        abort_unless($shopItem->user?->hasCreatorFeature('shop'), 404);
         abort_unless($shopItem->status === 'published', 404);
 
         $user = $request->user('sanctum');
@@ -249,6 +251,7 @@ class PublicShopController extends Controller
         Request $request,
         ShopItem $shopItem
     ): JsonResponse {
+        abort_unless($shopItem->user?->hasCreatorFeature('shop'), 404);
         abort_unless($shopItem->status === 'published', 404);
 
         $user = $request->user('sanctum');
@@ -304,6 +307,7 @@ class PublicShopController extends Controller
         Request $request,
         ShopItem $shopItem
     ): StreamedResponse|BinaryFileResponse|JsonResponse {
+        abort_unless($shopItem->user?->hasCreatorFeature('shop'), 404);
         abort_unless($shopItem->status === 'published', 404);
 
         $user = $request->user('sanctum');

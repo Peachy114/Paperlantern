@@ -217,17 +217,17 @@
 
     /* //// surfaces ---- */
     --background: #151515;
-    --foreground: #f7f7f8;
+    --foreground: #e4e4e7;
     --surface: #1c1c1d;
     --surface-soft: #202123;
     --surface-muted: #292b2f;
     --surface-raised: #242528;
-    --surface-inverse: #f7f7f8;
+    --surface-inverse: #e4e4e7;
 
     --card: #202123;
-    --card-foreground: #f7f7f8;
+    --card-foreground: #e4e4e7;
     --popover: #242528;
-    --popover-foreground: #f7f7f8;
+    --popover-foreground: #e4e4e7;
 
     /* //// shadcn semantic variables ---- */
     --primary: #67bcff;

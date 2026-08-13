@@ -406,6 +406,7 @@ class PublicWorkRepository
     private function visibleWorks()
     {
         return Work::query()
+            ->creatorFeatureVisible()
             ->whereIn('status', ['ongoing', 'completed'])
             ->where('moderation_status', '!=', 'violated')
             ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'))
@@ -415,6 +416,7 @@ class PublicWorkRepository
     private function visibleChapters()
     {
         return Chapter::query()
+            ->whereHas('work', fn($work) => $work->creatorFeatureVisible())
             ->where('status', '!=', 'draft')
             ->where('moderation_status', '!=', 'violated')
             ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'));
@@ -423,6 +425,7 @@ class PublicWorkRepository
     private function applyVisibleWorkConstraints($query)
     {
         return $query
+            ->creatorFeatureVisible()
             ->whereIn('status', ['ongoing', 'completed'])
             ->where('moderation_status', '!=', 'violated')
             ->whereDoesntHave('activeContentSuspensions', fn($q) => $q->whereNull('target_field'));

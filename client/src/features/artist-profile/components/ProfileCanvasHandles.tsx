@@ -61,7 +61,7 @@ export function HeaderLockButton({
 export function profileTabButtonClass(active: boolean) {
     return `inline-flex min-h-8 items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors ${
         active
-            ? 'bg-background text-foreground shadow-sm'
+            ? 'bg-[var(--comix-badge-type)] text-white shadow-sm'
             : 'hover:bg-background/60 hover:text-foreground'
     }`
 }

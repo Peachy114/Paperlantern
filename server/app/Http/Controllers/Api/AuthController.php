@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
@@ -126,14 +127,35 @@ class AuthController extends Controller
             'username'      => ['sometimes', 'string', 'max:50', 'unique:users,username,' . $user->id],
             'email'         => ['sometimes', 'email', 'unique:users,email,' . $user->id],
             'bio'           => ['nullable', 'string', 'max:500'],
-            'avatar'        => ['nullable', 'image', 'max:10240'],
+            'avatar'        => ['nullable', 'image', 'dimensions:min_width=64,min_height=64,max_width=12000,max_height=12000', 'max:10240'],
             'twitter_url'   => ['nullable', 'url', 'max:255'],
             'discord_url'   => ['nullable', 'string', 'max:255'],
             'instagram_url' => ['nullable', 'url', 'max:255'],
             'facebook_url'  => ['nullable', 'url', 'max:255'],
             'tiktok_url'    => ['nullable', 'url', 'max:255'],
             'account_menu_style' => ['sometimes', 'string', 'in:circular,detailed'],
+            'creator_role' => ['sometimes', Rule::in(['artist', 'storyteller'])],
+            'creator_features' => ['sometimes', 'array'],
+            'creator_features.*' => ['string', 'distinct', Rule::in(['webcomix', 'novels', 'arts', 'commission', 'shop'])],
         ]);
+
+        if (array_key_exists('creator_role', $validated) || array_key_exists('creator_features', $validated)) {
+            $creatorRole = $validated['creator_role'] ?? $user->creator_role
+                ?? ($user->role === 'storyteller' ? 'storyteller' : 'artist');
+            $required = $creatorRole === 'artist'
+                ? ['arts', 'commission', 'shop']
+                : ['webcomix', 'novels', 'shop'];
+            $validated['creator_role'] = $creatorRole;
+            $validated['creator_features'] = array_values(array_unique(array_merge(
+                $required,
+                $validated['creator_features'] ?? $user->normalizedCreatorFeatures(),
+            )));
+            if ($user->role === 'wanderer') {
+                // Keep the legacy authorization role compatible while creator_role controls
+                // whether the creator is primarily an Artist or Storyteller.
+                $validated['role'] = 'storyteller';
+            }
+        }
         $emailChanged = isset($validated['email'])
             && $validated['email'] !== $user->email
             && $user->role !== 'super_admin';
@@ -141,6 +163,8 @@ class AuthController extends Controller
         if ($request->hasFile('avatar')) {
             if ($user->avatar) Storage::delete($user->avatar);
             $validated['avatar'] = $request->file('avatar')->store('avatars', 'public');
+            $validated['avatar_moderation_status'] = 'pending';
+            $validated['avatar_uploaded_at'] = now();
         }
 
         if ($emailChanged) {

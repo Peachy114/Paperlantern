@@ -1,7 +1,7 @@
-import { CarouselNavigation } from "../CarouselNavigation";
-import { HeroImageCard } from "../HeroImageCard";
-import { SideImageCard } from "../SideImageCard";
-import type { HeroLayoutProps } from "../types";
+import { CarouselNavigation } from '../CarouselNavigation'
+import { HeroImageCard } from '../HeroImageCard'
+import { SideImageCard } from '../SideImageCard'
+import type { HeroLayoutProps } from '../types'
 
 export function BlurredBackgroundHeroSameHeight({
     widget,
@@ -34,7 +34,7 @@ export function BlurredBackgroundHeroSameHeight({
             <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" />
 
             <div
-                className={`relative mx-auto flex min-h-[330px] max-w-[1480px] touch-pan-y select-none items-center justify-center px-4 sm:min-h-[390px] ${
+                className={`relative mx-auto flex min-h-[390px] max-w-[1600px] touch-pan-y select-none items-center justify-center px-4 sm:min-h-[470px] ${
                     isDragging ? 'cursor-grabbing' : 'cursor-grab'
                 }`}
                 onPointerDown={onPointerDown}
@@ -53,21 +53,21 @@ export function BlurredBackgroundHeroSameHeight({
                         item={previousItem}
                         onClick={onPrev}
                         side="left"
-                        className="h-[300px] w-full max-w-[760px] sm:h-[350px] md:w-[54%]"
+                        className="h-[380px] w-full max-w-[900px] sm:h-[440px] md:w-[60%]"
                     />
 
                     <HeroImageCard
                         item={current}
                         widget={widget}
                         onOpenItem={onOpenItem}
-                        className="h-[300px] w-full max-w-[760px] sm:h-[350px] md:w-[54%]"
+                        className="h-[380px] w-full max-w-[900px] sm:h-[440px] md:w-[60%]"
                     />
 
                     <SideImageCard
                         item={nextItem}
                         onClick={onNext}
                         side="right"
-                        className="h-[300px] w-full max-w-[760px] sm:h-[350px] md:w-[54%]"
+                        className="h-[380px] w-full max-w-[900px] sm:h-[440px] md:w-[60%]"
                     />
                 </div>
 

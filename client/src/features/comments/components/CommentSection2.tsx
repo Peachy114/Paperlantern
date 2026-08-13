@@ -1,11 +1,4 @@
-import {
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FormEvent,
-    type ReactNode,
-} from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -49,6 +42,7 @@ import {
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import ViewProfileLink from '@/components/profile/ViewProfileLink'
 import SuperLikeButton from './SuperLikeButton'
 import { CommentMarkdown } from './CommentMarkdown'
 import { CommentStickerPickerDialog } from './CommentStickerPickerDialog'
@@ -244,6 +238,7 @@ export default function CommentSection2({
             return aPinned ? -1 : 1
         })
     }, [data?.data])
+
     const [expandedComments, setExpandedComments] = useState(false)
     const visibleComments =
         initialVisibleCount && !expandedComments ? comments.slice(0, initialVisibleCount) : comments
@@ -903,7 +898,6 @@ function CommentItem({
     const role = comment.user?.role
 
     const verified = Boolean(comment.user?.artist_verified) || role === 'super_admin'
-
     const moderator = role === 'super_admin'
 
     const sortedReplies = useMemo(
@@ -920,12 +914,9 @@ function CommentItem({
         String(currentUserId) === String(comment.user.id)
 
     const canRemove = currentRole === 'super_admin' || isOwnComment
-
     const awards = comment.awards ?? []
-
     const boosted =
         !comment.is_pinned && (awards.length > 0 || Number(comment.super_likes_count ?? 0) > 0)
-
     const authorName = comment.user?.name ?? comment.user?.username ?? 'Unknown'
 
     useEffect(() => {
@@ -1020,17 +1011,12 @@ function CommentItem({
 
                         <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                                <span
-                                    className="
-                                        max-w-[190px]
-                                        truncate
-                                        text-[11px]
-                                        font-bold
-                                        leading-none
-                                    "
-                                >
-                                    {authorName}
-                                </span>
+                                <ViewProfileLink
+                                    username={comment.user?.username}
+                                    role={role}
+                                    label={authorName}
+                                    className="text-[13px] leading-none"
+                                />
 
                                 {moderator && (
                                     <span className="text-[10px] font-semibold text-foreground">
@@ -1058,7 +1044,9 @@ function CommentItem({
                                         "
                                         onClick={() =>
                                             document
-                                                .getElementById(`comment-${(comment.reply_to ?? comment.parent)?.id}`)
+                                                .getElementById(
+                                                    `comment-${(comment.reply_to ?? comment.parent)?.id}`
+                                                )
                                                 ?.scrollIntoView({
                                                     behavior: 'smooth',
                                                     block: 'center',
@@ -1087,7 +1075,7 @@ function CommentItem({
                                 })}
                             </div>
 
-                            <p className="mt-1 text-[8px] leading-none text-muted-foreground">
+                            <p className="mt-1 text-[10px] leading-none text-muted-foreground">
                                 {formatDate(comment.created_at)}
                             </p>
                         </div>
