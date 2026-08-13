@@ -14,20 +14,22 @@ export function CommissionGridCategoryFilters({
     if (categories.length === 0) return null
 
     return (
-        <div className="mb-6 flex flex-wrap gap-2">
-            <FilterButton active={!activeCategory} onClick={() => onChange?.('')}>
-                All types
-            </FilterButton>
-
-            {categories.map((category) => (
-                <FilterButton
-                    key={category.id}
-                    active={activeCategory === category.slug}
-                    onClick={() => onChange?.(category.slug)}
-                >
-                    {category.name}
+        <div className="category-list mb-6">
+            <div className="category-rail__inner">
+                <FilterButton active={!activeCategory} onClick={() => onChange?.('')}>
+                    All types
                 </FilterButton>
-            ))}
+
+                {categories.map((category) => (
+                    <FilterButton
+                        key={category.id}
+                        active={activeCategory === category.slug}
+                        onClick={() => onChange?.(category.slug)}
+                    >
+                        {category.name}
+                    </FilterButton>
+                ))}
+            </div>
         </div>
     )
 }

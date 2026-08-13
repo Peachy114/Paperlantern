@@ -8,7 +8,6 @@ import type {
     ProfileThemeDraft,
 } from '@/features/artist-profile/types/profileEditor'
 import {
-    ProfileRangeField as RangeField,
     ProfileSelectField as SelectField,
 } from '@/features/artist-profile/components/ProfileFormPrimitives'
 import { getCanvasFilters } from '@/features/artist-profile/utils/profileContent'
@@ -41,21 +40,21 @@ export function ProfilePageHeading({
 }) {
     return (
         <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            <h2 data-profile-label className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                 {title}
             </h2>
             {canEdit && editMode ? (
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={onCancel ?? onToggleEdit} disabled={busy}>
+                    <Button data-profile-system-control variant="outline" onClick={onCancel ?? onToggleEdit} disabled={busy}>
                         Cancel
                     </Button>
-                    <Button onClick={onSave ?? onToggleEdit} disabled={busy}>
+                    <Button data-profile-system-control onClick={onSave ?? onToggleEdit} disabled={busy}>
                         <Save className="h-4 w-4" />
                         Save
                     </Button>
                 </div>
             ) : canEdit ? (
-                <Button variant={editMode ? 'default' : 'outline'} onClick={onToggleEdit}>
+                <Button data-profile-system-control variant={editMode ? 'default' : 'outline'} onClick={onToggleEdit}>
                     <Edit3 className="h-4 w-4" />
                     Edit Mode
                 </Button>
@@ -66,12 +65,12 @@ export function ProfilePageHeading({
 
 export function ProfileWidgetEditControls({
     item,
-    theme,
+    theme: _theme,
     profile,
     visible,
     busy,
     onUpdateCanvasItem,
-    onThemeChange,
+    onThemeChange: _onThemeChange,
 }: {
     item: ProfileCanvasItem
     theme: ProfileThemeDraft
@@ -88,7 +87,21 @@ export function ProfileWidgetEditControls({
     if (!visible || item.type === 'board') return null
 
     return (
-        <div className="mb-4 flex flex-wrap items-end gap-3 rounded-md border bg-background/95 p-3 shadow-sm">
+        <div data-profile-system-control className="mb-4 flex flex-wrap items-end gap-3 rounded-md border bg-background/95 p-3 text-foreground shadow-sm">
+            {['arts', 'works', 'stickers', 'shop'].includes(item.type) && (
+                <SelectField
+                    label="Items per page"
+                    value={String(item.limit ?? 0)}
+                    options={['0', '4', '6', '8', '10', '12']}
+                    formatOption={(value) => value === '0' ? 'No limit' : value}
+                    onChange={(value) =>
+                        onUpdateCanvasItem(item.id, item.kind, {
+                            limit: Number(value),
+                            pagination: Number(value) > 0,
+                        })
+                    }
+                />
+            )}
             {item.type === 'arts' && (
                 <>
                     <SelectField
@@ -152,16 +165,6 @@ export function ProfileWidgetEditControls({
 
             {item.type === 'stickers' && (
                 <>
-                    <div className="min-w-56">
-                        <RangeField
-                            label="Sticker size"
-                            value={theme.stickerSize}
-                            min={72}
-                            max={180}
-                            suffix="px"
-                            onChange={(stickerSize) => onThemeChange({ stickerSize })}
-                        />
-                    </div>
                     <ProfileSortFilterControls
                         item={item}
                         options={getProfileFilterOptions(profile, item.type)}

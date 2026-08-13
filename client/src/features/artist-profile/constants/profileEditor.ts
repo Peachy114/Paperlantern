@@ -23,6 +23,7 @@ export const PROFILE_TAB_IDS: ProfileTabId[] = [
     'works',
     'stickers',
     'comments',
+    'shop',
     'feeds',
 ]
 
@@ -32,6 +33,7 @@ export const PROFILE_TAB_LABELS: Record<ProfileTabId, string> = {
     works: 'My Works',
     stickers: 'My Stickers',
     comments: 'My Comments',
+    shop: 'My Shop',
     feeds: 'My Feeds',
 }
 

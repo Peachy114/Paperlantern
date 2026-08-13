@@ -41,7 +41,9 @@ type AttachOption = {
     title: string
     subtitle: string
     image_path?: string | null
-    type: 'work' | 'art'
+    type: 'work' | 'chapter' | 'art' | 'shop' | 'commission'
+    work_type?: string
+    parent_work_id?: string
 }
 
 export default function Feeds() {
@@ -137,6 +139,7 @@ export function FeedPostCard({
     const [editOpen, setEditOpen] = useState(false)
     const [reportOpen, setReportOpen] = useState(false)
     const [viewerImage, setViewerImage] = useState<string | null>(null)
+    const [attachmentDetail, setAttachmentDetail] = useState<NonNullable<FeedPost['attachments']>[number] | null>(null)
     const isOwner = localPost.can_manage || user?.id === localPost.user.id
     const avatar = localPost.user.avatar ? storageUrl(localPost.user.avatar) : null
 
@@ -233,7 +236,7 @@ export function FeedPostCard({
                     </p>
                 )}
 
-                <FeedAttachments attachments={localPost.attachments?.length ? localPost.attachments : localPost.attachment ? [localPost.attachment] : []} />
+                <FeedAttachments attachments={localPost.attachments?.length ? localPost.attachments : localPost.attachment ? [localPost.attachment] : []} onOpen={setAttachmentDetail} />
             </div>
 
             {localPost.sticker && (
@@ -299,24 +302,28 @@ export function FeedPostCard({
             />
             <ReportFeedDialog post={localPost} open={reportOpen} onOpenChange={setReportOpen} />
             <ImageViewer image={viewerImage} onClose={() => setViewerImage(null)} />
+            <AttachmentDetailDialog attachment={attachmentDetail} onClose={() => setAttachmentDetail(null)} />
         </article>
     )
 }
 
 function FeedAttachments({
     attachments,
+    onOpen,
 }: {
     attachments: NonNullable<FeedPost['attachments']>
+    onOpen: (attachment: NonNullable<FeedPost['attachments']>[number]) => void
 }) {
     if (attachments.length === 0) return null
 
     return (
         <div className="mt-4 grid gap-2">
             {attachments.map((attachment) => (
-                <Link
+                <button
+                    type="button"
                     key={`${attachment.type}-${attachment.id}`}
-                    to={attachment.href}
-                    className="flex items-center gap-3 overflow-hidden rounded-lg border border-border bg-muted/20 p-3 transition-colors hover:bg-muted/50"
+                    onClick={() => onOpen(attachment)}
+                    className="flex w-full items-center gap-3 overflow-hidden rounded-lg border border-border bg-muted/20 p-3 text-left transition-colors hover:bg-muted/50"
                 >
                     <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
                         {attachment.image_path && (
@@ -331,9 +338,25 @@ function FeedAttachments({
                         <p className="truncate text-sm font-semibold">{attachment.title}</p>
                         <p className="text-xs text-muted-foreground">{attachment.subtitle}</p>
                     </div>
-                </Link>
+                </button>
             ))}
         </div>
+    )
+}
+
+function AttachmentDetailDialog({ attachment, onClose }: { attachment: NonNullable<FeedPost['attachments']>[number] | null; onClose: () => void }) {
+    return (
+        <Dialog open={Boolean(attachment)} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-xl overflow-hidden p-0">
+                {attachment?.image_path && <img src={storageUrl(attachment.image_path)!} alt="" className="aspect-[16/8] w-full object-cover" />}
+                <div className="space-y-3 p-6">
+                    <DialogHeader><DialogTitle>{attachment?.title}</DialogTitle></DialogHeader>
+                    <p className="text-sm text-muted-foreground">{attachment?.subtitle}</p>
+                    {attachment?.is_draft && <p className="text-xs font-semibold text-amber-600">Private draft preview — visible only to you.</p>}
+                    {attachment && <Button asChild className="w-full"><Link to={attachment.href}>View details</Link></Button>}
+                </div>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -552,6 +575,7 @@ export function CreatePostDialog({
     const [selectedSticker, setSelectedSticker] = useState<StickerOption | null>(null)
     const [attachments, setAttachments] = useState<AttachOption[]>([])
     const [selectedAttachments, setSelectedAttachments] = useState<AttachOption[]>([])
+    const [attachmentTab, setAttachmentTab] = useState<AttachOption['type']>('work')
     const [viewerImage, setViewerImage] = useState<string | null>(null)
     const [panel, setPanel] = useState<
         'none' | 'emoji' | 'stickers' | 'attach' | 'settings' | 'rules'
@@ -579,18 +603,26 @@ export function CreatePostDialog({
             })
             .catch(() => undefined)
 
-        Promise.allSettled([studioApi.getWorks(), studioApi.getArts()]).then(([works, arts]) => {
+        Promise.allSettled([studioApi.getWorks(), studioApi.getArts(), studioApi.getShopItems(), studioApi.getCommissionProfile()]).then(([works, arts, shop, commissions]) => {
             const options: AttachOption[] = []
             if (works.status === 'fulfilled') {
+                const workItems = works.value.data ?? []
                 options.push(
-                    ...(works.value.data ?? []).map((work: any) => ({
+                    ...workItems.map((work: any) => ({
                         id: work.id,
                         title: work.title,
                         subtitle: work.type === 'wattpad' ? 'Novel' : 'Webtoon',
                         image_path: work.cover,
                         type: 'work' as const,
+                        work_type: work.type,
                     }))
                 )
+                Promise.allSettled(workItems.map((work: any) => studioApi.getChapters(work.slug))).then((chapterResults) => {
+                    const chapterOptions = chapterResults.flatMap((result, index) => result.status === 'fulfilled'
+                        ? (result.value.data ?? []).map((chapter: any) => ({ id: chapter.id, title: chapter.title, subtitle: `${chapter.status === 'draft' ? 'Draft ' : ''}Chapter · ${workItems[index].title}`, image_path: chapter.cover ?? workItems[index].cover, type: 'chapter' as const, parent_work_id: workItems[index].id }))
+                        : [])
+                    setAttachments((current) => [...current, ...chapterOptions])
+                })
             }
             if (arts.status === 'fulfilled') {
                 const artsPayload = arts.value.data
@@ -608,6 +640,14 @@ export function CreatePostDialog({
                         type: 'art' as const,
                     }))
                 )
+            }
+            if (shop.status === 'fulfilled') {
+                const items = Array.isArray(shop.value.data) ? shop.value.data : (shop.value.data?.data ?? [])
+                options.push(...items.map((item: any) => ({ id: item.id, title: item.title, subtitle: 'Shop item', image_path: item.image_path, type: 'shop' as const })))
+            }
+            if (commissions.status === 'fulfilled') {
+                const services = commissions.value.data?.services ?? []
+                options.push(...services.map((item: any) => ({ id: item.id, title: item.title, subtitle: 'Commission service', image_path: item.image_path, type: 'commission' as const })))
             }
             setAttachments(options)
         })
@@ -636,6 +676,9 @@ export function CreatePostDialog({
             selectedAttachments
                 .filter((item) => item.type === 'art')
                 .forEach((item) => form.append('attached_art_ids[]', item.id))
+            selectedAttachments.filter((item) => item.type === 'chapter').forEach((item) => form.append('attached_chapter_ids[]', item.id))
+            selectedAttachments.filter((item) => item.type === 'shop').forEach((item) => form.append('attached_shop_item_ids[]', item.id))
+            selectedAttachments.filter((item) => item.type === 'commission').forEach((item) => form.append('attached_commission_service_ids[]', item.id))
             const res = await feedsApi.create(form)
             onCreated(res.data)
             reset()
@@ -718,7 +761,10 @@ export function CreatePostDialog({
                                     key={`${selectedAttachment.type}-${selectedAttachment.id}`}
                                     onRemove={() =>
                                         setSelectedAttachments((current) =>
-                                            current.filter((item) => `${item.type}-${item.id}` !== `${selectedAttachment.type}-${selectedAttachment.id}`)
+                                            current.filter((item) =>
+                                                `${item.type}-${item.id}` !== `${selectedAttachment.type}-${selectedAttachment.id}` &&
+                                                !(selectedAttachment.type === 'work' && item.type === 'chapter' && item.parent_work_id === selectedAttachment.id)
+                                            )
                                         )
                                     }
                                 >
@@ -753,6 +799,8 @@ export function CreatePostDialog({
                                 stickers={stickers}
                                 setSelectedSticker={setSelectedSticker}
                                 attachments={attachments}
+                                attachmentTab={attachmentTab}
+                                setAttachmentTab={setAttachmentTab}
                                 selectedAttachments={selectedAttachments}
                                 setSelectedAttachments={setSelectedAttachments}
                                 audience={audience}
@@ -952,9 +1000,20 @@ function FloatingPanel(props: any) {
         return (
             <div className="absolute bottom-5 left-24 z-10 max-h-96 w-96 overflow-auto rounded-lg border bg-popover p-4 shadow-xl">
                 <p className="mb-3 text-sm text-muted-foreground">
-                    Attach up to 3 series, novels, or art posts.
+                    Attach up to 3 items.
                 </p>
-                {props.attachments.map((item: AttachOption) => (
+                <div className="mb-3 flex gap-1 overflow-x-auto border-b pb-2">
+                    {(['work', 'chapter', 'art', 'shop', 'commission'] as AttachOption['type'][])
+                        .filter((type) => type !== 'chapter' || props.selectedAttachments.some((item: AttachOption) => item.type === 'work' && item.work_type === 'webtoon'))
+                        .map((type) => (
+                        <button key={type} type="button" onClick={() => props.setAttachmentTab(type)} className={`rounded-full px-3 py-1 text-xs capitalize ${props.attachmentTab === type ? 'bg-[var(--selected)] text-[var(--selected-foreground)]' : 'bg-muted'}`}>{type}</button>
+                    ))}
+                </div>
+                {props.attachments.filter((item: AttachOption) => {
+                    if (item.type !== props.attachmentTab) return false
+                    if (item.type !== 'chapter') return true
+                    return props.selectedAttachments.some((selected: AttachOption) => selected.type === 'work' && selected.work_type === 'webtoon' && selected.id === item.parent_work_id)
+                }).map((item: AttachOption) => (
                     <button
                         key={`${item.type}-${item.id}`}
                         className="flex w-full items-center gap-3 rounded p-2 text-left hover:bg-muted disabled:opacity-50"

@@ -56,6 +56,18 @@ export default function Homepage() {
     const allWorks = [...hero, ...weeklyChart, ...freshReleases, ...popularWorks, ...topLikedWorks]
     const pageLabels = labelItemsFromWorks(allWorks)
 
+    // Do not render the default homepage before the API tells us whether a saved
+    // page-builder layout exists. Doing so briefly mounts its hero, then removes it.
+    if (isLoading && !layout) {
+        return (
+            <main aria-busy="true" aria-label="Loading homepage" className="min-h-[70vh] bg-background">
+                <div className="mx-auto max-w-[1600px] px-4 py-6">
+                    <div className="h-[clamp(320px,48vw,620px)] w-full animate-pulse rounded-3xl bg-muted/50" />
+                </div>
+            </main>
+        )
+    }
+
     if (!hasSavedPageBuilderLayout || (!isLoading && isEmpty)) {
         return (
             <DefaultHomepage

@@ -5,6 +5,9 @@ export interface Announcement {
     created_by: string
     title: string
     content: string
+    format?: 'short' | 'long' | 'comic'
+    excerpt?: string | null
+    body_html?: string | null
     tag: 'event' | 'update' | 'reminder'
     is_event?: boolean
     audience: 'public' | 'artist' | 'studio'
@@ -12,6 +15,7 @@ export interface Announcement {
     placement?: 'banner' | 'hero' | 'both'
     is_public?: boolean
     image: string | null
+    gallery_images?: string[] | null
     is_pinned: boolean
     is_featured?: boolean
     rotation_seconds?: number | null
@@ -27,6 +31,9 @@ export interface Announcement {
 export interface AnnouncementPayload {
     title: string
     content: string
+    format?: 'short' | 'long' | 'comic'
+    excerpt?: string | null
+    body_html?: string | null
     tag: 'event' | 'update' | 'reminder'
     is_event?: boolean
     audience: 'public' | 'artist' | 'studio'
@@ -34,6 +41,7 @@ export interface AnnouncementPayload {
     placement?: 'banner' | 'hero' | 'both'
     is_public?: boolean
     image?: File | null
+    gallery_images?: File[]
     is_pinned?: boolean
     rotation_seconds?: number | null
 }
@@ -46,6 +54,9 @@ export const announcementApi = {
         const form = new FormData()
         form.append('title', payload.title)
         form.append('content', payload.content)
+        form.append('format', payload.format ?? 'short')
+        if (payload.excerpt) form.append('excerpt', payload.excerpt)
+        if (payload.body_html) form.append('body_html', payload.body_html)
         form.append('tag', payload.tag)
         form.append('is_event', payload.is_event ? '1' : '0')
         form.append('audience', payload.audience)
@@ -57,6 +68,7 @@ export const announcementApi = {
             form.append('rotation_seconds', String(payload.rotation_seconds))
         }
         if (payload.image) form.append('image', payload.image)
+        ;(payload.gallery_images ?? []).forEach((image) => form.append('gallery_images[]', image))
         return api.post('/admin/announcements', form, {
             headers: { 'Content-Type': 'multipart/form-data' },
         })
@@ -66,6 +78,9 @@ export const announcementApi = {
         const form = new FormData()
         if (payload.title) form.append('title', payload.title)
         if (payload.content) form.append('content', payload.content)
+        if (payload.format) form.append('format', payload.format)
+        if (payload.excerpt !== undefined) form.append('excerpt', payload.excerpt ?? '')
+        if (payload.body_html !== undefined) form.append('body_html', payload.body_html ?? '')
         if (payload.tag) form.append('tag', payload.tag)
         if (payload.is_event !== undefined) form.append('is_event', payload.is_event ? '1' : '0')
         if (payload.audience) form.append('audience', payload.audience)
@@ -79,6 +94,7 @@ export const announcementApi = {
             form.append('rotation_seconds', String(payload.rotation_seconds))
         }
         if (payload.image) form.append('image', payload.image)
+        ;(payload.gallery_images ?? []).forEach((image) => form.append('gallery_images[]', image))
         form.append('_method', 'PUT')
         return api.post(`/admin/announcements/${id}`, form, {
             headers: { 'Content-Type': 'multipart/form-data' },
@@ -89,6 +105,7 @@ export const announcementApi = {
 
     // Public
     getPublic: () => api.get('/public/announcements'),
+    getPublicOne: (id: string) => api.get(`/public/announcements/${id}`),
 
     // Studio (storyteller)
     getStudio: () => api.get('/studio/announcements'),

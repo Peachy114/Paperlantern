@@ -33,6 +33,7 @@ export function HeaderLockButton({
 }) {
     return (
         <button
+            data-profile-system-control
             type="button"
             className={`absolute z-[1001] rounded bg-background p-1 shadow-md ring-1 ${
                 locked ? 'ring-amber-400' : 'ring-sky-400'
@@ -94,6 +95,7 @@ export function CanvasHandles({
             {!locked && (
                 <span
                     data-canvas-control
+                    data-profile-system-control
                     className="absolute -left-2 -top-2 z-[9999] rounded bg-background p-1 shadow-md ring-1 ring-sky-400"
                     onPointerDown={(event) => onMove(event, item, 'move')}
                     title="Move"
@@ -104,6 +106,7 @@ export function CanvasHandles({
             <button
                 type="button"
                 data-canvas-control
+                data-profile-system-control
                 className={`absolute z-[9999] rounded bg-background p-1 shadow-md ring-1 ${
                     locked ? '-left-2 -top-2 ring-amber-400' : 'left-5 -top-2 ring-border'
                 }`}
@@ -128,6 +131,7 @@ export function CanvasHandles({
             <button
                 type="button"
                 data-canvas-control
+                data-profile-system-control
                 className="absolute -right-2 -top-2 z-[9999] rounded bg-destructive p-1 text-destructive-foreground shadow-md ring-1 ring-background"
                 onPointerDown={(event) => {
                     event.preventDefault()
@@ -146,11 +150,13 @@ export function CanvasHandles({
                 <>
                     <span
                         data-canvas-control
+                        data-profile-system-control
                         className="absolute -right-1 top-1/2 z-[9999] h-10 w-2 -translate-y-1/2 cursor-ew-resize rounded bg-sky-400 shadow-md"
                         onPointerDown={(event) => onResize(event, item, 'resize')}
                     />
                     <span
                         data-canvas-control
+                        data-profile-system-control
                         className="absolute bottom-0 right-0 z-[9999] h-5 w-5 cursor-nwse-resize border-b-4 border-r-4 border-white bg-sky-500 shadow-md"
                         onPointerDown={(event) => onResize(event, item, 'resize')}
                     />

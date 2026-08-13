@@ -290,12 +290,12 @@ function RequestsTable({
                             <td className="px-3 py-2 text-right">
                                 {request.status === 'pending' ? (
                                     <div className="flex justify-end gap-2">
-                                        <Button size="sm" onClick={() => review(request, 'approved')}>
+                                        <Button variant="success" size="sm" onClick={() => review(request, 'approved')}>
                                             Approve
                                         </Button>
                                         <Button
                                             size="sm"
-                                            variant="outline"
+                                            variant="cancel"
                                             onClick={() => review(request, 'rejected')}
                                         >
                                             Reject

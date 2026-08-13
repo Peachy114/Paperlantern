@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Art;
 use App\Models\ArtistSticker;
 use App\Models\CommissionService;
+use App\Models\Chapter;
 use App\Models\FeedPost;
 use App\Models\FeedPostAttachment;
 use App\Models\FeedPostLike;
@@ -13,6 +14,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserFollow;
 use App\Models\Work;
+use App\Models\ShopItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -63,6 +65,12 @@ class FeedController extends Controller
             'attached_work_ids.*' => ['string', 'exists:works,id'],
             'attached_art_ids' => ['nullable', 'array', 'max:3'],
             'attached_art_ids.*' => ['string', 'exists:arts,id'],
+            'attached_chapter_ids' => ['nullable', 'array', 'max:3'],
+            'attached_chapter_ids.*' => ['string', 'exists:chapters,id'],
+            'attached_shop_item_ids' => ['nullable', 'array', 'max:3'],
+            'attached_shop_item_ids.*' => ['string', 'exists:shop_items,id'],
+            'attached_commission_service_ids' => ['nullable', 'array', 'max:3'],
+            'attached_commission_service_ids.*' => ['string', 'exists:commission_services,id'],
             'attached_commission_service_id' => ['nullable', 'string', 'exists:commission_services,id'],
             'sticker_id' => ['nullable', 'string', 'exists:artist_stickers,id'],
             'images' => ['nullable', 'array', 'max:10'],
@@ -80,6 +88,9 @@ class FeedController extends Controller
             && empty($validated['attached_art_id'])
             && empty($validated['attached_work_ids'])
             && empty($validated['attached_art_ids'])
+            && empty($validated['attached_chapter_ids'])
+            && empty($validated['attached_shop_item_ids'])
+            && empty($validated['attached_commission_service_ids'])
             && empty($validated['attached_commission_service_id'])
         ) {
             return response()->json([
@@ -396,6 +407,29 @@ class FeedController extends Controller
                         ];
                     }
 
+                    if ($target instanceof Chapter) {
+                        $target->loadMissing('work:id,user_id,slug,title,cover,type');
+                        $viewer = auth('sanctum')->user();
+                        if ($target->status === 'draft' && (! $viewer || $target->work?->user_id !== $viewer->id)) return null;
+                        return [
+                            'type' => 'chapter', 'id' => $target->id, 'title' => $target->title,
+                            'subtitle' => ($target->status === 'draft' ? 'Draft ' : '') . 'Chapter · ' . ($target->work?->title ?? 'Work'),
+                            'image_path' => $target->cover ?: $target->work?->cover,
+                            'href' => $target->status === 'draft'
+                                ? "/studio/works/{$target->work?->slug}/chapters/{$target->slug}"
+                                : "/works/{$target->work?->slug}/chapters/{$target->slug}",
+                            'is_draft' => $target->status === 'draft',
+                        ];
+                    }
+
+                    if ($target instanceof ShopItem) {
+                        return ['type' => 'shop', 'id' => $target->id, 'title' => $target->title, 'subtitle' => 'Shop item', 'image_path' => $target->image_path, 'href' => '/shop'];
+                    }
+
+                    if ($target instanceof CommissionService) {
+                        return ['type' => 'commission', 'id' => $target->id, 'title' => $target->title, 'subtitle' => 'Commission service', 'image_path' => $target->image_path, 'href' => '/commissions'];
+                    }
+
                     return null;
                 })
                 ->filter()
@@ -427,6 +461,16 @@ class FeedController extends Controller
             Art::where('id', $artId)->where('user_id', $user->id)->firstOrFail();
         }
 
+        foreach ($validated['attached_chapter_ids'] ?? [] as $chapterId) {
+            Chapter::whereKey($chapterId)->whereHas('work', fn($query) => $query->where('user_id', $user->id))->firstOrFail();
+        }
+        foreach ($validated['attached_shop_item_ids'] ?? [] as $itemId) {
+            ShopItem::whereKey($itemId)->where('user_id', $user->id)->firstOrFail();
+        }
+        foreach ($validated['attached_commission_service_ids'] ?? [] as $serviceId) {
+            CommissionService::whereKey($serviceId)->where('user_id', $user->id)->firstOrFail();
+        }
+
         if (! empty($validated['attached_commission_service_id'])) {
             CommissionService::where('id', $validated['attached_commission_service_id'])->where('user_id', $user->id)->firstOrFail();
         }
@@ -447,10 +491,13 @@ class FeedController extends Controller
         $attachedItems = collect([
             ...($validated['attached_work_ids'] ?? []),
             ...($validated['attached_art_ids'] ?? []),
+            ...($validated['attached_chapter_ids'] ?? []),
+            ...($validated['attached_shop_item_ids'] ?? []),
+            ...($validated['attached_commission_service_ids'] ?? []),
             ...array_filter([$validated['attached_work_id'] ?? null, $validated['attached_art_id'] ?? null]),
         ])->unique()->values();
 
-        abort_if($attachedItems->count() > 3, 422, 'Attach up to 3 works or arts per post.');
+        abort_if($attachedItems->count() > 3, 422, 'Attach up to 3 items per post.');
 
         $types = 0;
         $types += $request->hasFile('images') ? 1 : 0;
@@ -476,6 +523,10 @@ class FeedController extends Controller
         foreach ($validated['attached_art_ids'] ?? [] as $artId) {
             $seen["art:{$artId}"] = [Art::class, $artId, $sort++];
         }
+
+        foreach ($validated['attached_chapter_ids'] ?? [] as $id) $seen["chapter:{$id}"] = [Chapter::class, $id, $sort++];
+        foreach ($validated['attached_shop_item_ids'] ?? [] as $id) $seen["shop:{$id}"] = [ShopItem::class, $id, $sort++];
+        foreach ($validated['attached_commission_service_ids'] ?? [] as $id) $seen["commission:{$id}"] = [CommissionService::class, $id, $sort++];
 
         if (! empty($validated['attached_art_id'])) {
             $seen["art:{$validated['attached_art_id']}"] = [Art::class, $validated['attached_art_id'], $sort++];

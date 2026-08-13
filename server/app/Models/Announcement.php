@@ -14,6 +14,9 @@ class Announcement extends Model
         'created_by',
         'title',
         'content',
+        'format',
+        'excerpt',
+        'body_html',
         'tag',
         'is_event',
         'audience',
@@ -21,6 +24,7 @@ class Announcement extends Model
         'placement',
         'is_public',
         'image',
+        'gallery_images',
         'is_pinned',
         'is_featured',
         'rotation_seconds',
@@ -32,6 +36,7 @@ class Announcement extends Model
         'is_featured' => 'boolean',
         'is_public' => 'boolean',
         'page_targets' => 'array',
+        'gallery_images' => 'array',
         'rotation_seconds' => 'integer',
     ];
 

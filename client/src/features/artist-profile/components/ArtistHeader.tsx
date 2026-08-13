@@ -738,7 +738,10 @@ export function ArtistHeader({
                             transform: `translate(${identityPosition.x}px, ${identityPosition.y}px)`,
                         }}
                     >
-                        <h1 className="mt-3 inline-flex items-center justify-center gap-2 text-2xl font-bold">
+                        <h1
+                            data-profile-name
+                            className="mt-3 inline-flex items-center justify-center gap-2 text-2xl font-bold"
+                        >
                             {artist.name}
                             {artist.artist_verified && (
                                 <BadgeCheck
@@ -747,7 +750,9 @@ export function ArtistHeader({
                                 />
                             )}
                         </h1>
-                        <p className="text-sm text-muted-foreground">@{artist.username}</p>
+                        <p data-profile-username className="text-sm">
+                            @{artist.username}
+                        </p>
                         {!isOwner && (
                             <div className="mt-3 flex justify-center">
                                 <Button
@@ -765,7 +770,7 @@ export function ArtistHeader({
                             className="mt-2 grid justify-center gap-1 text-xs text-muted-foreground"
                             style={profileTextStyle}
                         >
-                            <p>
+                            <p data-profile-details>
                                 {(
                                     profile.stats?.followers_count ??
                                     artist.followers_count ??
@@ -773,7 +778,9 @@ export function ArtistHeader({
                                 ).toLocaleString()}{' '}
                                 followers
                             </p>
-                            <p>{(profile.stats?.total_likes ?? 0).toLocaleString()} total likes</p>
+                            <p data-profile-details>
+                                {(profile.stats?.total_likes ?? 0).toLocaleString()} total likes
+                            </p>
                         </div>
                         {!isOwner && (
                             <div className="mt-3 flex justify-center">
@@ -787,9 +794,16 @@ export function ArtistHeader({
                                 </Button>
                             </div>
                         )}
-                        {draft.artistTitle && <p className="mt-1 text-sm">{draft.artistTitle}</p>}
+                        {draft.artistTitle && (
+                            <p data-profile-details className="mt-1 text-sm">
+                                {draft.artistTitle}
+                            </p>
+                        )}
                         {links.length > 0 && (
-                            <div className="mt-3 flex flex-wrap justify-center gap-2">
+                            <div
+                                data-profile-links
+                                className="mt-3 flex flex-wrap justify-center gap-2"
+                            >
                                 {links.map((link) => (
                                     <a
                                         key={link.label}
@@ -805,7 +819,7 @@ export function ArtistHeader({
                             </div>
                         )}
                         {artist.bio && (
-                            <p className="max-w-2xl mx-auto mt-3 text-sm text-muted-foreground">
+                            <p data-profile-details className="max-w-2xl mx-auto mt-3 text-sm">
                                 {artist.bio}
                             </p>
                         )}

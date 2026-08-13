@@ -81,7 +81,7 @@ export function ProfileRangeField({
 // Empty state ----
 export function ProfileEmptyPanel({ icon: Icon, text }: { icon: LucideIcon; text: string }) {
     return (
-        <div className="rounded-lg border py-16 text-center">
+        <div className="bg-transparent py-16 text-center">
             <Icon className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">{text}</p>
         </div>

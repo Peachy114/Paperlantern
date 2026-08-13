@@ -166,7 +166,7 @@ export default function ImageCropDialog({
                         </Button>
                     ) : <span />}
                     <div className="flex gap-2">
-                        <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+                        <Button type="button" variant="cancel" onClick={onClose}>Cancel</Button>
                         <Button type="button" onClick={applyCrop}>Apply crop</Button>
                     </div>
                 </DialogFooter>

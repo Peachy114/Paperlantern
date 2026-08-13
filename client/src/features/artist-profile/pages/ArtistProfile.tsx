@@ -119,7 +119,6 @@ import {
     ProfileTabsNav,
 } from '@/features/artist-profile/components/ProfileLayoutCanvas'
 import {
-    ProfileRangeField as RangeField,
     ProfileSelectField as SelectField,
 } from '@/features/artist-profile/components/ProfileFormPrimitives'
 import {
@@ -132,8 +131,8 @@ import { PROFILE_THEME_CSS } from '@/features/artist-profile/styles/profileTheme
 import { ArtistHeader } from '@/features/artist-profile/components/ArtistHeader'
 import { ProfileGlobalColors } from '@/features/artist-profile/components/ProfileGlobalColors'
 import { ProfileGlobalSizes } from '@/features/artist-profile/components/ProfileGlobalSizes'
+import { ProfileSurfaceSettings } from '@/features/artist-profile/components/ProfileSurfaceSettings'
 import { ProfileBackgroundEditor } from '@/features/artist-profile/components/ProfileBackgroundEditor'
-import { ProfileSectionSizes } from '@/features/artist-profile/components/ProfileSectionSizes'
 import { ProfilePublicLinksEditor } from '@/features/artist-profile/components/ProfilePublicLinksEditor'
 import { ProfileGlobalFont } from '@/features/artist-profile/components/ProfileGlobalFont'
 import { ProfileBorderEditor } from '@/features/artist-profile/components/ProfileBorderEditor'
@@ -652,6 +651,29 @@ export default function ArtistProfile() {
             return
         }
 
+        if (drag.kind === 'resize' && (drag.groupItems?.length ?? 0) > 1) {
+            const anchor = drag.item
+            const nextWidth = clamp(anchor.w + dx, anchor.kind === 'tab' ? 12 : 5, 100 - anchor.x)
+            const nextHeight = clamp(anchor.h + dy, anchor.kind === 'tab' ? 28 : 80, 1400)
+            const widthRatio = nextWidth / Math.max(anchor.w, 1)
+            const heightRatio = nextHeight / Math.max(anchor.h, 1)
+            let nextConfig = themeDraft.tabsConfig
+
+            for (const groupedItem of drag.groupItems ?? []) {
+                nextConfig = patchCanvasItem(nextConfig, {
+                    ...groupedItem,
+                    x: clamp(anchor.x + (groupedItem.x - anchor.x) * widthRatio, 0, 100),
+                    y: Math.max(0, anchor.y + (groupedItem.y - anchor.y) * heightRatio),
+                    w: clamp(groupedItem.w * widthRatio, groupedItem.kind === 'tab' ? 12 : 5, 100),
+                    h: clamp(groupedItem.h * heightRatio, groupedItem.kind === 'tab' ? 28 : 80, 1400),
+                })
+            }
+
+            drag.config = nextConfig
+            patchThemeDraft({ tabsConfig: nextConfig })
+            return
+        }
+
         const item =
             drag.kind === 'move'
                 ? {
@@ -1000,12 +1022,34 @@ export default function ArtistProfile() {
         return value
     }
     const profileTextColor = legacyDefaultColor(globalStyles.text_color, 'text')
-    const profileMutedColor = legacyDefaultColor(globalStyles.muted_text_color, 'muted')
-    const profileAccentColor = legacyDefaultColor(globalStyles.accent_color, 'accent')
+    // Legacy muted/accent values must never recolor component surfaces or decoration.
+    const profileMutedColor = undefined
+    const profileAccentColor = undefined
     const profileHeadingColor = legacyDefaultColor(globalStyles.heading_text_color, 'text')
     const profileLabelColor = legacyDefaultColor(globalStyles.label_text_color, 'text')
     const profileButtonColor = legacyDefaultColor(globalStyles.button_text_color, 'text')
     const profileLinkColor = legacyDefaultColor(globalStyles.link_text_color, 'text')
+    const surfaceBackground = (surface: ExtendedGlobalStyles['cards_surface']) => {
+        if (surface?.enabled === false) return 'transparent'
+        const opacity = Math.max(0, Math.min(100, surface?.opacity ?? 100))
+        const mix = (color: string) => `color-mix(in srgb, ${color} ${opacity}%, transparent)`
+        switch (surface?.preset ?? 'default') {
+            case 'transparent': return 'transparent'
+            case 'white': return mix('#ffffff')
+            case 'surface': return mix('var(--surface)')
+            case 'muted': return mix('var(--surface-muted)')
+            case 'dark': return mix('var(--surface-inverse)')
+            case 'custom': return mix(surface?.custom_color || 'var(--surface)')
+            case 'brand_gradient': return `linear-gradient(135deg, ${mix('var(--blue-soft)')}, ${mix('var(--surface)')} 50%, ${mix('var(--category)')})`
+            case 'brand_gradient_soft': return `linear-gradient(135deg, ${mix('var(--blue-soft)')}, ${mix('var(--surface)')} 70%, ${mix('var(--selected-soft)')})`
+            case 'blue_gradient': return `linear-gradient(135deg, ${mix('var(--blue-soft)')}, ${mix('var(--surface)')} 68%, ${mix('var(--blue)')})`
+            case 'yellow_gradient': return `linear-gradient(135deg, ${mix('var(--category)')}, ${mix('var(--surface)')} 72%, ${mix('var(--selected-soft)')})`
+            default: return undefined
+        }
+    }
+    const surfaceBorder = (surface: ExtendedGlobalStyles['cards_surface']) => surface?.border
+        ? `${surface.border_width ?? 1}px solid color-mix(in srgb, ${surface.border_color || 'var(--border)'} ${surface.border_opacity ?? 100}%, transparent)`
+        : undefined
     const publicProfileStyle = {
         '--profile-font-family': globalStyles.font_family || 'inherit',
         '--profile-text-color': profileTextColor || 'var(--foreground)',
@@ -1027,20 +1071,30 @@ export default function ArtistProfile() {
             globalStyles.dark_button_text_color || globalStyles.dark_text_color || '#e4e4e7',
         '--profile-dark-link-text-color': globalStyles.dark_link_text_color || '#fb923c',
         '--profile-dark-accent-color': globalStyles.dark_accent_color || '#f97316',
+        '--profile-dark-cards-color': globalStyles.dark_cards_color || globalStyles.dark_text_color || '#e4e4e7',
         '--profile-base-font-size': `${globalStyles.base_font_size ?? 14}px`,
         '--profile-widget-font-size': `${globalStyles.widget_font_size ?? 13}px`,
         '--profile-button-font-size': `${globalStyles.button_font_size ?? 14}px`,
         '--profile-heading-font-size': `${globalStyles.base_font_size ?? 14}px`,
-        '--profile-label-font-size': `${globalStyles.widget_font_size ?? 13}px`,
+        '--profile-label-font-size': `${globalStyles.labels_size ?? 13}px`,
         '--profile-link-font-size': `${globalStyles.button_font_size ?? 14}px`,
-        ...(profileTextColor ? { '--foreground': profileTextColor } : {}),
-        ...(profileMutedColor ? { '--muted-foreground': profileMutedColor } : {}),
-        ...(profileAccentColor
-            ? { '--primary': profileAccentColor, '--ring': profileAccentColor }
-            : {}),
-        ...(profileLinkColor || profileAccentColor
-            ? { '--link': profileLinkColor || profileAccentColor }
-            : {}),
+        '--profile-name-color': globalStyles.profile_name_color || profileHeadingColor || 'var(--foreground)',
+        '--profile-details-color': globalStyles.profile_details_color || profileMutedColor || 'var(--muted-foreground)',
+        '--profile-links-color': globalStyles.profile_links_color || profileLinkColor || 'var(--primary)',
+        '--profile-cards-color': globalStyles.cards_color || profileTextColor || 'var(--foreground)',
+        '--profile-name-size': `${globalStyles.profile_name_size ?? 24}px`,
+        '--profile-details-size': `${globalStyles.profile_details_size ?? 14}px`,
+        '--profile-links-size': `${globalStyles.profile_links_size ?? 12}px`,
+        '--profile-cards-size': `${globalStyles.cards_size ?? 14}px`,
+        '--profile-cards-background': surfaceBackground(globalStyles.cards_surface),
+        '--profile-cards-border': surfaceBorder(globalStyles.cards_surface),
+        '--profile-cards-radius': `${globalStyles.cards_surface?.border_radius ?? 8}px`,
+        '--profile-buttons-background': surfaceBackground(globalStyles.buttons_surface),
+        '--profile-buttons-border': surfaceBorder(globalStyles.buttons_surface),
+        '--profile-buttons-radius': `${globalStyles.buttons_surface?.border_radius ?? 6}px`,
+        '--profile-content-background': surfaceBackground(globalStyles.content_surface),
+        '--profile-content-border': surfaceBorder(globalStyles.content_surface),
+        '--profile-content-radius': `${globalStyles.content_surface?.border_radius ?? 8}px`,
         fontFamily: globalStyles.font_family || undefined,
         color: profileTextColor || 'var(--foreground)',
         fontSize: `${globalStyles.base_font_size ?? 14}px`,
@@ -1100,6 +1154,8 @@ export default function ArtistProfile() {
                 <div
                     data-artist-profile-theme
                     data-profile-background-tone={backgroundTone}
+                    data-profile-cards-background={globalStyles.cards_background_enabled === false ? 'off' : 'on'}
+                    data-profile-buttons-background={globalStyles.buttons_background_enabled === false ? 'off' : 'on'}
                     className="min-h-screen min-w-0"
                     style={{
                         ...publicProfileStyle,
@@ -1130,6 +1186,7 @@ export default function ArtistProfile() {
                             {isOwner && (
                                 <div className="mb-4 flex flex-wrap gap-2 sm:justify-end">
                                     <Button
+                                        data-profile-system-control
                                         variant={manageProfileMode ? 'default' : 'outline'}
                                         onClick={() => setManageProfileMode((current) => !current)}
                                     >
@@ -1138,7 +1195,7 @@ export default function ArtistProfile() {
                                     </Button>
                                 </div>
                             )}
-                            <ProfileDashboardWidgets profile={profile} />
+                            <ProfileDashboardWidgets profile={profile} visibility={globalStyles.dashboard_cards_visible} />
                             {useCanvasLayout ? (
                                 <ProfileLayoutCanvas
                                     refEl={canvasRef}
@@ -1382,7 +1439,7 @@ function ManageProfileSidebar({
     activeTab,
     onChange,
     onHeaderChange,
-    onActiveTabChange,
+    onActiveTabChange: _onActiveTabChange,
     onSave,
     onCancel,
     onUploadCover,
@@ -1658,12 +1715,27 @@ function ManageProfileSidebar({
                         Default Settings
                     </Button>
 
-                    <ProfileEditSection title="Global">
+                    <ProfileEditSection title="Text">
                         <ProfileGlobalFont draft={draft} updateTabsConfig={updateTabsConfig} />
 
                         <ProfileGlobalColors draft={draft} updateTabsConfig={updateTabsConfig} />
 
                         <ProfileGlobalSizes draft={draft} updateTabsConfig={updateTabsConfig} />
+
+                        <ProfileEditSection title="Settings" defaultOpen={false}>
+                            <ProfileSurfaceSettings label="Cards" value={extendedGlobalStyles.cards_surface} onChange={(cards_surface) => updateTabsConfig({ global_styles: { ...extendedGlobalStyles, cards_surface } as ProfileTabsConfig['global_styles'] })} />
+                            <ProfileSurfaceSettings label="Buttons" value={extendedGlobalStyles.buttons_surface} onChange={(buttons_surface) => updateTabsConfig({ global_styles: { ...extendedGlobalStyles, buttons_surface } as ProfileTabsConfig['global_styles'] })} />
+                            <ProfileSurfaceSettings label="Content" value={extendedGlobalStyles.content_surface} onChange={(content_surface) => updateTabsConfig({ global_styles: { ...extendedGlobalStyles, content_surface } as ProfileTabsConfig['global_styles'] })} />
+                            <div className="grid gap-2 border-t pt-3">
+                                <p className="text-xs font-medium text-muted-foreground">Statistic card widgets</p>
+                                {(['works', 'arts', 'followers', 'feeds'] as const).map((card) => (
+                                    <label key={card} className="flex items-center justify-between gap-3 text-sm capitalize">
+                                        <span>{card}</span>
+                                        <input type="checkbox" checked={extendedGlobalStyles.dashboard_cards_visible?.[card] !== false} onChange={(event) => updateTabsConfig({ global_styles: { ...extendedGlobalStyles, dashboard_cards_visible: { ...extendedGlobalStyles.dashboard_cards_visible, [card]: event.target.checked } } as ProfileTabsConfig['global_styles'] })} />
+                                    </label>
+                                ))}
+                            </div>
+                        </ProfileEditSection>
                     </ProfileEditSection>
 
                     <ProfileIdentityEditor
@@ -1677,12 +1749,9 @@ function ManageProfileSidebar({
                         onHeaderChange={onHeaderChange}
                         updateTabsConfig={updateTabsConfig}
                         requestProfileCrop={requestProfileCrop}
-                    />
-
-                    <ProfilePublicLinksEditor
-                        draft={draft}
-                        errors={errors}
-                        onChange={onChange}
+                        publicLinks={
+                            <ProfilePublicLinksEditor draft={draft} errors={errors} onChange={onChange} />
+                        }
                     />
 
                     <ProfileBorderEditor
@@ -1702,6 +1771,7 @@ function ManageProfileSidebar({
                     />
 
                     <ProfileEditSection title="Tabs">
+                        <ProfileEditSection title="Shows">
                         <div className="grid grid-cols-2 gap-2">
                             {profileTabOrder.map((tab) => (
                                 <label key={tab} className="flex items-center gap-2 text-sm">
@@ -1716,6 +1786,8 @@ function ManageProfileSidebar({
                                 </label>
                             ))}
                         </div>
+                        </ProfileEditSection>
+                        <ProfileEditSection title="Tabs Settings">
                         {draft.navLayout === 'together' && (
                             <div className="grid gap-2 rounded-lg border p-3">
                                 <p className="text-xs font-medium">Together tab order</p>
@@ -1753,26 +1825,6 @@ function ManageProfileSidebar({
                                     ))}
                             </div>
                         )}
-                        <div className="grid gap-2">
-                            <p className="text-xs font-medium text-muted-foreground">Preview</p>
-                            <div className="flex flex-wrap gap-1.5">
-                                {profileTabOrder.map((tab) => {
-                                    const enabled = draft.tabsConfig.visibility[tab]
-                                    return (
-                                        <Button
-                                            key={`preview-${tab}`}
-                                            type="button"
-                                            variant={activeTab === tab ? 'default' : 'outline'}
-                                            size="sm"
-                                            disabled={!enabled}
-                                            onClick={() => onActiveTabChange(tab)}
-                                        >
-                                            {PROFILE_TAB_LABELS[tab].replace('My ', '')}
-                                        </Button>
-                                    )
-                                })}
-                            </div>
-                        </div>
                         <SelectField
                             label="Tabs"
                             value={draft.navLayout}
@@ -1783,27 +1835,13 @@ function ManageProfileSidebar({
                                 })
                             }
                         />
-                        <RangeField
-                            label="Tab width"
-                            value={draft.navW}
-                            min={30}
-                            max={100}
-                            suffix="%"
-                            onChange={(navW) => onChange({ navW })}
-                        />
-                        <RangeField
-                            label="Tab height"
-                            value={draft.navH}
-                            min={28}
-                            max={96}
-                            suffix="px"
-                            onChange={(navH) => onChange({ navH })}
-                        />
                         <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                             Together keeps tab buttons grouped. Separate lets individual tab buttons
                             move on the canvas. Content widgets are added to the active preview
                             page.
                         </p>
+                        </ProfileEditSection>
+                        <ProfileEditSection title="Layers Content">
                         <div className="grid gap-3 rounded-lg border p-3">
                             {(canvasButtons.length > 0 || canvasSections.length > 0) && (
                                 <div className="grid gap-3 rounded-lg border bg-muted/10 p-3">
@@ -1852,6 +1890,13 @@ function ManageProfileSidebar({
                                         </div>
                                     )}
 
+                                    {draft.navLayout === 'together' && (
+                                        <div className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-xs">
+                                            <Move className="h-3.5 w-3.5 text-muted-foreground" />
+                                            <span>Together Tabs · one grouped layer</span>
+                                        </div>
+                                    )}
+
                                     {[
                                         {
                                             label: 'Content layers',
@@ -1861,7 +1906,10 @@ function ManageProfileSidebar({
                                         {
                                             label: 'Button layers',
                                             kind: 'tab' as const,
-                                            items: [...canvasButtons].reverse(),
+                                            items:
+                                                draft.navLayout === 'separate'
+                                                    ? [...canvasButtons].reverse()
+                                                    : [],
                                         },
                                     ].map(({ label, kind, items }) =>
                                         items.length > 0 ? (
@@ -2118,18 +2166,6 @@ function ManageProfileSidebar({
                                                             )}
                                                             {item.type === 'stickers' && (
                                                                 <>
-                                                                    <RangeField
-                                                                        label="Sticker size"
-                                                                        value={draft.stickerSize}
-                                                                        min={72}
-                                                                        max={180}
-                                                                        suffix="px"
-                                                                        onChange={(stickerSize) =>
-                                                                            onChange({
-                                                                                stickerSize,
-                                                                            })
-                                                                        }
-                                                                    />
                                                                     <ProfileSortFilterControls
                                                                         item={item}
                                                                         options={getProfileFilterOptions(
@@ -2190,10 +2226,8 @@ function ManageProfileSidebar({
                                     </div>
                                 </div>
                             )}
-                            <div>
-                                <p className="mb-2 text-xs font-medium text-muted-foreground">
-                                    Add tab button
-                                </p>
+                            <details className="group rounded-lg border bg-background/70 p-3">
+                                <summary className="cursor-pointer list-none text-xs font-semibold">Add Button <span className="float-right group-open:hidden">+</span><span className="float-right hidden group-open:inline">−</span></summary>
                                 <div className="flex flex-wrap gap-1.5">
                                     {PROFILE_TAB_IDS.map((tab) => (
                                         <Button
@@ -2215,11 +2249,9 @@ function ManageProfileSidebar({
                                         </Button>
                                     ))}
                                 </div>
-                            </div>
-                            <div>
-                                <p className="mb-2 text-xs font-medium text-muted-foreground">
-                                    Add content
-                                </p>
+                            </details>
+                            <details className="group rounded-lg border bg-background/70 p-3">
+                                <summary className="cursor-pointer list-none text-xs font-semibold">Add Content Button <span className="float-right group-open:hidden">+</span><span className="float-right hidden group-open:inline">−</span></summary>
                                 <div className="flex flex-wrap gap-1.5">
                                     {PROFILE_TAB_IDS.map((tab) => (
                                         <Button
@@ -2245,11 +2277,11 @@ function ManageProfileSidebar({
                                         </Button>
                                     ))}
                                 </div>
-                            </div>
+                            </details>
                         </div>
+                        </ProfileEditSection>
                     </ProfileEditSection>
 
-                    <ProfileSectionSizes draft={draft} onChange={onChange} />
                 </div>
             </aside>
             <ProfileImageCropDialog

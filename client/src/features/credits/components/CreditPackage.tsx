@@ -84,7 +84,7 @@ function PackageRow({ pkg, index, total, purchasing, onPurchase }: PackageRowPro
             {/* Credits + tier */}
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
+                    <span className="font-display text-sm font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
                         {pkg.credits.toLocaleString()} credits
                     </span>
                     <Badge
@@ -106,7 +106,7 @@ function PackageRow({ pkg, index, total, purchasing, onPurchase }: PackageRowPro
             </div>
 
             {/* Price */}
-            <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums shrink-0">
+            <div className="font-display text-sm font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums shrink-0">
                 ₱{Number(pkg.price).toFixed(2)}
             </div>
 

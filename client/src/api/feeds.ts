@@ -26,12 +26,13 @@ export type FeedPost = {
 }
 
 export type FeedAttachment = {
-        type: 'work' | 'art' | 'commission'
+        type: 'work' | 'chapter' | 'art' | 'shop' | 'commission'
         id: string
         title: string
         subtitle: string
         image_path: string | null
         href: string
+        is_draft?: boolean
 }
 
 export const feedsApi = {

@@ -10,8 +10,13 @@ import { CanvasHandles, CenterGuide, profileTabButtonClass } from '@/features/ar
 import { ProfilePageHeading, ProfileWidgetEditControls } from '@/features/artist-profile/components/ProfileCanvasControls'
 import { ProfileFeeds } from '@/features/artist-profile/components/ProfileFeeds'
 import { ProfileBoard } from '@/features/artist-profile/components/ProfileBoard'
-import { ArtsMasonry, ProfileComments, ProfileStickers, WorksGrid } from '@/features/artist-profile/components/ProfilePublicContent'
+import { ArtsMasonry, ProfileComments, ProfileShopCards, ProfileStickers, WorksGrid } from '@/features/artist-profile/components/ProfilePublicContent'
 import { TabsList, TabsTrigger } from '@/components/ui/tabs'
+
+function pageSizeForItem(item: ProfileCanvasItem, multipleWidgets: boolean) {
+    if (multipleWidgets) return getWidgetImageLimit(item)
+    return item.limit && item.limit > 0 ? item.limit : Number.POSITIVE_INFINITY
+}
 
 // Profile layout canvas ----
 export function ProfileTabsNav({
@@ -194,8 +199,38 @@ export function ProfileLayoutCanvas({
     const sections = getCanvasItems(theme.tabsConfig, visibleTabs, 'section').filter(
         (item) => getCanvasItemPage(item) === activeTab
     )
-    const sectionHeight = (item: ProfileCanvasItem) =>
-        getCanvasItemRenderHeight(item, boardHeight, Boolean(boardEditorPanel))
+    const hasMultipleContentWidgets = sections.filter((item) => item.type !== 'board').length > 1
+    const imageWidgetTypes: ProfileTabId[] = ['arts', 'works', 'stickers', 'shop']
+    const itemTotal = (item: ProfileCanvasItem) => {
+        if (item.type === 'board') return boardBlocks.length
+        if (item.type === 'arts') return filterSortArts(profile.arts, item).length
+        if (item.type === 'works') return filterSortWorks(profile.works, item).length
+        if (item.type === 'stickers') return filterSortStickers(profile.stickers, item).length
+        if (item.type === 'shop') return (profile.shop ?? []).length
+        if (item.type === 'feeds') return (profile.feeds ?? []).length
+        return (profile.comments ?? []).length
+    }
+    const sectionHeight = (item: ProfileCanvasItem) => {
+        const savedHeight = getCanvasItemRenderHeight(item, boardHeight, Boolean(boardEditorPanel))
+        if (!imageWidgetTypes.includes(item.type)) return savedHeight
+        const totalItems = item.type === 'arts'
+            ? filterSortArts(profile.arts, item).length
+            : item.type === 'works'
+                ? filterSortWorks(profile.works, item).length
+                : item.type === 'shop'
+                    ? (profile.shop ?? []).length
+                    : filterSortStickers(profile.stickers, item).length
+        const pageSize = pageSizeForItem(item, hasMultipleContentWidgets)
+        const visibleItems = Number.isFinite(pageSize) ? Math.min(totalItems, pageSize) : totalItems
+        const columns = Math.max(1, Math.round(item.w / 18))
+        const rows = Math.max(1, Math.ceil(visibleItems / columns))
+        const rowHeight = item.type === 'stickers' || item.type === 'shop'
+            ? theme.stickerSize + 52
+            : item.type === 'arts'
+                ? Math.max(260, theme.artsTileWidth * 1.25)
+                : 360
+        return Math.max(savedHeight, rows * rowHeight + 112)
+    }
     const canvasHeight = Math.max(
         getCanvasHeight(
             [...(theme.navLayout === 'separate' ? buttons : []), ...sections],
@@ -205,9 +240,14 @@ export function ProfileLayoutCanvas({
     )
 
     const renderSection = (item: ProfileCanvasItem) => {
-        const pageSize = getWidgetImageLimit(item)
+        const automaticTwoRowLimit = getWidgetImageLimit(item)
+        const pageSize = hasMultipleContentWidgets
+            ? automaticTwoRowLimit
+            : item.limit && item.limit > 0
+                ? item.limit
+                : Number.POSITIVE_INFINITY
         const page = widgetPages[item.id] ?? 0
-        const paginate = <T,>(items: T[]) => item.pagination === false
+        const paginate = <T,>(items: T[]) => (!hasMultipleContentWidgets && item.pagination === false) || !Number.isFinite(pageSize)
             ? items
             : items.slice(page * pageSize, page * pageSize + pageSize)
         if (item.type === 'board') {
@@ -255,6 +295,10 @@ export function ProfileLayoutCanvas({
 
         if (item.type === 'feeds') {
             return <ProfileFeeds feeds={paginate(profile.feeds ?? [])} display={item.display} />
+        }
+
+        if (item.type === 'shop') {
+            return <ProfileShopCards items={paginate(profile.shop ?? [])} />
         }
 
         return (
@@ -361,7 +405,8 @@ export function ProfileLayoutCanvas({
                                   left: `${item.x}%`,
                                   top: item.y,
                                   width: `${item.w}%`,
-                                  height: sectionHeight(item),
+                                  height: 'auto',
+                                  minHeight: sectionHeight(item),
                                   zIndex: editMode ? 40 : undefined,
                               }
                     }
@@ -388,25 +433,28 @@ export function ProfileLayoutCanvas({
                     />
                     <div
                         data-profile-content
-                        className={`min-h-0 flex-1 ${
-                            'overflow-visible'
-                        } ${editMode ? 'pointer-events-none select-none' : ''}`}
+                        data-profile-empty={itemTotal(item) === 0 ? 'true' : undefined}
+                        className={`min-h-0 flex-1 overflow-visible p-4 ${
+                            editMode ? 'pointer-events-none select-none' : ''
+                        }`}
                         style={{
                             minHeight: item.type === 'board' ? 'calc(100% - 56px)' : undefined,
                         }}
                     >
                         {renderSection(item)}
                     </div>
-                    {item.pagination !== false && (() => {
+                    {(hasMultipleContentWidgets || item.pagination !== false) && Number.isFinite(pageSizeForItem(item, hasMultipleContentWidgets)) && (() => {
                         const totals: Record<ProfileTabId, number> = {
                             board: 0,
                             arts: filterSortArts(profile.arts, item).length,
                             works: filterSortWorks(profile.works, item).length,
                             stickers: filterSortStickers(profile.stickers, item).length,
+                            shop: (profile.shop ?? []).length,
                             comments: (profile.comments ?? []).length,
                             feeds: (profile.feeds ?? []).length,
                         }
-                        const pageCount = Math.ceil(totals[item.type] / getWidgetImageLimit(item))
+                        const effectivePageSize = pageSizeForItem(item, hasMultipleContentWidgets)
+                        const pageCount = Math.ceil(totals[item.type] / effectivePageSize)
                         if (pageCount <= 1) return null
                         const page = Math.min(widgetPages[item.id] ?? 0, pageCount - 1)
                         return (
@@ -429,9 +477,9 @@ export function ProfileLayoutCanvas({
                 </section>
             ))}
             {sections.length === 0 && (
-                <div className="absolute inset-x-4 top-28 rounded-lg border border-dashed bg-background/80 py-16 text-center">
-                    <Layers className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
+                <div data-profile-empty-state className="absolute inset-x-4 top-28 bg-transparent py-16 text-center">
+                    <Layers className="mx-auto mb-3 h-6 w-6" />
+                    <p className="text-sm">
                         No content widgets on {PROFILE_TAB_LABELS[activeTab]}.
                     </p>
                 </div>

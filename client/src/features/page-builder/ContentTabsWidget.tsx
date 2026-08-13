@@ -55,7 +55,7 @@ export default function ContentTabsWidget({ widget }: { widget: PageWidget }) {
     if (tabs.length === 0) return null
 
     return (
-        <section className="mx-auto w-full max-w-[1480px] px-5 py-4">
+        <section className="mx-auto w-full max-w-[1480px] px-5">
             <nav className="flex flex-wrap gap-2" aria-label={widget.title || 'Content tabs'}>
                 {tabs.map((tab) => (
                     <Link

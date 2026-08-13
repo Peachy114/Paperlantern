@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->appendToGroup('api', \App\Http\Middleware\BannedMiddleware::class);
+        $middleware->appendToGroup('api', \App\Http\Middleware\NoIndexApiResponses::class);
 
         $middleware->validateCsrfTokens(except: [
             'api/webhooks/paymongo',

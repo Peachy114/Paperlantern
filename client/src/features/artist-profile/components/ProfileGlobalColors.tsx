@@ -21,7 +21,7 @@ export function ProfileGlobalColors({
     const [globalColorTheme, setGlobalColorTheme] = useState<'light' | 'dark'>('light')
 
     return (
-        <ProfileEditSection title="Global Colors">
+        <ProfileEditSection title="Colors">
                             <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
                                 <Button
                                     type="button"
@@ -42,8 +42,9 @@ export function ProfileGlobalColors({
                             </div>
                             {globalColorTheme === 'light' ? (
                                 <>
+                                    <p className="text-xs font-medium text-muted-foreground">Global</p>
                                     <ColorField
-                                        label="Text"
+                                        label="Global"
                                         value={
                                             draft.tabsConfig.global_styles?.text_color ?? '#111827'
                                         }
@@ -59,123 +60,91 @@ export function ProfileGlobalColors({
                                         }
                                     />
                                     <ColorField
-                                        label="Muted text"
-                                        value={
-                                            draft.tabsConfig.global_styles?.muted_text_color ??
-                                            '#6b7280'
-                                        }
-                                        fallback="#6b7280"
-                                        onChange={(muted_text_color) =>
-                                            updateTabsConfig({
-                                                global_styles: {
-                                                    ...(draft.tabsConfig.global_styles ??
-                                                        defaultProfileTabsConfig().global_styles!),
-                                                    muted_text_color,
-                                                },
-                                            })
-                                        }
-                                    />
-                                    <ColorField
-                                        label="Accent"
-                                        value={
-                                            draft.tabsConfig.global_styles?.accent_color ??
-                                            '#111827'
-                                        }
-                                        fallback="#111827"
-                                        onChange={(accent_color) =>
-                                            updateTabsConfig({
-                                                global_styles: {
-                                                    ...(draft.tabsConfig.global_styles ??
-                                                        defaultProfileTabsConfig().global_styles!),
-                                                    accent_color,
-                                                },
-                                            })
-                                        }
-                                    />
-                                    <ColorField
-                                        label="Headings"
+                                        label="Profile Name"
                                         value={
                                             getExtendedGlobalStyles(draft.tabsConfig)
-                                                .heading_text_color ??
+                                                .profile_name_color ??
                                             draft.tabsConfig.global_styles?.text_color ??
                                             '#111827'
                                         }
                                         fallback="#111827"
-                                        onChange={(heading_text_color) =>
+                                        onChange={(profile_name_color) =>
                                             updateTabsConfig({
                                                 global_styles: {
                                                     ...getExtendedGlobalStyles(draft.tabsConfig),
-                                                    heading_text_color,
+                                                    profile_name_color,
                                                 } as ProfileTabsConfig['global_styles'],
                                             })
                                         }
                                     />
                                     <ColorField
-                                        label="Labels"
+                                        label="Profile Details"
                                         value={
                                             getExtendedGlobalStyles(draft.tabsConfig)
-                                                .label_text_color ??
+                                                .profile_details_color ??
                                             draft.tabsConfig.global_styles?.text_color ??
                                             '#111827'
                                         }
                                         fallback="#111827"
-                                        onChange={(label_text_color) =>
+                                        onChange={(profile_details_color) =>
                                             updateTabsConfig({
                                                 global_styles: {
                                                     ...getExtendedGlobalStyles(draft.tabsConfig),
-                                                    label_text_color,
+                                                    profile_details_color,
                                                 } as ProfileTabsConfig['global_styles'],
                                             })
                                         }
                                     />
                                     <ColorField
-                                        label="Button text"
+                                        label="Profile Links"
                                         value={
                                             getExtendedGlobalStyles(draft.tabsConfig)
-                                                .button_text_color ??
+                                                .profile_links_color ??
                                             draft.tabsConfig.global_styles?.text_color ??
                                             '#111827'
                                         }
                                         fallback="#111827"
-                                        onChange={(button_text_color) =>
+                                        onChange={(profile_links_color) =>
                                             updateTabsConfig({
                                                 global_styles: {
                                                     ...getExtendedGlobalStyles(draft.tabsConfig),
-                                                    button_text_color,
+                                                    profile_links_color,
                                                 } as ProfileTabsConfig['global_styles'],
                                             })
                                         }
                                     />
                                     <ColorField
-                                        label="Links"
+                                        label="Cards"
                                         value={
                                             getExtendedGlobalStyles(draft.tabsConfig)
-                                                .link_text_color ??
-                                            draft.tabsConfig.global_styles?.accent_color ??
+                                                .cards_color ??
+                                            draft.tabsConfig.global_styles?.text_color ??
                                             '#111827'
                                         }
                                         fallback="#111827"
-                                        onChange={(link_text_color) =>
+                                        onChange={(cards_color) =>
                                             updateTabsConfig({
                                                 global_styles: {
                                                     ...getExtendedGlobalStyles(draft.tabsConfig),
-                                                    link_text_color,
+                                                    cards_color,
                                                 } as ProfileTabsConfig['global_styles'],
                                             })
                                         }
                                     />
+                                    <ColorField label="Button" value={getExtendedGlobalStyles(draft.tabsConfig).button_text_color ?? '#111827'} fallback="#111827" onChange={(button_text_color) => updateTabsConfig({ global_styles: { ...getExtendedGlobalStyles(draft.tabsConfig), button_text_color } as ProfileTabsConfig['global_styles'] })} />
+                                    <ColorField label="Labels" value={getExtendedGlobalStyles(draft.tabsConfig).label_text_color ?? '#111827'} fallback="#111827" onChange={(label_text_color) => updateTabsConfig({ global_styles: { ...getExtendedGlobalStyles(draft.tabsConfig), label_text_color } as ProfileTabsConfig['global_styles'] })} />
                                 </>
                             ) : (
                                 <>
                                     {(
                                         [
-                                            ['Text', 'dark_text_color', '#e4e4e7'],
-                                            ['Muted text', 'dark_muted_text_color', '#a1a1aa'],
-                                            ['Accent', 'dark_accent_color', '#f97316'],
-                                            ['Headings', 'dark_heading_text_color', '#f4f4f5'],
+                                            ['Global', 'dark_text_color', '#e4e4e7'],
+                                            ['Profile Name', 'profile_name_color', '#f4f4f5'],
+                                            ['Profile Details', 'profile_details_color', '#a1a1aa'],
+                                            ['Profile Links', 'profile_links_color', '#fb923c'],
+                                            ['Cards', 'dark_cards_color', '#e4e4e7'],
+                                            ['Button', 'dark_button_text_color', '#e4e4e7'],
                                             ['Labels', 'dark_label_text_color', '#e4e4e7'],
-                                            ['Button text', 'dark_button_text_color', '#e4e4e7'],
-                                            ['Links', 'dark_link_text_color', '#fb923c'],
                                         ] as const
                                     ).map(([label, key, fallback]) => (
                                         <ColorField
@@ -204,4 +173,3 @@ export function ProfileGlobalColors({
         </ProfileEditSection>
     )
 }
-

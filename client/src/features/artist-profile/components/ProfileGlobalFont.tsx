@@ -14,7 +14,7 @@ export function ProfileGlobalFont({
     updateTabsConfig: (patch: Partial<ProfileTabsConfig>) => void
 }) {
     return (
-        <ProfileEditSection title="Global Fonts">
+        <ProfileEditSection title="Global font family">
             <div className="grid gap-1.5">
                 <Label htmlFor="profile-global-font">Font family</Label>
                 <Input

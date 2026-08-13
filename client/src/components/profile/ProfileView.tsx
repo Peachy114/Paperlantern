@@ -337,8 +337,8 @@ function ProfileIdentity({
                 <div
                     className={
                         mobile
-                            ? 'truncate text-sm font-semibold'
-                            : 'truncate text-base font-semibold text-foreground'
+                            ? 'font-display truncate text-sm font-semibold'
+                            : 'font-display truncate text-base font-semibold text-foreground'
                     }
                 >
                     {displayName}

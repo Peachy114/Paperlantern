@@ -377,6 +377,7 @@ export default function NavbarView({
     const { wallet } = useWallet()
 
     const navLinks = [
+        { label: 'HOME', to: '/', active: location.pathname === '/' },
         { label: 'DAILY', to: '/daily', active: isDailyActive },
         { label: 'COMIX', to: '/comix', active: isComicsActive },
         { label: 'NOVELS', to: '/novels', active: isNovelsActive },

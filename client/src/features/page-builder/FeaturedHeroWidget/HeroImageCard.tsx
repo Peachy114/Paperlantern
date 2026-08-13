@@ -32,7 +32,7 @@ export function HeroImageCard({
                 src={item.image!}
                 alt={item.title}
                 draggable={false}
-                className="relative z-[1] h-full w-full object-contain"
+                className="relative z-10 h-full w-full object-contain"
             />
             <MetaOverlay item={item} widget={widget} />
         </HeroActionCard>

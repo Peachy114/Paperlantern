@@ -9,6 +9,7 @@ use App\Models\ArtistSticker;
 use App\Models\Comment;
 use App\Models\NobleRoyaltyGift;
 use App\Models\ProfileBorder;
+use App\Models\ShopItem;
 use App\Models\SuperLike;
 use App\Models\User;
 use App\Models\UserFollow;
@@ -74,6 +75,10 @@ class ArtistProfileService
                 ->latest()
                 ->get(['id', 'slug', 'title', 'description', 'type', 'genres', 'language', 'cover', 'status', 'views', 'likes', 'created_at'])
                 ->map(fn(Work $work) => $this->contentSuspensions->maskWork($work)),
+            'shop' => ShopItem::where('user_id', $artist->id)
+                ->where('status', 'published')
+                ->latest()
+                ->get(['id', 'slug', 'title', 'description', 'type', 'labels', 'image_path', 'download_policy', 'credit_cost', 'downloads_count', 'likes_count', 'created_at']),
             'comments' => Comment::where('user_id', $artist->id)
                 ->where('status', 'visible')
                 ->where('public_highlight', true)
@@ -623,13 +628,14 @@ class ArtistProfileService
                 'works' => (bool) ($visibility['works'] ?? true),
                 'stickers' => (bool) ($visibility['stickers'] ?? true),
                 'comments' => (bool) ($visibility['comments'] ?? true),
+                'shop' => (bool) ($visibility['shop'] ?? true),
                 'feeds' => (bool) ($visibility['feeds'] ?? true),
             ],
             'section_mode' => $sectionMode,
             'positions' => $positions,
             'tab_order' => array_values(array_unique(array_merge(
-                array_values(array_filter($value['tab_order'] ?? [], fn ($tab) => in_array($tab, ['board', 'arts', 'works', 'stickers', 'comments', 'feeds'], true))),
-                ['board', 'arts', 'works', 'stickers', 'comments', 'feeds']
+                array_values(array_filter($value['tab_order'] ?? [], fn ($tab) => in_array($tab, ['board', 'arts', 'works', 'stickers', 'comments', 'shop', 'feeds'], true))),
+                ['board', 'arts', 'works', 'stickers', 'comments', 'shop', 'feeds']
             ))),
             'buttons' => $this->normalizeCanvasItems($value['buttons'] ?? null, $defaults['buttons'], 'tab'),
             'sections' => $this->normalizeCanvasItems($value['sections'] ?? null, $defaults['sections'], 'section'),
@@ -682,6 +688,27 @@ class ArtistProfileService
                 'base_font_size' => $this->clampNumber($value['global_styles']['base_font_size'] ?? 14, 10, 28),
                 'widget_font_size' => $this->clampNumber($value['global_styles']['widget_font_size'] ?? 13, 10, 28),
                 'button_font_size' => $this->clampNumber($value['global_styles']['button_font_size'] ?? 14, 10, 24),
+                'heading_text_color' => $this->normalizeColor($value['global_styles']['heading_text_color'] ?? '#111827', '#111827'),
+                'label_text_color' => $this->normalizeColor($value['global_styles']['label_text_color'] ?? '#111827', '#111827'),
+                'button_text_color' => $this->normalizeColor($value['global_styles']['button_text_color'] ?? '#111827', '#111827'),
+                'link_text_color' => $this->normalizeColor($value['global_styles']['link_text_color'] ?? '#111827', '#111827'),
+                'profile_name_color' => $this->normalizeColor($value['global_styles']['profile_name_color'] ?? '#111827', '#111827'),
+                'profile_details_color' => $this->normalizeColor($value['global_styles']['profile_details_color'] ?? '#111827', '#111827'),
+                'profile_links_color' => $this->normalizeColor($value['global_styles']['profile_links_color'] ?? '#111827', '#111827'),
+                'cards_color' => $this->normalizeColor($value['global_styles']['cards_color'] ?? '#111827', '#111827'),
+                'dark_cards_color' => $this->normalizeColor($value['global_styles']['dark_cards_color'] ?? '#e4e4e7', '#e4e4e7'),
+                'labels_color' => $this->normalizeColor($value['global_styles']['labels_color'] ?? '#111827', '#111827'),
+                'profile_name_size' => $this->clampNumber($value['global_styles']['profile_name_size'] ?? 24, 10, 64),
+                'profile_details_size' => $this->clampNumber($value['global_styles']['profile_details_size'] ?? 14, 10, 32),
+                'profile_links_size' => $this->clampNumber($value['global_styles']['profile_links_size'] ?? 14, 10, 32),
+                'cards_size' => $this->clampNumber($value['global_styles']['cards_size'] ?? 13, 10, 32),
+                'labels_size' => $this->clampNumber($value['global_styles']['labels_size'] ?? 13, 10, 32),
+                'dashboard_cards_visible' => $this->normalizeDashboardCardVisibility($value['global_styles']['dashboard_cards_visible'] ?? null),
+                'cards_background_enabled' => (bool) ($value['global_styles']['cards_background_enabled'] ?? true),
+                'buttons_background_enabled' => (bool) ($value['global_styles']['buttons_background_enabled'] ?? true),
+                'cards_surface' => $this->normalizeProfileSurface($value['global_styles']['cards_surface'] ?? null),
+                'buttons_surface' => $this->normalizeProfileSurface($value['global_styles']['buttons_surface'] ?? null),
+                'content_surface' => $this->normalizeProfileSurface($value['global_styles']['content_surface'] ?? null),
                 'background_color_opacity' => $this->clampNumber($value['global_styles']['background_color_opacity'] ?? 100, 0, 100),
                 'header_background_enabled' => (bool) ($value['global_styles']['header_background_enabled'] ?? false),
                 'header_background_color' => $this->normalizeColor($value['global_styles']['header_background_color'] ?? '#ffffff', '#ffffff'),
@@ -720,16 +747,18 @@ class ArtistProfileService
                 'works' => true,
                 'stickers' => true,
                 'comments' => false,
+                'shop' => true,
                 'feeds' => true,
             ],
             'section_mode' => 'separate_pages',
-            'tab_order' => ['board', 'arts', 'works', 'stickers', 'comments', 'feeds'],
+            'tab_order' => ['board', 'arts', 'works', 'stickers', 'comments', 'shop', 'feeds'],
             'positions' => [
                 'board' => ['x' => 0, 'y' => 0, 'w' => 22, 'h' => 36],
                 'arts' => ['x' => 0, 'y' => 0, 'w' => 28, 'h' => 36],
                 'works' => ['x' => 30, 'y' => 0, 'w' => 28, 'h' => 36],
                 'stickers' => ['x' => 60, 'y' => 0, 'w' => 32, 'h' => 36],
                 'comments' => ['x' => 30, 'y' => 52, 'w' => 30, 'h' => 36],
+                'shop' => ['x' => 46, 'y' => 52, 'w' => 30, 'h' => 36],
                 'feeds' => ['x' => 62, 'y' => 52, 'w' => 28, 'h' => 36],
             ],
             'buttons' => [
@@ -789,7 +818,7 @@ class ArtistProfileService
 
     private function normalizeCanvasItems(mixed $items, array $defaults, string $kind): array
     {
-        $allowedTypes = ['board', 'arts', 'works', 'stickers', 'comments', 'feeds'];
+        $allowedTypes = ['board', 'arts', 'works', 'stickers', 'comments', 'shop', 'feeds'];
         $allowedDisplays = [
             'grid',
             'standard',
@@ -831,6 +860,7 @@ class ArtistProfileService
                 'pagination' => array_key_exists('pagination', $item)
                     ? (bool) $item['pagination']
                     : true,
+                'limit' => max(0, min(100, (int) ($item['limit'] ?? 0))),
                 'locked' => (bool) ($item['locked'] ?? false),
                 'sort' => $this->normalizeCanvasSort(
                     (string) ($item['type'] ?? 'board'),
@@ -979,6 +1009,34 @@ class ArtistProfileService
     private function clampNumber(mixed $value, float $min, float $max): float
     {
         return min(max((float) $value, $min), $max);
+    }
+
+    private function normalizeDashboardCardVisibility(mixed $value): array
+    {
+        $value = is_array($value) ? $value : [];
+
+        return collect(['works', 'arts', 'followers', 'feeds'])
+            ->mapWithKeys(fn(string $key) => [$key => (bool) ($value[$key] ?? true)])
+            ->all();
+    }
+
+    private function normalizeProfileSurface(mixed $value): array
+    {
+        $value = is_array($value) ? $value : [];
+        $presets = ['default', 'transparent', 'white', 'surface', 'muted', 'brand_gradient', 'brand_gradient_soft', 'blue_gradient', 'yellow_gradient', 'dark', 'custom'];
+        $preset = in_array($value['preset'] ?? null, $presets, true) ? $value['preset'] : 'default';
+
+        return [
+            'enabled' => (bool) ($value['enabled'] ?? true),
+            'preset' => $preset,
+            'custom_color' => $this->normalizeColor($value['custom_color'] ?? '#ffffff', '#ffffff'),
+            'opacity' => $this->clampNumber($value['opacity'] ?? 100, 0, 100),
+            'border' => (bool) ($value['border'] ?? false),
+            'border_color' => $this->normalizeColor($value['border_color'] ?? '#d9d9df', '#d9d9df'),
+            'border_opacity' => $this->clampNumber($value['border_opacity'] ?? 100, 0, 100),
+            'border_width' => $this->clampNumber($value['border_width'] ?? 1, 0, 12),
+            'border_radius' => $this->clampNumber($value['border_radius'] ?? 8, 0, 80),
+        ];
     }
 
     private function normalizeColor(mixed $value, string $fallback): string

@@ -47,7 +47,7 @@ function ViolateForm({
                 </button>
                 <button
                     onClick={onCancel}
-                    className="border-[2px] border-[#1a1a1a]/20 text-[#1a1a1a]/40 px-3 py-1 text-[10px] cursor-pointer hover:border-[#1a1a1a] hover:text-[#1a1a1a] transition-colors"
+                    className="action-negative rounded-md border px-3 py-1 text-[10px] cursor-pointer transition-colors"
                     style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.1em' }}
                 >
                     CANCEL
@@ -148,7 +148,7 @@ function ActionButtons({
             <button
                 onClick={onApprove}
                 disabled={approving}
-                className="border-[2px] border-green-400 text-green-700 hover:bg-green-50 transition-colors px-2 py-1 text-[10px] disabled:opacity-50 cursor-pointer"
+                className="action-positive rounded-md border px-2 py-1 text-[10px] disabled:opacity-50 cursor-pointer transition-colors"
                 style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.1em' }}
             >
                 ✓ APPROVE

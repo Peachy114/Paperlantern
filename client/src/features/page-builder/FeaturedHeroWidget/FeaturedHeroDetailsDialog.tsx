@@ -23,31 +23,31 @@ export function FeaturedHeroDetailsDialog({
 
     return (
         <Dialog open={Boolean(item)} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="w-[min(96vw,1050px)] max-w-none overflow-hidden p-0 sm:max-w-[1050px]">
+            <DialogContent className="w-[calc(100vw-2rem)] max-w-[1050px] gap-0 overflow-hidden p-0 sm:w-[calc(100vw-3rem)] sm:max-w-[1050px]">
                 {item && (
-                    <div className="grid max-h-[90vh] overflow-y-auto md:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
-                        <div className="flex min-h-[320px] items-center justify-center bg-zinc-950 p-4 md:min-h-[620px]">
+                    <div className="grid min-w-0 max-h-[calc(100dvh-2rem)] overflow-x-hidden overflow-y-auto md:grid-cols-[minmax(0,3fr)_minmax(19rem,2fr)]">
+                        <div className="flex min-h-0 items-center justify-center overflow-hidden bg-[var(--surface-muted)] md:h-[min(72vh,640px)]">
                             <img
                                 src={item.image!}
                                 alt={item.title}
-                                className="max-h-[76vh] w-full object-contain"
+                                className="h-auto max-h-[48vh] w-full object-contain md:h-full md:max-h-none"
                             />
                         </div>
 
-                        <div className="flex flex-col p-6 sm:p-8">
-                            <DialogHeader className="text-left">
+                        <div className="flex min-w-0 flex-col overflow-hidden p-5 sm:p-7 md:max-h-[min(72vh,640px)]">
+                            <DialogHeader className="min-w-0 pr-5 text-left">
                                 <p className="text-xs font-semibold uppercase tracking-widest text-orange-500">
                                     {isAnnouncement
-                                        ? item.announcement?.tag ?? 'Announcement'
+                                        ? (item.announcement?.tag ?? 'Announcement')
                                         : item.type === 'work'
                                           ? item.work?.type === 'art'
                                               ? 'Art'
                                               : item.work?.type === 'wattpad'
-                                              ? 'Novel'
-                                              : 'Webcomic'
+                                                ? 'Novel'
+                                                : 'Webcomic'
                                           : item.type}
                                 </p>
-                                <DialogTitle className="text-2xl sm:text-3xl">
+                                <DialogTitle className="max-w-full break-words text-2xl leading-tight [overflow-wrap:anywhere] sm:text-3xl">
                                     {item.title}
                                 </DialogTitle>
                                 <DialogDescription>
@@ -56,7 +56,7 @@ export function FeaturedHeroDetailsDialog({
                             </DialogHeader>
 
                             {item.description && (
-                                <p className="mt-6 whitespace-pre-line text-sm leading-6 text-muted-foreground">
+                                <p className="mt-5 max-h-44 overflow-y-auto whitespace-pre-line break-words text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
                                     {item.description}
                                 </p>
                             )}
@@ -65,7 +65,7 @@ export function FeaturedHeroDetailsDialog({
                                 {item.labels?.map((label) => (
                                     <span
                                         key={label}
-                                        className="rounded-full bg-orange-500/10 px-3 py-1 text-xs font-medium text-orange-600 dark:text-orange-400"
+                                        className="rounded-full bg-[var(--category)] px-3 py-1 text-xs font-bold text-[var(--selected-foreground)]"
                                     >
                                         {label}
                                     </span>
@@ -91,7 +91,8 @@ export function FeaturedHeroDetailsDialog({
                                 <Button
                                     type="button"
                                     size="lg"
-                                    className="mt-auto w-full bg-orange-500 text-white hover:bg-orange-600"
+                                    variant="selected"
+                                    className="mt-8 w-full md:mt-auto"
                                     onClick={() => onViewDetails(item)}
                                 >
                                     View details

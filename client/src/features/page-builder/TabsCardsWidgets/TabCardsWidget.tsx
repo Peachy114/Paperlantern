@@ -68,7 +68,7 @@ export default function TabCardsWidget({
     }
 
     return (
-        <section className="w-full overflow-hidden bg-gradient-to-br from-sky-50 via-background to-amber-50 px-3 py-2 sm:px-4 dark:from-sky-950/20 dark:via-background dark:to-amber-950/20">
+        <section className="bg-brand-gradient-soft w-full overflow-hidden px-3 py-2 sm:px-4">
             <section className="mx-auto my-8 w-full max-w-[1480px]">
                 {/* Filter tabs */}
                 <div className="overflow-hidden rounded-[20px] border border-[var(--comix-filter-border)] bg-[var(--comix-filter-background)] shadow-[var(--shadow-xs)]">

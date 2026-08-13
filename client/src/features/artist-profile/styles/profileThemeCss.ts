@@ -14,11 +14,7 @@ export const PROFILE_THEME_CSS = `
                             --profile-button-text-color: var(--profile-dark-button-text-color);
                             --profile-link-text-color: var(--profile-dark-link-text-color);
                             --profile-accent-color: var(--profile-dark-accent-color);
-                            --foreground: var(--profile-dark-text-color);
-                            --muted-foreground: var(--profile-dark-muted-text-color);
-                            --primary: var(--profile-dark-accent-color);
-                            --ring: var(--profile-dark-accent-color);
-                            --link: var(--profile-dark-link-text-color);
+                            --profile-cards-color: var(--profile-dark-cards-color);
                         }
 
                         [data-artist-profile-theme] [data-slot='tabs-trigger'][data-active],
@@ -33,6 +29,10 @@ export const PROFILE_THEME_CSS = `
                             h1, h2, h3, h4, h5, h6,
                             p, span, strong, small, label, li, td, th, figcaption,
                             a, button, input, textarea, select, option
+                        ):not(
+                            [data-profile-content], [data-profile-content] *,
+                            [data-profile-system-control], [data-profile-system-control] *,
+                            [data-canvas-control], [data-canvas-control] *
                         ) {
                             font-family: var(--profile-font-family) !important;
                             color: inherit;
@@ -45,11 +45,11 @@ export const PROFILE_THEME_CSS = `
                             color: var(--profile-text-color) !important;
                         }
 
-                        [data-artist-profile-theme] main :where(
-                            div, section, article, p, span, strong, small, li, td, th, figcaption
-                        ) {
-                            font-size: var(--profile-widget-font-size) !important;
-                        }
+                        [data-artist-profile-theme] [data-profile-details] { color: var(--profile-details-color) !important; font-size: var(--profile-details-size) !important; }
+                        [data-artist-profile-theme] [data-profile-links] a,
+                        [data-artist-profile-theme] [data-profile-links] a span { color: var(--profile-links-color) !important; font-size: var(--profile-links-size) !important; }
+                        [data-artist-profile-theme] [data-profile-card] :where(p, span):not([data-profile-content] *) { color: var(--profile-cards-color) !important; font-size: var(--profile-cards-size) !important; }
+                        .dark [data-artist-profile-theme] [data-profile-card] :where(p, span):not([data-profile-content] *) { color: var(--profile-dark-cards-color) !important; }
 
                         [data-artist-profile-theme] :where(h1, h2, h3, h4, h5, h6):not([data-profile-content] *) {
                             color: var(--profile-heading-text-color) !important;
@@ -61,27 +61,122 @@ export const PROFILE_THEME_CSS = `
                             font-size: var(--profile-label-font-size) !important;
                         }
 
-                        [data-artist-profile-theme] :where(button, [role='button'], [role='tab']):not([data-profile-content] *),
-                        [data-artist-profile-theme] :where(button, [role='button'], [role='tab']):not([data-profile-content] *) * {
+                        /* Specific profile text scopes come after broad heading/label rules. */
+                        [data-artist-profile-theme] [data-profile-name] {
+                            color: var(--profile-name-color) !important;
+                            font-size: var(--profile-name-size) !important;
+                        }
+
+                        [data-artist-profile-theme] [data-profile-username] {
+                            color: var(--profile-name-color) !important;
+                            font-size: calc(var(--profile-name-size) * 0.72) !important;
+                        }
+
+                        [data-artist-profile-theme][data-profile-cards-background='off'] [data-profile-card] {
+                            background: transparent !important;
+                        }
+
+                        [data-artist-profile-theme] [data-profile-card] {
+                            background: var(--profile-cards-background, var(--card));
+                            border: var(--profile-cards-border, 1px solid var(--border));
+                            border-radius: var(--profile-cards-radius, 8px);
+                        }
+
+                        [data-artist-profile-theme] :where(button, [role='button'], [role='tab']):not([data-profile-system-control], [data-canvas-control], [data-profile-content] *) {
+                            background: var(--profile-buttons-background, revert-layer);
+                            border: var(--profile-buttons-border, revert-layer);
+                            border-radius: var(--profile-buttons-radius, revert-layer);
+                        }
+
+                        [data-artist-profile-theme] [data-profile-content] {
+                            background: var(--profile-content-background, transparent);
+                            border: var(--profile-content-border, 0 solid transparent);
+                            border-radius: var(--profile-content-radius, 8px);
+                            box-sizing: border-box;
+                        }
+
+                        [data-artist-profile-theme] [data-profile-content][data-profile-empty='true'] {
+                            background: transparent !important;
+                            border-color: transparent !important;
+                            box-shadow: none !important;
+                        }
+
+                        [data-profile-background-tone='dark'] [data-profile-empty-state],
+                        [data-profile-background-tone='dark'] [data-profile-empty-state] * {
+                            color: #f4f4f5 !important;
+                        }
+
+                        [data-profile-background-tone='dark'] [data-profile-empty-state] :where(p, svg) {
+                            color: #d4d4d8 !important;
+                        }
+
+                        [data-profile-background-tone='light'] [data-profile-empty-state],
+                        [data-profile-background-tone='light'] [data-profile-empty-state] * {
+                            color: #18181b !important;
+                        }
+
+                        [data-profile-background-tone='light'] [data-profile-empty-state] :where(p, svg) {
+                            color: #52525b !important;
+                        }
+
+                        [data-artist-profile-theme][data-profile-buttons-background='off'] :where(button, [role='button'], [role='tab']):not([data-profile-system-control], [data-canvas-control], [data-profile-content] *) {
+                            background: transparent !important;
+                        }
+
+                        [data-artist-profile-theme] [data-profile-label]:not([data-profile-system-control] *) {
+                            color: var(--profile-label-text-color) !important;
+                            font-size: var(--profile-label-font-size) !important;
+                        }
+
+                        [data-artist-profile-theme] :where(button, [role='button'], [role='tab']):not(
+                            [data-profile-content] *,
+                            [data-profile-system-control],
+                            [data-profile-system-control] *,
+                            [data-canvas-control],
+                            [data-canvas-control] *
+                        ),
+                        [data-artist-profile-theme] :where(button, [role='button'], [role='tab']):not(
+                            [data-profile-content] *,
+                            [data-profile-system-control],
+                            [data-canvas-control]
+                        ) *:not([data-profile-system-control] *, [data-canvas-control] *) {
                             font-family: var(--profile-font-family) !important;
                             font-size: var(--profile-button-font-size) !important;
                             color: var(--profile-button-text-color) !important;
                         }
 
-                        [data-artist-profile-theme] a:not([data-profile-content] *),
-                        [data-artist-profile-theme] a:not([data-profile-content] *) * {
+                        [data-artist-profile-theme] a:not([data-profile-content] *, [data-profile-system-control] *),
+                        [data-artist-profile-theme] a:not([data-profile-content] *, [data-profile-system-control] *) * {
                             color: var(--profile-link-text-color) !important;
                             font-family: var(--profile-font-family) !important;
                             font-size: var(--profile-link-font-size) !important;
                         }
 
-                        [data-artist-profile-theme] .text-muted-foreground:not([data-profile-content] *),
-                        [data-artist-profile-theme] .text-muted-foreground:not([data-profile-content] *) * {
-                            color: var(--profile-muted-text-color) !important;
-                        }
-
                         [data-artist-profile-theme] :where(.text-foreground):not([data-profile-content] *) {
                             color: var(--profile-text-color) !important;
+                        }
+
+                        [data-artist-profile-theme] [data-profile-system-control],
+                        [data-artist-profile-theme] [data-profile-system-control] *,
+                        [data-artist-profile-theme] [data-canvas-control],
+                        [data-artist-profile-theme] [data-canvas-control] * {
+                            font-family: var(--comix-font-family) !important;
+                            font-size: revert;
+                            color: var(--foreground) !important;
+                        }
+
+                        /* System controls never inherit profile-editor colors. */
+                        [data-artist-profile-theme] button[data-profile-system-control][data-variant='outline'],
+                        [data-artist-profile-theme] button[data-profile-system-control][data-variant='ghost'] {
+                            color: var(--foreground) !important;
+                        }
+
+                        [data-artist-profile-theme] button[data-profile-system-control][data-variant='default'] {
+                            color: var(--primary-foreground) !important;
+                        }
+
+                        [data-artist-profile-theme] button[data-profile-system-control] * {
+                            color: inherit !important;
                         }
 
                         [data-profile-background-tone='dark'] [data-profile-content] {
@@ -95,6 +190,12 @@ export const PROFILE_THEME_CSS = `
                             --primary: #f97316;
                             --primary-foreground: #ffffff;
                             color: var(--foreground);
+                            font-family: var(--font-content, Lexend, sans-serif) !important;
+                            font-size: 1rem !important;
+                        }
+
+                        [data-profile-background-tone='dark'] [data-profile-content] * {
+                            font-family: inherit;
                         }
 
                         [data-profile-background-tone='light'] [data-profile-content] {
@@ -108,5 +209,6 @@ export const PROFILE_THEME_CSS = `
                             --primary: #ea580c;
                             --primary-foreground: #ffffff;
                             color: var(--foreground);
+                            font-family: var(--font-content, Lexend, sans-serif) !important;
+                            font-size: 1rem !important;
                         }`;
-

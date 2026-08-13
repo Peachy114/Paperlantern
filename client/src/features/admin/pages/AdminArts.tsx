@@ -517,7 +517,7 @@ export default function AdminArts() {
                         <DialogFooter>
                             <Button
                                 type="button"
-                                variant="outline"
+                                variant="cancel"
                                 onClick={() => setOpen(false)}
                                 disabled={createArt.isPending}
                             >

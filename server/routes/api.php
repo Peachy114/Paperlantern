@@ -75,6 +75,10 @@ Route::prefix('public')->group(function () {
     Route::get('/fresh-releases',  [PublicWorkController::class, 'freshReleases']);
     Route::get('/latest-chapters', [PublicWorkController::class, 'latestChapters']);
     Route::get('/announcements',    fn() => response()->json(app(\App\Services\AnnouncementService::class)->getByAudience('public')));
+    Route::get('/announcements/{announcement}', function (\App\Models\Announcement $announcement) {
+        abort_unless($announcement->is_public && $announcement->audience === 'public', 404);
+        return response()->json($announcement->load('creator:id,name,username'));
+    });
     Route::post('/subscribe', [SubscribeController::class, 'store']);
 
 

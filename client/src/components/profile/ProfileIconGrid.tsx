@@ -633,7 +633,7 @@ function ArtistMenu({
         <div className="space-y-3">
             {sections.map((section) => (
                 <section key={section.title} className="space-y-1.5">
-                    <p className="px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    <p className="font-display px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                         {section.title}
                     </p>
                     <div className="grid gap-1.5">
@@ -664,7 +664,7 @@ function ArtistMenuItem({ item, onClose }: { item: MenuItem; onClose: () => void
                 {item.dot && <AccountAttentionDot />}
             </span>
             <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold leading-tight text-foreground">
+                <span className="font-display block text-sm font-semibold leading-tight text-foreground">
                     {item.label}
                 </span>
                 {item.description && (
@@ -697,7 +697,7 @@ function MenuRow({ items, onClose }: { items: MenuItem[]; onClose: () => void })
                         <Icon className="h-4 w-4" />
                         {dot && <AccountAttentionDot />}
                     </div>
-                    <span className="text-center text-[11px] leading-tight text-muted-foreground">
+                    <span className="font-display text-center text-[11px] leading-tight text-muted-foreground">
                         {label}
                     </span>
                 </Link>

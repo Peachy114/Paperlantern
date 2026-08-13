@@ -1,5 +1,5 @@
-import type { RefObject } from 'react'
-import { Upload } from 'lucide-react'
+import type { ReactNode, RefObject } from 'react'
+import { Eye, EyeOff, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,6 +34,7 @@ export function ProfileIdentityEditor({
     onHeaderChange,
     updateTabsConfig,
     requestProfileCrop,
+    publicLinks,
 }: {
     draft: ProfileThemeDraft
     headerDraft: HeaderDraft
@@ -48,11 +49,12 @@ export function ProfileIdentityEditor({
         field: 'cover' | 'avatar' | 'background_image',
         file: File | null
     ) => void
+    publicLinks?: ReactNode
 }) {
     return (
 <ProfileEditSection title="Profile">
     <div className="grid gap-1">
-        <Label htmlFor="profile-title">Bio</Label>
+        <Label htmlFor="profile-title">Biography</Label>
         {errors.artistTitle && (
             <FieldMessage>{errors.artistTitle}</FieldMessage>
         )}
@@ -65,21 +67,19 @@ export function ProfileIdentityEditor({
         />
     </div>
 
+    {publicLinks}
+
     <div className="grid gap-2 rounded-lg border bg-muted/20 p-3">
         <label className="flex items-center justify-between gap-3 text-sm">
             <span>
-                <span className="block font-medium">Show cover page</span>
+                    <span className="block font-medium">Cover image visibility</span>
                 <span className="block text-[10px] text-muted-foreground">
                     Hide the entire cover area when disabled.
                 </span>
             </span>
-            <input
-                type="checkbox"
-                checked={draft.showCover}
-                onChange={(event) =>
-                    onChange({ showCover: event.target.checked })
-                }
-            />
+            <Button type="button" size="icon-sm" variant="ghost" aria-label={draft.showCover ? 'Hide cover image' : 'Show cover image'} onClick={() => onChange({ showCover: !draft.showCover })}>
+                {draft.showCover ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            </Button>
         </label>
         <label className="flex items-center justify-between gap-3 border-t pt-2 text-sm">
             <span>
@@ -173,7 +173,7 @@ export function ProfileIdentityEditor({
             onClick={() => coverRef.current?.click()}
         >
             <Upload className="h-4 w-4" />
-            Cover
+            Cover Image
         </Button>
         <Button
             type="button"
@@ -181,7 +181,7 @@ export function ProfileIdentityEditor({
             onClick={() => avatarRef.current?.click()}
         >
             <Upload className="h-4 w-4" />
-            Profile
+            Profile Image
         </Button>
     </div>
     <input
@@ -205,6 +205,7 @@ export function ProfileIdentityEditor({
         }}
     />
 
+    <ProfileEditSection title="Settings" defaultOpen={false}>
     <div className="grid gap-2 rounded-lg border bg-muted/20 p-3">
         <label className="flex items-center justify-between gap-3 text-sm">
             <span>
@@ -420,6 +421,7 @@ export function ProfileIdentityEditor({
             </div>
         )}
     </div>
+    </ProfileEditSection>
 </ProfileEditSection>
     )
 }

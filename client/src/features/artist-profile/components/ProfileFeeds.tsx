@@ -7,19 +7,19 @@ import { storageUrl } from '@/utils/storage'
 import type { ArtistProfileResponse, ProfileCanvasItem } from '@/types/artistProfile'
 
 // Profile feed presentation ----
-export function ProfileDashboardWidgets({ profile }: { profile: ArtistProfileResponse }) {
+export function ProfileDashboardWidgets({ profile, visibility }: { profile: ArtistProfileResponse; visibility?: Partial<Record<'works' | 'arts' | 'followers' | 'feeds', boolean>> }) {
     const stats = profile.stats
     const items = [
-        { label: 'Works', value: stats?.works_total ?? profile.works.length },
-        { label: 'Arts', value: stats?.arts_total ?? profile.arts.length },
-        { label: 'Followers', value: stats?.followers_count ?? 0 },
-        { label: 'Feeds', value: stats?.feed_posts_count ?? profile.feeds?.length ?? 0 },
-    ]
+        { id: 'works' as const, label: 'Works', value: stats?.works_total ?? profile.works.length },
+        { id: 'arts' as const, label: 'Arts', value: stats?.arts_total ?? profile.arts.length },
+        { id: 'followers' as const, label: 'Followers', value: stats?.followers_count ?? 0 },
+        { id: 'feeds' as const, label: 'Feeds', value: stats?.feed_posts_count ?? profile.feeds?.length ?? 0 },
+    ].filter((item) => visibility?.[item.id] !== false)
 
     return (
         <section className="mb-5 grid gap-3 sm:grid-cols-4">
             {items.map((item) => (
-                <div key={item.label} className="rounded-lg border border-border bg-card p-4">
+                <div data-profile-card key={item.label} className="rounded-lg border border-border bg-card p-4">
                     <p className="text-2xl font-bold">{item.value.toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">{item.label}</p>
                 </div>
@@ -67,10 +67,10 @@ export function ProfileFeeds({
                         <Button onClick={() => setCreateOpen(true)}>Create post</Button>
                     </div>
                 )}
-                <div className="rounded-xl border border-dashed border-border bg-card/60 px-6 py-16 text-center">
-                    <MessageCircle className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+                <div data-profile-empty-state className="bg-transparent px-6 py-16 text-center">
+                    <MessageCircle className="mx-auto mb-3 h-8 w-8" />
                     <h3 className="font-semibold">No feed posts yet</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="mt-1 text-sm">
                         Published feed posts will appear here.
                     </p>
                 </div>

@@ -3,6 +3,7 @@ import { Label } from '@/components/ui/label'
 import type { PageBoardItem, PageWidget } from '@/types/pageLayout'
 import { NumberField, SelectField, SettingsSection } from '@/features/admin/page-customizer/components/WidgetInspectorControls'
 import { clamp } from '@/features/admin/page-customizer/utils/editorInteraction'
+import { WIDGET_BACKGROUND_OPTIONS } from '@/features/page-builder/widgetBackgroundPresets'
 
 // Widget appearance settings ----
 export function WidgetAppearanceSettings({
@@ -23,15 +24,18 @@ export function WidgetAppearanceSettings({
     return (
         <>
             <SettingsSection title="Box style">
-                <label className="flex items-center gap-2 text-sm">
-                    <input
-                        type="checkbox"
-                        checked={Boolean(widget.style.transparent)}
-                        onChange={(event) => setStyle('transparent', event.target.checked)}
-                    />
-                    Transparent background
-                </label>
                 <div>
+                    <Label>Background style</Label>
+                    <select
+                        value={widget.style.background_preset ?? (widget.style.transparent ? 'transparent' : 'default')}
+                        onChange={(event) => setStyle('background_preset', event.target.value)}
+                        className="mt-1 h-10 w-full rounded-md border bg-background px-3 text-sm"
+                    >
+                        {WIDGET_BACKGROUND_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                    <p className="mt-1 text-xs text-muted-foreground">Default preserves this widget’s existing design.</p>
+                </div>
+                {widget.style.background_preset === 'custom' && <div>
                     <Label>Background color</Label>
                     <Input
                         value={widget.style.background ?? ''}
@@ -41,7 +45,7 @@ export function WidgetAppearanceSettings({
                         }}
                         placeholder="F54927 or #F54927"
                     />
-                </div>
+                </div>}
                 {(widget.type === 'text' || widget.type === 'banner') && (
                     <div>
                         <Label>Text color</Label>

@@ -19,22 +19,35 @@ class AnnouncementService
         return $this->repo->getAll();
     }
 
-    public function create(string $adminId, array $data, ?UploadedFile $image = null): Announcement
+    public function create(string $adminId, array $data, ?UploadedFile $image = null, array $galleryImages = []): Announcement
     {
+        $data = $this->normalizeType($data);
+        $data['body_html'] = $this->sanitizeRichText($data['body_html'] ?? null);
         if ($image) {
             $data['image'] = $this->storeWithThumbnail($image);
         }
+        $data['gallery_images'] = $this->storeGallery($galleryImages);
 
         return $this->repo->create($adminId, $data);
     }
 
-    public function update(Announcement $announcement, array $data, ?UploadedFile $image = null): Announcement
+    public function update(Announcement $announcement, array $data, ?UploadedFile $image = null, array $galleryImages = []): Announcement
     {
+        $data = $this->normalizeType($data, $announcement);
+        if (array_key_exists('body_html', $data)) {
+            $data['body_html'] = $this->sanitizeRichText($data['body_html']);
+        }
         if ($image) {
             if ($announcement->image) {
                 $this->deleteWithThumbnail($announcement->image);
             }
             $data['image'] = $this->storeWithThumbnail($image);
+        }
+        if ($galleryImages !== []) {
+            foreach ($announcement->gallery_images ?? [] as $path) {
+                Storage::disk('public')->delete($path);
+            }
+            $data['gallery_images'] = $this->storeGallery($galleryImages);
         }
 
         return $this->repo->update($announcement, $data);
@@ -44,6 +57,9 @@ class AnnouncementService
     {
         if ($announcement->image) {
             $this->deleteWithThumbnail($announcement->image);
+        }
+        foreach ($announcement->gallery_images ?? [] as $path) {
+            Storage::disk('public')->delete($path);
         }
         $this->repo->delete($announcement);
     }
@@ -77,5 +93,40 @@ class AnnouncementService
 
         $smallPath = preg_replace('/(\.[^.]+)$/', '_sm$1', $path);
         \Storage::disk('public')->delete($smallPath);
+    }
+
+    private function storeGallery(array $images): array
+    {
+        return collect($images)
+            ->filter(fn ($image) => $image instanceof UploadedFile)
+            ->map(fn (UploadedFile $image) => $image->store('announcements/gallery', 'public'))
+            ->values()
+            ->all();
+    }
+
+    private function sanitizeRichText(?string $html): ?string
+    {
+        if (! $html) return null;
+
+        $clean = strip_tags($html, '<p><br><h2><h3><h4><strong><b><em><i><u><ul><ol><li><blockquote><a>');
+        $clean = preg_replace('/\s+on\w+\s*=\s*(["\']).*?\1/iu', '', $clean);
+        $clean = preg_replace('/javascript\s*:/iu', '', $clean);
+
+        return trim($clean);
+    }
+
+    private function normalizeType(array $data, ?Announcement $announcement = null): array
+    {
+        $tag = $data['tag'] ?? $announcement?->tag ?? 'update';
+        $requestedEvent = array_key_exists('is_event', $data)
+            ? (bool) $data['is_event']
+            : (bool) ($announcement?->is_event ?? false);
+
+        $data['is_event'] = $tag === 'event' || $requestedEvent;
+        if ($data['is_event']) {
+            $data['tag'] = 'event';
+        }
+
+        return $data;
     }
 }

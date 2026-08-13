@@ -13,11 +13,9 @@ export default function FilterButton({
         <button
             type="button"
             onClick={onClick}
-            className={`rounded-md border px-2.5 py-1 text-xs ${
-                active
-                    ? 'bg-foreground text-background'
-                    : 'bg-background text-muted-foreground hover:text-foreground'
-            }`}
+            data-active={active}
+            aria-pressed={active}
+            className="category-control border"
         >
             {children}
         </button>

@@ -56,7 +56,7 @@ export interface ArtistProfileUser {
     followers_count?: number
 }
 
-export type ProfileTabId = 'board' | 'arts' | 'works' | 'stickers' | 'comments' | 'feeds'
+export type ProfileTabId = 'board' | 'arts' | 'works' | 'stickers' | 'comments' | 'shop' | 'feeds'
 
 export type ProfileSectionMode =
     | 'separate_pages'
@@ -96,6 +96,8 @@ export interface ProfileCanvasItem {
         | 'cards'
         | 'compact'
     pagination?: boolean
+    /** Maximum items shown per page. Zero means no limit for a single-widget page. */
+    limit?: number
     locked?: boolean
     sort?: string
     filter?: string
@@ -158,7 +160,41 @@ export interface ProfileTabsConfig {
         dark_label_text_color?: string
         dark_button_text_color?: string
         dark_link_text_color?: string
+        heading_text_color?: string
+        label_text_color?: string
+        button_text_color?: string
+        link_text_color?: string
+        profile_name_color?: string
+        profile_details_color?: string
+        profile_links_color?: string
+        cards_color?: string
+        dark_cards_color?: string
+        labels_color?: string
+        profile_name_size?: number
+        profile_details_size?: number
+        profile_links_size?: number
+        cards_size?: number
+        labels_size?: number
+        dashboard_cards_visible?: Partial<Record<'works' | 'arts' | 'followers' | 'feeds', boolean>>
+        cards_background_enabled?: boolean
+        buttons_background_enabled?: boolean
+        cards_surface?: ProfileSurfaceConfig
+        buttons_surface?: ProfileSurfaceConfig
+        content_surface?: ProfileSurfaceConfig
+        canvas_groups?: Array<{ id: string; name: string; item_ids: string[] }>
     }
+}
+
+export interface ProfileSurfaceConfig {
+    enabled?: boolean
+    preset?: 'default' | 'transparent' | 'white' | 'surface' | 'muted' | 'brand_gradient' | 'brand_gradient_soft' | 'blue_gradient' | 'yellow_gradient' | 'dark' | 'custom'
+    custom_color?: string
+    opacity?: number
+    border?: boolean
+    border_color?: string
+    border_opacity?: number
+    border_width?: number
+    border_radius?: number
 }
 
 export interface ProfileLink {
@@ -428,6 +464,20 @@ export interface ArtistProfileResponse {
     stickers: ArtistSticker[]
     arts: Art[]
     works: ArtistProfileWork[]
+    shop?: Array<{
+        id: string
+        slug: string
+        title: string
+        description?: string | null
+        type: string
+        labels?: string[]
+        image_path: string | null
+        download_policy: string
+        credit_cost: number
+        downloads_count: number
+        likes_count: number
+        created_at: string
+    }>
     feeds?: FeedPost[]
     stats?: {
         works_total: number

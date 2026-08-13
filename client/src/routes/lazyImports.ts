@@ -16,6 +16,8 @@ export const Pages = {
     Shop: lazy(() => import('@/features/shop/pages/Shop/index')),
     ArtistProfile: lazy(() => import('@/features/artist-profile/pages/ArtistProfile')),
     GoogleCallback: lazy(() => import('@/pages/GoogleCallback')),
+    News: lazy(() => import('@/features/announcements/pages/News')),
+    NewsDetail: lazy(() => import('@/features/announcements/pages/NewsDetail')),
 
     // FOOTER
     About: lazy(() => import('@/pages/about/About')),

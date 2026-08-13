@@ -103,18 +103,7 @@ export default function ContentFilter({ contentType }: { contentType?: 'comic' |
                 {/* // content filter parent ---- */}
                 <nav
                     aria-label="Content filters"
-                    className="
-                        flex
-                        min-h-14
-                        w-full
-                        items-center
-                        overflow-hidden
-                        rounded-[20px]
-                        border
-                        border-[var(--comix-filter-border)]
-                        bg-[var(--comix-filter-background)]
-                        shadow-[var(--shadow-xs)]
-                    "
+                    className="category-rail flex w-full items-center"
                 >
                     {/* //// fixed content type section ---- */}
                     {!contentType && (
@@ -137,27 +126,17 @@ export default function ContentFilter({ contentType }: { contentType?: 'comic' |
                                         to={buildHref('type', type.value)}
                                         aria-current={active ? 'page' : undefined}
                                         className={[
-                                            'inline-flex',
-                                            'h-9',
-                                            'items-center',
-                                            'justify-center',
-                                            'rounded-full',
-                                            'px-3.5',
-                                            'text-sm',
-                                            'font-semibold',
+                                            'category-control',
                                             'no-underline',
-                                            'whitespace-nowrap',
-                                            'transition-all',
-                                            'duration-200',
                                             active
                                                 ? [
-                                                      'bg-[var(--comix-accent)]',
-                                                      'text-white',
+                                                      'bg-[var(--comix-filter-active-background)]',
+                                                      'text-[var(--comix-filter-active-text)]',
                                                       'shadow-sm',
                                                   ].join(' ')
                                                 : [
                                                       'text-[var(--foreground)]',
-                                                      'hover:bg-white/50',
+                                                      'hover:bg-[var(--comix-filter-pill-hover-background)]',
                                                   ].join(' '),
                                         ].join(' ')}
                                     >
@@ -226,29 +205,19 @@ export default function ContentFilter({ contentType }: { contentType?: 'comic' |
                                     draggable={false}
                                     aria-current={active ? 'page' : undefined}
                                     className={[
-                                        'inline-flex',
-                                        'h-9',
-                                        'shrink-0',
-                                        'items-center',
-                                        'justify-center',
-                                        'rounded-full',
-                                        'px-3.5',
-                                        'text-sm',
+                                        'category-control',
                                         'no-underline',
-                                        'whitespace-nowrap',
-                                        'transition-all',
-                                        'duration-200',
                                         active
                                             ? [
-                                                  'bg-white/80',
-                                                  'text-[var(--foreground)]',
+                                                  'bg-[var(--comix-filter-selected-background)]',
+                                                  'text-[var(--comix-filter-selected-text)]',
                                                   'font-bold',
                                                   'shadow-sm',
                                               ].join(' ')
                                             : [
                                                   'text-[var(--foreground)]',
                                                   'font-medium',
-                                                  'hover:bg-white/50',
+                                                  'hover:bg-[var(--comix-filter-pill-hover-background)]',
                                               ].join(' '),
                                     ].join(' ')}
                                 >

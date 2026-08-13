@@ -61,7 +61,7 @@ export function AnnouncementStyleHero({
                             src={current.image!}
                             alt={current.title}
                             draggable={false}
-                            className="relative z-[1] h-full w-full object-contain"
+                            className="relative z-10 h-full w-full object-contain"
                         />
                         <MetaOverlay item={current} widget={widget} />
                     </HeroActionCard>

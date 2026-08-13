@@ -12,6 +12,7 @@ interface HeroWork {
 }
 
 interface Announcement {
+    id: string
     title: string
     content: string
     image?: string | null
@@ -60,7 +61,7 @@ export default function HeroModal({
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8"
+            className="fixed inset-0 z-[10000] flex items-center justify-center p-0"
             style={{
                 background: 'rgba(0,0,0,0.75)',
                 animation: 'heroModalFadeIn 0.2s ease-out',
@@ -82,7 +83,7 @@ export default function HeroModal({
             `}</style>
 
             <div
-                className="relative w-full max-w-5xl rounded-2xl overflow-hidden flex items-center justify-center bg-[#0c0c0c]"
+                className={`relative flex w-full items-center justify-center overflow-hidden bg-[#0c0c0c] ${isComic ? 'max-w-5xl rounded-2xl' : 'h-[100dvh] max-w-none rounded-none'}`}
                 style={{
                     maxHeight: '94vh',
                     animation: 'heroModalRise 0.25s ease-out',
@@ -268,6 +269,13 @@ export default function HeroModal({
                                         }
                                     )}
                                 </span>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate(`/news/${announcement!.id}`)}
+                                    className="ml-auto inline-flex items-center rounded-full bg-[var(--selected)] px-4 py-2 font-display text-xs font-black text-[var(--selected-foreground)] hover:bg-[var(--selected-hover)]"
+                                >
+                                    READ FULL DETAILS →
+                                </button>
                             </>
                         )}
                     </div>

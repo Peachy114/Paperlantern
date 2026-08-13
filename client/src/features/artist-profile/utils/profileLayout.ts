@@ -421,6 +421,7 @@ export function defaultProfileTabsConfig(): ProfileTabsConfig {
         works: { x: 30, y: 0, w: 28, h: 36 },
         stickers: { x: 60, y: 0, w: 32, h: 36 },
         comments: { x: 30, y: 52, w: 30, h: 36 },
+        shop: { x: 46, y: 52, w: 30, h: 36 },
         feeds: { x: 62, y: 52, w: 28, h: 36 },
     }
     const defaultTabs: ProfileTabId[] = ['arts', 'works', 'stickers', 'feeds']
@@ -432,6 +433,7 @@ export function defaultProfileTabsConfig(): ProfileTabsConfig {
             works: true,
             stickers: true,
             comments: false,
+            shop: true,
             feeds: true,
         },
         section_mode: 'separate_pages',
@@ -587,6 +589,7 @@ export function normalizeCanvasItems(
                 : item.type,
             display: item.display ?? defaultCanvasDisplay(item.type),
             pagination: item.pagination ?? true,
+            limit: typeof item.limit === 'number' && item.limit >= 0 ? item.limit : undefined,
             locked: item.locked ?? false,
             sort: item.sort ?? defaultProfileSort(item.type),
             filter: item.filter ?? '',

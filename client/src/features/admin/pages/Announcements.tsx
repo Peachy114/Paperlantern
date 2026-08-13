@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAdminAnnouncements } from '@/features/admin/hooks/useAdminAnnouncements'
 import { type Announcement, type AnnouncementPayload } from '@/api/announcement'
 import { storageUrl } from '@/utils/storage'
+import NewsRichTextEditor from '@/features/admin/components/NewsRichTextEditor'
 
 const TAG_COLORS: Record<string, string> = {
     event: 'bg-[#85B7EB] text-[#1a1a1a]',
@@ -34,6 +35,9 @@ const PAGE_TARGETS = [
 const EMPTY_FORM: AnnouncementPayload = {
     title: '',
     content: '',
+    format: 'short',
+    excerpt: '',
+    body_html: '',
     tag: 'update',
     is_event: false,
     audience: 'public',
@@ -41,6 +45,7 @@ const EMPTY_FORM: AnnouncementPayload = {
     placement: 'banner',
     is_public: true,
     image: null,
+    gallery_images: [],
     is_pinned: false,
     rotation_seconds: 0,
 }
@@ -78,6 +83,9 @@ export default function AdminAnnouncements() {
         setForm({
             title: a.title,
             content: a.content,
+            format: a.format ?? 'short',
+            excerpt: a.excerpt ?? '',
+            body_html: a.body_html ?? '',
             tag: a.tag,
             is_event: a.is_event ?? a.tag === 'event',
             audience: a.audience,
@@ -85,6 +93,7 @@ export default function AdminAnnouncements() {
             placement: a.placement ?? 'banner',
             is_public: a.is_public ?? true,
             image: null,
+            gallery_images: [],
             is_pinned: a.is_pinned,
             rotation_seconds: a.rotation_seconds ?? 0,
         })
@@ -97,6 +106,10 @@ export default function AdminAnnouncements() {
         const file = e.target.files?.[0] ?? null
         setForm((f) => ({ ...f, image: file }))
         setImagePreview(file ? URL.createObjectURL(file) : null)
+    }
+
+    const handleGallery = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setForm((current) => ({ ...current, gallery_images: Array.from(e.target.files ?? []) }))
     }
 
     const togglePageTarget = (page: string) => {
@@ -130,15 +143,8 @@ export default function AdminAnnouncements() {
 
     return (
         <>
-            <link
-                href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap"
-                rel="stylesheet"
-            />
-
-            <div
-                className="p-6 max-w-5xl mx-auto"
-                style={{ fontFamily: "'Bebas Neue', sans-serif" }}
-            >
+            <div className="bg-brand-gradient-soft min-h-screen p-6 font-sans">
+            <div className="mx-auto max-w-6xl">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <div>
@@ -259,32 +265,33 @@ export default function AdminAnnouncements() {
                         ))}
                     </div>
                 )}
-            </div>
+            </div></div>
 
             {/* ── Form Modal ── */}
             {showForm && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[10000] overflow-y-auto bg-background/95 p-4 backdrop-blur-sm sm:p-8">
                     <div
-                        className="w-full max-w-lg border-[3px] border-foreground bg-[#fffdf5] dark:bg-[#1e1b14]"
-                        style={{ boxShadow: '7px 7px 0 var(--foreground)' }}
+                        className="mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border bg-card shadow-xl"
                     >
                         {/* Modal header */}
-                        <div className="border-b-[2.5px] border-foreground px-5 py-3 flex items-center justify-between bg-foreground">
+                        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-card px-5 py-4">
                             <span
-                                className="text-background text-[14px] tracking-[0.15em]"
-                                style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                                className="font-display text-lg font-black"
                             >
                                 {editing ? '◆ EDIT ANNOUNCEMENT' : '◆ NEW ANNOUNCEMENT'}
                             </span>
                             <button
                                 onClick={() => setShowForm(false)}
-                                className="text-background/60 hover:text-background text-lg leading-none"
+                                className="grid size-10 place-items-center rounded-full border hover:bg-muted text-lg leading-none"
                             >
                                 ✕
                             </button>
                         </div>
 
-                        <div className="p-5 flex flex-col gap-4 font-sans">
+                        <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(300px,.75fr)] lg:p-8"><div className="flex flex-col gap-4">
+                            <div className="category-rail"><div className="category-rail__inner">
+                                {(['short', 'long', 'comic'] as const).map((format) => <button key={format} type="button" className="category-control" data-active={form.format === format} onClick={() => setForm((current) => ({ ...current, format }))}>{format === 'short' ? 'Short' : format === 'long' ? 'Long' : 'Comic'}</button>)}
+                            </div></div>
                             {/* Title */}
                             <div>
                                 <label
@@ -389,6 +396,11 @@ export default function AdminAnnouncements() {
                                 </div>
                             </div>
 
+                            {form.format === 'long' && <>
+                                <div><label className="mb-1 block text-sm font-bold">SHORT SUMMARY</label><textarea value={form.excerpt ?? ''} maxLength={500} rows={3} onChange={(e) => setForm((f) => ({ ...f, excerpt: e.target.value }))} className="w-full rounded-xl border bg-background px-3 py-2" placeholder="Summary shown on News cards" /></div>
+                                <div><label className="mb-1 block text-sm font-bold">FULL DETAILS</label><NewsRichTextEditor value={form.body_html ?? ''} onChange={(body_html) => setForm((f) => ({ ...f, body_html }))} /></div>
+                            </>}
+
                             <label className="flex items-center gap-2 cursor-pointer select-none">
                                 <input
                                     type="checkbox"
@@ -485,13 +497,14 @@ export default function AdminAnnouncements() {
                                 </label>
                             </div>
 
-                            {/* Image */}
+                            </div><aside className="flex flex-col gap-4">
+                            {/* Cover image */}
                             <div>
                                 <label
                                     className="text-[10px] tracking-[0.2em] text-muted-foreground block mb-1"
                                     style={{ fontFamily: "'Bebas Neue', sans-serif" }}
                                 >
-                                    IMAGE (optional)
+                                    COVER IMAGE
                                 </label>
                                 {imagePreview && (
                                     <img
@@ -507,6 +520,8 @@ export default function AdminAnnouncements() {
                                     className="w-full text-[12px] text-muted-foreground file:border-2 file:border-foreground file:bg-foreground file:text-background file:px-3 file:py-1 file:text-[11px] file:tracking-widest file:mr-3 file:cursor-pointer"
                                 />
                             </div>
+
+                            {(form.format === 'long' || form.format === 'comic') && <div><label className="mb-1 block text-sm font-bold">{form.format === 'comic' ? 'WEB COMIC IMAGES (reading order)' : 'DETAIL GALLERY'} (up to 10 images)</label><input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple onChange={handleGallery} className="w-full rounded-xl border bg-background p-3 text-sm" /><p className="mt-1 text-xs text-muted-foreground">Select images in reading order. Each image must be 5 MB or smaller.</p></div>}
 
                             {/* Pinned */}
                             <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -552,8 +567,7 @@ export default function AdminAnnouncements() {
                                 >
                                     CANCEL
                                 </button>
-                            </div>
-                        </div>
+                            </div></aside></div>
                     </div>
                 </div>
             )}

@@ -56,9 +56,18 @@ export function ProfileBorderEditor({
             <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                 Profile borders come from Noble Royalty.
             </p>
+            <p className="text-xs font-medium">Border Design</p>
+            <ColorField
+                label="Border Color"
+                value={draft.avatarBorderColor}
+                fallback="#ffffff"
+                error={errors.avatarBorderColor}
+                onChange={(avatarBorderColor) => onChange({ avatarBorderColor })}
+            />
+            <ProfileEditSection title="Border Settings" defaultOpen={false}>
             <div className="grid grid-cols-2 gap-2">
                 <RangeField
-                    label="Border"
+                    label="Border Size"
                     value={draft.avatarBorderWidth}
                     min={0}
                     max={16}
@@ -66,7 +75,7 @@ export function ProfileBorderEditor({
                     onChange={(avatarBorderWidth) => onChange({ avatarBorderWidth })}
                 />
                 <RangeField
-                    label="Radius"
+                    label="Border Radius"
                     value={draft.avatarBorderRadius}
                     min={0}
                     max={100}
@@ -125,13 +134,7 @@ export function ProfileBorderEditor({
                     />
                 </div>
             </div>
-            <ColorField
-                label="Border color"
-                value={draft.avatarBorderColor}
-                fallback="#ffffff"
-                error={errors.avatarBorderColor}
-                onChange={(avatarBorderColor) => onChange({ avatarBorderColor })}
-            />
+            </ProfileEditSection>
         </ProfileEditSection>
     )
 }

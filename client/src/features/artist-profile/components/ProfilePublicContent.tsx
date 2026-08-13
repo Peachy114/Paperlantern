@@ -522,6 +522,35 @@ export function ProfileStickers({
     )
 }
 
+export function ProfileShopCards({
+    items,
+}: {
+    items: NonNullable<ArtistProfileResponse['shop']>
+}) {
+    if (items.length === 0) return <EmptyPanel icon={Gift} text="No shop items yet" />
+
+    return (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            {items.map((item) => (
+                <article key={item.id} data-profile-card className="overflow-hidden rounded-xl border bg-card">
+                    <div className="aspect-square overflow-hidden bg-muted">
+                        {item.image_path ? (
+                            <img src={storageUrl(item.image_path)!} alt={item.title} className="h-full w-full object-cover transition-transform hover:scale-105" />
+                        ) : (
+                            <div className="grid h-full place-items-center text-muted-foreground"><ImageOff className="h-8 w-8" /></div>
+                        )}
+                    </div>
+                    <div className="space-y-1 p-3">
+                        <p className="truncate font-medium">{item.title}</p>
+                        <p className="text-xs capitalize text-muted-foreground">{item.type.replaceAll('_', ' ')}</p>
+                        <p className="text-xs font-semibold">{item.download_policy === 'paid' ? `${item.credit_cost} credits` : 'Free'}</p>
+                    </div>
+                </article>
+            ))}
+        </div>
+    )
+}
+
 export function ProfileComments({
     comments,
     variant = 'cards',
