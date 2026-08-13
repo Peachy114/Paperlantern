@@ -111,7 +111,7 @@ export function CommentStickerPickerDialog({
                     onOpenChange(nextOpen)
                 }}
             >
-                <DialogContent className="w-[min(96vw,920px)] max-w-none">
+                <DialogContent className="w-[min(96vw,1100px)] max-w-none sm:max-w-[1100px]">
                     <DialogHeader>
                         <DialogTitle>Stickers</DialogTitle>
                         <DialogDescription>
@@ -273,7 +273,7 @@ function StickerGrid({
     }
 
     return (
-        <div className="grid max-h-[620px] auto-rows-[190px] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <div className="grid max-h-[70vh] grid-cols-2 gap-4 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">
             {stickers.map((sticker) => {
                 const canUse = sticker.can_use ?? sticker.library_status !== undefined
                 const cost = sticker.purchase_cost ?? sticker.credit_cost ?? 1
@@ -287,12 +287,15 @@ function StickerGrid({
                 }
 
                 return (
-                    <div key={sticker.id} className="flex h-full flex-col p-2">
+                    <div
+                        key={sticker.id}
+                        className="flex min-h-[220px] flex-col rounded-xl border bg-muted/10 p-3"
+                    >
                         <button
                             type="button"
                             disabled={busy}
                             onClick={chooseSticker}
-                            className="relative h-[150px] bg-transparent p-1 transition hover:bg-muted/30 disabled:opacity-60"
+                            className="relative flex aspect-square min-h-[170px] flex-1 items-center justify-center rounded-lg bg-transparent p-2 transition hover:bg-muted/30 disabled:opacity-60 sm:min-h-[190px]"
                             title={
                                 canUse
                                     ? `Use ${sticker.name}`
@@ -304,7 +307,7 @@ function StickerGrid({
                                 alt={sticker.name}
                                 draggable={false}
                                 onContextMenu={(event) => event.preventDefault()}
-                                className="h-full w-full select-none object-contain"
+                                className="h-full max-h-[220px] w-full select-none object-contain"
                             />
 
                             {!canUse && (
@@ -318,7 +321,7 @@ function StickerGrid({
                             type="button"
                             size="sm"
                             variant={canUse ? 'ghost' : 'default'}
-                            className="mt-1 h-7 w-full"
+                            className="mt-3 h-9 w-full"
                             disabled={busy}
                             onClick={chooseSticker}
                         >
