@@ -8,10 +8,9 @@ import {
 } from 'react'
 
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { useAnnouncements } from '@/features/announcements/hooks/useAnnouncements'
-import HeroModal from '@/features/work/components/ui/HeroModal'
 import { publicApi } from '@/api/public'
-import type { Announcement } from '@/api/announcement'
 import { storageUrl } from '@/utils/storage'
 import type { PageWidget } from '@/types/pageLayout'
 import type { WorkItem } from '@/features/work/hooks/useHome'
@@ -25,6 +24,7 @@ import { BlurredBackgroundHeroSameHeight } from './designs/BlurredBackgroundHero
 import { GappedHero } from './designs/GappedHero'
 import { OverlappingHero } from './designs/OverlappingHero'
 import { FeaturedHeroSkeleton } from './FeaturedHeroSkeleton'
+import { FeaturedHeroDetailsDialog } from './FeaturedHeroDetailsDialog'
 import { SAMPLE_SHOP_HERO_ITEMS } from './sampleData'
 import type { CarouselDesign, HeroItem, ShopHeroItem } from './types'
 import { uniqueHeroItems } from './utils/uniqueHeroItems'
@@ -38,6 +38,7 @@ export default function FeaturedHeroWidget({
     works: WorkItem[]
     preview?: boolean
 }) {
+    const navigate = useNavigate()
     const settings = widget.settings ?? {}
 
     const sources = {
@@ -95,6 +96,7 @@ export default function FeaturedHeroWidget({
                     type: 'work',
                     title: work.title,
                     artist: null,
+                    description: work.description,
                     image: storageUrl(work.banner || work.cover),
                     href:
                         work.type === 'art'
@@ -104,6 +106,7 @@ export default function FeaturedHeroWidget({
                     likes: work.likes,
                     labels: work.genres,
                     featured: Boolean((work as WorkItem & { is_featured?: boolean }).is_featured),
+                    work,
                 })
             })
         }
@@ -115,6 +118,7 @@ export default function FeaturedHeroWidget({
                     type: 'announcement',
                     title: announcement.title,
                     artist: announcement.creator?.name,
+                    description: announcement.content,
                     image: storageUrl(announcement.image ?? null, 'sm'),
                     href: '',
                     labels: announcement.tag ? [announcement.tag] : [],
@@ -137,6 +141,7 @@ export default function FeaturedHeroWidget({
                     type: 'art',
                     title: art.title,
                     artist: art.user?.name ?? art.user?.username,
+                    description: art.description,
                     image: storageUrl(art.images?.[0]?.image_path ?? art.image_path),
                     href: `/explore/arts?art=${encodeURIComponent(art.slug || art.id)}`,
                     views: art.views,
@@ -161,6 +166,7 @@ export default function FeaturedHeroWidget({
                     type: 'commission',
                     title: commission.title,
                     artist: commission.artist?.name ?? commission.artist?.username,
+                    description: commission.description,
                     image: storageUrl(commission.image_path),
                     href: `/commissions?service=${encodeURIComponent(commission.slug)}`,
                     labels: commission.category?.name ? [commission.category.name] : ['Commission'],
@@ -225,7 +231,7 @@ export default function FeaturedHeroWidget({
     const [isHovered, setIsHovered] = useState(false)
     const [isDragging, setIsDragging] = useState(false)
     const [dragOffset, setDragOffset] = useState(0)
-    const [announcementModal, setAnnouncementModal] = useState<Announcement | null>(null)
+    const [selectedHeroItem, setSelectedHeroItem] = useState<HeroItem | null>(null)
 
     const dragStartXRef = useRef<number | null>(null)
     const pointerIdRef = useRef<number | null>(null)
@@ -256,10 +262,10 @@ export default function FeaturedHeroWidget({
     }, [itemCount])
 
     const openItem = useCallback((item: HeroItem) => {
-        if (item.type === 'announcement' && item.announcement) {
-            setAnnouncementModal(item.announcement)
-        }
-    }, [])
+        if (preview) return
+
+        setSelectedHeroItem(item)
+    }, [preview])
 
     useEffect(() => {
         if (itemCount === 0) {
@@ -286,7 +292,6 @@ export default function FeaturedHeroWidget({
         setIsDragging(true)
         setDragOffset(0)
 
-        event.currentTarget.setPointerCapture(event.pointerId)
     }
 
     const handlePointerMove = (event: ReactPointerEvent<HTMLElement>) => {
@@ -298,7 +303,14 @@ export default function FeaturedHeroWidget({
             return
         }
 
-        setDragOffset(event.clientX - dragStartXRef.current)
+        const nextDragOffset = event.clientX - dragStartXRef.current
+        setDragOffset(nextDragOffset)
+
+        // Capturing on pointer-down steals ordinary clicks from the hero card.
+        // Capture only after a real drag begins so click-to-open still works.
+        if (Math.abs(nextDragOffset) > 4 && !event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.setPointerCapture(event.pointerId)
+        }
     }
 
     const finishPointerDrag = (event: ReactPointerEvent<HTMLElement>) => {
@@ -363,17 +375,13 @@ export default function FeaturedHeroWidget({
 
             {design === 'default' && <AnnouncementStyleHero {...sharedCarouselProps} />}
 
-            <HeroModal
-                slide={
-                    announcementModal
-                        ? {
-                              kind: 'news',
-                              data: announcementModal,
-                          }
-                        : null
-                }
-                cover={storageUrl}
-                onClose={() => setAnnouncementModal(null)}
+            <FeaturedHeroDetailsDialog
+                item={selectedHeroItem}
+                onClose={() => setSelectedHeroItem(null)}
+                onViewDetails={(item) => {
+                    setSelectedHeroItem(null)
+                    navigate(item.href)
+                }}
             />
         </div>
     )
