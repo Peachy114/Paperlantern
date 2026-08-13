@@ -135,7 +135,7 @@ export type CanvasDragState = {
 export type CanvasItemPatch = Partial<
     Pick<
         ProfileCanvasItem,
-        'display' | 'pagination' | 'limit' | 'page' | 'locked' | 'sort' | 'filter' | 'filters'
+        'display' | 'pagination' | 'limit' | 'content_size' | 'page' | 'locked' | 'sort' | 'filter' | 'filters'
     >
 >
 

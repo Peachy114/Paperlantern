@@ -5,7 +5,7 @@ import CommentSection from '@/features/comments/components/CommentSection'
 import SuperLikeButton from '@/features/comments/components/SuperLikeButton'
 import { storageUrl } from '@/utils/storage'
 import type { Art } from '@/types/art'
-import type { ArtistProfileResponse, ArtistSticker } from '@/types/artistProfile'
+import type { ArtistProfileResponse, ArtistSticker, ProfileContentSize } from '@/types/artistProfile'
 import type { ProfileCanvasDisplay } from '@/features/artist-profile/types/profileEditor'
 import { formatProfileDate as formatDate, getArtImages } from '@/features/artist-profile/utils/profileContent'
 import { AwardChips } from '@/features/artist-profile/components/ProfileMediaControls'
@@ -36,7 +36,7 @@ export function ArtsMasonry({
 
     if (display === 'standard' || display === 'instagram') {
         return (
-            <div className="grid grid-cols-3 gap-1 sm:gap-2">
+            <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${tileWidth}px), ${tileWidth}px))` }}>
                 {images.map(({ art, image }, index) => (
                     <button
                         type="button"
@@ -59,7 +59,7 @@ export function ArtsMasonry({
 
     if (display === 'bento') {
         return (
-            <div className="grid auto-rows-[96px] grid-cols-4 gap-2 md:grid-cols-6">
+            <div className="grid grid-cols-4 gap-2 md:grid-cols-6" style={{ gridAutoRows: Math.max(72, Math.round(tileWidth * 0.42)) }}>
                 {images.map(({ art, image }, index) => {
                     const span =
                         index % 7 === 0
@@ -93,11 +93,12 @@ export function ArtsMasonry({
         const [lead, ...rest] = images
 
         return (
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]" style={{ maxWidth: Math.min(1100, tileWidth * 2.5) }}>
                 {lead && (
                     <button
                         type="button"
-                        className="min-h-[320px] overflow-hidden rounded-md bg-muted"
+                        className="overflow-hidden rounded-md bg-muted"
+                        style={{ minHeight: tileWidth }}
                         onClick={() => onOpen(lead.art)}
                         onContextMenu={(event) => event.preventDefault()}
                     >
@@ -166,7 +167,8 @@ export function ArtsMasonry({
                     <button
                         type="button"
                         key={`${image.image_path}-${index}`}
-                        className="h-64 w-48 shrink-0 overflow-hidden rounded-md bg-muted"
+                        className="shrink-0 overflow-hidden rounded-md bg-muted"
+                        style={{ height: Math.round(tileWidth * 1.33), width: tileWidth }}
                         onClick={() => onOpen(art)}
                         onContextMenu={(event) => event.preventDefault()}
                     >
@@ -368,9 +370,11 @@ export function ProfileArtStat({
 export function WorksGrid({
     works,
     display = 'image_title',
+    size = 'medium',
 }: {
     works: ArtistProfileResponse['works']
     display?: ProfileCanvasDisplay
+    size?: ProfileContentSize
 }) {
     if (works.length === 0) {
         return <EmptyPanel icon={Layers} text="No public works yet" />
@@ -413,13 +417,15 @@ export function WorksGrid({
     }
 
     if (display === 'split_card') {
+        const coverWidth = { small: 72, medium: 112, large: 160 }[size]
         return (
             <div className="grid gap-3">
                 {works.map((work) => (
                     <Link
                         key={work.id}
                         to={`/works/${work.slug}`}
-                        className="grid grid-cols-[96px_minmax(0,1fr)] gap-3 rounded-md border bg-background p-2 transition hover:bg-muted/30"
+                        className="grid gap-3 rounded-md border bg-background p-2 transition hover:bg-muted/30"
+                        style={{ gridTemplateColumns: `${coverWidth}px minmax(0, 1fr)` }}
                     >
                         <div className="aspect-[3/4] overflow-hidden rounded bg-muted">
                             {work.cover ? (
@@ -449,8 +455,9 @@ export function WorksGrid({
         )
     }
 
+    const cardWidth = { small: 150, medium: 220, large: 320 }[size]
     return (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${cardWidth}px), ${cardWidth}px))` }}>
             {works.map((work) => (
                 <Link key={work.id} to={`/works/${work.slug}`} className="group block">
                     <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
@@ -524,13 +531,16 @@ export function ProfileStickers({
 
 export function ProfileShopCards({
     items,
+    size = 'medium',
 }: {
     items: NonNullable<ArtistProfileResponse['shop']>
+    size?: ProfileContentSize
 }) {
     if (items.length === 0) return <EmptyPanel icon={Gift} text="No shop items yet" />
 
+    const cardWidth = { small: 150, medium: 220, large: 320 }[size]
     return (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${cardWidth}px), ${cardWidth}px))` }}>
             {items.map((item) => (
                 <article key={item.id} data-profile-card className="overflow-hidden rounded-xl border bg-card">
                     <div className="aspect-square overflow-hidden bg-muted">

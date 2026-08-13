@@ -42,7 +42,7 @@ export default function ChapterManageView() {
     }
 
     return (
-        <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+        <div className="max-w-[1480px] mx-auto px-4 py-8 space-y-6">
             <ChapterManageHeader
                 workTitle={work?.title}
                 workType={work?.type}

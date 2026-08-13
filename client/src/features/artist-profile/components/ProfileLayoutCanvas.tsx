@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type DragEvent, type PointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent } from 'react'
 import { Layers, Lock, Move, Unlock } from 'lucide-react'
 import type { Art } from '@/types/art'
 import type { ArtistProfileBlock, ArtistProfileResponse, ProfileCanvasItem, ProfileTabId, ProfileTabsConfig } from '@/types/artistProfile'
@@ -17,6 +17,12 @@ function pageSizeForItem(item: ProfileCanvasItem, multipleWidgets: boolean) {
     if (multipleWidgets) return getWidgetImageLimit(item)
     return item.limit && item.limit > 0 ? item.limit : Number.POSITIVE_INFINITY
 }
+
+const contentSizePixels = (item: ProfileCanvasItem) => ({
+    small: 220,
+    medium: 320,
+    large: 440,
+})[item.content_size ?? 'medium']
 
 // Profile layout canvas ----
 export function ProfileTabsNav({
@@ -193,6 +199,41 @@ export function ProfileLayoutCanvas({
     onOpenArt: (art: Art) => void
 }) {
     const [widgetPages, setWidgetPages] = useState<Record<string, number>>({})
+    const [measuredSectionHeights, setMeasuredSectionHeights] = useState<Record<string, number>>({})
+    const sectionNodes = useRef(new Map<string, HTMLElement>())
+    const sectionObserver = useRef<ResizeObserver | null>(null)
+
+    useEffect(() => {
+        sectionObserver.current = new ResizeObserver((entries) => {
+            setMeasuredSectionHeights((current) => {
+                let changed = false
+                const next = { ...current }
+                for (const entry of entries) {
+                    const id = (entry.target as HTMLElement).dataset.profileSectionId
+                    if (!id) continue
+                    const height = Math.ceil(entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height)
+                    if (next[id] !== height) {
+                        next[id] = height
+                        changed = true
+                    }
+                }
+                return changed ? next : current
+            })
+        })
+        sectionNodes.current.forEach((node) => sectionObserver.current?.observe(node))
+        return () => sectionObserver.current?.disconnect()
+    }, [])
+
+    const registerSection = useCallback((id: string, node: HTMLElement | null) => {
+        const previous = sectionNodes.current.get(id)
+        if (previous) sectionObserver.current?.unobserve(previous)
+        if (node) {
+            sectionNodes.current.set(id, node)
+            sectionObserver.current?.observe(node)
+        } else {
+            sectionNodes.current.delete(id)
+        }
+    }, [])
     const visibleTabs = getVisibleProfileTabs(theme.tabsConfig, isStorytellerProfile)
         .filter((tab) => !isAdminProfile || (tab !== 'arts' && tab !== 'works'))
     const buttons = getCanvasItems(theme.tabsConfig, visibleTabs, 'tab')
@@ -212,6 +253,8 @@ export function ProfileLayoutCanvas({
     }
     const sectionHeight = (item: ProfileCanvasItem) => {
         const savedHeight = getCanvasItemRenderHeight(item, boardHeight, Boolean(boardEditorPanel))
+        const measuredHeight = measuredSectionHeights[item.id] ?? 0
+        if (measuredHeight > 0) return Math.max(item.type === 'board' ? savedHeight : 0, measuredHeight)
         if (!imageWidgetTypes.includes(item.type)) return savedHeight
         const totalItems = item.type === 'arts'
             ? filterSortArts(profile.arts, item).length
@@ -224,12 +267,14 @@ export function ProfileLayoutCanvas({
         const visibleItems = Number.isFinite(pageSize) ? Math.min(totalItems, pageSize) : totalItems
         const columns = Math.max(1, Math.round(item.w / 18))
         const rows = Math.max(1, Math.ceil(visibleItems / columns))
+        const visualSize = contentSizePixels(item)
         const rowHeight = item.type === 'stickers' || item.type === 'shop'
-            ? theme.stickerSize + 52
+            ? visualSize + 72
             : item.type === 'arts'
-                ? Math.max(260, theme.artsTileWidth * 1.25)
-                : 360
-        return Math.max(savedHeight, rows * rowHeight + 112)
+                ? Math.round(visualSize * 1.35)
+                : Math.round(visualSize * 0.8)
+        const controlsHeight = contentEditMode ? 150 : 56
+        return Math.max(savedHeight, measuredHeight, rows * rowHeight + controlsHeight + 48)
     }
     const canvasHeight = Math.max(
         getCanvasHeight(
@@ -272,7 +317,7 @@ export function ProfileLayoutCanvas({
             return (
                 <ArtsMasonry
                     arts={paginate(filterSortArts(profile.arts, item))}
-                    tileWidth={theme.artsTileWidth}
+                    tileWidth={contentSizePixels(item)}
                     display={item.display}
                     limit={undefined}
                     onOpen={onOpenArt}
@@ -281,14 +326,14 @@ export function ProfileLayoutCanvas({
         }
 
         if (item.type === 'works') {
-            return <WorksGrid works={paginate(filterSortWorks(profile.works, item))} display={item.display} />
+            return <WorksGrid works={paginate(filterSortWorks(profile.works, item))} display={item.display} size={item.content_size ?? 'medium'} />
         }
 
         if (item.type === 'stickers') {
             return (
                 <ProfileStickers
                     stickers={paginate(filterSortStickers(profile.stickers, item))}
-                    stickerSize={theme.stickerSize}
+                    stickerSize={contentSizePixels(item)}
                 />
             )
         }
@@ -298,7 +343,7 @@ export function ProfileLayoutCanvas({
         }
 
         if (item.type === 'shop') {
-            return <ProfileShopCards items={paginate(profile.shop ?? [])} />
+            return <ProfileShopCards items={paginate(profile.shop ?? [])} size={item.content_size ?? 'medium'} />
         }
 
         return (
@@ -384,7 +429,9 @@ export function ProfileLayoutCanvas({
 
             {sections.map((item) => (
                 <section
+                    ref={(node) => registerSection(item.id, node)}
                     id={`profile-section-${item.id}`}
+                    data-profile-section-id={item.id}
                     data-profile-section-type={item.type}
                     key={item.id}
                     className={`absolute flex flex-col overflow-visible bg-transparent p-0 ${
@@ -398,7 +445,7 @@ export function ProfileLayoutCanvas({
                                   marginTop: item.y,
                                   width: `${item.w}%`,
                                   height: 'auto',
-                                  minHeight: item.h,
+                                  minHeight: undefined,
                                   zIndex: editMode ? 40 : undefined,
                               }
                             : {
@@ -406,7 +453,7 @@ export function ProfileLayoutCanvas({
                                   top: item.y,
                                   width: `${item.w}%`,
                                   height: 'auto',
-                                  minHeight: sectionHeight(item),
+                                  minHeight: item.type === 'board' ? item.h : undefined,
                                   zIndex: editMode ? 40 : undefined,
                               }
                     }

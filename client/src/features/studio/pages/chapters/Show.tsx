@@ -51,7 +51,7 @@ export default function ChapterShow() {
                 rel="stylesheet"
             />
 
-            <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
+            <div className="max-w-[1480px] mx-auto px-3 sm:px-4 py-6 sm:py-8">
                 {/* Header */}
                 <div className="flex items-start sm:items-center justify-between pb-4 mb-5 border-b-[2.5px] border-[#1a1a1a] dark:border-foreground/40 gap-3">
                     <button
@@ -79,7 +79,7 @@ export default function ChapterShow() {
                             {chapter.order}
                         </span>
                         <h1
-                            className="text-foreground leading-tight sm:leading-none"
+                            className="text-foreground leading-tight sm:leading-none text-center"
                             style={{
                                 fontFamily: "'Bebas Neue', sans-serif",
                                 fontSize: 'clamp(20px, 5vw, 32px)',

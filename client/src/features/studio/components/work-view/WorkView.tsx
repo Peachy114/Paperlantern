@@ -108,24 +108,24 @@ export default function WorkView() {
     }
 
     const deleteSelectedWorks = async () => {
-            if (selectedWorks.length === 0) return
+        if (selectedWorks.length === 0) return
 
-            setDeleting(true)
-            try {
-                for (const slug of selectedWorks) {
-                    await handleDelete(slug)
-                }
-                toast.success(
-                    `${selectedWorks.length} work${selectedWorks.length === 1 ? '' : 's'} deleted.`
-                )
-                setSelectedWorks([])
-                setSelectionMode(false)
-            } catch {
-                toast.error('Failed to delete selected works.')
-            } finally {
-                setDeleting(false)
+        setDeleting(true)
+        try {
+            for (const slug of selectedWorks) {
+                await handleDelete(slug)
             }
+            toast.success(
+                `${selectedWorks.length} work${selectedWorks.length === 1 ? '' : 's'} deleted.`
+            )
+            setSelectedWorks([])
+            setSelectionMode(false)
+        } catch {
+            toast.error('Failed to delete selected works.')
+        } finally {
+            setDeleting(false)
         }
+    }
 
     return (
         <CreatorWorkspaceShell
@@ -230,7 +230,10 @@ export default function WorkView() {
                                         >
                                             Clear
                                         </button>
-                                        <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
+                                        <span
+                                            className="mx-1 h-4 w-px bg-border"
+                                            aria-hidden="true"
+                                        />
                                         <button
                                             type="button"
                                             onClick={() => setConfirmingBulkDelete(true)}
@@ -246,36 +249,37 @@ export default function WorkView() {
                     </div>
 
                     <AlertDialog
-                open={confirmingBulkDelete}
-                onOpenChange={(open) => {
-                    if (!open) setConfirmingBulkDelete(false)
-                }}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>
-                            Delete {selectedWorks.length} work{selectedWorks.length === 1 ? '' : 's'}?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                            These works and all their chapters will be permanently deleted. This
-                            cannot be undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={async () => {
-                                await deleteSelectedWorks()
-                                setConfirmingBulkDelete(false)
-                            }}
-                            disabled={deleting}
-                            className="bg-red-500 text-white hover:bg-red-600"
-                        >
-                            {deleting ? 'Deleting…' : 'Delete'}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                        open={confirmingBulkDelete}
+                        onOpenChange={(open) => {
+                            if (!open) setConfirmingBulkDelete(false)
+                        }}
+                    >
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                    Delete {selectedWorks.length} work
+                                    {selectedWorks.length === 1 ? '' : 's'}?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    These works and all their chapters will be permanently deleted.
+                                    This cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={async () => {
+                                        await deleteSelectedWorks()
+                                        setConfirmingBulkDelete(false)
+                                    }}
+                                    disabled={deleting}
+                                    className="bg-red-500 text-white hover:bg-red-600"
+                                >
+                                    {deleting ? 'Deleting…' : 'Delete'}
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
 
                     <WorkViewTable
                         works={works}

@@ -72,6 +72,7 @@ export interface ProfileTabPosition {
 }
 
 export type ProfileCanvasItemKind = 'tab' | 'section'
+export type ProfileContentSize = 'small' | 'medium' | 'large'
 
 export interface ProfileCanvasItem {
     id: string
@@ -98,6 +99,8 @@ export interface ProfileCanvasItem {
     pagination?: boolean
     /** Maximum items shown per page. Zero means no limit for a single-widget page. */
     limit?: number
+    /** Saved visual size for image-based content inside this widget. */
+    content_size?: ProfileContentSize
     locked?: boolean
     sort?: string
     filter?: string

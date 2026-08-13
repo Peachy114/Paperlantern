@@ -89,18 +89,31 @@ export function ProfileWidgetEditControls({
     return (
         <div data-profile-system-control className="mb-4 flex flex-wrap items-end gap-3 rounded-md border bg-background/95 p-3 text-foreground shadow-sm">
             {['arts', 'works', 'stickers', 'shop'].includes(item.type) && (
-                <SelectField
-                    label="Items per page"
-                    value={String(item.limit ?? 0)}
-                    options={['0', '4', '6', '8', '10', '12']}
-                    formatOption={(value) => value === '0' ? 'No limit' : value}
-                    onChange={(value) =>
-                        onUpdateCanvasItem(item.id, item.kind, {
-                            limit: Number(value),
-                            pagination: Number(value) > 0,
-                        })
-                    }
-                />
+                <>
+                    <SelectField
+                        label="Items per page"
+                        value={String(item.limit ?? 0)}
+                        options={['0', '4', '6', '8', '10', '12']}
+                        formatOption={(value) => value === '0' ? 'No limit' : value}
+                        onChange={(value) =>
+                            onUpdateCanvasItem(item.id, item.kind, {
+                                limit: Number(value),
+                                pagination: Number(value) > 0,
+                            })
+                        }
+                    />
+                    <SelectField
+                        label="Content size"
+                        value={item.content_size ?? 'medium'}
+                        options={['small', 'medium', 'large']}
+                        formatOption={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
+                        onChange={(contentSize) =>
+                            onUpdateCanvasItem(item.id, item.kind, {
+                                content_size: contentSize as ProfileCanvasItem['content_size'],
+                            })
+                        }
+                    />
+                </>
             )}
             {item.type === 'arts' && (
                 <>

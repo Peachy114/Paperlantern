@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
     BarChart3,
     Eye,
@@ -9,7 +9,6 @@ import {
     Sparkles,
     Trash2,
 } from 'lucide-react'
-import CommentSection from '@/features/comments/components/CommentSection'
 import { Button } from '@/components/ui/button'
 import {
     Dialog,
@@ -394,7 +393,7 @@ export function ArtViewDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="h-[92dvh] w-[min(96vw,1180px)] max-w-none overflow-hidden p-0">
+            <DialogContent className="h-[92dvh] w-[min(96vw,1180px)] max-w-none overflow-hidden p-0 sm:max-w-[1180px]">
                 <DialogHeader className="sr-only">
                     <DialogTitle>{art.title}</DialogTitle>
                     <DialogDescription>Art post preview</DialogDescription>
@@ -412,12 +411,9 @@ export function ArtViewDialog({
                                         key={`${image.image_path}-${index}`}
                                         className="rounded-lg bg-black/30 p-2"
                                     >
-                                        <img
-                                            src={storageUrl(image.image_path)!}
+                                        <ArtPreviewImage
+                                            src={storageUrl(image.image_path)}
                                             alt={`${art.title} image ${index + 1}`}
-                                            draggable={false}
-                                            onContextMenu={(event) => event.preventDefault()}
-                                            className="mx-auto max-h-[78dvh] w-auto max-w-full select-none object-contain"
                                         />
                                         {image.description && (
                                             <figcaption className="mt-2 text-sm text-white/70">
@@ -484,7 +480,7 @@ export function ArtViewDialog({
                             <Metric label="Super Likes" value={art.super_likes_count} />
                         </div>
 
-                        <div className="mt-6">
+                        {/* <div className="mt-6">
                             <CommentSection
                                 targetType="art"
                                 targetId={art.id}
@@ -496,11 +492,40 @@ export function ArtViewDialog({
                                 title="Art comments"
                                 compact
                             />
-                        </div>
+                        </div> */}
                     </aside>
                 </div>
             </DialogContent>
         </Dialog>
+    )
+}
+
+function ArtPreviewImage({ src, alt }: { src: string | null; alt: string }) {
+    const [failed, setFailed] = useState(false)
+
+    if (!src || failed) {
+        return (
+            <div className="flex min-h-72 flex-col items-center justify-center gap-3 rounded-md border border-dashed border-white/20 bg-white/5 px-6 text-center text-white/70">
+                <ImageOff className="h-9 w-9" />
+                <div>
+                    <p className="text-sm font-semibold text-white">Image unavailable</p>
+                    <p className="mt-1 text-xs text-white/60">
+                        This artwork image could not be loaded. Try refreshing or upload it again.
+                    </p>
+                </div>
+            </div>
+        )
+    }
+
+    return (
+        <img
+            src={src}
+            alt={alt}
+            draggable={false}
+            onError={() => setFailed(true)}
+            onContextMenu={(event) => event.preventDefault()}
+            className="mx-auto max-h-[78dvh] w-auto max-w-full select-none object-contain"
+        />
     )
 }
 

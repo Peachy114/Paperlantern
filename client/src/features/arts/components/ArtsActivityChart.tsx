@@ -64,7 +64,7 @@ export function ArtsActivityChart({ points }: { points: Array<{ date: string; vi
                 </span>
             </div>
 
-            <div className="relative h-56 overflow-hidden rounded-2xl bg-gradient-to-b from-background to-sky-50/65">
+            <div className="relative h-56 overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-b from-background to-sky-50/65 dark:to-sky-500/10">
                 <div className="pointer-events-none absolute right-3 top-2 z-10 flex items-center gap-1.5 rounded-full border border-border bg-background/90 px-2.5 py-1 text-[9px] font-bold text-muted-foreground shadow-sm backdrop-blur">
                     <span className="h-2 w-2 rounded-full bg-sky-400" />
                     Views
@@ -119,7 +119,7 @@ export function ArtsActivityChart({ points }: { points: Array<{ date: string; vi
                                 y2={y}
                                 stroke="currentColor"
                                 strokeDasharray="3 5"
-                                className="text-slate-200/90"
+                                className="text-slate-200/90 dark:text-slate-600/80"
                             />
                         )
                     })}
@@ -181,7 +181,7 @@ export function ArtsActivityChart({ points }: { points: Array<{ date: string; vi
                                     x={coordinate.x}
                                     y={176}
                                     textAnchor="middle"
-                                    className="pointer-events-none fill-slate-400 text-[8px]"
+                                    className="pointer-events-none fill-slate-500 text-[8px] dark:fill-slate-400"
                                 >
                                     {point.label}
                                 </text>

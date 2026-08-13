@@ -76,8 +76,15 @@
 
     /* //// branded page gradients ---- */
     --gradient-brand: linear-gradient(110deg, #5bb5ff 0%, #dff2ff 42%, #ffffff 72%, #fff4cf 100%);
-    --gradient-brand-soft: linear-gradient(135deg, rgb(91 181 255 / 22%) 0%, rgb(255 255 255 / 96%) 58%, rgb(255 218 101 / 24%) 100%);
-    --gradient-brand-radial: radial-gradient(circle at 10% 10%, rgb(91 181 255 / 34%), transparent 42%), radial-gradient(circle at 92% 12%, rgb(255 218 101 / 28%), transparent 34%), #ffffff;
+    --gradient-brand-soft: linear-gradient(
+        135deg,
+        rgb(91 181 255 / 22%) 0%,
+        rgb(255 255 255 / 96%) 58%,
+        rgb(255 218 101 / 24%) 100%
+    );
+    --gradient-brand-radial:
+        radial-gradient(circle at 10% 10%, rgb(91 181 255 / 34%), transparent 42%),
+        radial-gradient(circle at 92% 12%, rgb(255 218 101 / 28%), transparent 34%), #ffffff;
 
     /* //// yes and no ---- */
     --yes-color: var(--green);
@@ -246,8 +253,15 @@
 
     /* //// branded page gradients ---- */
     --gradient-brand: linear-gradient(110deg, #173a55 0%, #1e2932 44%, #18191b 72%, #342d1b 100%);
-    --gradient-brand-soft: linear-gradient(135deg, rgb(103 188 255 / 20%) 0%, rgb(28 28 29 / 96%) 58%, rgb(255 218 101 / 12%) 100%);
-    --gradient-brand-radial: radial-gradient(circle at 10% 10%, rgb(103 188 255 / 24%), transparent 42%), radial-gradient(circle at 92% 12%, rgb(255 218 101 / 14%), transparent 34%), #151515;
+    --gradient-brand-soft: linear-gradient(
+        135deg,
+        rgb(103 188 255 / 20%) 0%,
+        rgb(28 28 29 / 96%) 58%,
+        rgb(255 218 101 / 12%) 100%
+    );
+    --gradient-brand-radial:
+        radial-gradient(circle at 10% 10%, rgb(103 188 255 / 24%), transparent 42%),
+        radial-gradient(circle at 92% 12%, rgb(255 218 101 / 14%), transparent 34%), #151515;
 
     /* //// surfaces ---- */
     --background: #151515;
@@ -429,36 +443,76 @@
        Orbitron owns prominent interface language. Lexend owns readable
        content, form values, metadata, cards and dialog details. Artist
        profiles may override both through their scoped profile font theme. */
-    body :where(
-        p, li, dd, dt, blockquote, figcaption, small,
-        input, textarea, select, option,
-        [data-slot='card-content'], [data-slot='card-description'],
-        [data-slot='dialog-description'], [data-slot='sheet-description'],
-        [data-slot='alert-dialog-description'],
-        [data-content], [data-description], [data-metadata]
-    ) {
+    body
+        :where(
+            p,
+            li,
+            dd,
+            dt,
+            blockquote,
+            figcaption,
+            small,
+            input,
+            textarea,
+            select,
+            option,
+            [data-slot='card-content'],
+            [data-slot='card-description'],
+            [data-slot='dialog-description'],
+            [data-slot='sheet-description'],
+            [data-slot='alert-dialog-description'],
+            [data-content],
+            [data-description],
+            [data-metadata]
+        ) {
         font-family: var(--comix-font-family) !important;
     }
 
-    body :where(
-        h1, h2, h3, h4, h5, h6,
-        button, label, legend, th,
-        nav a, [role='tab'], [role='button'],
-        [data-slot='button'], [data-slot='tabs-trigger'],
-        [data-slot='card-title'], [data-slot='badge'],
-        [data-slot='dropdown-menu-label'], [data-slot='dropdown-menu-item'],
-        [data-slot='context-menu-item'], [data-slot='menubar-item'],
-        [data-slot='dialog-title'], [data-slot='sheet-title'],
-        [data-slot='alert-dialog-title'],
-        [data-heading], [data-title], [data-ui-label],
-        .font-display
-    ),
-    body :where(
-        button, nav a, [role='tab'], [role='button'],
-        [data-slot='button'], [data-slot='tabs-trigger'],
-        [data-slot='badge'], [data-slot='dropdown-menu-item'],
-        [data-slot='context-menu-item'], [data-slot='menubar-item']
-    ) :where(span, strong) {
+    body
+        :where(
+            h1,
+            h2,
+            h3,
+            h4,
+            h5,
+            h6,
+            button,
+            label,
+            legend,
+            th,
+            nav a,
+            [role='tab'],
+            [role='button'],
+            [data-slot='button'],
+            [data-slot='tabs-trigger'],
+            [data-slot='card-title'],
+            [data-slot='badge'],
+            [data-slot='dropdown-menu-label'],
+            [data-slot='dropdown-menu-item'],
+            [data-slot='context-menu-item'],
+            [data-slot='menubar-item'],
+            [data-slot='dialog-title'],
+            [data-slot='sheet-title'],
+            [data-slot='alert-dialog-title'],
+            [data-heading],
+            [data-title],
+            [data-ui-label],
+            .font-display
+        ),
+    body
+        :where(
+            button,
+            nav a,
+            [role='tab'],
+            [role='button'],
+            [data-slot='button'],
+            [data-slot='tabs-trigger'],
+            [data-slot='badge'],
+            [data-slot='dropdown-menu-item'],
+            [data-slot='context-menu-item'],
+            [data-slot='menubar-item']
+        )
+        :where(span, strong) {
         font-family: var(--comix-font-display) !important;
     }
 
@@ -510,6 +564,24 @@
     }
 }
 
+.text-xl {
+    font-size: 1.20rem;
+    line-height: 1.75rem;
+}
+
+.text-2xl {
+    font-size: 1.30rem;
+    line-height: 2rem;
+}
+.text-base {
+    font-size: 0.80rem;
+    line-height: 1.5rem;
+}
+
+.font-medium {
+    font-weight: 500;
+}
+
 /* ==========================================================================
    // component classes ----
    ========================================================================== */
@@ -526,14 +598,35 @@
         font-size: 1rem;
         line-height: 1.85;
     }
-    .news-rich-content :where(h2, h3, h4) { margin: 1.75em 0 0.6em; font-family: var(--comix-font-display); font-weight: 900; line-height: 1.25; }
-    .news-rich-content h2 { font-size: 1.65rem; }
-    .news-rich-content h3 { font-size: 1.35rem; }
-    .news-rich-content :where(p, ul, ol, blockquote) { margin-block: 1em; }
-    .news-rich-content :where(ul, ol) { padding-left: 1.5rem; }
-    .news-rich-content ul { list-style: disc; }
-    .news-rich-content ol { list-style: decimal; }
-    .news-rich-content blockquote { border-left: 4px solid var(--selected); padding-left: 1rem; color: var(--muted-foreground); }
+    .news-rich-content :where(h2, h3, h4) {
+        margin: 1.75em 0 0.6em;
+        font-family: var(--comix-font-display);
+        font-weight: 900;
+        line-height: 1.25;
+    }
+    .news-rich-content h2 {
+        font-size: 1.65rem;
+    }
+    .news-rich-content h3 {
+        font-size: 1.35rem;
+    }
+    .news-rich-content :where(p, ul, ol, blockquote) {
+        margin-block: 1em;
+    }
+    .news-rich-content :where(ul, ol) {
+        padding-left: 1.5rem;
+    }
+    .news-rich-content ul {
+        list-style: disc;
+    }
+    .news-rich-content ol {
+        list-style: decimal;
+    }
+    .news-rich-content blockquote {
+        border-left: 4px solid var(--selected);
+        padding-left: 1rem;
+        color: var(--muted-foreground);
+    }
     /* ==========================================================================
        // sections ----
        ========================================================================== */

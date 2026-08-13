@@ -147,7 +147,7 @@ function WorkViewsAreaChart({ points }: { points: WorkChartPoint[] }) {
                             y2={y}
                             stroke="currentColor"
                             strokeDasharray="3 5"
-                            className="text-slate-200/90"
+                            className="text-slate-200/90 dark:text-slate-600/80"
                         />
                     )
                 })}
@@ -206,7 +206,7 @@ function WorkViewsAreaChart({ points }: { points: WorkChartPoint[] }) {
                                 x={coord.x}
                                 y={176}
                                 textAnchor="middle"
-                                className="pointer-events-none fill-slate-400 text-[8px]"
+                                className="pointer-events-none fill-slate-500 text-[8px] dark:fill-slate-400"
                             >
                                 {point.label}
                             </text>

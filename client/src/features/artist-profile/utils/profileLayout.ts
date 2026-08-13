@@ -590,6 +590,9 @@ export function normalizeCanvasItems(
             display: item.display ?? defaultCanvasDisplay(item.type),
             pagination: item.pagination ?? true,
             limit: typeof item.limit === 'number' && item.limit >= 0 ? item.limit : undefined,
+            content_size: ['small', 'medium', 'large'].includes(item.content_size ?? '')
+                ? item.content_size
+                : 'medium',
             locked: item.locked ?? false,
             sort: item.sort ?? defaultProfileSort(item.type),
             filter: item.filter ?? '',
