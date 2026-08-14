@@ -11,8 +11,8 @@
     color-scheme: light;
 
     /* //// typography ---- */
-    --comix-font-family: 'Lexend', sans-serif;
-    --comix-font-display: 'Orbitron', sans-serif;
+    --comix-font-family: 'Roboto', sans-serif;
+    --comix-font-display: 'Roboto', sans-serif;
 
     --font-small: 0.875rem;
     --font-medium: 1.25rem;
@@ -65,12 +65,15 @@
 
     /* //// selection and category states ---- */
     --selected: #ffb14d;
-    --selected-foreground: #241400;
+    /* --selected-foreground: #241400; */
+    --selected-foreground: #fcfcfc;
     --selected-hover: #ffa332;
     --selected-soft: #fff4e5;
     --category: #ffda65;
     --category-foreground: #2b2100;
+    /* --category-foreground: #fcfcfc; */
     --category-hover: #ffd24a;
+
     --category-active: var(--selected);
     --category-active-foreground: var(--selected-foreground);
 
@@ -246,7 +249,8 @@
     --selected-hover: #ffc06f;
     --selected-soft: #3b2a18;
     --category: #c7a943;
-    --category-foreground: #171100;
+    /* --category-foreground: #171100; */
+    --category-foreground: #e4e4e7;
     --category-hover: #d9bb52;
     --category-active: var(--selected);
     --category-active-foreground: var(--selected-foreground);
@@ -565,16 +569,16 @@
 }
 
 .text-xl {
-    font-size: 1.20rem;
+    font-size: 1.2rem;
     line-height: 1.75rem;
 }
 
 .text-2xl {
-    font-size: 1.30rem;
+    font-size: 1.3rem;
     line-height: 2rem;
 }
 .text-base {
-    font-size: 0.80rem;
+    font-size: 0.8rem;
     line-height: 1.5rem;
 }
 
