@@ -80,6 +80,36 @@ class ContentSuspensionService
                 ->latest()
                 ->limit(50)
                 ->get(),
+            'profile_media' => User::query()
+                ->where(function ($query) {
+                    $query->where('avatar_moderation_status', 'pending')
+                        ->orWhere('cover_moderation_status', 'pending');
+                })
+                ->latest('updated_at')
+                ->limit(40)
+                ->get(['id', 'name', 'username', 'avatar', 'profile_cover', 'avatar_moderation_status', 'cover_moderation_status', 'avatar_uploaded_at', 'cover_uploaded_at', 'updated_at'])
+                ->flatMap(function (User $user) {
+                    return collect([
+                        $user->avatar && $user->avatar_moderation_status === 'pending' ? [
+                            'id' => "{$user->id}:avatar",
+                            'user_id' => $user->id,
+                            'field' => 'avatar',
+                            'image_path' => $user->avatar,
+                            'moderation_status' => $user->avatar_moderation_status,
+                            'created_at' => $user->avatar_uploaded_at ?? $user->updated_at,
+                            'user' => $user->only(['id', 'name', 'username']),
+                        ] : null,
+                        $user->profile_cover && $user->cover_moderation_status === 'pending' ? [
+                            'id' => "{$user->id}:profile_cover",
+                            'user_id' => $user->id,
+                            'field' => 'profile_cover',
+                            'image_path' => $user->profile_cover,
+                            'moderation_status' => $user->cover_moderation_status,
+                            'created_at' => $user->cover_uploaded_at ?? $user->updated_at,
+                            'user' => $user->only(['id', 'name', 'username']),
+                        ] : null,
+                    ])->filter();
+                })->values(),
         ];
     }
 
@@ -296,6 +326,7 @@ class ContentSuspensionService
             'feed_image' => FeedPostImage::findOrFail($id),
             'commission_message' => CommissionMessage::findOrFail($id),
             'commission_delivery_file' => CommissionDeliveryFile::findOrFail($id),
+            'user' => User::findOrFail($id),
             default => throw ValidationException::withMessages([
                 'type' => ['Unsupported moderation target.'],
             ]),
@@ -314,6 +345,7 @@ class ContentSuspensionService
             'feed_image' => [null, 'image_path'],
             'commission_message' => [null, 'image_path'],
             'commission_delivery_file' => [null, 'file_path'],
+            'user' => ['avatar', 'profile_cover'],
         ];
 
         if (! in_array($field, $allowed[$type] ?? [], true)) {
@@ -325,6 +357,9 @@ class ContentSuspensionService
 
     private function ownerFor(Model $target): User
     {
+        if ($target instanceof User) {
+            return $target;
+        }
         if ($target instanceof Chapter) {
             $target->loadMissing('work.user');
             return $target->work->user;
@@ -368,6 +403,7 @@ class ContentSuspensionService
             $target instanceof FeedPostImage => 'Feed image',
             $target instanceof CommissionMessage => "Commission message{$fieldLabel}",
             $target instanceof CommissionDeliveryFile => "Commission delivery file{$fieldLabel}",
+            $target instanceof User => "Profile{$fieldLabel}",
             default => 'Content',
         };
     }

@@ -19,9 +19,9 @@ interface Announcement {
     creator?: { name?: string | null } | null
 }
 
-const DESKTOP_CARD_WIDTH = 780
+const DESKTOP_CARD_WIDTH = 920
 const MOBILE_BREAKPOINT = 640
-const MOBILE_CARD_RATIO = 0.85
+const MOBILE_CARD_RATIO = 0.92
 
 const tagStyles: Record<string, { bg: string; label: string }> = {
     event: { bg: 'var(--chart-2)', label: 'Event' },
@@ -45,11 +45,13 @@ export default function HeroSectionView({
 
     React.useEffect(() => {
         if (!api) return
+
         const update = () => {
             setCanScrollPrev(api.canScrollPrev())
             setCanScrollNext(api.canScrollNext())
             setCurrent(api.selectedScrollSnap())
         }
+
         update()
         api.on('select', update)
         api.on('reInit', update)
@@ -63,18 +65,25 @@ export default function HeroSectionView({
     }, [])
 
     const isMobile = viewportWidth < MOBILE_BREAKPOINT
-    const CARD_WIDTH = isMobile ? Math.round(viewportWidth * MOBILE_CARD_RATIO) : DESKTOP_CARD_WIDTH
+    const CARD_WIDTH = isMobile
+        ? Math.round(viewportWidth * MOBILE_CARD_RATIO)
+        : DESKTOP_CARD_WIDTH
 
     const slides: Announcement[] = React.useMemo(() => {
-        const heroAnnouncements = announcements.filter((a) => {
-            const targets = a.page_targets ?? []
+        const heroAnnouncements = announcements.filter((announcement) => {
+            const targets = announcement.page_targets ?? []
             const matchesPage = targets.length === 0 || targets.includes('home')
-            const matchesPlacement = !a.placement || a.placement === 'hero' || a.placement === 'both'
+            const matchesPlacement =
+                !announcement.placement ||
+                announcement.placement === 'hero' ||
+                announcement.placement === 'both'
 
             return matchesPage && matchesPlacement
         })
-        const pinned = heroAnnouncements.filter((a) => a.is_pinned)
-        const unpinned = heroAnnouncements.filter((a) => !a.is_pinned)
+
+        const pinned = heroAnnouncements.filter((announcement) => announcement.is_pinned)
+        const unpinned = heroAnnouncements.filter((announcement) => !announcement.is_pinned)
+
         return [...pinned, ...unpinned]
     }, [announcements])
 
@@ -93,8 +102,7 @@ export default function HeroSectionView({
     const needsCentering = !hasOverflow
 
     return (
-        <div ref={containerRef} className="relative w-full overflow-hidden ">
-            {/* Main carousel */}
+        <div ref={containerRef} className="relative w-full overflow-hidden">
             <div className="relative">
                 <div className="flex">
                     <Carousel
@@ -106,47 +114,60 @@ export default function HeroSectionView({
                             className={`ml-0 ${needsCentering ? 'justify-center' : ''}`}
                         >
                             {slides.map((announcement, index) => {
-                                const img = storageUrl(announcement.image ?? null, 'sm')
+                                const img = storageUrl(announcement.image ?? null)
+                                const backdropImg =
+                                    storageUrl(announcement.image ?? null, 'sm') ?? img
+
                                 if (!img) return null
+
                                 return (
                                     <CarouselItem
                                         key={`${announcement.id}-${index}`}
-                                        className="basis-auto shrink-0 pl-0"
+                                        className="basis-auto shrink-0 px-1 pl-0 sm:px-2"
                                         style={{ width: CARD_WIDTH }}
                                     >
                                         <button
+                                            type="button"
                                             onClick={() =>
-                                                setModalSlide({ kind: 'news', data: announcement })
+                                                setModalSlide({
+                                                    kind: 'news',
+                                                    data: announcement,
+                                                })
                                             }
-                                            className="relative overflow-hidden text-left block w-full focus:outline-none"
-                                            style={{ aspectRatio: isMobile ? '2 / 3' : '5 / 4' }}
+                                            className="relative block w-full overflow-hidden rounded-[18px] text-left shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                                            style={{
+                                                aspectRatio: isMobile ? '4 / 5' : '3 / 2',
+                                            }}
                                         >
                                             <div
-                                                className="absolute inset-0"
-                                                style={{ background: '#1a1a22' }}
+                                                className="absolute inset-0 overflow-hidden"
+                                                style={{ background: '#111118' }}
                                             >
-                                                {img ? (
+                                                {backdropImg && (
                                                     <img
-                                                        src={img}
-                                                        alt={announcement.title}
+                                                        src={backdropImg}
+                                                        alt=""
+                                                        aria-hidden="true"
                                                         loading={index === 0 ? 'eager' : 'lazy'}
-                                                        fetchPriority={
-                                                            index === 0 ? 'high' : 'auto'
-                                                        }
                                                         decoding="async"
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                ) : (
-                                                    <div
-                                                        className="w-full h-full"
-                                                        style={{ background: '#1a1a22' }}
+                                                        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl"
                                                     />
                                                 )}
+
+                                                <div className="absolute inset-0 bg-black/25" />
+
+                                                <img
+                                                    src={img}
+                                                    alt={announcement.title}
+                                                    loading={index === 0 ? 'eager' : 'lazy'}
+                                                    fetchPriority={index === 0 ? 'high' : 'auto'}
+                                                    decoding="async"
+                                                    className="relative z-[1] h-full w-full object-contain"
+                                                />
                                             </div>
 
-                                            {/* Slide counter — glass style */}
                                             <span
-                                                className="badge-game absolute top-2 left-2 sm:top-3 sm:left-3 z-10 rounded-full p-3"
+                                                className="badge-game absolute left-2 top-2 z-10 rounded-full p-3 sm:left-3 sm:top-3"
                                                 style={{
                                                     background: 'rgba(255, 255, 255, 0.12)',
                                                     color: '#fff',
@@ -159,17 +180,18 @@ export default function HeroSectionView({
                                             </span>
 
                                             {announcement.is_pinned && (
-                                                <span className="badge-game badge-game-pink absolute top-2 right-2 sm:top-3 sm:right-3 z-10 rounded-full">
+                                                <span className="badge-game badge-game-pink absolute right-2 top-2 z-10 rounded-full sm:right-3 sm:top-3">
                                                     Pinned
                                                 </span>
                                             )}
 
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-                                            <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
+                                            <div className="absolute inset-0 z-[2] bg-gradient-to-t from-black/90 via-black/5 to-transparent" />
+
+                                            <div className="absolute bottom-0 left-0 right-0 z-[3] p-4 sm:p-5">
                                                 {announcement.tag &&
                                                     tagStyles[announcement.tag] && (
                                                         <span
-                                                            className="inline-block text-[10px] sm:text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full mb-1.5"
+                                                            className="mb-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide sm:text-[11px]"
                                                             style={{
                                                                 background:
                                                                     tagStyles[announcement.tag].bg,
@@ -179,8 +201,9 @@ export default function HeroSectionView({
                                                             {tagStyles[announcement.tag].label}
                                                         </span>
                                                     )}
+
                                                 <h2
-                                                    className="text-base sm:text-lg text-white leading-tight"
+                                                    className="text-base leading-tight text-white sm:text-xl"
                                                     style={{
                                                         fontFamily: 'var(--comix-font-display)',
                                                         fontWeight: 700,
@@ -188,7 +211,8 @@ export default function HeroSectionView({
                                                 >
                                                     {announcement.title} "hero for announcement"
                                                 </h2>
-                                                <p className="text-[11px] sm:text-xs text-white/70 mt-1 line-clamp-1">
+
+                                                <p className="mt-1 line-clamp-2 text-[11px] text-white/75 sm:text-sm">
                                                     {announcement.content}
                                                 </p>
                                             </div>
@@ -199,55 +223,65 @@ export default function HeroSectionView({
                         </CarouselContent>
                     </Carousel>
                 </div>
+
                 {slides.length > 1 && canScrollPrev && (
                     <button
+                        type="button"
                         onClick={() => api?.scrollPrev()}
                         aria-label="Previous"
-                        className="hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 z-30 w-9 h-9 items-center justify-center text-white transition-shadow rounded-full"
+                        className="absolute left-2 top-1/2 z-30 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white transition-shadow md:flex"
                         style={{
                             background: 'var(--comix-void)',
                             border: '1px solid var(--border)',
                         }}
-                        onMouseEnter={(e) =>
-                            (e.currentTarget.style.boxShadow = '0 0 10px 1px rgba(47,243,208,0.5)')
+                        onMouseEnter={(event) =>
+                            (event.currentTarget.style.boxShadow =
+                                '0 0 10px 1px rgba(47,243,208,0.5)')
                         }
-                        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
+                        onMouseLeave={(event) =>
+                            (event.currentTarget.style.boxShadow = 'none')
+                        }
                     >
-                        <ChevronLeft className="w-5 h-5" />
+                        <ChevronLeft className="h-5 w-5" />
                     </button>
                 )}
+
                 {slides.length > 1 && canScrollNext && (
                     <button
+                        type="button"
                         onClick={() => api?.scrollNext()}
                         aria-label="Next"
-                        className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 z-30 w-9 h-9 items-center justify-center text-white transition-shadow rounded-full"
+                        className="absolute right-2 top-1/2 z-30 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-white transition-shadow md:flex"
                         style={{
                             background: 'var(--comix-void)',
                             border: '1px solid var(--border)',
                         }}
-                        onMouseEnter={(e) =>
-                            (e.currentTarget.style.boxShadow = '0 0 10px 1px rgba(47,243,208,0.5)')
+                        onMouseEnter={(event) =>
+                            (event.currentTarget.style.boxShadow =
+                                '0 0 10px 1px rgba(47,243,208,0.5)')
                         }
-                        onMouseLeave={(e) => (e.currentTarget.style.boxShadow = 'none')}
+                        onMouseLeave={(event) =>
+                            (event.currentTarget.style.boxShadow = 'none')
+                        }
                     >
-                        <ChevronRight className="w-5 h-5" />
+                        <ChevronRight className="h-5 w-5" />
                     </button>
                 )}
             </div>
 
-            {/* Progression rail */}
             {slides.length > 1 && (
-                <div className="relative flex justify-center gap-1.5 mt-3">
-                    {slides.map((_, i) => (
+                <div className="relative mt-3 flex justify-center gap-1.5">
+                    {slides.map((_, index) => (
                         <button
-                            key={i}
-                            onClick={() => api?.scrollTo(i)}
-                            aria-label={`Go to slide ${i + 1}`}
+                            key={index}
+                            type="button"
+                            onClick={() => api?.scrollTo(index)}
+                            aria-label={`Go to slide ${index + 1}`}
                             className="h-1.5 rounded-full transition-all"
                             style={{
-                                width: i === current ? 20 : 6,
+                                width: index === current ? 20 : 6,
                                 background:
-                                    i === current
+                                    index === current
                                         ? 'var(--comix-orange)'
                                         : 'rgba(255,255,255,0.25)',
                             }}
@@ -256,7 +290,11 @@ export default function HeroSectionView({
                 </div>
             )}
 
-            <HeroModal slide={modalSlide} cover={storageUrl} onClose={() => setModalSlide(null)} />
+            <HeroModal
+                slide={modalSlide}
+                cover={storageUrl}
+                onClose={() => setModalSlide(null)}
+            />
         </div>
     )
 }

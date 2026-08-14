@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { PageWidget } from '@/types/pageLayout'
 import { storageUrl } from '@/utils/storage'
+import { widgetBackgroundStyle } from '@/features/page-builder/widgetBackgroundPresets'
 
 export function cssColor(value?: string) {
     const color = value?.trim()
@@ -114,8 +115,13 @@ export function widgetStyle(widget: PageWidget): CSSProperties {
           : undefined
     const frameMarginRight = alignedFrame ? customMarginRight : inlineFrame ? 0 : undefined
 
+    const presetBackground = widgetBackgroundStyle(style)
+    const legacyBackground = style.background_preset
+        ? presetBackground
+        : { background: style.transparent ? 'transparent' : cssColor(style.background) }
+
     return {
-        background: style.transparent ? 'transparent' : cssColor(style.background),
+        ...legacyBackground,
         border: style.border
             ? `1px solid ${cssColor(style.border_color) ?? 'var(--border, #d4d4d8)'}`
             : undefined,
@@ -182,7 +188,13 @@ export function PageWidgetFrame({
         style.position = style.position ?? 'relative'
     }
 
-    return <div style={style}>{children}</div>
+    const backgroundPreset = widget.style?.background_preset ?? 'default'
+
+    return <div
+        className="widget-background-frame"
+        data-background-preset={backgroundPreset}
+        style={style}
+    >{children}</div>
 }
 
 export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
@@ -291,9 +303,11 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
                     className="mx-auto overflow-hidden rounded-xl"
                     style={{
                         minHeight: height ? `${height}px` : '220px',
-                        backgroundColor: widget.style?.transparent
-                            ? 'transparent'
-                            : (cssColor(widget.style?.background) ?? 'var(--muted, #f4f4f5)'),
+                        ...(widget.style?.background_preset
+                            ? widgetBackgroundStyle(widget.style)
+                            : { backgroundColor: widget.style?.transparent
+                                ? 'transparent'
+                                : (cssColor(widget.style?.background) ?? 'var(--muted, #f4f4f5)') }),
                         backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
                         backgroundSize: backgroundImage ? imageFit : undefined,
                         backgroundPosition: backgroundImage ? imagePosition : undefined,
@@ -381,9 +395,11 @@ export function CustomPageWidgetContent({ widget }: { widget: PageWidget }) {
                     style={{
                         width: `min(${width}px, 100%)`,
                         height: `${height}px`,
-                        background: widget.style?.transparent
-                            ? 'transparent'
-                            : (cssColor(widget.style?.background) ?? 'transparent'),
+                        ...(widget.style?.background_preset
+                            ? widgetBackgroundStyle(widget.style)
+                            : { background: widget.style?.transparent
+                                ? 'transparent'
+                                : (cssColor(widget.style?.background) ?? 'transparent') }),
                         border: widget.style?.border
                             ? `1px solid ${cssColor(widget.style?.border_color) ?? 'var(--border, #d4d4d8)'}`
                             : undefined,

@@ -150,7 +150,9 @@ class ModerationRepository
     {
         return Chapter::where('moderation_status', 'pending_review')->count()
              + Work::where('moderation_status', 'pending_review')->count()
-             + StickyNote::where('moderation_status', 'pending_review')->count();
+             + StickyNote::where('moderation_status', 'pending_review')->count()
+             + User::where('avatar_moderation_status', 'pending')->count()
+             + User::where('cover_moderation_status', 'pending')->count();
     }
 
     public function getViolations(): Collection

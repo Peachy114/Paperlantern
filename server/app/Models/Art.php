@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use App\Models\Concerns\HasContentSuspensions;
+use Illuminate\Database\Eloquent\Builder;
 
 class Art extends Model
 {
@@ -62,6 +63,11 @@ class Art extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function scopeCreatorFeatureVisible(Builder $query): Builder
+    {
+        return $query->whereHas('user', fn (Builder $user) => $user->withCreatorFeature('arts'));
     }
 
     public function images()

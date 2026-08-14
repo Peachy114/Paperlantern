@@ -1,12 +1,14 @@
 import { type PointerEvent as ReactPointerEvent } from 'react'
 import type { PageWidget } from '@/types/pageLayout'
 import type { Announcement } from '@/api/announcement'
+import type { WorkItem } from '@/features/work/hooks/useHome'
 
 export type HeroItem = {
     id: string
     type: 'work' | 'art' | 'commission' | 'announcement' | 'shop'
     title: string
     artist?: string | null
+    description?: string | null
     image: string | null
     href: string
     views?: number
@@ -14,6 +16,7 @@ export type HeroItem = {
     labels?: string[]
     featured?: boolean
     announcement?: Announcement
+    work?: WorkItem
 }
 
 export type ShopHeroItem = {

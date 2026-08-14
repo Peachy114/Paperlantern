@@ -40,19 +40,12 @@ export default function PublicWorkInfo({
     const coverImage = work?.cover ? coverUrl(work.cover, 'sm') : null
 
     const authorName = work?.user?.name || work?.user?.username || 'Unknown artist'
-
     const authorUsername = work?.user?.username ?? null
 
-    // const authorInitial = authorName.trim().charAt(0).toUpperCase() || 'A'
-
     const genres = normalizeGenres(work?.genres)
-
     const scheduleLabel = work?.schedule || statusLabel(work?.status)
-
     const views = Number(work?.views ?? 0)
-
     const likes = Number(work?.work_likes_count ?? work?.likes ?? 0)
-
     const comments = Number(work?.comments_count ?? 0)
 
     return (
@@ -99,28 +92,6 @@ export default function PublicWorkInfo({
                         No cover image
                     </div>
                 )}
-
-                {/* <div
-                    title={authorName}
-                    className="
-                            absolute
-                            left-3
-                            top-3
-                            flex
-                            h-9
-                            w-9
-                            items-center
-                            justify-center
-                            rounded-full
-                            bg-black
-                            text-sm
-                            font-semibold
-                            text-white
-                            shadow-md
-                        "
-                >
-                    {authorInitial}
-                </div> */}
             </div>
 
             {/* ============================================================
@@ -239,7 +210,7 @@ export default function PublicWorkInfo({
                     {work?.title || 'Untitled work'}
                 </h1>
 
-                {/* Author and owner button */}
+                {/* Author / profile / owner controls */}
                 <div
                     className="
                             mt-1
@@ -276,25 +247,27 @@ export default function PublicWorkInfo({
                         )}
                     </p>
 
-                    {isOwner && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/studio/works/${slug}/chapters`)}
-                            className="
-                                    h-7
-                                    shrink-0
-                                    gap-1
-                                    rounded-full
-                                    px-2
-                                    text-[10px]
-                                "
-                        >
-                            <Settings className="h-3 w-3" />
-                            Manage
-                        </Button>
-                    )}
+                    <div className="flex shrink-0 items-center gap-1.5">
+                        {isOwner && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => navigate(`/studio/works/${slug}/chapters`)}
+                                className="
+                                        h-7
+                                        shrink-0
+                                        gap-1
+                                        rounded-full
+                                        px-2
+                                        text-[10px]
+                                    "
+                            >
+                                <Settings className="h-3 w-3" />
+                                Manage
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Description */}
@@ -366,7 +339,6 @@ function Metric({ icon, value }: { icon: ReactNode; value: number }) {
     return (
         <span className="inline-flex items-center gap-1">
             {icon}
-
             <span>{formatCompactNumber(value)}</span>
         </span>
     )
@@ -383,13 +355,10 @@ function statusLabel(status?: string | null) {
     switch (status) {
         case 'completed':
             return 'Completed'
-
         case 'hiatus':
             return 'Hiatus'
-
         case 'draft':
             return 'Draft'
-
         case 'ongoing':
         default:
             return 'Ongoing'

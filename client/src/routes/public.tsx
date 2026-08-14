@@ -15,6 +15,8 @@ export const publicRoutes = (
             }
         />
         <Route path="/search" element={<Pages.SearchWork />} />
+        <Route path="/news" element={<Pages.News />} />
+        <Route path="/news/:id" element={<Pages.NewsDetail />} />
         <Route
             path="/comix"
             element={

@@ -75,6 +75,10 @@ Route::prefix('public')->group(function () {
     Route::get('/fresh-releases',  [PublicWorkController::class, 'freshReleases']);
     Route::get('/latest-chapters', [PublicWorkController::class, 'latestChapters']);
     Route::get('/announcements',    fn() => response()->json(app(\App\Services\AnnouncementService::class)->getByAudience('public')));
+    Route::get('/announcements/{announcement}', function (\App\Models\Announcement $announcement) {
+        abort_unless($announcement->is_public && $announcement->audience === 'public', 404);
+        return response()->json($announcement->load('creator:id,name,username'));
+    });
     Route::post('/subscribe', [SubscribeController::class, 'store']);
 
 
@@ -365,27 +369,28 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
             Route::put('/commission-messages/{message}/image/suspend', [ModerationController::class, 'suspendCommissionMessageImage']);
             Route::put('/commission-delivery-files/{file}/approve', [ModerationController::class, 'approveCommissionDeliveryFile']);
             Route::put('/commission-delivery-files/{file}/suspend', [ModerationController::class, 'suspendCommissionDeliveryFile']);
+            Route::put('/users/{user}/media/{field}/approve', [ModerationController::class, 'approveProfileMedia']);
         });
     });
 
     // ── Storyteller only ──────────────────────────────────────────────────────
     Route::middleware('role:storyteller')->prefix('studio')->group(function () {
-        Route::get('/arts',                 [ArtController::class, 'index']);
-        Route::post('/arts',                [ArtController::class, 'store']);
+        Route::get('/arts',                 [ArtController::class, 'index'])->middleware('creator.feature:arts');
+        Route::post('/arts',                [ArtController::class, 'store'])->middleware('creator.feature:arts');
         Route::get('/arts/trash',           [ArtController::class, 'trash']);
         Route::post('/arts/trash/{slug}/restore', [ArtController::class, 'restore']);
         Route::delete('/arts/trash/{slug}', [ArtController::class, 'forceDelete']);
-        Route::get('/arts/{slug}',          [ArtController::class, 'show']);
-        Route::post('/arts/{slug}',         [ArtController::class, 'update']);
-        Route::delete('/arts/{slug}',       [ArtController::class, 'destroy']);
-        Route::get('/shop',                 [ShopController::class, 'index']);
-        Route::post('/shop',                [ShopController::class, 'store']);
-        Route::post('/shop/{shopItem}',     [ShopController::class, 'update']);
-        Route::delete('/shop/{shopItem}',   [ShopController::class, 'destroy']);
-        Route::get('/commissions/profile',  [StudioCommissionController::class, 'show']);
-        Route::post('/commissions/apply',   [StudioCommissionController::class, 'apply']);
-        Route::patch('/commissions/profile', [StudioCommissionController::class, 'update']);
-        Route::post('/commissions/services', [StudioCommissionController::class, 'storeService']);
+        Route::get('/arts/{slug}',          [ArtController::class, 'show'])->middleware('creator.feature:arts');
+        Route::post('/arts/{slug}',         [ArtController::class, 'update'])->middleware('creator.feature:arts');
+        Route::delete('/arts/{slug}',       [ArtController::class, 'destroy'])->middleware('creator.feature:arts');
+        Route::get('/shop',                 [ShopController::class, 'index'])->middleware('creator.feature:shop');
+        Route::post('/shop',                [ShopController::class, 'store'])->middleware('creator.feature:shop');
+        Route::post('/shop/{shopItem}',     [ShopController::class, 'update'])->middleware('creator.feature:shop');
+        Route::delete('/shop/{shopItem}',   [ShopController::class, 'destroy'])->middleware('creator.feature:shop');
+        Route::get('/commissions/profile',  [StudioCommissionController::class, 'show'])->middleware('creator.feature:commission');
+        Route::post('/commissions/apply',   [StudioCommissionController::class, 'apply'])->middleware('creator.feature:commission');
+        Route::patch('/commissions/profile', [StudioCommissionController::class, 'update'])->middleware('creator.feature:commission');
+        Route::post('/commissions/services', [StudioCommissionController::class, 'storeService'])->middleware('creator.feature:commission');
         Route::post('/commissions/services/{service}', [StudioCommissionController::class, 'updateService']);
         Route::delete('/commissions/services/{service}', [StudioCommissionController::class, 'destroyService']);
         Route::patch('/commissions/orders/{order}', [StudioCommissionController::class, 'updateOrder']);
@@ -396,7 +401,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::patch('/commissions/revisions/{revision}', [StudioCommissionController::class, 'updateRevision']);
         Route::patch('/commissions/ratings/{rating}/appeal', [StudioCommissionController::class, 'appealRating']);
 
-        Route::apiResource('works',          WorkController::class);
+        Route::apiResource('works',          WorkController::class)->middleware('creator.feature:webcomix,novels');
         Route::post('/works/{work}/chapters/{chapter}/images', [ChapterController::class, 'storeImages']);
         Route::get('/works/{work}/chapters/{chapter}/revisions', [ChapterRevisionController::class, 'index']);
         Route::patch('/works/{work}/chapters/{chapter}/autosave', [ChapterRevisionController::class, 'autosave']);
@@ -434,7 +439,7 @@ Route::middleware(['auth:sanctum', 'banned'])->group(function () {
         Route::post('/works/{work}/chapters/{chapter}/trash', [ChapterController::class, 'trash']);
     });
 
-    Route::middleware('role:wanderer,storyteller')->prefix('artist-profile')->group(function () {
+    Route::middleware('role:wanderer,storyteller,super_admin')->prefix('artist-profile')->group(function () {
         Route::post('/header', [ArtistProfileController::class, 'updateHeader']);
         Route::post('/blocks', [ArtistProfileController::class, 'storeBlock']);
         Route::post('/blocks/reorder', [ArtistProfileController::class, 'reorderBlocks']);

@@ -564,7 +564,7 @@ function ArtistTermsReview({
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2 lg:w-44 lg:flex-col">
-                        <Button disabled={busy} onClick={() => onUpdate(item.id, 'approved')}>
+                        <Button variant="success" disabled={busy} onClick={() => onUpdate(item.id, 'approved')}>
                             Approve
                         </Button>
                         <Button variant="outline" disabled={busy} onClick={() => onUpdate(item.id, 'hidden')}>
@@ -880,6 +880,7 @@ function ApplicationRow({
                 <Button
                     type="button"
                     className="w-full"
+                    variant="success"
                     disabled={busy || application.application_status === 'approved'}
                     onClick={() => onAction('approved')}
                 >
@@ -887,7 +888,7 @@ function ApplicationRow({
                 </Button>
                 <Button
                     type="button"
-                    variant="outline"
+                    variant="cancel"
                     className="w-full"
                     disabled={busy || application.application_status === 'rejected'}
                     onClick={() => onAction('rejected')}

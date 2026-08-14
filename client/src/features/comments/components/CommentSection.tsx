@@ -1,26 +1,14 @@
-import {
-    Fragment,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FormEvent,
-    type ReactNode,
-} from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
     BadgeCheck,
-    Bold,
-    EyeOff,
     Flag,
     Gift,
     Glasses,
     Heart,
     Image as ImageIcon,
-    ImageOff,
-    Italic,
     Loader2,
     MessageCircle,
     Pin,
@@ -50,103 +38,18 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import ViewProfileLink from '@/components/profile/ViewProfileLink'
 import SuperLikeButton from './SuperLikeButton'
-
-const COMMENT_REACTION_EMOJIS = [
-    '😀',
-    '😂',
-    '😭',
-    '🔥',
-    '❤️',
-    '😍',
-    '🥰',
-    '😮',
-    '😆',
-    '👏',
-    '👍',
-    '✨',
-    '💯',
-    '🤔',
-    '😎',
-    '🥹',
-    '😅',
-    '🙌',
-    '🎉',
-    '⭐',
-]
-COMMENT_REACTION_EMOJIS.splice(
-    0,
-    COMMENT_REACTION_EMOJIS.length,
-    '\uD83D\uDE00',
-    '\uD83D\uDE02',
-    '\uD83D\uDE2D',
-    '\uD83D\uDD25',
-    '\u2764\uFE0F',
-    '\uD83D\uDE0D',
-    '\uD83E\uDD70',
-    '\uD83D\uDE2E',
-    '\uD83D\uDE06',
-    '\uD83D\uDC4F',
-    '\uD83D\uDC4D',
-    '\u2728',
-    '\uD83D\uDCAF',
-    '\uD83E\uDD14',
-    '\uD83D\uDE0E',
-    '\uD83E\uDD79',
-    '\uD83D\uDE05',
-    '\uD83D\uDE4C',
-    '\uD83C\uDF89',
-    '\u2B50'
-)
-
-const COMMENT_SORTS: Array<{ value: CommentSort; label: string }> = [
-    { value: 'all', label: 'All' },
-    { value: 'latest', label: 'Latest' },
-    { value: 'popular', label: 'Popular' },
-]
-
-const INITIAL_VISIBLE_REPLIES = 5
-
-function normalizeUsername(value?: string | null): string {
-    return value?.trim().replace(/^@/, '').toLowerCase() ?? ''
-}
-
-function compareRepliesOldestFirst(a: PublicComment, b: PublicComment): number {
-    const aTime = Date.parse(a.created_at)
-    const bTime = Date.parse(b.created_at)
-
-    if (Number.isFinite(aTime) && Number.isFinite(bTime) && aTime !== bTime) {
-        return aTime - bTime
-    }
-
-    return String(a.id).localeCompare(String(b.id))
-}
-
-function flattenRepliesOldestFirst(replies: PublicComment[]): PublicComment[] {
-    const flattened: PublicComment[] = []
-    const seen = new Set<string>()
-
-    const visit = (reply: PublicComment) => {
-        const replyId = String(reply.id)
-
-        if (seen.has(replyId)) return
-
-        seen.add(replyId)
-        flattened.push(reply)
-
-        for (const nestedReply of reply.replies ?? []) {
-            visit(nestedReply)
-        }
-    }
-
-    for (const reply of replies) {
-        visit(reply)
-    }
-
-    return flattened.sort(compareRepliesOldestFirst)
-}
+import { CommentMarkdown } from './CommentMarkdown'
+import { CommentStickerPickerDialog } from './CommentStickerPickerDialog'
+import {
+    COMMENT_REACTION_EMOJIS,
+    COMMENT_SORTS,
+    INITIAL_VISIBLE_REPLIES,
+    compareRepliesOldestFirst,
+    normalizeUsername,
+} from '@/features/comments/lib/commentThread'
 
 interface CommentSectionProps {
     targetType: CommentTargetType
@@ -190,7 +93,6 @@ export default function CommentSection({
 
     const commentsKey = ['comments', targetType, targetId, sort]
     const replyingToId = replyingTo?.id ?? null
-    const replyThreadId = replyingTo ? String(replyingTo.parent_id ?? replyingTo.id) : null
 
     const { data, isLoading } = useQuery({
         queryKey: commentsKey,
@@ -217,7 +119,7 @@ export default function CommentSection({
 
         let focusFrame: number | null = null
         const mountFrame = window.requestAnimationFrame(() => {
-            const target = document.getElementById(`reply-composer-slot-${replyThreadId}`)
+            const target = document.getElementById(`reply-composer-slot-${replyingToId}`)
             setReplyPortalTarget(target)
 
             focusFrame = window.requestAnimationFrame(() => {
@@ -230,7 +132,7 @@ export default function CommentSection({
             window.cancelAnimationFrame(mountFrame)
             if (focusFrame !== null) window.cancelAnimationFrame(focusFrame)
         }
-    }, [replyingToId, replyThreadId])
+    }, [replyingToId])
 
     const createMutation = useMutation({
         mutationFn: () => {
@@ -331,6 +233,7 @@ export default function CommentSection({
             return aPinned ? -1 : 1
         })
     }, [data?.data])
+
     const hasDraft =
         Boolean(body.trim()) ||
         Boolean(selectedSticker) ||
@@ -353,27 +256,8 @@ export default function CommentSection({
         createMutation.mutate()
     }
 
-    const wrapSelectedText = (prefix: string, suffix = prefix) => {
-        const textarea = textareaRef.current
-        const start = textarea?.selectionStart ?? body.length
-        const end = textarea?.selectionEnd ?? body.length
-        const selectedText = body.slice(start, end)
-        const nextBody = `${body.slice(0, start)}${prefix}${selectedText}${suffix}${body.slice(end)}`
-        const nextSelectionStart = start + prefix.length
-        const nextSelectionEnd = nextSelectionStart + selectedText.length
-
-        setBody(nextBody)
-        requestAnimationFrame(() => {
-            textarea?.focus()
-            textarea?.setSelectionRange(nextSelectionStart, nextSelectionEnd)
-        })
-    }
-
     const commentComposer = (
-        <form
-            onSubmit={submit}
-            className={replyingTo ? 'flex gap-3 py-3' : 'mb-5 flex gap-3 border-b pb-4'}
-        >
+        <form onSubmit={submit} className="mb-5 flex gap-3 border-b pb-4">
             <CommentAvatar
                 name={user?.name ?? 'Guest'}
                 avatar={user?.avatar ?? null}
@@ -594,7 +478,7 @@ export default function CommentSection({
                         <CommentItem
                             key={comment.id}
                             comment={comment}
-                            replyThreadId={replyThreadId}
+                            replyingToId={replyingToId}
                             canPin={canPinComments}
                             pinning={pinMutation.isPending}
                             onPin={(commentId, isPinned) =>
@@ -644,7 +528,7 @@ export default function CommentSection({
                 </div>
             )}
 
-            <StickerPickerDialog
+            <CommentStickerPickerDialog
                 open={stickerOpen}
                 onOpenChange={setStickerOpen}
                 artistUsername={artistUsername}
@@ -710,7 +594,7 @@ export default function CommentSection({
 
 function CommentItem({
     comment,
-    replyThreadId,
+    replyingToId,
     canPin,
     pinning,
     onPin,
@@ -722,9 +606,10 @@ function CommentItem({
     removingCommentId,
     currentUserId,
     currentRole,
+    depth = 0,
 }: {
     comment: PublicComment
-    replyThreadId: string | null
+    replyingToId: string | null
     canPin: boolean
     pinning: boolean
     onPin: (commentId: string, isPinned: boolean) => void
@@ -736,187 +621,33 @@ function CommentItem({
     removingCommentId: string | null
     currentUserId: string | null
     currentRole?: string
-}) {
-    const flatReplies = useMemo(
-        () => flattenRepliesOldestFirst(comment.replies ?? []),
-        [comment.replies]
-    )
-    const [repliesExpanded, setRepliesExpanded] = useState(false)
-    const [visibleReplyCount, setVisibleReplyCount] = useState(INITIAL_VISIBLE_REPLIES)
-
-    const hiddenReplyCount = Math.max(flatReplies.length - visibleReplyCount, 0)
-    const visibleReplies = repliesExpanded ? flatReplies.slice(hiddenReplyCount) : []
-    const composerBelongsToThread =
-        replyThreadId !== null &&
-        (String(replyThreadId) === String(comment.id) ||
-            flatReplies.some((reply) => String(reply.id) === String(replyThreadId)))
-
-    useEffect(() => {
-        setVisibleReplyCount((current) =>
-            Math.min(Math.max(current, INITIAL_VISIBLE_REPLIES), flatReplies.length)
-        )
-
-        if (flatReplies.length === 0) {
-            setRepliesExpanded(false)
-        }
-    }, [flatReplies.length])
-
-    useEffect(() => {
-        if (composerBelongsToThread) {
-            setRepliesExpanded(true)
-        }
-    }, [composerBelongsToThread])
-
-    const openReplies = () => {
-        setVisibleReplyCount(Math.min(INITIAL_VISIBLE_REPLIES, flatReplies.length))
-        setRepliesExpanded(true)
-    }
-
-    const hideReplies = () => {
-        setRepliesExpanded(false)
-        setVisibleReplyCount(Math.min(INITIAL_VISIBLE_REPLIES, flatReplies.length))
-    }
-
-    const loadOlderReplies = () => {
-        setVisibleReplyCount((current) =>
-            Math.min(current + INITIAL_VISIBLE_REPLIES, flatReplies.length)
-        )
-    }
-
-    return (
-        <div className={comment.is_pinned ? 'bg-muted/25 px-2' : ''}>
-            <CommentRow
-                comment={comment}
-                canPin={canPin}
-                pinning={pinning}
-                onPin={onPin}
-                onReply={onReply}
-                onLike={onLike}
-                onRemove={onRemove}
-                onReport={onReport}
-                likingCommentId={likingCommentId}
-                removingCommentId={removingCommentId}
-                currentUserId={currentUserId}
-                currentRole={currentRole}
-            />
-
-            {flatReplies.length > 0 && (
-                <div className="ml-12 mt-1 flex min-h-7 items-center gap-3">
-                    <span className="h-px w-8 shrink-0 bg-border" aria-hidden="true" />
-
-                    {!repliesExpanded ? (
-                        <button
-                            type="button"
-                            className="text-xs font-medium text-muted-foreground transition hover:text-foreground"
-                            onClick={openReplies}
-                        >
-                            View all {flatReplies.length}{' '}
-                            {flatReplies.length === 1 ? 'reply' : 'replies'}
-                        </button>
-                    ) : (
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                            {hiddenReplyCount > 0 && (
-                                <button
-                                    type="button"
-                                    className="text-xs font-medium text-muted-foreground transition hover:text-foreground"
-                                    onClick={loadOlderReplies}
-                                >
-                                    View {Math.min(INITIAL_VISIBLE_REPLIES, hiddenReplyCount)} more{' '}
-                                    {Math.min(INITIAL_VISIBLE_REPLIES, hiddenReplyCount) === 1
-                                        ? 'reply'
-                                        : 'replies'}
-                                </button>
-                            )}
-
-                            <button
-                                type="button"
-                                className="text-xs font-medium text-muted-foreground transition hover:text-foreground"
-                                onClick={hideReplies}
-                            >
-                                Hide replies
-                            </button>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {(repliesExpanded || composerBelongsToThread) && (
-                <div className="relative ml-12 mt-1 pl-4">
-                    <span
-                        className="absolute bottom-0 left-0 top-0 w-px bg-border"
-                        aria-hidden="true"
-                    />
-
-                    {repliesExpanded && visibleReplies.length > 0 && (
-                        <div className="divide-y">
-                            {visibleReplies.map((reply) => (
-                                <CommentRow
-                                    key={reply.id}
-                                    comment={reply}
-                                    canPin={canPin}
-                                    pinning={pinning}
-                                    onPin={onPin}
-                                    onReply={onReply}
-                                    onLike={onLike}
-                                    onRemove={onRemove}
-                                    onReport={onReport}
-                                    likingCommentId={likingCommentId}
-                                    removingCommentId={removingCommentId}
-                                    currentUserId={currentUserId}
-                                    currentRole={currentRole}
-                                    isReply
-                                />
-                            ))}
-                        </div>
-                    )}
-
-                    {composerBelongsToThread && <div id={`reply-composer-slot-${comment.id}`} />}
-                </div>
-            )}
-        </div>
-    )
-}
-
-function CommentRow({
-    comment,
-    canPin,
-    pinning,
-    onPin,
-    onReply,
-    onLike,
-    onRemove,
-    onReport,
-    likingCommentId,
-    removingCommentId,
-    currentUserId,
-    currentRole,
-    isReply = false,
-}: {
-    comment: PublicComment
-    canPin: boolean
-    pinning: boolean
-    onPin: (commentId: string, isPinned: boolean) => void
-    onReply: (comment: PublicComment) => void
-    onLike: (commentId: string) => void
-    onRemove: (commentId: string) => void
-    onReport: (comment: PublicComment) => void
-    likingCommentId: string | null
-    removingCommentId: string | null
-    currentUserId: string | null
-    currentRole?: string
-    isReply?: boolean
+    depth?: number
 }) {
     const role = comment.user?.role
     const verified = Boolean(comment.user?.artist_verified) || role === 'super_admin'
     const moderator = role === 'super_admin'
-    const canRemove =
-        currentRole === 'super_admin' ||
-        (currentUserId !== null &&
-            comment.user?.id !== undefined &&
-            String(currentUserId) === String(comment.user.id))
+    const sortedReplies = useMemo(
+        () => [...(comment.replies ?? [])].sort(compareRepliesOldestFirst),
+        [comment.replies]
+    )
+    const [visibleReplyCount, setVisibleReplyCount] = useState(INITIAL_VISIBLE_REPLIES)
+    const hiddenReplyCount = Math.max(sortedReplies.length - visibleReplyCount, 0)
+    const visibleReplies = sortedReplies.slice(hiddenReplyCount)
+    const canRemove = currentRole === 'super_admin' || currentUserId === comment.user?.id
+
+    useEffect(() => {
+        setVisibleReplyCount((current) =>
+            Math.min(Math.max(current, INITIAL_VISIBLE_REPLIES), sortedReplies.length)
+        )
+    }, [sortedReplies.length])
 
     return (
-        <article id={`comment-${comment.id}`} className={`flex gap-3 ${isReply ? 'py-3' : 'py-4'}`}>
+        <article
+            id={`comment-${comment.id}`}
+            className={`flex gap-3 py-4 ${depth > 0 ? 'ml-8 border-l pl-4' : ''} ${
+                comment.is_pinned ? 'bg-muted/25 px-2' : ''
+            }`}
+        >
             <CommentAvatar
                 name={comment.user?.name ?? 'Unknown'}
                 avatar={comment.user?.avatar ?? null}
@@ -924,9 +655,12 @@ function CommentRow({
             />
             <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="max-w-[180px] truncate text-sm font-semibold">
-                        {comment.user?.name ?? 'Unknown'}
-                    </span>
+                    <ViewProfileLink
+                        username={comment.user?.username}
+                        role={role}
+                        label={comment.user?.name ?? 'Unknown'}
+                        className="text-[13px] leading-none"
+                    />
                     {verified && (
                         <BadgeCheck
                             className="h-3.5 w-3.5 text-sky-500"
@@ -945,7 +679,7 @@ function CommentRow({
                             Pinned
                         </span>
                     )}
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground">
                         {formatDate(comment.created_at)}
                     </span>
                 </div>
@@ -968,7 +702,9 @@ function CommentRow({
                     </button>
                 )}
 
-                {comment.body && <MarkdownText text={comment.body} spoiler={comment.is_spoiler} />}
+                {comment.body && (
+                    <CommentMarkdown text={comment.body} spoiler={comment.is_spoiler} />
+                )}
 
                 <CommentMedia comment={comment} />
 
@@ -1004,7 +740,9 @@ function CommentRow({
                         onClick={() => onLike(comment.id)}
                     >
                         <Heart
-                            className={`h-3.5 w-3.5 ${comment.liked_by_me ? 'fill-current text-red-500' : ''}`}
+                            className={`h-3.5 w-3.5 ${
+                                comment.liked_by_me ? 'fill-current text-red-500' : ''
+                            }`}
                         />
                         {comment.likes_count ?? 0}
                     </Button>
@@ -1062,6 +800,58 @@ function CommentRow({
                         Report
                     </Button>
                 </div>
+
+                {replyingToId === comment.id && (
+                    <div
+                        id={`reply-composer-slot-${comment.id}`}
+                        className="mt-4 border-l-2 border-primary/30 pl-3"
+                    />
+                )}
+
+                {sortedReplies.length > 0 && (
+                    <div className="mt-3 divide-y">
+                        {hiddenReplyCount > 0 && (
+                            <div className="py-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 rounded-full px-3 text-xs"
+                                    onClick={() =>
+                                        setVisibleReplyCount((current) =>
+                                            Math.min(
+                                                current + INITIAL_VISIBLE_REPLIES,
+                                                sortedReplies.length
+                                            )
+                                        )
+                                    }
+                                >
+                                    Load more replies ({hiddenReplyCount})
+                                </Button>
+                            </div>
+                        )}
+
+                        {visibleReplies.map((reply) => (
+                            <CommentItem
+                                key={reply.id}
+                                comment={reply}
+                                replyingToId={replyingToId}
+                                canPin={canPin}
+                                pinning={pinning}
+                                onPin={onPin}
+                                onReply={onReply}
+                                onLike={onLike}
+                                onRemove={onRemove}
+                                onReport={onReport}
+                                likingCommentId={likingCommentId}
+                                removingCommentId={removingCommentId}
+                                currentUserId={currentUserId}
+                                currentRole={currentRole}
+                                depth={depth + 1}
+                            />
+                        ))}
+                    </div>
+                )}
             </div>
         </article>
     )
@@ -1158,371 +948,6 @@ function CommentAvatar({
                 </span>
             )}
         </Avatar>
-    )
-}
-
-function MarkdownText({ text, spoiler }: { text: string; spoiler: boolean }) {
-    const [revealed, setRevealed] = useState(!spoiler)
-
-    if (spoiler && !revealed) {
-        return (
-            <button
-                type="button"
-                className="mt-2 inline-flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground"
-                onClick={() => setRevealed(true)}
-            >
-                <EyeOff className="h-4 w-4" />
-                Spoiler comment. Click to reveal.
-            </button>
-        )
-    }
-
-    return (
-        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">
-            {text.split('\n').map((line, index) => (
-                <Fragment key={`line-${index}`}>
-                    {index > 0 ? '\n' : null}
-                    {renderInlineMarkdown(line, `line-${index}`)}
-                </Fragment>
-            ))}
-        </p>
-    )
-}
-
-function CommentComposerPreview({ text }: { text: string }) {
-    return (
-        <div className="space-y-1 text-sm leading-6">
-            {text.split('\n').map((line, index) => {
-                if (/^#{1,3}\s+/.test(line)) {
-                    return (
-                        <h3 key={index} className="text-base font-bold">
-                            {renderPreviewInline(
-                                line.replace(/^#{1,3}\s+/, ''),
-                                `preview-${index}`
-                            )}
-                        </h3>
-                    )
-                }
-
-                if (/^-\s+/.test(line)) {
-                    return (
-                        <div key={index} className="flex gap-2">
-                            <span className="text-muted-foreground">•</span>
-                            <span>
-                                {renderPreviewInline(line.replace(/^-\s+/, ''), `preview-${index}`)}
-                            </span>
-                        </div>
-                    )
-                }
-
-                return (
-                    <p key={index} className="break-words">
-                        {renderPreviewInline(line, `preview-${index}`)}
-                    </p>
-                )
-            })}
-        </div>
-    )
-}
-
-function renderPreviewInline(text: string, keyPrefix: string): ReactNode[] {
-    const nodes: ReactNode[] = []
-    let lastIndex = 0
-
-    for (const match of text.matchAll(INLINE_MARKDOWN_PATTERN)) {
-        const token = match[0]
-        const index = match.index ?? 0
-        if (index > lastIndex) nodes.push(text.slice(lastIndex, index))
-        nodes.push(renderPreviewToken(token, `${keyPrefix}-${index}`))
-        lastIndex = index + token.length
-    }
-
-    if (lastIndex < text.length) nodes.push(text.slice(lastIndex))
-
-    return nodes
-}
-
-function renderPreviewToken(token: string, key: string): ReactNode {
-    if (token.startsWith('||') && token.endsWith('||')) {
-        return (
-            <span key={key} className="rounded bg-yellow-200 px-1 text-yellow-950">
-                {token.slice(2, -2)}
-            </span>
-        )
-    }
-
-    return renderMarkdownToken(token, key)
-}
-
-const INLINE_MARKDOWN_PATTERN =
-    /(\|\|[^|]+\|\||\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*|\[[^\]]+\]\(https?:\/\/[^\s)]+\)|@[A-Za-z0-9_]+)/g
-
-function renderInlineMarkdown(text: string, keyPrefix: string): ReactNode[] {
-    const nodes: ReactNode[] = []
-    let lastIndex = 0
-
-    for (const match of text.matchAll(INLINE_MARKDOWN_PATTERN)) {
-        const token = match[0]
-        const index = match.index ?? 0
-        if (index > lastIndex) nodes.push(text.slice(lastIndex, index))
-        nodes.push(renderMarkdownToken(token, `${keyPrefix}-${index}`))
-        lastIndex = index + token.length
-    }
-
-    if (lastIndex < text.length) nodes.push(text.slice(lastIndex))
-
-    return nodes
-}
-
-function renderMarkdownToken(token: string, key: string): ReactNode {
-    if (token.startsWith('||') && token.endsWith('||')) {
-        return <InlineSpoiler key={key} text={token.slice(2, -2)} />
-    }
-
-    if (token.startsWith('**') && token.endsWith('**')) {
-        return <strong key={key}>{token.slice(2, -2)}</strong>
-    }
-
-    if (token.startsWith('*') && token.endsWith('*')) {
-        return <em key={key}>{token.slice(1, -1)}</em>
-    }
-
-    if (token.startsWith('`') && token.endsWith('`')) {
-        return (
-            <code key={key} className="rounded bg-muted px-1 py-0.5 text-[0.85em]">
-                {token.slice(1, -1)}
-            </code>
-        )
-    }
-
-    if (token.startsWith('@')) {
-        return (
-            <span key={key} className="font-medium text-sky-600 dark:text-sky-400">
-                {token}
-            </span>
-        )
-    }
-
-    const link = token.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/)
-    if (link) {
-        return (
-            <a
-                key={key}
-                href={link[2]}
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium text-sky-600 underline-offset-2 hover:underline dark:text-sky-400"
-            >
-                {link[1]}
-            </a>
-        )
-    }
-
-    return token
-}
-
-function InlineSpoiler({ text }: { text: string }) {
-    const [revealed, setRevealed] = useState(false)
-
-    return (
-        <button
-            type="button"
-            className="mx-0.5 rounded bg-foreground px-1.5 py-0.5 text-background"
-            onClick={() => setRevealed(true)}
-        >
-            {revealed ? text : 'Spoiler'}
-        </button>
-    )
-}
-
-function StickerPickerDialog({
-    open,
-    onOpenChange,
-    artistUsername,
-    onSelect,
-}: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    artistUsername?: string | null
-    onSelect: (sticker: ArtistSticker) => void
-}) {
-    const queryClient = useQueryClient()
-    const { data: library, isLoading: libraryLoading } = useQuery({
-        queryKey: ['comment-sticker-library'],
-        queryFn: () => commentsApi.stickerLibrary().then((res) => res.data.data),
-        enabled: open,
-    })
-    const { data: store, isLoading: storeLoading } = useQuery({
-        queryKey: ['artist-sticker-store', artistUsername],
-        queryFn: () => commentsApi.artistStickers(artistUsername!).then((res) => res.data.data),
-        enabled: open && Boolean(artistUsername),
-    })
-
-    const purchaseMutation = useMutation({
-        mutationFn: (stickerId: string) =>
-            commentsApi.purchaseSticker(stickerId).then((res) => res.data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['comment-sticker-library'] })
-            queryClient.invalidateQueries({ queryKey: ['artist-sticker-store', artistUsername] })
-            queryClient.invalidateQueries({ queryKey: ['wallet'] })
-            toast.success('Sticker bought.')
-        },
-        onError: (error: any) => {
-            toast.error(error.response?.data?.message ?? 'Could not buy sticker.')
-        },
-    })
-
-    const subscribeMutation = useMutation({
-        mutationFn: (stickerId: string) =>
-            commentsApi.subscribeSticker(stickerId).then((res) => res.data),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['comment-sticker-library'] })
-            queryClient.invalidateQueries({ queryKey: ['artist-sticker-store', artistUsername] })
-            toast.success('Sticker subscribed.')
-        },
-        onError: () => toast.error('Could not subscribe to sticker.'),
-    })
-
-    const myStickers = useMemo(() => library ?? [], [library])
-    const artistStickers = useMemo(() => store ?? [], [store])
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="w-[min(96vw,920px)] max-w-none">
-                <DialogHeader>
-                    <DialogTitle>Stickers</DialogTitle>
-                    <DialogDescription>
-                        Pick from your library or load the artist sticker shelf.
-                    </DialogDescription>
-                </DialogHeader>
-
-                <Tabs defaultValue="library">
-                    <TabsList>
-                        <TabsTrigger value="library">My Library</TabsTrigger>
-                        <TabsTrigger value="artist" disabled={!artistUsername}>
-                            Artist Stickers
-                        </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="library">
-                        <StickerGrid
-                            stickers={myStickers}
-                            loading={libraryLoading}
-                            empty="No stickers in your library yet"
-                            onSelect={onSelect}
-                        />
-                    </TabsContent>
-
-                    <TabsContent value="artist">
-                        <StickerGrid
-                            stickers={artistStickers}
-                            loading={storeLoading}
-                            empty="No artist stickers yet"
-                            onSelect={onSelect}
-                            onBuy={(sticker) => purchaseMutation.mutate(sticker.id)}
-                            onSubscribe={(sticker) => subscribeMutation.mutate(sticker.id)}
-                            busy={purchaseMutation.isPending || subscribeMutation.isPending}
-                        />
-                    </TabsContent>
-                </Tabs>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-function StickerGrid({
-    stickers,
-    loading,
-    empty,
-    onSelect,
-    onBuy,
-    onSubscribe,
-    busy = false,
-}: {
-    stickers: ArtistSticker[]
-    loading: boolean
-    empty: string
-    onSelect: (sticker: ArtistSticker) => void
-    onBuy?: (sticker: ArtistSticker) => void
-    onSubscribe?: (sticker: ArtistSticker) => void
-    busy?: boolean
-}) {
-    if (loading) {
-        return (
-            <div className="flex h-64 items-center justify-center">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-        )
-    }
-
-    if (stickers.length === 0) {
-        return (
-            <div className="flex h-64 flex-col items-center justify-center">
-                <ImageOff className="mb-2 h-5 w-5 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">{empty}</p>
-            </div>
-        )
-    }
-
-    return (
-        <div className="grid max-h-[620px] auto-rows-[190px] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {stickers.map((sticker) => {
-                const canUse = sticker.can_use ?? sticker.library_status !== undefined
-                const cost = sticker.purchase_cost ?? sticker.credit_cost ?? 1
-
-                return (
-                    <div key={sticker.id} className="flex h-full flex-col p-2">
-                        <button
-                            type="button"
-                            disabled={!canUse}
-                            onClick={() => onSelect(sticker)}
-                            className="h-[150px] bg-transparent p-1 transition hover:bg-muted/30 disabled:opacity-60"
-                            title={sticker.name}
-                        >
-                            <img
-                                src={storageUrl(sticker.image_path)!}
-                                alt={sticker.name}
-                                draggable={false}
-                                onContextMenu={(event) => event.preventDefault()}
-                                className="h-full w-full select-none object-contain"
-                            />
-                        </button>
-                        {canUse ? (
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="mt-1 h-7 w-full"
-                                onClick={() => onSelect(sticker)}
-                            >
-                                Use
-                            </Button>
-                        ) : (
-                            <div className="mt-1 grid grid-cols-2 gap-1">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={busy}
-                                    onClick={() => onSubscribe?.(sticker)}
-                                >
-                                    <Gift className="h-3 w-3" />
-                                    Sub
-                                </Button>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    disabled={busy}
-                                    onClick={() => onBuy?.(sticker)}
-                                >
-                                    {cost <= 0 || sticker.is_free ? 'Free' : `${cost}cr`}
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                )
-            })}
-        </div>
     )
 }
 

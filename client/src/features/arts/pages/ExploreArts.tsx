@@ -174,8 +174,8 @@ export default function ExploreArts() {
 
     return (
         <div className="relative mx-auto max-w-[1480px] px-4 py-8">
-            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                <div>
+            {/* <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between"> */}
+            {/* <div>
                     <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
                         Explore
                     </p>
@@ -183,10 +183,10 @@ export default function ExploreArts() {
                     <p className="mt-1 text-sm text-muted-foreground">
                         Browse art posts, discover labels, and find artists.
                     </p>
-                </div>
+                </div> */}
 
-                {/* i dont need search in herer at that moments */}
-                {/* <form onSubmit={submitSearch} className="flex w-full gap-2 md:w-96">
+            {/* i dont need search in herer at that moments */}
+            {/* <form onSubmit={submitSearch} className="flex w-full gap-2 md:w-96">
                     <Input
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
@@ -196,7 +196,7 @@ export default function ExploreArts() {
                         <Search className="h-4 w-4" />
                     </Button>
                 </form> */}
-            </div>
+            {/* </div> */}
 
             {pageWidgets.map((widget) => {
                 const limit = widget.settings.limit ?? 10

@@ -1,5 +1,4 @@
 import type { CSSProperties, ReactNode } from "react"
-import { Link } from 'react-router-dom'
 import type { HeroItem } from "./types"
 
 
@@ -16,23 +15,15 @@ export function HeroActionCard({
     style?: CSSProperties
     children: ReactNode
 }) {
-    if (item.type === 'announcement') {
-        return (
-            <button
-                type="button"
-                draggable={false}
-                onClick={() => onOpenItem(item)}
-                className={`${className} text-left`}
-                style={style}
-            >
-                {children}
-            </button>
-        )
-    }
-
     return (
-        <Link to={item.href} draggable={false} className={className} style={style}>
+        <button
+            type="button"
+            draggable={false}
+            onClick={() => onOpenItem(item)}
+            className={`${className} cursor-pointer text-left`}
+            style={style}
+        >
             {children}
-        </Link>
+        </button>
     )
 }

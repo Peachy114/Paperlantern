@@ -26,6 +26,7 @@ class ArtistStickerLibraryService
                     $query->orWhere('user_id', $artist->id);
                 }
             })
+            ->with('user:id,name,username,avatar,role')
             ->withCount(['subscriptions', 'purchases'])
             ->paginate(40)
             ->through(fn(ArtistSticker $sticker) => $this->format($sticker, $viewer));
@@ -36,48 +37,108 @@ class ArtistStickerLibraryService
         $giftedIds = NobleRoyaltyGift::where('recipient_id', $user->id)
             ->where('giftable_type', ArtistSticker::class)
             ->pluck('giftable_id');
+
         $hasSubscription = UserSubscription::where('user_id', $user->id)
             ->where('status', 'active')
-            ->where(fn($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()))
+            ->where(fn($query) => $query
+                ->whereNull('ends_at')
+                ->orWhere('ends_at', '>', now()))
             ->exists();
 
         $stickers = ArtistSticker::query()
-            ->where('user_id', $user->id)
-            ->orWhereHas('purchases', fn($q) => $q->where('user_id', $user->id))
-            ->orWhereHas('subscriptions', fn($q) => $q->where('user_id', $user->id))
-            ->orWhereIn('id', $giftedIds)
-            ->orWhere(fn($query) => $query
-                ->where('is_public', true)
-                ->where('is_free', true))
-            ->when($hasSubscription, fn($query) => $query->orWhere(fn($inner) => $inner
-                ->where('is_public', true)
-                ->where('subscription_free', true)))
-            ->with('user:id,name,username,avatar')
+            ->where(function ($query) use ($user, $giftedIds, $hasSubscription) {
+                $query
+                    // Stickers created by this user.
+                    ->where('user_id', $user->id)
+
+                    // Stickers explicitly bought by this user.
+                    ->orWhereHas('purchases', fn($q) => $q->where('user_id', $user->id))
+
+                    // Stickers explicitly subscribed to by this user.
+                    ->orWhereHas('subscriptions', fn($q) => $q->where('user_id', $user->id))
+
+                    // Stickers gifted to this user.
+                    ->orWhereIn('id', $giftedIds)
+
+                    // Public/free creator stickers.
+                    ->orWhere(fn($inner) => $inner
+                        ->where('is_public', true)
+                        ->where('is_free', true))
+
+                    // Super-admin stickers are application defaults and belong
+                    // to every user regardless of stale pricing flags.
+                    ->orWhereHas('user', fn($owner) => $owner->where('role', 'super_admin'));
+
+                if ($hasSubscription) {
+                    $query->orWhere(fn($inner) => $inner
+                        ->where('is_public', true)
+                        ->where('subscription_free', true));
+                }
+            })
+            ->with('user:id,name,username,avatar,role')
             ->withCount(['subscriptions', 'purchases'])
             ->orderBy('sort_order')
             ->get();
 
         return [
-            'data' => $stickers->map(fn(ArtistSticker $sticker) => $this->format($sticker, $user))->values(),
+            'data' => $stickers
+                ->map(fn(ArtistSticker $sticker) => $this->format($sticker, $user))
+                ->values(),
         ];
     }
 
     public function subscribe(User $user, ArtistSticker $sticker): array
     {
-        abort_unless($sticker->is_public, 404);
-        $sticker->subscriptions()->firstOrCreate(['user_id' => $user->id]);
+        $sticker->loadMissing('user:id,name,username,avatar,role');
 
-        return $this->format($sticker->fresh()->load('user')->loadCount(['subscriptions', 'purchases']), $user);
+        // Default stickers already belong to every user. Do not create
+        // meaningless subscription rows for them.
+        if ($this->isDefaultSticker($sticker)) {
+            return $this->format(
+                $sticker->loadCount(['subscriptions', 'purchases']),
+                $user
+            );
+        }
+
+        abort_unless($sticker->is_public, 404);
+
+        $sticker->subscriptions()->firstOrCreate([
+            'user_id' => $user->id,
+        ]);
+
+        return $this->format(
+            $sticker->fresh()
+                ->load('user:id,name,username,avatar,role')
+                ->loadCount(['subscriptions', 'purchases']),
+            $user
+        );
     }
 
     public function purchase(User $user, ArtistSticker $sticker): array
     {
-        if ($user->purchasedArtistStickers()->where('artist_stickers.id', $sticker->id)->exists()) {
-            return $this->format($sticker->load('user')->loadCount(['subscriptions', 'purchases']), $user);
+        $sticker->loadMissing('user:id,name,username,avatar,role');
+
+        // Default stickers are globally owned and must never charge credits.
+        if ($this->isDefaultSticker($sticker)) {
+            return $this->format(
+                $sticker->loadCount(['subscriptions', 'purchases']),
+                $user
+            );
+        }
+
+        if ($user->purchasedArtistStickers()
+            ->where('artist_stickers.id', $sticker->id)
+            ->exists()
+        ) {
+            return $this->format(
+                $sticker->loadCount(['subscriptions', 'purchases']),
+                $user
+            );
         }
 
         abort_unless($sticker->is_public, 404);
         abort_if($sticker->user_id === $user->id, 422, 'You already own this sticker.');
+
         $cost = $this->purchaseCost($sticker);
 
         DB::transaction(function () use ($user, $sticker, $cost) {
@@ -103,7 +164,8 @@ class ArtistStickerLibraryService
                 'credits_spent' => $cost,
             ]);
 
-            $sticker->loadMissing('user');
+            $sticker->loadMissing('user:id,name,username,avatar,role');
+
             if ($sticker->user && $cost > 0) {
                 $this->commissionService->recordEarning(
                     $user,
@@ -115,29 +177,48 @@ class ArtistStickerLibraryService
             }
         });
 
-        return $this->format($sticker->fresh()->load('user')->loadCount(['subscriptions', 'purchases']), $user);
+        return $this->format(
+            $sticker->fresh()
+                ->load('user:id,name,username,avatar,role')
+                ->loadCount(['subscriptions', 'purchases']),
+            $user
+        );
     }
 
     private function format(ArtistSticker $sticker, ?User $viewer = null): array
     {
+        $sticker->loadMissing('user:id,name,username,avatar,role');
+
+        $isDefault = $this->isDefaultSticker($sticker);
         $owned = $viewer && $sticker->user_id === $viewer->id;
+
         $bought = $viewer
-            ? $viewer->purchasedArtistStickers()->where('artist_stickers.id', $sticker->id)->exists()
+            ? $viewer->purchasedArtistStickers()
+            ->where('artist_stickers.id', $sticker->id)
+            ->exists()
             : false;
+
         $subscribed = $viewer
-            ? $viewer->subscribedArtistStickers()->where('artist_stickers.id', $sticker->id)->exists()
+            ? $viewer->subscribedArtistStickers()
+            ->where('artist_stickers.id', $sticker->id)
+            ->exists()
             : false;
+
         $gifted = $viewer
             ? NobleRoyaltyGift::where('recipient_id', $viewer->id)
-                ->where('giftable_type', ArtistSticker::class)
-                ->where('giftable_id', $sticker->id)
-                ->exists()
+            ->where('giftable_type', ArtistSticker::class)
+            ->where('giftable_id', $sticker->id)
+            ->exists()
             : false;
+
         $subscriptionUnlocked = $viewer
-            ? (bool) $sticker->subscription_free && UserSubscription::where('user_id', $viewer->id)
-                ->where('status', 'active')
-                ->where(fn($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>', now()))
-                ->exists()
+            ? (bool) $sticker->subscription_free
+            && UserSubscription::where('user_id', $viewer->id)
+            ->where('status', 'active')
+            ->where(fn($query) => $query
+                ->whereNull('ends_at')
+                ->orWhere('ends_at', '>', now()))
+            ->exists()
             : false;
 
         return [
@@ -146,23 +227,30 @@ class ArtistStickerLibraryService
             'name' => $sticker->name,
             'description' => $sticker->description,
             'bundle_name' => $sticker->bundle_name,
-            'is_free' => (bool) $sticker->is_free,
+            'is_free' => $isDefault || (bool) $sticker->is_free,
             'credit_cost' => $this->purchaseCost($sticker),
-            'is_public' => (bool) $sticker->is_public,
+            'is_public' => $isDefault || (bool) $sticker->is_public,
             'subscription_free' => (bool) $sticker->subscription_free,
             'published_at' => $sticker->published_at,
             'image_path' => $sticker->image_path,
             'sort_order' => $sticker->sort_order,
             'subscriptions_count' => (int) ($sticker->subscriptions_count ?? 0),
             'purchases_count' => (int) ($sticker->purchases_count ?? 0),
-            'owned' => $owned,
+            'owned' => $owned || $isDefault,
             'bought' => $bought,
             'subscribed' => $subscribed,
             'gifted' => $gifted,
             'subscription_unlocked' => $subscriptionUnlocked,
-            'can_use' => $owned || $bought || $subscribed || $gifted || $subscriptionUnlocked || ($sticker->is_public && $sticker->is_free),
+            'can_use' =>
+            $isDefault
+                || $owned
+                || $bought
+                || $subscribed
+                || $gifted
+                || $subscriptionUnlocked
+                || ((bool) $sticker->is_public && (bool) $sticker->is_free),
             'purchase_cost' => $this->purchaseCost($sticker),
-            'owner' => $sticker->relationLoaded('user') && $sticker->user ? [
+            'owner' => $sticker->user ? [
                 'id' => $sticker->user->id,
                 'name' => $sticker->user->name,
                 'username' => $sticker->user->username,
@@ -173,10 +261,17 @@ class ArtistStickerLibraryService
 
     private function purchaseCost(ArtistSticker $sticker): int
     {
-        if ($sticker->is_free) {
+        if ($this->isDefaultSticker($sticker) || $sticker->is_free) {
             return 0;
         }
 
         return max(1, (int) ($sticker->credit_cost ?? 1));
+    }
+
+    private function isDefaultSticker(ArtistSticker $sticker): bool
+    {
+        $sticker->loadMissing('user:id,name,username,avatar,role');
+
+        return $sticker->user?->role === 'super_admin';
     }
 }

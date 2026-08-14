@@ -11,9 +11,9 @@ export function ShopCategoryButton({
         <button
             type="button"
             onClick={onClick}
-            className={`shrink-0 rounded-full px-5 py-2 text-sm font-medium transition ${
-                active ? 'bg-background text-foreground shadow' : 'text-foreground hover:bg-muted'
-            }`}
+            data-active={active}
+            aria-pressed={active}
+            className="category-control"
         >
             {children}
         </button>

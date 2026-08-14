@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use App\Models\ChapterView;
 use App\Models\Concerns\HasContentSuspensions;
+use Illuminate\Database\Eloquent\Builder;
 
 class Work extends Model
 {
@@ -60,6 +61,19 @@ class Work extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function scopeCreatorFeatureVisible(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query) {
+            $query->where(function (Builder $novels) {
+                $novels->whereIn('type', ['novel', 'wattpad'])
+                    ->whereHas('user', fn (Builder $user) => $user->withCreatorFeature('novels'));
+            })->orWhere(function (Builder $webcomix) {
+                $webcomix->whereNotIn('type', ['novel', 'wattpad'])
+                    ->whereHas('user', fn (Builder $user) => $user->withCreatorFeature('webcomix'));
+            });
+        });
     }
 
     public function chapters()

@@ -9,6 +9,7 @@ import { storageUrl } from '@/utils/storage'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import ViewProfileLink from '@/components/profile/ViewProfileLink'
 
 interface AccountOrder {
     id: string
@@ -95,18 +96,23 @@ function WandererCommission() {
             setRating(5)
             queryClient.invalidateQueries({ queryKey: ['account-commission-orders'] })
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not save rating.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not save rating.'),
     })
 
     const requestRevision = useMutation({
-        mutationFn: () => commissionApi.requestRevision(revisionOrder!.id, { reason: revisionReason }).then((res) => res.data),
+        mutationFn: () =>
+            commissionApi
+                .requestRevision(revisionOrder!.id, { reason: revisionReason })
+                .then((res) => res.data),
         onSuccess: () => {
             toast.success('Revision requested.')
             setRevisionOrder(null)
             setRevisionReason('')
             queryClient.invalidateQueries({ queryKey: ['account-commission-orders'] })
         },
-        onError: (error: any) => toast.error(error?.response?.data?.message ?? 'Could not request revision.'),
+        onError: (error: any) =>
+            toast.error(error?.response?.data?.message ?? 'Could not request revision.'),
     })
 
     return (
@@ -145,13 +151,17 @@ function WandererCommission() {
                                 </div>
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <h2 className="font-semibold">{order.service?.title ?? 'Commission'}</h2>
+                                        <h2 className="font-semibold">
+                                            {order.service?.title ?? 'Commission'}
+                                        </h2>
                                         <span className="rounded-md border px-2 py-0.5 text-xs capitalize text-muted-foreground">
                                             {order.status.replace('_', ' ')}
                                         </span>
                                     </div>
                                     <p className="mt-1 text-xs text-muted-foreground">
-                                        Artist: {order.artist?.name ?? 'Unknown'} · Quote {order.quote_credits} credits · Escrow {order.escrow_credits} credits
+                                        Artist: {order.artist?.name ?? 'Unknown'} · Quote{' '}
+                                        {order.quote_credits} credits · Escrow {order.escrow_credits}{' '}
+                                        credits
                                     </p>
                                     {order.quote_note && (
                                         <p className="mt-2 rounded-md bg-muted p-2 text-xs text-muted-foreground">
@@ -163,12 +173,14 @@ function WandererCommission() {
                                     </p>
                                     {order.auto_release_at && (
                                         <p className="mt-2 text-xs text-muted-foreground">
-                                            Auto-release after: {new Date(order.auto_release_at).toLocaleString()}
+                                            Auto-release after:{' '}
+                                            {new Date(order.auto_release_at).toLocaleString()}
                                         </p>
                                     )}
                                     {order.payment_due_at && (
                                         <p className="mt-2 text-xs text-muted-foreground">
-                                            Payment due: {new Date(order.payment_due_at).toLocaleString()}
+                                            Payment due:{' '}
+                                            {new Date(order.payment_due_at).toLocaleString()}
                                         </p>
                                     )}
                                     {order.flow_snapshot.length > 0 && (
@@ -183,7 +195,10 @@ function WandererCommission() {
                                                     }`}
                                                 >
                                                     {step.label}
-                                                    {step.type === 'pay' && order.paid_steps.includes(index) ? ' paid' : ''}
+                                                    {step.type === 'pay' &&
+                                                    order.paid_steps.includes(index)
+                                                        ? ' paid'
+                                                        : ''}
                                                 </span>
                                             ))}
                                         </div>
@@ -191,15 +206,23 @@ function WandererCommission() {
                                     {order.revisions.length > 0 && (
                                         <div className="mt-3 rounded-md border p-2 text-xs text-muted-foreground">
                                             <p className="font-medium text-foreground">
-                                                Revisions {order.revisions.length}/{order.revision_limit || 'unlimited'}
+                                                Revisions {order.revisions.length}/
+                                                {order.revision_limit || 'unlimited'}
                                             </p>
                                             {order.revisions.map((revision) => (
-                                                <div key={revision.id} className="mt-2 rounded-md bg-muted p-2">
+                                                <div
+                                                    key={revision.id}
+                                                    className="mt-2 rounded-md bg-muted p-2"
+                                                >
                                                     <div className="flex flex-wrap gap-2">
                                                         <span>#{revision.revision_number}</span>
-                                                        <span className="capitalize">{revision.status}</span>
+                                                        <span className="capitalize">
+                                                            {revision.status}
+                                                        </span>
                                                     </div>
-                                                    <p className="mt-1 whitespace-pre-line">{revision.reason}</p>
+                                                    <p className="mt-1 whitespace-pre-line">
+                                                        {revision.reason}
+                                                    </p>
                                                     {revision.artist_response && (
                                                         <p className="mt-1 whitespace-pre-line">
                                                             Artist: {revision.artist_response}
@@ -211,7 +234,9 @@ function WandererCommission() {
                                     )}
                                     {order.delivery_files.length > 0 && (
                                         <div className="mt-3 rounded-md border p-2 text-xs text-muted-foreground">
-                                            <p className="font-medium text-foreground">Final delivery files</p>
+                                            <p className="font-medium text-foreground">
+                                                Final delivery files
+                                            </p>
                                             {order.delivery_files.map((file) => (
                                                 <a
                                                     key={file.id}
@@ -220,13 +245,20 @@ function WandererCommission() {
                                                     rel="noreferrer"
                                                     className="mt-1 block underline"
                                                 >
-                                                    {file.original_name ?? 'Delivery file'} ({file.moderation_status})
+                                                    {file.original_name ?? 'Delivery file'} (
+                                                    {file.moderation_status})
                                                 </a>
                                             ))}
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex flex-wrap gap-2 md:w-44 md:flex-col">
+                                    <ViewProfileLink
+                                        username={order.artist?.username}
+                                        role="storyteller"
+                                        label="View Profile"
+                                        className="w-full"
+                                    />
                                     <Button asChild size="sm">
                                         <a href={`/messages?order=${order.id}`}>
                                             <MessageCircle className="mr-1 h-4 w-4" />
@@ -240,7 +272,10 @@ function WandererCommission() {
                 </div>
             )}
 
-            <Dialog open={Boolean(ratingOrder)} onOpenChange={(open) => !open && setRatingOrder(null)}>
+            <Dialog
+                open={Boolean(ratingOrder)}
+                onOpenChange={(open) => !open && setRatingOrder(null)}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Rate commission</DialogTitle>
@@ -280,14 +315,19 @@ function WandererCommission() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            <Dialog open={Boolean(revisionOrder)} onOpenChange={(open) => !open && setRevisionOrder(null)}>
+
+            <Dialog
+                open={Boolean(revisionOrder)}
+                onOpenChange={(open) => !open && setRevisionOrder(null)}
+            >
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Request Revision</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-2">
                         <p className="text-sm text-muted-foreground">
-                            Used {revisionOrder?.revisions.length ?? 0} of {revisionOrder?.revision_limit || 'unlimited'} revision rounds.
+                            Used {revisionOrder?.revisions.length ?? 0} of{' '}
+                            {revisionOrder?.revision_limit || 'unlimited'} revision rounds.
                         </p>
                         <Textarea
                             value={revisionReason}
@@ -300,7 +340,10 @@ function WandererCommission() {
                         <Button variant="outline" onClick={() => setRevisionOrder(null)}>
                             Cancel
                         </Button>
-                        <Button disabled={requestRevision.isPending} onClick={() => requestRevision.mutate()}>
+                        <Button
+                            disabled={requestRevision.isPending}
+                            onClick={() => requestRevision.mutate()}
+                        >
                             Send request
                         </Button>
                     </DialogFooter>

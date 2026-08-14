@@ -1,5 +1,3 @@
-import ReactCrop from 'react-image-crop'
-import 'react-image-crop/dist/ReactCrop.css'
 import { PackagePlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +6,7 @@ import { storageUrl } from '@/utils/storage'
 import type { UseMyShopReturn } from '../hooks/useMyShop'
 import type { ShopFormState } from '../types'
 import { SelectField, FileInput } from './ShopFormFields'
+import ImageCropDialog from '@/components/shared/ImageCropDialog'
 
 export function ShopForm({ shop }: { shop: UseMyShopReturn }) {
     const { form, setForm, errors, editing, preview } = shop
@@ -222,34 +221,10 @@ export function ShopForm({ shop }: { shop: UseMyShopReturn }) {
                 </div>
             </form>
 
-            {shop.cropDialogOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-                    <div className="max-w-lg rounded-lg bg-background p-4 shadow-xl">
-                        <ReactCrop
-                            crop={shop.crop}
-                            onChange={(_, percentCrop) => shop.setCrop(percentCrop)}
-                            onComplete={(c) => shop.setCompletedCrop(c)}
-                            aspect={1}
-                        >
-                            <img
-                                ref={shop.imgRef}
-                                src={shop.imgSrc}
-                                alt="Crop preview"
-                                onLoad={shop.onImageLoad}
-                            />
-                        </ReactCrop>
-
-                        <div className="mt-4 flex justify-end gap-2">
-                            <Button type="button" variant="outline" onClick={shop.cancelCrop}>
-                                Cancel
-                            </Button>
-                            <Button type="button" onClick={shop.confirmCrop}>
-                                Apply crop
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ImageCropDialog key={shop.imgSrc || 'shop-crop'} open={shop.cropDialogOpen}
+                source={shop.imgSrc || null} aspect={1} title="Crop product image"
+                outputName="shop-image.jpg" onClose={shop.cancelCrop}
+                onComplete={(file) => setForm((current) => ({ ...current, image: file }))} />
         </>
     )
 }

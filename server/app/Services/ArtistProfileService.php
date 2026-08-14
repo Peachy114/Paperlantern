@@ -9,6 +9,7 @@ use App\Models\ArtistSticker;
 use App\Models\Comment;
 use App\Models\NobleRoyaltyGift;
 use App\Models\ProfileBorder;
+use App\Models\ShopItem;
 use App\Models\SuperLike;
 use App\Models\User;
 use App\Models\UserFollow;
@@ -34,9 +35,7 @@ class ArtistProfileService
 
     public function show(string $username): array
     {
-        $artist = User::where('username', $username)
-            ->where('role', '!=', 'super_admin')
-            ->firstOrFail();
+        $artist = User::where('username', $username)->firstOrFail();
         $viewer = auth('sanctum')->user();
 
         $stickerLibrary = $this->stickerLibrary($artist);
@@ -55,6 +54,7 @@ class ArtistProfileService
                 ->unique('id')
                 ->values(),
             'arts' => Art::where('user_id', $artist->id)
+                ->creatorFeatureVisible()
                 ->where('status', 'published')
                 ->whereDoesntHave('activeContentSuspensions', fn($query) => $query->whereNull('target_field'))
                 ->with([
@@ -66,6 +66,7 @@ class ArtistProfileService
                 ->get()
                 ->map(fn(Art $art) => $this->contentSuspensions->maskArt($art)),
             'works' => Work::where('user_id', $artist->id)
+                ->creatorFeatureVisible()
                 ->where('status', '!=', 'draft')
                 ->where('moderation_status', '!=', 'violated')
                 ->whereDoesntHave('activeContentSuspensions', fn($query) => $query->whereNull('target_field'))
@@ -74,6 +75,10 @@ class ArtistProfileService
                 ->latest()
                 ->get(['id', 'slug', 'title', 'description', 'type', 'genres', 'language', 'cover', 'status', 'views', 'likes', 'created_at'])
                 ->map(fn(Work $work) => $this->contentSuspensions->maskWork($work)),
+            'shop' => ShopItem::where('user_id', $artist->id)
+                ->where('status', 'published')
+                ->latest()
+                ->get(['id', 'slug', 'title', 'description', 'type', 'labels', 'image_path', 'download_policy', 'credit_cost', 'downloads_count', 'likes_count', 'created_at']),
             'comments' => Comment::where('user_id', $artist->id)
                 ->where('status', 'visible')
                 ->where('public_highlight', true)
@@ -85,11 +90,11 @@ class ArtistProfileService
                 ->values(),
             'feeds' => FeedController::publicForUser($artist, $viewer),
             'stats' => [
-                'works_total' => Work::where('user_id', $artist->id)->count(),
-                'arts_total' => Art::where('user_id', $artist->id)->count(),
+                'works_total' => Work::where('user_id', $artist->id)->creatorFeatureVisible()->count(),
+                'arts_total' => Art::where('user_id', $artist->id)->creatorFeatureVisible()->count(),
                 'followers_count' => $artist->followers()->count(),
-                'total_likes' => (int) Work::where('user_id', $artist->id)->sum('likes')
-                    + (int) Art::where('user_id', $artist->id)->sum('likes'),
+                'total_likes' => (int) Work::where('user_id', $artist->id)->creatorFeatureVisible()->sum('likes')
+                    + (int) Art::where('user_id', $artist->id)->creatorFeatureVisible()->sum('likes'),
                 'feed_posts_count' => $artist->feedPosts()->where('status', 'published')->count(),
                 'is_following' => $viewer
                     ? UserFollow::where('follower_id', $viewer->id)->where('followee_id', $artist->id)->exists()
@@ -105,6 +110,8 @@ class ArtistProfileService
                 Storage::disk('public')->delete($user->profile_cover);
             }
             $validated['profile_cover'] = $request->file('cover')->store("artist-profiles/{$user->id}", 'public');
+            $validated['cover_moderation_status'] = 'pending';
+            $validated['cover_uploaded_at'] = now();
         }
         unset($validated['cover']);
 
@@ -113,6 +120,8 @@ class ArtistProfileService
                 Storage::disk('public')->delete($user->avatar);
             }
             $validated['avatar'] = $request->file('avatar')->store('avatars', 'public');
+            $validated['avatar_moderation_status'] = 'pending';
+            $validated['avatar_uploaded_at'] = now();
         }
         // unset($validated['avatar']);
 
@@ -370,14 +379,17 @@ class ArtistProfileService
 
     private function formatArtist(User $artist): array
     {
+        $isOwner = auth('sanctum')->id() === $artist->id;
         return [
             'id' => $artist->id,
             'name' => $artist->name,
             'username' => $artist->username,
             'role' => $artist->role,
+            'creator_role' => $artist->creator_role,
+            'creator_features' => $artist->normalizedCreatorFeatures(),
             'artist_verified' => (bool) ($artist->artist_verified ?? false),
-            'avatar' => $artist->avatar,
-            'profile_cover' => $artist->profile_cover,
+            'avatar' => ($isOwner || $artist->avatar_moderation_status === 'approved') ? $artist->avatar : null,
+            'profile_cover' => ($isOwner || $artist->cover_moderation_status === 'approved') ? $artist->profile_cover : null,
             'artist_title' => $artist->artist_title,
             'profile_cover_position_x' => $artist->profile_cover_position_x,
             'profile_cover_position_y' => $artist->profile_cover_position_y,
@@ -385,6 +397,7 @@ class ArtistProfileService
             'avatar_position_y' => $artist->avatar_position_y,
             'show_public_links' => (bool) $artist->show_public_links,
             'profile_background_color' => $artist->profile_background_color,
+            'profile_background_color_enabled' => (bool) ($artist->profile_background_color_enabled ?? true),
             'profile_background_gradient_from' => $artist->profile_background_gradient_from,
             'profile_background_gradient_to' => $artist->profile_background_gradient_to,
             'profile_background_gradient_direction' => $artist->profile_background_gradient_direction,
@@ -615,10 +628,15 @@ class ArtistProfileService
                 'works' => (bool) ($visibility['works'] ?? true),
                 'stickers' => (bool) ($visibility['stickers'] ?? true),
                 'comments' => (bool) ($visibility['comments'] ?? true),
+                'shop' => (bool) ($visibility['shop'] ?? true),
                 'feeds' => (bool) ($visibility['feeds'] ?? true),
             ],
             'section_mode' => $sectionMode,
             'positions' => $positions,
+            'tab_order' => array_values(array_unique(array_merge(
+                array_values(array_filter($value['tab_order'] ?? [], fn ($tab) => in_array($tab, ['board', 'arts', 'works', 'stickers', 'comments', 'shop', 'feeds'], true))),
+                ['board', 'arts', 'works', 'stickers', 'comments', 'shop', 'feeds']
+            ))),
             'buttons' => $this->normalizeCanvasItems($value['buttons'] ?? null, $defaults['buttons'], 'tab'),
             'sections' => $this->normalizeCanvasItems($value['sections'] ?? null, $defaults['sections'], 'section'),
             'cover_offset' => [
@@ -666,10 +684,56 @@ class ArtistProfileService
                 'font_family' => trim((string) ($value['global_styles']['font_family'] ?? '')),
                 'text_color' => $this->normalizeColor($value['global_styles']['text_color'] ?? '#111827', '#111827'),
                 'muted_text_color' => $this->normalizeColor($value['global_styles']['muted_text_color'] ?? '#6b7280', '#6b7280'),
-                'accent_color' => $this->normalizeColor($value['global_styles']['accent_color'] ?? '#111827', '#111827'),
+                'accent_color' => $this->normalizeColor($value['global_styles']['accent_color'] ?? '#f97316', '#f97316'),
                 'base_font_size' => $this->clampNumber($value['global_styles']['base_font_size'] ?? 14, 10, 28),
                 'widget_font_size' => $this->clampNumber($value['global_styles']['widget_font_size'] ?? 13, 10, 28),
                 'button_font_size' => $this->clampNumber($value['global_styles']['button_font_size'] ?? 14, 10, 24),
+                'heading_text_color' => $this->normalizeColor($value['global_styles']['heading_text_color'] ?? '#111827', '#111827'),
+                'label_text_color' => $this->normalizeColor($value['global_styles']['label_text_color'] ?? '#111827', '#111827'),
+                'button_text_color' => $this->normalizeColor($value['global_styles']['button_text_color'] ?? '#111827', '#111827'),
+                'link_text_color' => $this->normalizeColor($value['global_styles']['link_text_color'] ?? '#111827', '#111827'),
+                'profile_name_color' => $this->normalizeColor($value['global_styles']['profile_name_color'] ?? '#111827', '#111827'),
+                'profile_details_color' => $this->normalizeColor($value['global_styles']['profile_details_color'] ?? '#111827', '#111827'),
+                'profile_links_color' => $this->normalizeColor($value['global_styles']['profile_links_color'] ?? '#111827', '#111827'),
+                'cards_color' => $this->normalizeColor($value['global_styles']['cards_color'] ?? '#111827', '#111827'),
+                'dark_cards_color' => $this->normalizeColor($value['global_styles']['dark_cards_color'] ?? '#e4e4e7', '#e4e4e7'),
+                'labels_color' => $this->normalizeColor($value['global_styles']['labels_color'] ?? '#111827', '#111827'),
+                'profile_name_size' => $this->clampNumber($value['global_styles']['profile_name_size'] ?? 24, 10, 64),
+                'profile_details_size' => $this->clampNumber($value['global_styles']['profile_details_size'] ?? 14, 10, 32),
+                'profile_links_size' => $this->clampNumber($value['global_styles']['profile_links_size'] ?? 14, 10, 32),
+                'cards_size' => $this->clampNumber($value['global_styles']['cards_size'] ?? 13, 10, 32),
+                'labels_size' => $this->clampNumber($value['global_styles']['labels_size'] ?? 13, 10, 32),
+                'dashboard_cards_visible' => $this->normalizeDashboardCardVisibility($value['global_styles']['dashboard_cards_visible'] ?? null),
+                'cards_background_enabled' => (bool) ($value['global_styles']['cards_background_enabled'] ?? true),
+                'buttons_background_enabled' => (bool) ($value['global_styles']['buttons_background_enabled'] ?? true),
+                'cards_surface' => $this->normalizeProfileSurface($value['global_styles']['cards_surface'] ?? null),
+                'buttons_surface' => $this->normalizeProfileSurface($value['global_styles']['buttons_surface'] ?? null),
+                'content_surface' => $this->normalizeProfileSurface($value['global_styles']['content_surface'] ?? null),
+                'background_color_opacity' => $this->clampNumber($value['global_styles']['background_color_opacity'] ?? 100, 0, 100),
+                'header_background_enabled' => (bool) ($value['global_styles']['header_background_enabled'] ?? false),
+                'header_background_color' => $this->normalizeColor($value['global_styles']['header_background_color'] ?? '#ffffff', '#ffffff'),
+                'header_background_opacity' => $this->clampNumber($value['global_styles']['header_background_opacity'] ?? 100, 0, 100),
+                'show_profile_info' => (bool) ($value['global_styles']['show_profile_info'] ?? true),
+                'cover_image_fit' => ($value['global_styles']['cover_image_fit'] ?? 'cover') === 'contain' ? 'contain' : 'cover',
+                'avatar_image_fit' => ($value['global_styles']['avatar_image_fit'] ?? 'cover') === 'contain' ? 'contain' : 'cover',
+                'background_image_fit' => ($value['global_styles']['background_image_fit'] ?? 'cover') === 'contain' ? 'contain' : 'cover',
+                'cover_image_zoom' => max(1, min(4, (float) ($value['global_styles']['cover_image_zoom'] ?? 1))),
+                'background_image_position_x' => max(0, min(100, (float) ($value['global_styles']['background_image_position_x'] ?? 50))),
+                'background_image_position_y' => max(0, min(100, (float) ($value['global_styles']['background_image_position_y'] ?? 50))),
+                'background_image_zoom' => max(1, min(4, (float) ($value['global_styles']['background_image_zoom'] ?? 1))),
+                'dark_text_color' => $this->normalizeColor($value['global_styles']['dark_text_color'] ?? '#e4e4e7', '#e4e4e7'),
+                'dark_muted_text_color' => $this->normalizeColor($value['global_styles']['dark_muted_text_color'] ?? '#a1a1aa', '#a1a1aa'),
+                'dark_accent_color' => $this->normalizeColor($value['global_styles']['dark_accent_color'] ?? '#f97316', '#f97316'),
+                'dark_heading_text_color' => $this->normalizeColor($value['global_styles']['dark_heading_text_color'] ?? '#f4f4f5', '#f4f4f5'),
+                'dark_label_text_color' => $this->normalizeColor($value['global_styles']['dark_label_text_color'] ?? '#e4e4e7', '#e4e4e7'),
+                'dark_button_text_color' => $this->normalizeColor($value['global_styles']['dark_button_text_color'] ?? '#e4e4e7', '#e4e4e7'),
+                'dark_link_text_color' => $this->normalizeColor($value['global_styles']['dark_link_text_color'] ?? '#fb923c', '#fb923c'),
+                'identity_position_enabled' => (bool) ($value['global_styles']['identity_position_enabled'] ?? false),
+                'identity_x' => $this->clampNumber($value['global_styles']['identity_x'] ?? 0, -500, 500),
+                'identity_y' => $this->clampNumber($value['global_styles']['identity_y'] ?? 0, -500, 500),
+                'profile_image_position_enabled' => (bool) ($value['global_styles']['profile_image_position_enabled'] ?? false),
+                'profile_image_x' => $this->clampNumber($value['global_styles']['profile_image_x'] ?? 50, 0, 100),
+                'profile_image_y' => $this->clampNumber($value['global_styles']['profile_image_y'] ?? 100, 0, 100),
             ],
         ];
     }
@@ -683,15 +747,18 @@ class ArtistProfileService
                 'works' => true,
                 'stickers' => true,
                 'comments' => false,
+                'shop' => true,
                 'feeds' => true,
             ],
             'section_mode' => 'separate_pages',
+            'tab_order' => ['board', 'arts', 'works', 'stickers', 'comments', 'shop', 'feeds'],
             'positions' => [
                 'board' => ['x' => 0, 'y' => 0, 'w' => 22, 'h' => 36],
                 'arts' => ['x' => 0, 'y' => 0, 'w' => 28, 'h' => 36],
                 'works' => ['x' => 30, 'y' => 0, 'w' => 28, 'h' => 36],
                 'stickers' => ['x' => 60, 'y' => 0, 'w' => 32, 'h' => 36],
                 'comments' => ['x' => 30, 'y' => 52, 'w' => 30, 'h' => 36],
+                'shop' => ['x' => 46, 'y' => 52, 'w' => 30, 'h' => 36],
                 'feeds' => ['x' => 62, 'y' => 52, 'w' => 28, 'h' => 36],
             ],
             'buttons' => [
@@ -722,17 +789,36 @@ class ArtistProfileService
                 'font_family' => '',
                 'text_color' => '#111827',
                 'muted_text_color' => '#6b7280',
-                'accent_color' => '#111827',
+                'accent_color' => '#f97316',
                 'base_font_size' => 14,
                 'widget_font_size' => 13,
                 'button_font_size' => 14,
+                'background_color_opacity' => 100,
+                'header_background_enabled' => false,
+                'header_background_color' => '#ffffff',
+                'header_background_opacity' => 100,
+                'show_profile_info' => true,
+                'cover_image_fit' => 'cover',
+                'avatar_image_fit' => 'cover',
+                'background_image_fit' => 'cover',
+                'cover_image_zoom' => 1,
+                'background_image_position_x' => 50,
+                'background_image_position_y' => 50,
+                'background_image_zoom' => 1,
+                'dark_text_color' => '#e4e4e7',
+                'dark_muted_text_color' => '#a1a1aa',
+                'dark_accent_color' => '#f97316',
+                'dark_heading_text_color' => '#f4f4f5',
+                'dark_label_text_color' => '#e4e4e7',
+                'dark_button_text_color' => '#e4e4e7',
+                'dark_link_text_color' => '#fb923c',
             ],
         ];
     }
 
     private function normalizeCanvasItems(mixed $items, array $defaults, string $kind): array
     {
-        $allowedTypes = ['board', 'arts', 'works', 'stickers', 'comments', 'feeds'];
+        $allowedTypes = ['board', 'arts', 'works', 'stickers', 'comments', 'shop', 'feeds'];
         $allowedDisplays = [
             'grid',
             'standard',
@@ -774,6 +860,7 @@ class ArtistProfileService
                 'pagination' => array_key_exists('pagination', $item)
                     ? (bool) $item['pagination']
                     : true,
+                'limit' => max(0, min(100, (int) ($item['limit'] ?? 0))),
                 'locked' => (bool) ($item['locked'] ?? false),
                 'sort' => $this->normalizeCanvasSort(
                     (string) ($item['type'] ?? 'board'),
@@ -922,6 +1009,34 @@ class ArtistProfileService
     private function clampNumber(mixed $value, float $min, float $max): float
     {
         return min(max((float) $value, $min), $max);
+    }
+
+    private function normalizeDashboardCardVisibility(mixed $value): array
+    {
+        $value = is_array($value) ? $value : [];
+
+        return collect(['works', 'arts', 'followers', 'feeds'])
+            ->mapWithKeys(fn(string $key) => [$key => (bool) ($value[$key] ?? true)])
+            ->all();
+    }
+
+    private function normalizeProfileSurface(mixed $value): array
+    {
+        $value = is_array($value) ? $value : [];
+        $presets = ['default', 'transparent', 'white', 'surface', 'muted', 'brand_gradient', 'brand_gradient_soft', 'blue_gradient', 'yellow_gradient', 'dark', 'custom'];
+        $preset = in_array($value['preset'] ?? null, $presets, true) ? $value['preset'] : 'default';
+
+        return [
+            'enabled' => (bool) ($value['enabled'] ?? true),
+            'preset' => $preset,
+            'custom_color' => $this->normalizeColor($value['custom_color'] ?? '#ffffff', '#ffffff'),
+            'opacity' => $this->clampNumber($value['opacity'] ?? 100, 0, 100),
+            'border' => (bool) ($value['border'] ?? false),
+            'border_color' => $this->normalizeColor($value['border_color'] ?? '#d9d9df', '#d9d9df'),
+            'border_opacity' => $this->clampNumber($value['border_opacity'] ?? 100, 0, 100),
+            'border_width' => $this->clampNumber($value['border_width'] ?? 1, 0, 12),
+            'border_radius' => $this->clampNumber($value['border_radius'] ?? 8, 0, 80),
+        ];
     }
 
     private function normalizeColor(mixed $value, string $fallback): string

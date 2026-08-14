@@ -12,8 +12,8 @@ export function ShopCategoryRail({
     if (categories.length === 0) return null
 
     return (
-        <div className="mb-5 overflow-hidden rounded-2xl border bg-background/95 shadow-sm">
-            <div className="flex gap-2 overflow-x-auto px-4 py-3">
+        <div className="category-rail mb-5">
+            <div className="category-rail__inner">
                 <ShopCategoryButton active={active === 'all'} onClick={() => onChange('all')}>
                     All category
                 </ShopCategoryButton>

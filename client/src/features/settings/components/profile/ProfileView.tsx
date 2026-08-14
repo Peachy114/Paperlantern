@@ -4,10 +4,34 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import type { CreatorFeature } from '@/store/authStore'
 
 export default function ProfileView() {
     const profile = useProfileForm()
     const password = usePasswordForm()
+    const creatorRole = profile.watch('creator_role')
+    const creatorFeatures = profile.watch('creator_features') ?? []
+    const requiredFeatures: CreatorFeature[] = creatorRole === 'artist'
+        ? ['arts', 'commission']
+        : ['webcomix', 'novels']
+    const featureLabels: Record<CreatorFeature, string> = {
+        webcomix: 'Webcomix', novels: 'Novels', arts: 'Arts', commission: 'Commission', shop: 'Shop',
+    }
+
+    const changeRole = (role: 'artist' | 'storyteller') => {
+        const required: CreatorFeature[] = role === 'artist'
+            ? ['arts', 'commission', 'shop']
+            : ['webcomix', 'novels', 'shop']
+        profile.setValue('creator_role', role, { shouldDirty: true, shouldValidate: true })
+        profile.setValue('creator_features', [...new Set([...creatorFeatures, ...required])], { shouldDirty: true })
+    }
+
+    const toggleFeature = (feature: CreatorFeature, checked: boolean) => {
+        if (feature === 'shop' || requiredFeatures.includes(feature)) return
+        profile.setValue('creator_features', checked
+            ? [...new Set([...creatorFeatures, feature])]
+            : creatorFeatures.filter((item) => item !== feature), { shouldDirty: true, shouldValidate: true })
+    }
 
     return (
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
@@ -15,6 +39,37 @@ export default function ProfileView() {
             <div>
                 <h2 className="text-base font-semibold mb-4">General Info</h2>
                 <form onSubmit={profile.handleSubmit} className="space-y-5">
+                    <div className="space-y-3 rounded-lg border p-4">
+                        <div>
+                            <Label>Primary creator role</Label>
+                            <p className="text-xs text-muted-foreground">Your role sets the features you cannot disable. It does not change your name or remove content.</p>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            {(['artist', 'storyteller'] as const).map((role) => (
+                                <label key={role} className="flex cursor-pointer gap-2 rounded-md border p-3 capitalize">
+                                    <input type="radio" checked={creatorRole === role} onChange={() => changeRole(role)} />
+                                    {role}
+                                </label>
+                            ))}
+                        </div>
+                        <div>
+                            <Label>Creator features</Label>
+                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                {(Object.keys(featureLabels) as CreatorFeature[]).map((feature) => {
+                                    const locked = feature === 'shop' || requiredFeatures.includes(feature)
+                                    return (
+                                        <label key={feature} className="flex items-center gap-2 rounded-md border p-3">
+                                            <input type="checkbox" checked={creatorFeatures.includes(feature)} disabled={locked}
+                                                onChange={(event) => toggleFeature(feature, event.target.checked)} />
+                                            <span>{featureLabels[feature]}</span>
+                                            {locked && <span className="ml-auto text-xs text-muted-foreground">Required</span>}
+                                        </label>
+                                    )
+                                })}
+                            </div>
+                            {profile.errors.creator_features && <p className="mt-2 text-sm text-destructive">{profile.errors.creator_features.message}</p>}
+                        </div>
+                    </div>
                     <div className="space-y-1.5">
                         <Label htmlFor="name">Full name</Label>
                         <Input

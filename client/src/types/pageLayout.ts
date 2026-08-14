@@ -121,6 +121,7 @@ export interface PageWidgetSettings {
 }
 
 export interface PageWidgetStyle {
+    background_preset?: PageWidgetBackgroundPreset
     background?: string
     text_color?: string
     border_color?: string
@@ -146,6 +147,19 @@ export interface PageWidgetStyle {
     font_size?: number
     text_align?: 'start' | 'center' | 'end'
 }
+
+export type PageWidgetBackgroundPreset =
+    | 'default'
+    | 'transparent'
+    | 'white'
+    | 'surface'
+    | 'muted'
+    | 'brand_gradient'
+    | 'brand_gradient_soft'
+    | 'blue_gradient'
+    | 'yellow_gradient'
+    | 'dark'
+    | 'custom'
 
 export interface PageWidget {
     id: string

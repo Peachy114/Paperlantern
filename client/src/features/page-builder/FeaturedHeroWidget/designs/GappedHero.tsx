@@ -1,7 +1,7 @@
-import { CarouselNavigation } from "../CarouselNavigation";
-import { HeroImageCard } from "../HeroImageCard";
-import { SideImageCard } from "../SideImageCard";
-import type { HeroLayoutProps } from "../types";
+import { CarouselNavigation } from '../CarouselNavigation'
+import { HeroImageCard } from '../HeroImageCard'
+import { SideImageCard } from '../SideImageCard'
+import type { HeroLayoutProps } from '../types'
 
 export function GappedHero({
     widget,
@@ -24,7 +24,7 @@ export function GappedHero({
     return (
         <section className="relative w-full overflow-hidden bg-background py-8 sm:py-10">
             <div
-                className={`relative mx-auto flex min-h-[320px] max-w-[1480px] touch-pan-y select-none items-center px-4 sm:min-h-[380px] ${
+                className={`relative mx-auto flex min-h-[400px] max-w-[1600px] touch-pan-y select-none items-center px-4 sm:min-h-[480px] ${
                     isDragging ? 'cursor-grabbing' : 'cursor-grab'
                 }`}
                 onPointerDown={onPointerDown}
@@ -43,21 +43,21 @@ export function GappedHero({
                         item={previousItem}
                         onClick={onPrev}
                         side="left"
-                        className="hidden h-[270px] min-w-0 flex-1 rounded-2xl opacity-80 md:block"
+                        className="hidden h-[320px] min-w-0 flex-1 rounded-2xl opacity-80 md:block"
                     />
 
                     <HeroImageCard
                         item={current}
                         widget={widget}
                         onOpenItem={onOpenItem}
-                        className="h-[320px] w-[min(620px,88vw)] shrink-0 rounded-3xl sm:h-[370px]"
+                        className="h-[420px] w-[min(860px,92vw)] shrink-0 rounded-3xl sm:h-[480px]"
                     />
 
                     <SideImageCard
                         item={nextItem}
                         onClick={onNext}
                         side="right"
-                        className="hidden h-[270px] min-w-0 flex-1 rounded-2xl opacity-80 md:block"
+                        className="hidden h-[320px] min-w-0 flex-1 rounded-2xl opacity-80 md:block"
                     />
                 </div>
 

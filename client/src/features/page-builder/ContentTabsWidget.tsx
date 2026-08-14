@@ -23,25 +23,22 @@ export default function ContentTabsWidget({ widget }: { widget: PageWidget }) {
     }
 
     const tabs = [
-        { key: 'tabs_show_main', label: 'Main', detail: 'Mix', content: 'all', href: '/' },
+        { key: 'tabs_show_main', label: 'Main', content: 'all', href: '/' },
         {
             key: 'tabs_show_comix',
             label: 'Comix',
-            detail: 'Webcomics',
             content: 'webtoon',
             href: '/comix',
         },
         {
             key: 'tabs_show_novels',
             label: 'Novels',
-            detail: 'Novels',
             content: 'wattpad',
             href: '/novels',
         },
         {
             key: 'tabs_show_arts',
             label: 'Arts',
-            detail: 'Art posts',
             content: 'art',
             href: '/explore/arts',
         },
@@ -58,7 +55,7 @@ export default function ContentTabsWidget({ widget }: { widget: PageWidget }) {
     if (tabs.length === 0) return null
 
     return (
-        <section className="mx-auto w-full max-w-[1480px] px-5 py-4">
+        <section className="mx-auto w-full max-w-[1480px] px-5">
             <nav className="flex flex-wrap gap-2" aria-label={widget.title || 'Content tabs'}>
                 {tabs.map((tab) => (
                     <Link

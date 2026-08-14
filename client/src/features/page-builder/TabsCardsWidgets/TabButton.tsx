@@ -13,8 +13,8 @@ export default function TabButton({
             onClick={onClick}
             className={`inline-flex h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-sm no-underline transition-all duration-200 ${
                 active
-                    ? 'bg-white/80 font-bold text-[var(--foreground)] shadow-sm'
-                    : 'font-medium text-[var(--foreground)] hover:bg-white/50'
+                    ? 'bg-[var(--comix-filter-selected-background)] font-bold text-[var(--comix-filter-selected-text)] shadow-sm'
+                    : 'font-medium text-[var(--comix-filter-nav-text)] hover:bg-[var(--comix-filter-pill-hover-background)]'
             }`}
         >
             {children}

@@ -68,13 +68,18 @@ class ArtWatermarkService
 
     private function watermarks(string $target = 'arts'): array
     {
+        // Keep watermark placement configurable in Admin, but use the same
+        // canonical brand artwork shown in the website navigation.
+        $mainLogo = $this->mainLogoPath();
+
         $adminWatermarks = ArtWatermark::where('is_active', true)
             ->where('target', $target)
             ->orderBy('sort_order')
             ->orderBy('created_at')
             ->get()
-            ->map(function (ArtWatermark $watermark) {
-                $path = Storage::disk('public')->path($watermark->image_path);
+            ->map(function (ArtWatermark $watermark) use ($mainLogo) {
+                $uploadedPath = Storage::disk('public')->path($watermark->image_path);
+                $path = $mainLogo ?? $uploadedPath;
                 if (! is_file($path)) {
                     return null;
                 }
@@ -97,7 +102,7 @@ class ArtWatermarkService
             return $adminWatermarks;
         }
 
-        $fallback = $this->fallbackLogoPath();
+        $fallback = $mainLogo;
 
         return $fallback ? [[
             'path' => $fallback,
@@ -110,11 +115,11 @@ class ArtWatermarkService
         ]] : [];
     }
 
-    private function fallbackLogoPath(): ?string
+    private function mainLogoPath(): ?string
     {
         $paths = [
-            base_path('../client/public/logo_white.png'),
-            base_path('../client/public/logo_black.png'),
+            base_path('../client/public/new_logo.png'),
+            base_path('../client/public/LOGO.png'),
         ];
 
         foreach ($paths as $path) {

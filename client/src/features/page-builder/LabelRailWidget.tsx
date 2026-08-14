@@ -30,13 +30,15 @@ export default function LabelRailWidget({
 
     if (visible.length === 0 && !showMore) return null
 
-    const normalBackground = cssColor(settings.label_background_color) ?? '#ff8a00'
-    const normalText = cssColor(settings.label_text_color) ?? '#ffffff'
-    const activeBackground = cssColor(settings.label_active_background_color) ?? '#56b6ff'
-    const activeText = cssColor(settings.label_active_text_color) ?? '#ffffff'
+    const normalBackground = cssColor(settings.label_background_color) ?? 'var(--category)'
+    const normalText = cssColor(settings.label_text_color) ?? 'var(--category-foreground)'
+    const activeBackground =
+        cssColor(settings.label_active_background_color) ?? 'var(--category-active)'
+    const activeText =
+        cssColor(settings.label_active_text_color) ?? 'var(--category-active-foreground)'
 
     return (
-        <section className="mx-auto w-full max-w-[1480px] px-5 py-4">
+        <section className="mx-auto w-full max-w-[1480px] py-4">
             <div className="flex flex-wrap items-center gap-2">
                 {visible.map((item) => {
                     const active = activeLabel === item.label

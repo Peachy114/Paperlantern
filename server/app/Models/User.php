@@ -10,6 +10,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Builder;
 
 class User extends Authenticatable
 {
@@ -21,9 +22,15 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'creator_role',
+        'creator_features',
         'artist_verified',
         'avatar',
+        'avatar_moderation_status',
+        'avatar_uploaded_at',
         'profile_cover',
+        'cover_moderation_status',
+        'cover_uploaded_at',
         'bio',
         'artist_title',
         'profile_cover_position_x',
@@ -32,6 +39,7 @@ class User extends Authenticatable
         'avatar_position_y',
         'show_public_links',
         'profile_background_color',
+        'profile_background_color_enabled',
         'profile_background_gradient_from',
         'profile_background_gradient_to',
         'profile_background_gradient_direction',
@@ -91,10 +99,13 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'email_verification_expires_at' => 'datetime',
+            'avatar_uploaded_at' => 'datetime',
+            'cover_uploaded_at' => 'datetime',
             'banned_at'         => 'datetime',
             'suspended_at'      => 'datetime',
             'password'          => 'hashed',
             'artist_verified'   => 'boolean',
+            'creator_features' => 'array',
             'is_banned'         => 'boolean',
             'is_suspended'      => 'boolean',
             'credits'           => 'integer',
@@ -120,6 +131,7 @@ class User extends Authenticatable
             'profile_show_cover' => 'boolean',
             'profile_cover_width' => 'integer',
             'profile_background_has_gradient' => 'boolean',
+            'profile_background_color_enabled' => 'boolean',
             'profile_tabs_config' => 'array',
             'profile_links' => 'array',
             'message_read_receipts_enabled' => 'boolean',
@@ -290,5 +302,45 @@ class User extends Authenticatable
     public function isAtRisk(): bool
     {
         return $this->strike_count >= 2 && ! $this->is_banned && ! $this->is_suspended;
+    }
+
+    public function normalizedCreatorFeatures(): array
+    {
+        // Accounts created before creator preferences existed historically had access
+        // to every studio tool. Preserve that access until they save their choices.
+        if ($this->creator_role === null && $this->role === 'storyteller') {
+            return ['webcomix', 'novels', 'arts', 'commission', 'shop'];
+        }
+
+        $role = $this->creator_role ?: ($this->role === 'storyteller' ? 'storyteller' : null);
+        $required = match ($role) {
+            'artist' => ['arts', 'commission'],
+            'storyteller' => ['webcomix', 'novels'],
+            default => [],
+        };
+
+        return array_values(array_unique(array_merge(
+            $required,
+            is_array($this->creator_features) ? $this->creator_features : [],
+            $role ? ['shop'] : [],
+        )));
+    }
+
+    public function hasCreatorFeature(string $feature): bool
+    {
+        return $this->role === 'super_admin'
+            || in_array($feature, $this->normalizedCreatorFeatures(), true);
+    }
+
+    public function scopeWithCreatorFeature(Builder $query, string $feature): Builder
+    {
+        return $query->where(function (Builder $query) use ($feature) {
+            $query->where('role', 'super_admin')
+                // Legacy creators had every feature before preferences existed.
+                ->orWhere(function (Builder $legacy) {
+                    $legacy->whereNull('creator_role')->where('role', 'storyteller');
+                })
+                ->orWhereJsonContains('creator_features', $feature);
+        });
     }
 }

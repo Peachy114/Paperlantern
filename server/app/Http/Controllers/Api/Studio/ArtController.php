@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 
 class ArtController extends Controller
 {
+    private const MAX_ART_IMAGE_SIZE_KB = 15360;
+
     public function __construct(private ArtService $service) {}
 
     public function index(Request $request): JsonResponse
@@ -27,14 +29,23 @@ class ArtController extends Controller
             'download_policy' => ['sometimes', 'string', 'in:disabled,free,paid'],
             'download_credits' => ['nullable', 'integer', 'min:1', 'max:999'],
             'apply_watermark' => ['sometimes', 'boolean'],
-            'image' => ['required_without:images', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
+            'image' => [
+                'required_without:images',
+                'file',
+                'mimes:jpg,jpeg,png,webp,gif',
+                'max:'.self::MAX_ART_IMAGE_SIZE_KB,
+            ],
             'images' => ['required_without:image', 'array', 'min:1', 'max:10'],
-            'images.*' => ['file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
+            'images.*' => [
+                'file',
+                'mimes:jpg,jpeg,png,webp,gif',
+                'max:'.self::MAX_ART_IMAGE_SIZE_KB,
+            ],
             'image_descriptions' => ['nullable', 'array', 'max:10'],
             'image_descriptions.*' => ['nullable', 'string', 'max:500'],
             'download_files' => ['nullable', 'array', 'max:10'],
             'download_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,gif,zip', 'max:51200'],
-        ]);
+        ], $this->imageValidationMessages());
 
         $art = $this->service->createArt($request->user(), $validated, $request);
 
@@ -59,14 +70,23 @@ class ArtController extends Controller
             'download_policy' => ['sometimes', 'string', 'in:disabled,free,paid'],
             'download_credits' => ['nullable', 'integer', 'min:1', 'max:999'],
             'apply_watermark' => ['sometimes', 'boolean'],
-            'image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
+            'image' => [
+                'nullable',
+                'file',
+                'mimes:jpg,jpeg,png,webp,gif',
+                'max:'.self::MAX_ART_IMAGE_SIZE_KB,
+            ],
             'images' => ['nullable', 'array', 'min:1', 'max:10'],
-            'images.*' => ['file', 'mimes:jpg,jpeg,png,webp,gif', 'max:10240'],
+            'images.*' => [
+                'file',
+                'mimes:jpg,jpeg,png,webp,gif',
+                'max:'.self::MAX_ART_IMAGE_SIZE_KB,
+            ],
             'image_descriptions' => ['nullable', 'array', 'max:10'],
             'image_descriptions.*' => ['nullable', 'string', 'max:500'],
             'download_files' => ['nullable', 'array', 'max:10'],
             'download_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,gif,zip', 'max:51200'],
-        ]);
+        ], $this->imageValidationMessages());
 
         return response()->json($this->service->updateArt($art, $validated, $request));
     }
@@ -96,5 +116,16 @@ class ArtController extends Controller
         $this->service->forceDeleteArt($request->user(), $slug);
 
         return response()->json(['message' => 'Art permanently deleted.']);
+    }
+
+    private function imageValidationMessages(): array
+    {
+        return [
+            'image.max' => 'The image must not be larger than 15 MB.',
+            'images.*.max' => 'Each image must not be larger than 15 MB.',
+            'image.mimes' => 'The image must be a JPG, JPEG, PNG, WEBP, or GIF file.',
+            'images.*.mimes' => 'Each image must be a JPG, JPEG, PNG, WEBP, or GIF file.',
+            'images.max' => 'You may upload a maximum of 10 images.',
+        ];
     }
 }

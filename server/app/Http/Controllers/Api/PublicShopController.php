@@ -42,6 +42,7 @@ class PublicShopController extends Controller
             : collect();
 
         $downloads = ShopItem::query()
+            ->creatorFeatureVisible()
             ->where('status', 'published')
             ->with([
                 'files',
@@ -152,6 +153,7 @@ class PublicShopController extends Controller
         Request $request,
         ShopItem $shopItem
     ): JsonResponse {
+        abort_unless($shopItem->user?->hasCreatorFeature('shop'), 404);
         abort_unless($shopItem->status === 'published', 404);
 
         $user = $request->user('sanctum');
@@ -249,6 +251,7 @@ class PublicShopController extends Controller
         Request $request,
         ShopItem $shopItem
     ): JsonResponse {
+        abort_unless($shopItem->user?->hasCreatorFeature('shop'), 404);
         abort_unless($shopItem->status === 'published', 404);
 
         $user = $request->user('sanctum');
@@ -304,6 +307,7 @@ class PublicShopController extends Controller
         Request $request,
         ShopItem $shopItem
     ): StreamedResponse|BinaryFileResponse|JsonResponse {
+        abort_unless($shopItem->user?->hasCreatorFeature('shop'), 404);
         abort_unless($shopItem->status === 'published', 404);
 
         $user = $request->user('sanctum');
@@ -424,7 +428,10 @@ class PublicShopController extends Controller
         $isCreator = $user
             && (string) $sticker->user_id === (string) $user->id;
 
-        $owned = (bool) ($isCreator || $purchased);
+        // Super-admin stickers are the application's defaults. They are already
+        // in every user's library, matching ArtistStickerLibraryService.
+        $isDefault = $sticker->user?->role === 'super_admin';
+        $owned = (bool) ($isDefault || $isCreator || $purchased);
 
         return [
             'id' => $sticker->id,
@@ -432,9 +439,9 @@ class PublicShopController extends Controller
             'name' => $sticker->name,
             'bundle_name' => $sticker->bundle_name,
             'image_path' => $sticker->image_path,
-            'is_free' => (bool) $sticker->is_free,
+            'is_free' => $isDefault || (bool) $sticker->is_free,
             'credit_cost' => (int) (
-                $sticker->is_free
+                $isDefault || $sticker->is_free
                 ? 0
                 : max(1, $sticker->credit_cost ?? 1)
             ),

@@ -11,18 +11,20 @@
     color-scheme: light;
 
     /* //// typography ---- */
-    --comix-font-family: 'Lexend', sans-serif;
-    --comix-font-display: 'Orbitron', sans-serif;
+    --comix-font-family: 'Roboto', sans-serif;
+    --comix-font-display: 'Roboto', sans-serif;
 
     --font-small: 0.875rem;
     --font-medium: 1.25rem;
     --font-large: 1.5rem;
 
     /* //// brand colors ---- */
-    --comix-accent: #f59e0b;
+    --comix-accent: #ffb14d;
     --comix-blue: #5bb5ff;
-    --comix-badge-type: #f59e0b;
+    --comix-badge-type: #ffb14d;
     --comix-badge-new: #398050;
+    --comix-orange: #ffb14d;
+    --comix-yellow: #ffda65;
 
     /* //// semantic colors ---- */
     --blue: #5bb5ff;
@@ -37,12 +39,12 @@
     --off-white: #f6f7f9;
     --white-hover: #f3f4f6;
 
-    --green: #9ed26d;
-    --green-hover: #8bc455;
-    --green-active: #77b33f;
-    --green-soft: #eef8e5;
-    --green-border: #c6e7a8;
-    --green-ring: rgb(158 210 109 / 35%);
+    --green: #c0e694;
+    --green-hover: #b0dc7d;
+    --green-active: #9bce63;
+    --green-soft: #f3faea;
+    --green-border: #d5edba;
+    --green-ring: rgb(192 230 148 / 35%);
 
     --red: #ff577a;
     --red-hover: #f63e65;
@@ -60,6 +62,32 @@
 
     --black: #181818;
     --black-soft: #242424;
+
+    /* //// selection and category states ---- */
+    --selected: #ffb14d;
+    /* --selected-foreground: #241400; */
+    --selected-foreground: #fcfcfc;
+    --selected-hover: #ffa332;
+    --selected-soft: #fff4e5;
+    --category: #ffda65;
+    --category-foreground: #2b2100;
+    /* --category-foreground: #fcfcfc; */
+    --category-hover: #ffd24a;
+
+    --category-active: var(--selected);
+    --category-active-foreground: var(--selected-foreground);
+
+    /* //// branded page gradients ---- */
+    --gradient-brand: linear-gradient(110deg, #5bb5ff 0%, #dff2ff 42%, #ffffff 72%, #fff4cf 100%);
+    --gradient-brand-soft: linear-gradient(
+        135deg,
+        rgb(91 181 255 / 22%) 0%,
+        rgb(255 255 255 / 96%) 58%,
+        rgb(255 218 101 / 24%) 100%
+    );
+    --gradient-brand-radial:
+        radial-gradient(circle at 10% 10%, rgb(91 181 255 / 34%), transparent 42%),
+        radial-gradient(circle at 92% 12%, rgb(255 218 101 / 28%), transparent 34%), #ffffff;
 
     /* //// yes and no ---- */
     --yes-color: var(--green);
@@ -215,19 +243,43 @@
     --black: #0f0f10;
     --black-soft: #18191b;
 
+    /* //// selection and category states ---- */
+    --selected: #ffb14d;
+    --selected-foreground: #211300;
+    --selected-hover: #ffc06f;
+    --selected-soft: #3b2a18;
+    --category: #c7a943;
+    /* --category-foreground: #171100; */
+    --category-foreground: #e4e4e7;
+    --category-hover: #d9bb52;
+    --category-active: var(--selected);
+    --category-active-foreground: var(--selected-foreground);
+
+    /* //// branded page gradients ---- */
+    --gradient-brand: linear-gradient(110deg, #173a55 0%, #1e2932 44%, #18191b 72%, #342d1b 100%);
+    --gradient-brand-soft: linear-gradient(
+        135deg,
+        rgb(103 188 255 / 20%) 0%,
+        rgb(28 28 29 / 96%) 58%,
+        rgb(255 218 101 / 12%) 100%
+    );
+    --gradient-brand-radial:
+        radial-gradient(circle at 10% 10%, rgb(103 188 255 / 24%), transparent 42%),
+        radial-gradient(circle at 92% 12%, rgb(255 218 101 / 14%), transparent 34%), #151515;
+
     /* //// surfaces ---- */
     --background: #151515;
-    --foreground: #f7f7f8;
+    --foreground: #e4e4e7;
     --surface: #1c1c1d;
     --surface-soft: #202123;
     --surface-muted: #292b2f;
     --surface-raised: #242528;
-    --surface-inverse: #f7f7f8;
+    --surface-inverse: #e4e4e7;
 
     --card: #202123;
-    --card-foreground: #f7f7f8;
+    --card-foreground: #e4e4e7;
     --popover: #242528;
-    --popover-foreground: #f7f7f8;
+    --popover-foreground: #e4e4e7;
 
     /* //// shadcn semantic variables ---- */
     --primary: #67bcff;
@@ -294,6 +346,14 @@
     --color-comix-blue: var(--comix-blue);
     --color-comix-badge-type: var(--comix-badge-type);
     --color-comix-badge-new: var(--comix-badge-new);
+    --color-comix-orange: var(--comix-orange);
+    --color-comix-yellow: var(--comix-yellow);
+    --color-success: var(--green);
+    --color-danger: var(--red);
+    --color-selected: var(--selected);
+    --color-selected-foreground: var(--selected-foreground);
+    --color-category: var(--category);
+    --color-category-foreground: var(--category-foreground);
 
     /* //// semantic colors ---- */
     --color-background: var(--background);
@@ -362,6 +422,104 @@
         font-family: var(--comix-font-family);
     }
 
+    /* Every client route mounts below #root, while Radix menus/dialogs and
+       application portals mount directly below body. Keep both surfaces on
+       the same theme and typography inheritance chain. */
+    #root,
+    body > [data-radix-portal],
+    body > [data-portal-root],
+    body > [role='presentation'] {
+        font-family: var(--comix-font-family);
+        color: var(--foreground);
+    }
+
+    button,
+    input,
+    textarea,
+    select,
+    option,
+    optgroup {
+        font: inherit;
+        color: inherit;
+    }
+
+    /* //// global website typography ----
+       Orbitron owns prominent interface language. Lexend owns readable
+       content, form values, metadata, cards and dialog details. Artist
+       profiles may override both through their scoped profile font theme. */
+    body
+        :where(
+            p,
+            li,
+            dd,
+            dt,
+            blockquote,
+            figcaption,
+            small,
+            input,
+            textarea,
+            select,
+            option,
+            [data-slot='card-content'],
+            [data-slot='card-description'],
+            [data-slot='dialog-description'],
+            [data-slot='sheet-description'],
+            [data-slot='alert-dialog-description'],
+            [data-content],
+            [data-description],
+            [data-metadata]
+        ) {
+        font-family: var(--comix-font-family) !important;
+    }
+
+    body
+        :where(
+            h1,
+            h2,
+            h3,
+            h4,
+            h5,
+            h6,
+            button,
+            label,
+            legend,
+            th,
+            nav a,
+            [role='tab'],
+            [role='button'],
+            [data-slot='button'],
+            [data-slot='tabs-trigger'],
+            [data-slot='card-title'],
+            [data-slot='badge'],
+            [data-slot='dropdown-menu-label'],
+            [data-slot='dropdown-menu-item'],
+            [data-slot='context-menu-item'],
+            [data-slot='menubar-item'],
+            [data-slot='dialog-title'],
+            [data-slot='sheet-title'],
+            [data-slot='alert-dialog-title'],
+            [data-heading],
+            [data-title],
+            [data-ui-label],
+            .font-display
+        ),
+    body
+        :where(
+            button,
+            nav a,
+            [role='tab'],
+            [role='button'],
+            [data-slot='button'],
+            [data-slot='tabs-trigger'],
+            [data-slot='badge'],
+            [data-slot='dropdown-menu-item'],
+            [data-slot='context-menu-item'],
+            [data-slot='menubar-item']
+        )
+        :where(span, strong) {
+        font-family: var(--comix-font-display) !important;
+    }
+
     /* //// app root theme inheritance ---- */
     html,
     body,
@@ -410,11 +568,69 @@
     }
 }
 
+.text-xl {
+    font-size: 1.2rem;
+    line-height: 1.75rem;
+}
+
+.text-2xl {
+    font-size: 1.3rem;
+    line-height: 2rem;
+}
+.text-base {
+    font-size: 0.8rem;
+    line-height: 1.5rem;
+}
+
+.font-medium {
+    font-weight: 500;
+}
+
 /* ==========================================================================
    // component classes ----
    ========================================================================== */
 
 @layer components {
+    /* A selected page-builder background replaces a widget's built-in outer
+       surface. The Default preset does not touch established widget designs. */
+    .widget-background-frame:not([data-background-preset='default']) > section {
+        background: transparent !important;
+    }
+
+    .news-rich-content {
+        font-family: var(--comix-font-family);
+        font-size: 1rem;
+        line-height: 1.85;
+    }
+    .news-rich-content :where(h2, h3, h4) {
+        margin: 1.75em 0 0.6em;
+        font-family: var(--comix-font-display);
+        font-weight: 900;
+        line-height: 1.25;
+    }
+    .news-rich-content h2 {
+        font-size: 1.65rem;
+    }
+    .news-rich-content h3 {
+        font-size: 1.35rem;
+    }
+    .news-rich-content :where(p, ul, ol, blockquote) {
+        margin-block: 1em;
+    }
+    .news-rich-content :where(ul, ol) {
+        padding-left: 1.5rem;
+    }
+    .news-rich-content ul {
+        list-style: disc;
+    }
+    .news-rich-content ol {
+        list-style: decimal;
+    }
+    .news-rich-content blockquote {
+        border-left: 4px solid var(--selected);
+        padding-left: 1rem;
+        color: var(--muted-foreground);
+    }
     /* ==========================================================================
        // sections ----
        ========================================================================== */
@@ -515,6 +731,112 @@
 
     .section-red {
         background: var(--red-soft);
+    }
+
+    /* //// centralized branded backgrounds ---- */
+    .bg-brand-gradient {
+        background: var(--gradient-brand);
+    }
+
+    .bg-brand-gradient-soft {
+        background: var(--gradient-brand-soft);
+    }
+
+    .bg-brand-gradient-radial {
+        background: var(--gradient-brand-radial);
+    }
+
+    /* //// centralized semantic actions ---- */
+    .action-positive {
+        border-color: var(--green);
+        background: var(--green);
+        color: #16320c;
+    }
+
+    .action-positive:hover {
+        border-color: var(--green-hover);
+        background: var(--green-hover);
+    }
+
+    .action-negative {
+        border-color: var(--red);
+        background: var(--red);
+        color: #ffffff;
+    }
+
+    .action-negative:hover {
+        border-color: var(--red-hover);
+        background: var(--red-hover);
+    }
+
+    .is-selected,
+    .selected-control {
+        border-color: var(--selected);
+        background: var(--selected);
+        color: var(--selected-foreground);
+    }
+
+    /* //// shared category rail: shop, commissions, webcomix and novels ---- */
+    .category-list,
+    .category-rail {
+        min-height: 3.75rem;
+        overflow-x: auto;
+        border: 1px solid var(--category-hover);
+        border-radius: var(--radius-xl);
+        background: var(--category);
+        color: var(--category-foreground);
+        box-shadow: var(--shadow-xs);
+        scrollbar-width: none;
+    }
+
+    .category-list::-webkit-scrollbar,
+    .category-rail::-webkit-scrollbar {
+        display: none;
+    }
+
+    .category-rail__inner {
+        display: flex;
+        min-height: 3.75rem;
+        align-items: center;
+        gap: 0.75rem;
+        width: max-content;
+        min-width: 100%;
+        padding: 0.75rem 1rem;
+    }
+
+    .category-control {
+        display: inline-flex;
+        min-height: 2.25rem;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        padding-inline: 1.25rem;
+        border-color: transparent;
+        border-radius: var(--radius-full);
+        background: var(--category);
+        color: var(--category-foreground);
+        font-family: var(--comix-font-display);
+        font-size: 0.875rem;
+        font-weight: 700;
+        line-height: 1;
+        white-space: nowrap;
+        transition:
+            background-color var(--transition-fast),
+            border-color var(--transition-fast),
+            color var(--transition-fast),
+            box-shadow var(--transition-fast);
+    }
+
+    .category-control:hover {
+        background: var(--category-hover);
+    }
+
+    .category-control:is([aria-pressed='true'], [data-active='true'], .active) {
+        border-color: var(--selected);
+        background: var(--category-active);
+        color: var(--category-active-foreground);
+        font-weight: 800;
+        box-shadow: var(--shadow-xs);
     }
 
     /* ==========================================================================
@@ -2147,7 +2469,7 @@ input::-webkit-password-auto-fill-button {
 
 :root {
     /* //// content filter colors ---- */
-    --comix-filter-background: #f7f2ea;
+    --comix-filter-background: var(--category);
     --comix-filter-surface: #ffffff;
     --comix-filter-text: var(--foreground);
     --comix-filter-muted-text: var(--muted-foreground);
@@ -2159,15 +2481,15 @@ input::-webkit-password-auto-fill-button {
     --comix-filter-pill-hover-background: var(--surface-muted);
     --comix-filter-pill-hover-text: var(--foreground);
     --comix-filter-pill-hover-border: var(--border-strong);
-    --comix-filter-active-background: var(--black);
-    --comix-filter-active-text: #ffffff;
-    --comix-filter-active-border: var(--black);
-    --comix-filter-nav-background: var(--black);
-    --comix-filter-nav-border: transparent;
-    --comix-filter-nav-text: rgb(255 255 255 / 60%);
-    --comix-filter-nav-hover-text: rgb(255 255 255 / 88%);
-    --comix-filter-selected-background: #ffffff;
-    --comix-filter-selected-text: var(--black);
+    --comix-filter-active-background: var(--selected);
+    --comix-filter-active-text: var(--selected-foreground);
+    --comix-filter-active-border: var(--selected);
+    --comix-filter-nav-background: var(--category);
+    --comix-filter-nav-border: var(--category-hover);
+    --comix-filter-nav-text: var(--category-foreground);
+    --comix-filter-nav-hover-text: var(--category-foreground);
+    --comix-filter-selected-background: var(--selected);
+    --comix-filter-selected-text: var(--selected-foreground);
     --comix-filter-dropdown-background: var(--popover);
     --comix-filter-dropdown-text: var(--popover-foreground);
     --comix-filter-dropdown-border: var(--border);
@@ -2177,7 +2499,7 @@ input::-webkit-password-auto-fill-button {
 
 .dark {
     /* //// content filter dark colors ---- */
-    --comix-filter-background: var(--surface-soft);
+    --comix-filter-background: var(--category);
     --comix-filter-surface: var(--surface);
     --comix-filter-text: var(--foreground);
     --comix-filter-muted-text: var(--muted-foreground);
@@ -2189,15 +2511,15 @@ input::-webkit-password-auto-fill-button {
     --comix-filter-pill-hover-background: var(--surface-muted);
     --comix-filter-pill-hover-text: var(--foreground);
     --comix-filter-pill-hover-border: var(--border-strong);
-    --comix-filter-active-background: var(--foreground);
-    --comix-filter-active-text: var(--background);
-    --comix-filter-active-border: var(--foreground);
-    --comix-filter-nav-background: var(--surface-raised);
-    --comix-filter-nav-border: var(--border);
-    --comix-filter-nav-text: rgb(255 255 255 / 62%);
-    --comix-filter-nav-hover-text: rgb(255 255 255 / 92%);
-    --comix-filter-selected-background: var(--comix-accent);
-    --comix-filter-selected-text: #ffffff;
+    --comix-filter-active-background: var(--selected);
+    --comix-filter-active-text: var(--selected-foreground);
+    --comix-filter-active-border: var(--selected);
+    --comix-filter-nav-background: var(--category);
+    --comix-filter-nav-border: var(--category-hover);
+    --comix-filter-nav-text: var(--category-foreground);
+    --comix-filter-nav-hover-text: var(--category-foreground);
+    --comix-filter-selected-background: var(--selected);
+    --comix-filter-selected-text: var(--selected-foreground);
     --comix-filter-dropdown-background: var(--popover);
     --comix-filter-dropdown-text: var(--popover-foreground);
     --comix-filter-dropdown-border: var(--border);
